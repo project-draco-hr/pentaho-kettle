@@ -1,0 +1,34 @@
+{
+  if (databases != null) {
+    Database db=new Database(dbMeta);
+    try {
+      db.connect();
+      Row r=db.getTableFields(table_name);
+      ArrayList dbs=new ArrayList();
+      for (int i=0; i < databases.size(); i++)       if (((DatabaseMeta)databases.get(i)).getDatabaseType() != DatabaseMeta.TYPE_DATABASE_SAPR3)       dbs.add(databases.get(i));
+      String conn[]=new String[dbs.size()];
+      for (int i=0; i < conn.length; i++)       conn[i]=((DatabaseMeta)dbs.get(i)).getName();
+      EnterSelectionDialog esd=new EnterSelectionDialog(shell,props,conn,"Target database:","Select the target database:");
+      String target=esd.open();
+      if (target != null) {
+        DatabaseMeta targetdbi=Const.findDatabase(dbs,target);
+        Database targetdb=new Database(targetdbi);
+        String sql=targetdb.getCreateTableStatement(table_name,r,null,false,null,true);
+        SQLEditor se=new SQLEditor(shell,SWT.NONE,dbMeta,dbcache,sql);
+        se.open();
+      }
+    }
+ catch (    KettleDatabaseException dbe) {
+      new ErrorDialog(shell,props,"Error","Couldn't generate the DDL",dbe);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.NONE | SWT.ICON_INFORMATION);
+    mb.setMessage("I'm unable to perform this operation as I don't know the other available connections at this point.");
+    mb.setText("Sorry");
+    mb.open();
+  }
+}

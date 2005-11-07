@@ -1,0 +1,29 @@
+{
+  log.logDebug(toString(),"Delete table: " + name);
+  int pos=0;
+  TableMeta tableinfo=null, look=null;
+  for (int i=0; i < schema.nrTables() && tableinfo == null; i++) {
+    look=schema.getTable(i);
+    if (look.getName().equalsIgnoreCase(name)) {
+      tableinfo=look;
+      pos=i;
+    }
+  }
+  if (tableinfo != null) {
+    schema.removeTable(pos);
+    addUndoDelete(new TableMeta[]{(TableMeta)tableinfo.clone()},new int[]{pos});
+    for (int i=schema.nrRelationships() - 1; i >= 0; i--) {
+      RelationshipMeta ri=schema.getRelationship(i);
+      if (ri.getTableFrom().getName().equalsIgnoreCase(tableinfo.getName()) || ri.getTableTo().getName().equalsIgnoreCase(tableinfo.getName())) {
+        addUndoDelete(new RelationshipMeta[]{(RelationshipMeta)ri.clone()},new int[]{schema.indexOfRelationship(ri)});
+        schema.removeRelationship(i);
+        refreshTree();
+      }
+    }
+    refreshTree();
+    refreshGraph();
+  }
+ else {
+    log.logDebug(toString(),"Couldn't find step [" + name + "] to delete...");
+  }
+}

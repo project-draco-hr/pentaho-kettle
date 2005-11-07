@@ -1,0 +1,78 @@
+{
+  try {
+    String pathAndName=repdir.isRoot() ? repdir + transname : repdir + Const.FILE_SEPARATOR + transname;
+    clear();
+    setName(transname);
+    directory=repdir;
+    directoryTree=directory.findRoot();
+    log.logDetailed(toString(),"Looking for the transformation [" + transname + "] in directory ["+ directory.getPath()+ "]");
+    if (monitor != null)     monitor.subTask("Reading transformation information");
+    setID(rep.getTransformationID(transname,directory.getID()));
+    if (monitor != null)     monitor.worked(1);
+    if (getID() > 0) {
+      long noteids[]=rep.getTransNoteIDs(getID());
+      long stepids[]=rep.getStepIDs(getID());
+      long hopids[]=rep.getTransHopIDs(getID());
+      int nrWork=3 + noteids.length + stepids.length+ hopids.length;
+      if (monitor != null)       monitor.beginTask("Loading transformation " + pathAndName,nrWork);
+      log.logDetailed(toString(),"Loading transformation [" + getName() + "] from repository...");
+      if (monitor != null)       monitor.subTask("Reading the available database from the repository");
+      readDatabases(rep);
+      if (monitor != null)       monitor.worked(1);
+      if (monitor != null)       monitor.subTask("Reading notes...");
+      for (int i=0; i < noteids.length; i++) {
+        NotePadMeta ni=new NotePadMeta(log,rep,noteids[i]);
+        if (indexOfNote(ni) < 0)         addNote(ni);
+        if (monitor != null)         monitor.worked(1);
+      }
+      if (monitor != null)       monitor.subTask("Reading steps...");
+      rep.fillStepAttributesBuffer(getID());
+      for (int i=0; i < stepids.length; i++) {
+        log.logDetailed(toString(),"Loading step with ID: " + stepids[i]);
+        if (monitor != null)         monitor.subTask("Reading step #" + (i + 1) + "/"+ (stepids.length));
+        StepMeta stepMeta=new StepMeta(log,rep,stepids[i],databases,counters);
+        addStep(stepMeta);
+        if (monitor != null)         monitor.worked(1);
+      }
+      if (monitor != null)       monitor.worked(1);
+      rep.setStepAttributesBuffer(null);
+      for (int i=0; i < nrSteps(); i++) {
+        StepMetaInterface sii=getStep(i).getStepMetaInterface();
+        sii.searchInfoAndTargetSteps(steps);
+      }
+      if (monitor != null)       monitor.subTask("Reading the hops");
+      for (int i=0; i < hopids.length; i++) {
+        TransHopMeta hi=new TransHopMeta(rep,hopids[i],steps);
+        addTransHop(hi);
+        if (monitor != null)         monitor.worked(1);
+      }
+      if (monitor != null)       monitor.subTask("Loading the transformation details");
+      loadRepTrans(rep);
+      if (monitor != null)       monitor.worked(1);
+      if (monitor != null)       monitor.subTask("Reading the dependencies");
+      long depids[]=rep.getTransDependencyIDs(getID());
+      for (int i=0; i < depids.length; i++) {
+        TransDependency td=new TransDependency(rep,depids[i],databases);
+        addDependency(td);
+      }
+      if (monitor != null)       monitor.worked(1);
+      if (monitor != null)       monitor.subTask("Sorting steps");
+      sortSteps();
+      if (monitor != null)       monitor.worked(1);
+      if (monitor != null)       monitor.done();
+    }
+ else {
+      throw new KettleException("This transformation doesn't exist : " + name);
+    }
+    log.logDetailed(toString(),"Loaded the transformation [" + transname + "] , directory == null : "+ (directory == null));
+    log.logDetailed(toString(),"Loaded the transformation [" + transname + "] from the directory ["+ directory.getPath()+ "]");
+  }
+ catch (  KettleDatabaseException e) {
+    log.logError(toString(),"A database error occured reading a transformation from the repository" + Const.CR + e);
+    throw new KettleException("A database error occured reading a transformation from the repository",e);
+  }
+catch (  Exception e) {
+    log.logError(toString(),"A database error occured reading a transformation from the repository" + Const.CR + e);
+    throw new KettleException("An error occured reading a transformation from the repository",e);
+  }
+}

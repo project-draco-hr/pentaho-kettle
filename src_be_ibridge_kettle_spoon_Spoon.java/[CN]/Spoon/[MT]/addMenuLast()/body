@@ -1,0 +1,93 @@
+{
+  int idx=msFile.indexOf(miFileSep3);
+  int max=msFile.getItemCount();
+  for (int i=max - 1; i > idx; i--) {
+    MenuItem mi=msFile.getItem(i);
+    mi.dispose();
+  }
+  String lf[]=props.getLastFiles();
+  String ld[]=props.getLastDirs();
+  boolean lt[]=props.getLastTypes();
+  String lr[]=props.getLastRepositories();
+  for (int i=0; i < lf.length; i++) {
+    MenuItem miFileLast=new MenuItem(msFile,SWT.CASCADE);
+    char chr=(char)('1' + i);
+    int accel=SWT.CTRL | chr;
+    String repository=(lr[i] != null && lr[i].length() > 0) ? ("[" + lr[i] + "] ") : "";
+    String filename=Const.FILE_SEPARATOR + lf[i];
+    if (!lt[i])     filename=lf[i];
+    if (!ld[i].equals(Const.FILE_SEPARATOR)) {
+      filename=ld[i] + filename;
+    }
+    if (i < 9) {
+      miFileLast.setAccelerator(accel);
+      miFileLast.setText("&" + chr + "  "+ repository+ filename+ "\tCTRL-"+ chr);
+    }
+ else {
+      miFileLast.setText("   " + repository + filename);
+    }
+    final String fn=lf[i];
+    final String fd=ld[i];
+    final boolean ft=lt[i];
+    final String fr=lr[i];
+    Listener lsFileLast=new Listener(){
+      public void handleEvent(      Event e){
+        if (showChangedWarning()) {
+          boolean noRepository=false;
+          if (ft && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(fr))) {
+            int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
+            RepositoriesDialog rd=new RepositoriesDialog(disp,SWT.NONE,perms,"Spoon");
+            rd.setRepositoryName(fr);
+            if (rd.open()) {
+              if (rep != null)               rep.disconnect();
+              rep=new Repository(log,rd.getRepository(),rd.getUser());
+              if (!rep.connect(APP_NAME)) {
+                rep=null;
+                MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+                mb.setMessage("I was unable to connect to this repository!");
+                mb.setText("Error!");
+                mb.open();
+              }
+            }
+ else {
+              noRepository=true;
+            }
+          }
+          if (ft) {
+            if (!noRepository && rep != null && rep.getRepositoryInfo().getName().equalsIgnoreCase(fr)) {
+              TransLoadProgressDialog tlpd=new TransLoadProgressDialog(shell,rep,fn,rep.getDirectoryTree().findDirectory(fd));
+              TransMeta transInfo=tlpd.open();
+              if (transInfo != null) {
+                transMeta=transInfo;
+                transMeta.clearChanged();
+              }
+            }
+ else {
+              clear();
+              MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+              mb.setMessage("Can't load this transformation.  Please connect to the correct repository first.");
+              mb.setText("Error!");
+              mb.open();
+            }
+          }
+ else {
+            try {
+              transMeta=new TransMeta(fn);
+              transMeta.clearChanged();
+              transMeta.setFilename(fn);
+            }
+ catch (            KettleException ke) {
+              clear();
+              new ErrorDialog(shell,props,"Error loading transformation","I was unable to load this transformation from the XML file because of an error",ke);
+            }
+          }
+          setShellText();
+          refreshTree();
+          refreshGraph();
+        }
+      }
+    }
+;
+    miFileLast.addListener(SWT.Selection,lsFileLast);
+  }
+}

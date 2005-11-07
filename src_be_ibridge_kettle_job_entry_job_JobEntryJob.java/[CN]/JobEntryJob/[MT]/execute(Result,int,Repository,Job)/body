@@ -1,0 +1,42 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=prev_result;
+  result.setEntryNr(nr);
+  LogWriter logwriter=log;
+  if (set_logfile)   logwriter=LogWriter.getInstance(getLogFilename(),true,loglevel);
+  Job job=new Job(logwriter,getName(),getFileName(),arguments);
+  try {
+    job.open(rep,getFileName(),getName(),directory.getPath());
+    job.setJobEntryResults(parentJob.getJobEntryResults());
+    JobEntryJobRunner runner=new JobEntryJobRunner(job,prev_result,nr);
+    new Thread(runner).start();
+    while (!runner.isFinished() && !parentJob.isStopped()) {
+      try {
+        Thread.sleep(100);
+      }
+ catch (      InterruptedException e) {
+      }
+    }
+    if (parentJob.isStopped()) {
+      job.stopAll();
+      runner.waitUntilFinished();
+      job.endProcessing("stop");
+    }
+ else {
+      job.endProcessing("end");
+    }
+    result=runner.getResult();
+  }
+ catch (  KettleException je) {
+    log.logError(toString(),"Unable to open job entry job with name [" + getName() + "]");
+    result.setNrErrors(1);
+  }
+  if (set_logfile)   logwriter.close();
+  if (result.getNrErrors() > 0) {
+    result.setResult(false);
+  }
+ else {
+    result.setResult(true);
+  }
+  return result;
+}

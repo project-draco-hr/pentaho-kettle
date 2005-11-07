@@ -1,0 +1,37 @@
+{
+  Row r, value_part, key_part;
+  data.look=new Hashtable();
+  data.firstrow=null;
+  if (meta.getLookupFromStep() == null) {
+    logError("No lookup step specified.");
+    return false;
+  }
+  logDetailed("Reading from stream [" + meta.getLookupFromStep().getName() + "]");
+  r=getRowFrom(meta.getLookupFromStep().getName());
+  while (r != null) {
+    logRowlevel("Read lookup row: " + r.toString());
+    key_part=new Row();
+    value_part=new Row();
+    for (int i=0; i < meta.getKeylookup().length; i++) {
+      Value keyValue=r.searchValue(meta.getKeylookup()[i]);
+      if (keyValue == null) {
+        throw new KettleStepException("Unable to find field [" + meta.getKeylookup()[i] + "] in the source rows");
+      }
+      key_part.addValue(keyValue);
+    }
+    if (data.keyTypes == null) {
+      data.keyTypes=new Row(key_part);
+    }
+    for (int v=0; v < meta.getValue().length; v++) {
+      Value returnValue=r.searchValue(meta.getValue()[v]);
+      if (returnValue == null) {
+        throw new KettleStepException("Unable to find field [" + meta.getValue()[v] + "] in the source rows");
+      }
+      value_part.addValue(returnValue);
+    }
+    data.look.put(key_part,value_part);
+    if (data.firstrow == null)     data.firstrow=new Row(value_part);
+    r=getRowFrom(meta.getLookupFromStep().getName());
+  }
+  return true;
+}

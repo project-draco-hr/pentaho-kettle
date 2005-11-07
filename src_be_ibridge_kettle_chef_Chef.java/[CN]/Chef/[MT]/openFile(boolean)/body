@@ -1,0 +1,46 @@
+{
+  if (showChangedWarning()) {
+    boolean repository=rep != null;
+    String fname=null;
+    RepositoryDirectory repdir=rep.getDirectoryTree();
+    if (!repository || importfile) {
+      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+      dialog.setFilterPath("C:\\Projects\\kettle\\source\\");
+      dialog.setFilterExtensions(STRING_FILTER_EXT);
+      dialog.setFilterNames(STRING_FILTER_NAMES);
+      fname=dialog.open();
+      if (fname != null) {
+        try {
+          jobMeta=new JobMeta(log,fname);
+          props.addLastFile(Props.TYPE_PROPERTIES_CHEF,fname,null,false,null);
+          addMenuLast();
+        }
+ catch (        KettleXMLException xe) {
+          jobMeta.clear();
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+          mb.setMessage("Error opening : " + fname + Const.CR+ xe.getMessage());
+          mb.setText("Error!");
+          mb.open();
+        }
+      }
+    }
+ else {
+      SelectObjectDialog sod=new SelectObjectDialog(shell,props,rep,false,true,false);
+      fname=sod.open();
+      repdir=sod.getDirectory();
+      if (fname != null && repdir != null) {
+        JobLoadProgressDialog jlpd=new JobLoadProgressDialog(log,props,shell,rep,fname,repdir);
+        JobMeta jobInfo=jlpd.open();
+        if (jobInfo != null) {
+          jobMeta=jobInfo;
+          props.addLastFile(Props.TYPE_PROPERTIES_CHEF,fname,repdir.getPath(),true,rep.getName());
+          addMenuLast();
+        }
+      }
+    }
+    jobMeta.clearChanged();
+    setFilename(fname);
+    refreshGraph();
+    refreshTree(true);
+  }
+}

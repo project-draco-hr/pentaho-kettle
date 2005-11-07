@@ -1,0 +1,106 @@
+{
+  Value value=new Value(field_name,field_type);
+  String null_value=nullif;
+  if (null_value == null) {
+switch (field_type) {
+case Value.VALUE_TYPE_BOOLEAN:
+      null_value=Const.NULL_BOOLEAN;
+    break;
+case Value.VALUE_TYPE_STRING:
+  null_value=Const.NULL_STRING;
+break;
+case Value.VALUE_TYPE_BIGNUMBER:
+null_value=Const.NULL_BIGNUMBER;
+break;
+case Value.VALUE_TYPE_NUMBER:
+null_value=Const.NULL_NUMBER;
+break;
+case Value.VALUE_TYPE_INTEGER:
+null_value=Const.NULL_INTEGER;
+break;
+case Value.VALUE_TYPE_DATE:
+null_value=Const.NULL_DATE;
+break;
+default :
+null_value=Const.NULL_NONE;
+break;
+}
+}
+String null_cmp=Const.rightPad(new StringBuffer(null_value),pol.length());
+if (pol == null || pol.length() == 0 || pol.equalsIgnoreCase(null_cmp)) {
+value.setNull();
+}
+ else if (value.isNumeric()) {
+try {
+StringBuffer strpol=new StringBuffer(pol);
+switch (trim_type) {
+case TextFileInputMeta.TYPE_TRIM_LEFT:
+while (strpol.length() > 0 && strpol.charAt(0) == ' ') strpol.deleteCharAt(0);
+break;
+case TextFileInputMeta.TYPE_TRIM_RIGHT:
+while (strpol.length() > 0 && strpol.charAt(strpol.length() - 1) == ' ') strpol.deleteCharAt(strpol.length() - 1);
+break;
+case TextFileInputMeta.TYPE_TRIM_BOTH:
+while (strpol.length() > 0 && strpol.charAt(0) == ' ') strpol.deleteCharAt(0);
+while (strpol.length() > 0 && strpol.charAt(strpol.length() - 1) == ' ') strpol.deleteCharAt(strpol.length() - 1);
+break;
+default :
+break;
+}
+pol=strpol.toString();
+if (value.isNumber()) {
+if (field_format != null) {
+ldf.applyPattern(field_format);
+if (num_decimal != null && num_decimal.length() >= 1) ldfs.setDecimalSeparator(num_decimal.charAt(0));
+if (num_group != null && num_group.length() >= 1) ldfs.setGroupingSeparator(num_group.charAt(0));
+if (num_currency != null && num_currency.length() >= 1) ldfs.setCurrencySymbol(num_currency);
+ldf.setDecimalFormatSymbols(ldfs);
+}
+value.setValue(ldf.parse(pol).doubleValue());
+}
+ else if (value.isInteger()) {
+value.setValue(Long.parseLong(pol));
+}
+ else if (value.isBigNumber()) {
+value.setValue(new BigDecimal(pol));
+}
+ else {
+throw new KettleValueException("Unknown numeric type: contact vendor!");
+}
+}
+ catch (Exception e) {
+throw (e);
+}
+}
+ else if (value.isString()) {
+value.setValue(pol);
+switch (trim_type) {
+case TextFileInputMeta.TYPE_TRIM_LEFT:
+value.ltrim();
+break;
+case TextFileInputMeta.TYPE_TRIM_RIGHT:
+value.rtrim();
+break;
+case TextFileInputMeta.TYPE_TRIM_BOTH:
+value.trim();
+break;
+default :
+break;
+}
+if (pol.length() == 0) value.setNull();
+}
+ else if (value.isDate()) {
+try {
+if (field_format != null) {
+ldaf.applyPattern(field_format);
+ldaf.setDateFormatSymbols(ldafs);
+}
+value.setValue(ldaf.parse(pol));
+}
+ catch (Exception e) {
+throw (e);
+}
+}
+value.setLength(field_length,field_precision);
+return value;
+}

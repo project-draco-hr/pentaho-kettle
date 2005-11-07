@@ -1,0 +1,67 @@
+{
+  debug="processRow()";
+  Row retval=new Row();
+  retval.setIgnore();
+  try {
+    if (data.workbook == null) {
+      debug="open workbook #" + data.filenr + " : "+ data.files[data.filenr];
+      logDetailed("Opening workbook #" + data.filenr + " : "+ data.files[data.filenr]);
+      data.workbook=Workbook.getWorkbook(new File(data.files[data.filenr]));
+      data.sheetnr=0;
+    }
+    boolean nextsheet=false;
+    debug="Get sheet #" + data.filenr + "."+ data.sheetnr;
+    logDetailed(debug);
+    Sheet sheet=data.workbook.getSheet(meta.getSheetName()[data.sheetnr]);
+    if (sheet != null) {
+      if (data.rownr < 0) {
+        data.rownr=meta.getStartRow()[data.sheetnr];
+        if (meta.startsWithHeader()) {
+          data.rownr++;
+        }
+        debug="startrow = " + data.rownr;
+      }
+      data.colnr=meta.getStartColumn()[data.sheetnr];
+      debug="startcol = " + data.colnr;
+      try {
+        debug="Get line #" + data.rownr + " from sheet #"+ data.filenr+ "."+ data.sheetnr;
+        logRowlevel(debug);
+        Cell line[]=sheet.getRow(data.rownr);
+        logRowlevel("Read line with " + line.length + " cells");
+        Row r=fillRow(data.row,sheet,line,data.colnr,data.rownr);
+        logRowlevel("Converted line to row #" + data.rownr + " : "+ r);
+        data.rownr++;
+        if (line.length > 0 || !meta.ignoreEmptyRows()) {
+          retval=r;
+        }
+        if (line.length == 0 && meta.stopOnEmpty()) {
+          nextsheet=true;
+        }
+      }
+ catch (      ArrayIndexOutOfBoundsException e) {
+        logRowlevel("Out of index error: move to next sheet! (" + debug + ")");
+        nextsheet=true;
+      }
+    }
+ else {
+      nextsheet=true;
+    }
+    if (nextsheet) {
+      data.sheetnr++;
+      data.rownr=-1;
+      data.previousRow=null;
+      if (data.sheetnr >= meta.getSheetName().length) {
+        data.workbook.close();
+        data.workbook=null;
+        data.filenr++;
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError("Error processing row in [" + debug + "] from Excel file ["+ data.files[data.filenr]+ "] : "+ e.toString());
+    setErrors(1);
+    stopAll();
+    return null;
+  }
+  return retval;
+}

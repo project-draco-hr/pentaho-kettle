@@ -1,0 +1,97 @@
+{
+  int idx=msFile.indexOf(miFileSep3);
+  int max=msFile.getItemCount();
+  for (int i=max - 1; i > idx; i--) {
+    MenuItem mi=msFile.getItem(i);
+    mi.dispose();
+  }
+  String lf[]=props.getLastFiles();
+  String ld[]=props.getLastDirs();
+  boolean lt[]=props.getLastTypes();
+  String lr[]=props.getLastRepositories();
+  for (int i=0; i < lf.length; i++) {
+    MenuItem miFileLast=new MenuItem(msFile,SWT.CASCADE);
+    char chr=(char)('1' + i);
+    int accel=SWT.CTRL | chr;
+    String repository=(lr[i] != null && lr[i].length() > 0) ? ("[" + lr[i] + "] ") : "";
+    String filename=Const.FILE_SEPARATOR + lf[i];
+    if (!lt[i])     filename=lf[i];
+    if (!ld[i].equals(Const.FILE_SEPARATOR)) {
+      filename=ld[i] + filename;
+    }
+    if (i < 9) {
+      miFileLast.setAccelerator(accel);
+      miFileLast.setText("&" + chr + "  "+ repository+ filename+ "\tCTRL-"+ chr);
+    }
+ else {
+      miFileLast.setText("   " + repository + filename);
+    }
+    final String fn=lf[i];
+    final String fd=ld[i];
+    final boolean ft=lt[i];
+    final String fr=lr[i];
+    Listener lsFileLast=new Listener(){
+      public void handleEvent(      Event e){
+        if (showChangedWarning()) {
+          boolean noRepository=false;
+          if (ft && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(fr))) {
+            int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_JOB};
+            RepositoriesDialog rd=new RepositoriesDialog(disp,SWT.NONE,perms,APP_NAME);
+            rd.setRepositoryName(fr);
+            if (rd.open()) {
+              if (rep != null)               rep.disconnect();
+              rep=new Repository(log,rd.getRepository(),rd.getUser());
+              if (!rep.connect(APP_NAME)) {
+                rep=null;
+                MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+                mb.setMessage("I was unable to connect to this repository!");
+                mb.setText("Error!");
+                mb.open();
+              }
+            }
+ else {
+              noRepository=true;
+            }
+          }
+          if (ft) {
+            if (!noRepository && rep != null && rep.getRepositoryInfo().getName().equalsIgnoreCase(fr)) {
+              RepositoryDirectory fdRepdir=rep.getDirectoryTree().findDirectory(fd);
+              try {
+                if (fdRepdir != null) {
+                  jobMeta=new JobMeta(log,rep,fn,fdRepdir);
+                }
+ else {
+                  throw new KettleException("The directory specified doesn't exist: " + fd);
+                }
+              }
+ catch (              KettleException ke) {
+                jobMeta.clear();
+                new ErrorDialog(shell,props,"Error loading job","I was unable to load this job from the repository!",ke);
+              }
+            }
+ else {
+              jobMeta.clear();
+              MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+              mb.setMessage("Can't load this job.  Please connect to the correct repository first.");
+              mb.setText("Error!");
+              mb.open();
+            }
+          }
+ else {
+            try {
+              jobMeta=new JobMeta(log,fn);
+            }
+ catch (            KettleException ke) {
+              jobMeta.clear();
+              new ErrorDialog(shell,props,"Error loading job","I was unable to load this job from the XML file!",ke);
+            }
+          }
+          refreshTree();
+          refreshGraph();
+        }
+      }
+    }
+;
+    miFileLast.addListener(SWT.Selection,lsFileLast);
+  }
+}

@@ -1,0 +1,46 @@
+{
+  try {
+    allocate();
+    sendTrueStepname=rep.getStepAttributeString(id_step,"send_true_to");
+    sendFalseStepname=rep.getStepAttributeString(id_step,"send_false_to");
+    long id_condition=rep.getStepAttributeInteger(id_step,0,"id_condition");
+    if (id_condition > 0) {
+      condition=new Condition(rep,id_condition);
+    }
+ else {
+      int nrkeys=rep.countNrStepAttributes(id_step,"compare_name");
+      if (nrkeys == 1) {
+        String key=rep.getStepAttributeString(id_step,0,"compare_name");
+        String comparator=rep.getStepAttributeString(id_step,0,"compare_condition");
+        String value=rep.getStepAttributeString(id_step,0,"compare_value");
+        String field=rep.getStepAttributeString(id_step,0,"compare_field");
+        condition=new Condition();
+        condition.setOperator(Condition.OPERATOR_NONE);
+        condition.setLeftValuename(key);
+        condition.setFunction(Condition.getFunction(comparator));
+        condition.setRightValuename(field);
+        condition.setRightExact(new Value("value",value));
+      }
+ else {
+        condition=new Condition();
+        for (int i=0; i < nrkeys; i++) {
+          String key=rep.getStepAttributeString(id_step,i,"compare_name");
+          String comparator=rep.getStepAttributeString(id_step,i,"compare_condition");
+          String value=rep.getStepAttributeString(id_step,i,"compare_value");
+          String field=rep.getStepAttributeString(id_step,i,"compare_field");
+          Condition subc=new Condition();
+          if (i > 0)           subc.setOperator(Condition.OPERATOR_OR);
+ else           subc.setOperator(Condition.OPERATOR_NONE);
+          subc.setLeftValuename(key);
+          subc.setFunction(Condition.getFunction(comparator));
+          subc.setRightValuename(field);
+          subc.setRightExact(new Value("value",value));
+          condition.addCondition(subc);
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unexpected error reading step information from the repository",e);
+  }
+}

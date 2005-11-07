@@ -1,0 +1,252 @@
+{
+  super(composite,arg1 | SWT.NO_BACKGROUND | SWT.V_SCROLL| SWT.H_SCROLL);
+  widget=this;
+  this.active_condition=co;
+  this.props=pr;
+  this.fields=input_fields;
+  imageAdd=new Image(composite.getDisplay(),getClass().getResourceAsStream(Const.IMAGE_DIRECTORY + "eq_add.png"));
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent arg0){
+      imageAdd.dispose();
+    }
+  }
+);
+  modListeners=new ArrayList();
+  sbVertical=getVerticalBar();
+  sbHorizontal=getHorizontalBar();
+  offsetx=0;
+  offsety=0;
+  maxdrawn=null;
+  size_not=null;
+  size_widget=null;
+  size_cond=null;
+  previous_area=-1;
+  previous_area_nr=-1;
+  parents=new ArrayList();
+  hover_condition=-1;
+  hover_operator=-1;
+  hover_not=false;
+  hover_up=false;
+  hover_left=false;
+  hover_fn=false;
+  hover_rightval=false;
+  hover_rightex=false;
+  getMaxFieldLength();
+  shell=composite.getShell();
+  display=shell.getDisplay();
+  bg=GUIResource.getInstance().getColorBackground();
+  fixed=GUIResource.getInstance().getFontFixed();
+  white=GUIResource.getInstance().getColorWhite();
+  black=GUIResource.getInstance().getColorBlack();
+  red=GUIResource.getInstance().getColorRed();
+  green=GUIResource.getInstance().getColorGreen();
+  blue=GUIResource.getInstance().getColorBlue();
+  gray=GUIResource.getInstance().getColorGray();
+  widget.addPaintListener(new PaintListener(){
+    public void paintControl(    PaintEvent pe){
+      Rectangle r=widget.getBounds();
+      if (r.width > 0 && r.height > 0) {
+        repaint(pe.gc,r.width,r.height);
+      }
+    }
+  }
+);
+  widget.addMouseMoveListener(new MouseMoveListener(){
+    public void mouseMove(    MouseEvent e){
+      Point screen=new Point(e.x,e.y);
+      int area=getAreaCode(screen);
+      int nr=0;
+      boolean need_redraw=false;
+      hover_condition=-1;
+      hover_operator=-1;
+      hover_not=false;
+      hover_up=false;
+      hover_left=false;
+      hover_fn=false;
+      hover_rightval=false;
+      hover_rightex=false;
+      if (area != AREA_ICON_ADD)       setToolTipText(null);
+ else       setToolTipText("Add condition");
+switch (area) {
+case AREA_NOT:
+        hover_not=true;
+      nr=1;
+    break;
+case AREA_UP:
+  hover_up=getLevel() > 0;
+nr=1;
+break;
+case AREA_BACKGROUND:
+break;
+case AREA_SUBCONDITION:
+hover_condition=getNrSubcondition(screen);
+nr=hover_condition;
+break;
+case AREA_OPERATOR:
+hover_operator=getNrOperator(screen);
+nr=hover_operator;
+break;
+case AREA_LEFT:
+hover_left=true;
+nr=1;
+break;
+case AREA_FUNCTION:
+hover_fn=true;
+nr=1;
+break;
+case AREA_RIGHT_VALUE:
+hover_rightval=true;
+nr=1;
+break;
+case AREA_RIGHT_EXACT:
+hover_rightex=true;
+nr=1;
+break;
+case AREA_CONDITION:
+break;
+case AREA_NONE:
+break;
+}
+if (area != previous_area || nr != previous_area_nr) need_redraw=true;
+if (need_redraw) {
+offsetx=-sbHorizontal.getSelection();
+offsety=-sbVertical.getSelection();
+widget.redraw();
+}
+previous_area=area;
+previous_area_nr=nr;
+}
+}
+);
+widget.addMouseListener(new MouseAdapter(){
+public void mouseDown(MouseEvent e){
+Point screen=new Point(e.x,e.y);
+int area=getAreaCode(screen);
+if (e.button == 1) {
+switch (area) {
+case AREA_NOT:
+active_condition.negate();
+widget.redraw();
+break;
+case AREA_OPERATOR:
+{
+int operator=getNrOperator(screen);
+EnterSelectionDialog esd=new EnterSelectionDialog(shell,props,Condition.getRealOperators(),"Operator","Select the operator:");
+Condition selcond=active_condition.getCondition(operator);
+String def=selcond.getOperatorDesc();
+int defnr=esd.getSelectionNr(Const.trim(def));
+String selection=esd.open(defnr);
+if (selection != null) {
+int opnr=Condition.getOperator(selection);
+active_condition.getCondition(operator).setOperator(opnr);
+}
+widget.redraw();
+}
+break;
+case AREA_SUBCONDITION:
+int nr=getNrSubcondition(screen);
+editCondition(nr);
+setMessageString("Level=" + getLevel() + ", Select 'UP' to go up one level");
+redraw();
+break;
+case AREA_UP:
+goUp();
+break;
+case AREA_FUNCTION:
+if (active_condition.isAtomic()) {
+EnterSelectionDialog esd=new EnterSelectionDialog(shell,props,Condition.functions,"Functions","Select the function:");
+String def=active_condition.getFunctionDesc();
+int defnr=esd.getSelectionNr(def);
+String selection=esd.open(defnr);
+if (selection != null) {
+int fnnr=Condition.getFunction(selection);
+active_condition.setFunction(fnnr);
+}
+widget.redraw();
+}
+break;
+case AREA_LEFT:
+if (active_condition.isAtomic() && fields != null) {
+EnterSelectionDialog esd=new EnterSelectionDialog(shell,props,fields.getFieldNamesAndTypes(max_field_length),"Fields","Select a field:");
+String def=active_condition.getLeftValuename();
+int defnr=esd.getSelectionNr(def);
+String selection=esd.open(defnr);
+if (selection != null) {
+Value v=fields.getValue(esd.getSelectionNr());
+active_condition.setLeftValuename(v.getName());
+}
+widget.redraw();
+}
+break;
+case AREA_RIGHT_VALUE:
+if (active_condition.isAtomic() && fields != null) {
+EnterSelectionDialog esd=new EnterSelectionDialog(shell,props,fields.getFieldNamesAndTypes(max_field_length),"Fields","Select a field:");
+String def=active_condition.getLeftValuename();
+int defnr=esd.getSelectionNr(def);
+String selection=esd.open(defnr);
+if (selection != null) {
+Value v=fields.getValue(esd.getSelectionNr());
+active_condition.setRightValuename(v.getName());
+active_condition.setRightExact(null);
+}
+widget.redraw();
+}
+break;
+case AREA_RIGHT_EXACT:
+if (active_condition.isAtomic()) {
+Value v=active_condition.getRightExact();
+if (v == null) {
+Value leftval=fields != null ? fields.searchValue(active_condition.getLeftValuename()) : null;
+if (leftval != null) {
+v=new Value("constant",leftval.getType());
+}
+ else {
+v=new Value("constant",Value.VALUE_TYPE_STRING);
+}
+}
+EnterValueDialog evd=new EnterValueDialog(shell,SWT.NONE,props,v);
+Value newval=evd.open();
+if (newval != null) {
+active_condition.setRightValuename(null);
+active_condition.setRightExact(newval);
+}
+widget.redraw();
+}
+break;
+case AREA_ICON_ADD:
+addCondition();
+break;
+default :
+break;
+}
+}
+if (e.button == 3) {
+setMenu(area,screen);
+}
+}
+public void mouseUp(MouseEvent e){
+}
+}
+);
+sbVertical.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+offsety=-sbVertical.getSelection();
+widget.redraw();
+}
+}
+);
+sbHorizontal.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+offsetx=-sbHorizontal.getSelection();
+widget.redraw();
+}
+}
+);
+widget.addControlListener(new ControlAdapter(){
+public void controlResized(ControlEvent arg0){
+size_widget=widget.getBounds();
+setBars();
+}
+}
+);
+}

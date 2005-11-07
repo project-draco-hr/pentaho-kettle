@@ -1,0 +1,131 @@
+{
+  int i, c;
+  RowSet rs;
+  int nrinput, nroutput;
+  int nrcopies, prevcopies, nextcopies;
+  int disptype;
+  StepMeta stepMeta=transMeta.findStep(stepname);
+  logDetailed("Starting allocation of buffers & new threads...");
+  nrinput=transMeta.findNrPrevSteps(stepMeta,true);
+  nroutput=transMeta.findNrNextSteps(stepMeta);
+  input=new ArrayList();
+  output=new ArrayList();
+  prev=new StepMeta[nrinput];
+  next=new StepMeta[nroutput];
+  in_handling=0;
+  logDetailed("Step info: nrinput=" + nrinput + " nroutput="+ nroutput);
+  for (i=0; i < nrinput; i++) {
+    prev[i]=transMeta.findPrevStep(stepMeta,i,true);
+    logDetailed("Got previous step from [" + stepname + "] #"+ i+ " --> "+ prev[i].getName());
+    prevcopies=prev[i].getCopies();
+    nextcopies=stepMeta.getCopies();
+    logDetailed("input rel is  " + prevcopies + ":"+ nextcopies);
+    if (prevcopies == 1 && nextcopies == 1) {
+      disptype=Trans.TYPE_DISP_1_1;
+      nrcopies=1;
+    }
+ else     if (prevcopies == 1 && nextcopies > 1) {
+      disptype=Trans.TYPE_DISP_1_N;
+      nrcopies=1;
+    }
+ else     if (prevcopies > 1 && nextcopies == 1) {
+      disptype=Trans.TYPE_DISP_N_1;
+      nrcopies=prevcopies;
+    }
+ else     if (prevcopies == nextcopies) {
+      disptype=Trans.TYPE_DISP_N_N;
+      nrcopies=1;
+    }
+ else {
+      log.logError(toString(),"Only 1-1, 1-n, n-1 and n-n relationships are allowed!");
+      log.logError(toString(),"This means you can't have x-y relationships!");
+      setErrors(1);
+      stopAll();
+      return;
+    }
+    for (c=0; c < nrcopies; c++) {
+      rs=null;
+switch (disptype) {
+case Trans.TYPE_DISP_1_1:
+        rs=trans.findRowSet(prev[i].getName(),0,stepname,0);
+      break;
+case Trans.TYPE_DISP_1_N:
+    rs=trans.findRowSet(prev[i].getName(),0,stepname,getCopy());
+  break;
+case Trans.TYPE_DISP_N_1:
+rs=trans.findRowSet(prev[i].getName(),c,stepname,0);
+break;
+case Trans.TYPE_DISP_N_N:
+rs=trans.findRowSet(prev[i].getName(),getCopy(),stepname,getCopy());
+break;
+}
+if (rs != null) {
+input.add(rs);
+logDetailed("Found input rowset [" + rs.getName() + "]");
+}
+ else {
+logError("Unable to find input rowset!");
+setErrors(1);
+stopAll();
+return;
+}
+}
+}
+for (i=0; i < nroutput; i++) {
+next[i]=transMeta.findNextStep(stepMeta,i);
+prevcopies=stepMeta.getCopies();
+nextcopies=next[i].getCopies();
+logDetailed("output rel. is  " + prevcopies + ":"+ nextcopies);
+if (prevcopies == 1 && nextcopies == 1) {
+disptype=Trans.TYPE_DISP_1_1;
+nrcopies=1;
+}
+ else if (prevcopies == 1 && nextcopies > 1) {
+disptype=Trans.TYPE_DISP_1_N;
+nrcopies=nextcopies;
+}
+ else if (prevcopies > 1 && nextcopies == 1) {
+disptype=Trans.TYPE_DISP_N_1;
+nrcopies=1;
+}
+ else if (prevcopies == nextcopies) {
+disptype=Trans.TYPE_DISP_N_N;
+nrcopies=1;
+}
+ else {
+log.logError(toString(),"Only 1-1, 1-n, n-1 and n-n relationships are allowed!");
+log.logError(toString(),"This means you can't have x-y relationships!");
+setErrors(1);
+stopAll();
+return;
+}
+for (c=0; c < nrcopies; c++) {
+rs=null;
+switch (disptype) {
+case Trans.TYPE_DISP_1_1:
+rs=trans.findRowSet(stepname,0,next[i].getName(),0);
+break;
+case Trans.TYPE_DISP_1_N:
+rs=trans.findRowSet(stepname,0,next[i].getName(),c);
+break;
+case Trans.TYPE_DISP_N_1:
+rs=trans.findRowSet(stepname,getCopy(),next[i].getName(),0);
+break;
+case Trans.TYPE_DISP_N_N:
+rs=trans.findRowSet(stepname,getCopy(),next[i].getName(),getCopy());
+break;
+}
+if (rs != null) {
+output.add(rs);
+logDetailed("Found output rowset [" + rs.getName() + "]");
+}
+ else {
+logError("Unable to find output rowset!");
+setErrors(1);
+stopAll();
+return;
+}
+}
+}
+logDetailed("Finished dispatching");
+}

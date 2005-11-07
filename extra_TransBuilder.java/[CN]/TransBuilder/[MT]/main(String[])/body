@@ -1,0 +1,31 @@
+{
+  LogWriter log=LogWriter.getInstance("TransBuilder.log",true,LogWriter.LOG_LEVEL_DETAILED);
+  StepLoader stloader=StepLoader.getInstance();
+  if (!stloader.read()) {
+    log.logError("TransBuilder","Error loading Kettle steps & plugins... stopping now!");
+    return;
+  }
+  String fileName="NewTrans.xml";
+  String transformationName="Test Transformation";
+  String sourceDatabaseName="source";
+  String sourceTableName="Customer";
+  String sourceFields[]={"customernr","Name","firstname","lang","sex","street","housnr","bus","zipcode","location","country","date_of_birth"};
+  String targetDatabaseName="target";
+  String targetTableName="Cust";
+  String targetFields[]={"CustNo","LastName","FirstName","Lang","gender","Street","Housno","busno","ZipCode","City","Country","BirthDate"};
+  TransMeta transMeta=TransBuilder.buildCopyTable(transformationName,sourceDatabaseName,sourceTableName,sourceFields,targetDatabaseName,targetTableName,targetFields);
+  String xml=transMeta.getXML();
+  DataOutputStream dos=new DataOutputStream(new FileOutputStream(new File(fileName)));
+  dos.write(xml.getBytes("UTF-8"));
+  dos.close();
+  System.out.println("Saved transformation to file: " + fileName);
+  String sql=transMeta.getSQLStatementsString();
+  Database targetDatabase=new Database(transMeta.findDatabase(targetDatabaseName));
+  targetDatabase.connect();
+  targetDatabase.execStatements(sql);
+  Trans trans=new Trans(log,transMeta);
+  trans.execute(null);
+  trans.waitUntilFinished();
+  targetDatabase.execStatement("drop table " + targetTableName);
+  targetDatabase.disconnect();
+}

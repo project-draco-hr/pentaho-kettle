@@ -1,0 +1,85 @@
+{
+  int i, f;
+  int smallest;
+  Row r1, r2;
+  Row retval;
+  String filename;
+  debug="start";
+  if (data.files.size() > 0 && (data.dis.size() == 0 || data.fis.size() == 0)) {
+    debug="initialize";
+    logBasic("Opening " + data.files.size() + " tmp-files...");
+    try {
+      for (f=0; f < data.files.size(); f++) {
+        filename=((File)data.files.get(f)).toString();
+        debug="opening file " + filename;
+        logDetailed("Opening tmp-file: [" + filename + "]");
+        FileInputStream fi=new FileInputStream((File)data.files.get(f));
+        DataInputStream di=new DataInputStream(fi);
+        data.fis.add(fi);
+        data.dis.add(di);
+        int buffersize=di.readInt();
+        debug="buffersize = " + buffersize;
+        logDetailed("[" + filename + "] expecting "+ buffersize+ " rows...");
+        if (buffersize > 0) {
+          data.rowbuffer.add(new Row(di));
+        }
+      }
+    }
+ catch (    Exception e) {
+      logError("Error reading back tmp-files in step [" + debug + "] : "+ e.toString());
+    }
+  }
+  if (data.files.size() == 0) {
+    if (data.buffer.size() > 0) {
+      retval=(Row)data.buffer.get(0);
+      data.buffer.remove(0);
+    }
+ else {
+      retval=null;
+    }
+  }
+ else {
+    if (data.rowbuffer.size() == 0)     retval=null;
+ else {
+      for (i=0; i < data.rowbuffer.size(); i++) {
+        Row b=(Row)data.rowbuffer.get(i);
+        logRowlevel("--BR#" + i + ": "+ b.toString());
+      }
+      smallest=0;
+      r1=(Row)data.rowbuffer.get(smallest);
+      for (f=1; f < data.rowbuffer.size(); f++) {
+        r2=(Row)data.rowbuffer.get(f);
+        if (r2 != null && r2.compare(r1,data.fieldnrs,meta.getAscending()) < 0) {
+          smallest=f;
+          r1=(Row)data.rowbuffer.get(smallest);
+        }
+      }
+      retval=r1;
+      data.rowbuffer.remove(smallest);
+      logRowlevel("Smallest row selected on [" + smallest + "] : "+ retval);
+      File file=(File)data.files.get(smallest);
+      DataInputStream di=(DataInputStream)data.dis.get(smallest);
+      FileInputStream fi=(FileInputStream)data.fis.get(smallest);
+      try {
+        data.rowbuffer.add(smallest,new Row(di));
+      }
+ catch (      KettleFileException fe) {
+        try {
+          di.close();
+          fi.close();
+          file.delete();
+        }
+ catch (        IOException e) {
+          logError("Unable to close/delete file #" + smallest + " --> "+ file.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+        data.files.remove(smallest);
+        data.dis.remove(smallest);
+        data.fis.remove(smallest);
+      }
+    }
+  }
+  return retval;
+}

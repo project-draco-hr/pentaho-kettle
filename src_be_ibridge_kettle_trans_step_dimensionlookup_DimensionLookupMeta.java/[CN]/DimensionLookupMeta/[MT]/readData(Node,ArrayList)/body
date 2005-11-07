@@ -1,0 +1,47 @@
+{
+  try {
+    String upd;
+    int nrkeys, nrfields;
+    String commit;
+    tableName=XMLHandler.getTagValue(stepnode,"table");
+    String con=XMLHandler.getTagValue(stepnode,"connection");
+    database=Const.findDatabase(databases,con);
+    commit=XMLHandler.getTagValue(stepnode,"commit");
+    commitSize=Const.toInt(commit,0);
+    upd=XMLHandler.getTagValue(stepnode,"update");
+    if (upd.equalsIgnoreCase("Y"))     update=true;
+ else     update=false;
+    Node fields=XMLHandler.getSubNode(stepnode,"fields");
+    nrkeys=XMLHandler.countNodes(fields,"key");
+    nrfields=XMLHandler.countNodes(fields,"field");
+    allocate(nrkeys,nrfields);
+    for (int i=0; i < nrkeys; i++) {
+      Node knode=XMLHandler.getSubNodeByNr(fields,"key",i);
+      keyStream[i]=XMLHandler.getTagValue(knode,"name");
+      keyLookup[i]=XMLHandler.getTagValue(knode,"lookup");
+    }
+    Node dnode=XMLHandler.getSubNode(fields,"date");
+    dateField=XMLHandler.getTagValue(dnode,"name");
+    dateFrom=XMLHandler.getTagValue(dnode,"from");
+    dateTo=XMLHandler.getTagValue(dnode,"to");
+    for (int i=0; i < nrfields; i++) {
+      Node fnode=XMLHandler.getSubNodeByNr(fields,"field",i);
+      fieldStream[i]=XMLHandler.getTagValue(fnode,"name");
+      fieldLookup[i]=XMLHandler.getTagValue(fnode,"lookup");
+      upd=XMLHandler.getTagValue(fnode,"update");
+      fieldUpdate[i]=getUpdateType(update,upd);
+    }
+    if (update) {
+      sequenceName=XMLHandler.getTagValue(stepnode,"sequence");
+    }
+    maxYear=Const.toInt(XMLHandler.getTagValue(stepnode,"max_year"),Const.MAX_YEAR);
+    minYear=Const.toInt(XMLHandler.getTagValue(stepnode,"min_year"),Const.MIN_YEAR);
+    keyField=XMLHandler.getTagValue(fields,"return","name");
+    keyRename=XMLHandler.getTagValue(fields,"return","rename");
+    autoIncrement=!"N".equalsIgnoreCase(XMLHandler.getTagValue(fields,"return","use_autoinc"));
+    versionField=XMLHandler.getTagValue(fields,"return","version");
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException("Unable to load step info from XML",e);
+  }
+}

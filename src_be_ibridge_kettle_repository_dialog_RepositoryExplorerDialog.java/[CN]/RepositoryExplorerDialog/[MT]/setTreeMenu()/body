@@ -1,0 +1,323 @@
+{
+  Menu mTree=new Menu(shell,SWT.POP_UP);
+  final TreeItem tisel[]=wTree.getSelection();
+  if (tisel.length == 1 || sameCategory(tisel)) {
+    final TreeItem ti=tisel[0];
+    final int level=Const.getTreeLevel(ti);
+    final String path[]=Const.getTreeStrings(ti);
+    final String item=ti.getText();
+    int cat=getItemCategory(ti);
+switch (cat) {
+case ITEM_CATEGORY_OBJECTS:
+{
+        MenuItem miExp=new MenuItem(mTree,SWT.PUSH);
+        miExp.setText("&Export all objects to an XML file");
+        SelectionAdapter lsExp=new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            exportAll();
+          }
+        }
+;
+        miExp.addSelectionListener(lsExp);
+        MenuItem miImp=new MenuItem(mTree,SWT.PUSH);
+        miImp.setText("&Import all objects from an XML file");
+        SelectionAdapter lsImp=new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            importAll();
+          }
+        }
+;
+        miImp.addSelectionListener(lsImp);
+        miImp.setEnabled(!userinfo.isReadonly());
+        MenuItem miTrans=new MenuItem(mTree,SWT.PUSH);
+        miTrans.setText("&Export transformations");
+        SelectionAdapter lsTrans=new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            exportTransformations();
+          }
+        }
+;
+        miTrans.addSelectionListener(lsTrans);
+        MenuItem miJobs=new MenuItem(mTree,SWT.PUSH);
+        miJobs.setText("&Export Jobs");
+        SelectionAdapter lsJobs=new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            exportJobs();
+          }
+        }
+;
+        miJobs.addSelectionListener(lsJobs);
+      }
+    break;
+case ITEM_CATEGORY_DATABASES_ROOT:
+{
+    MenuItem miNew=new MenuItem(mTree,SWT.PUSH);
+    miNew.setText("&New database");
+    SelectionAdapter lsNew=new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        newDatabase();
+      }
+    }
+;
+    miNew.addSelectionListener(lsNew);
+    miNew.setEnabled(!userinfo.isReadonly());
+  }
+break;
+case ITEM_CATEGORY_DATABASE:
+{
+MenuItem miNew=new MenuItem(mTree,SWT.PUSH);
+miNew.setText("&New database");
+SelectionAdapter lsNew=new SelectionAdapter(){
+  public void widgetSelected(  SelectionEvent e){
+    newDatabase();
+  }
+}
+;
+miNew.addSelectionListener(lsNew);
+miNew.setEnabled(!userinfo.isReadonly());
+MenuItem miEdit=new MenuItem(mTree,SWT.PUSH);
+miEdit.setText("&Edit database");
+SelectionAdapter lsEdit=new SelectionAdapter(){
+  public void widgetSelected(  SelectionEvent e){
+    editDatabase(item);
+  }
+}
+;
+miEdit.addSelectionListener(lsEdit);
+miEdit.setEnabled(!userinfo.isReadonly());
+MenuItem miDel=new MenuItem(mTree,SWT.PUSH);
+miDel.setText("&Delete database");
+SelectionAdapter lsDel=new SelectionAdapter(){
+  public void widgetSelected(  SelectionEvent e){
+    delDatabase(item);
+  }
+}
+;
+miDel.addSelectionListener(lsDel);
+miDel.setEnabled(!userinfo.isReadonly());
+}
+break;
+case ITEM_CATEGORY_TRANSFORMATIONS_ROOT:
+break;
+case ITEM_CATEGORY_TRANSFORMATION:
+if (level >= 3) {
+String realpath[]=new String[level - 3];
+for (int i=0; i < realpath.length; i++) realpath[i]=path[i + 3];
+final RepositoryDirectory repdir=rep.getDirectoryTree().findDirectory(realpath);
+MenuItem miOpen=new MenuItem(mTree,SWT.PUSH);
+miOpen.setText("&Open transformation");
+miOpen.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+openTransformation(item,repdir);
+}
+}
+);
+MenuItem miDel=new MenuItem(mTree,SWT.PUSH);
+miDel.setText("&Delete transformation");
+miDel.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+delSelectedTransformations();
+}
+}
+);
+miDel.setEnabled(!userinfo.isReadonly());
+MenuItem miRen=new MenuItem(mTree,SWT.PUSH);
+miRen.setText("&Rename transformation \tF2");
+miRen.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+renameTransformation(item,repdir);
+}
+}
+);
+miRen.setEnabled(!userinfo.isReadonly());
+}
+break;
+case ITEM_CATEGORY_JOB_DIRECTORY:
+case ITEM_CATEGORY_SCHEMA_DIRECTORY:
+case ITEM_CATEGORY_TRANSFORMATION_DIRECTORY:
+if (level >= 3) {
+String realpath[]=new String[level - 2];
+for (int i=0; i < realpath.length; i++) realpath[i]=path[i + 3];
+final RepositoryDirectory repdir=rep.getDirectoryTree().findDirectory(realpath);
+MenuItem miCreate=new MenuItem(mTree,SWT.PUSH);
+miCreate.setText("&Create directory");
+miCreate.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+createDirectory(ti,repdir);
+}
+}
+);
+if (level > 3) {
+MenuItem miRename=new MenuItem(mTree,SWT.PUSH);
+miRename.setText("&Rename directory");
+miRename.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+renameDirectory(ti,repdir);
+}
+}
+);
+MenuItem miDelete=new MenuItem(mTree,SWT.PUSH);
+miDelete.setText("&Delete directory");
+miDelete.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+delDirectory(ti,repdir);
+}
+}
+);
+}
+}
+break;
+case ITEM_CATEGORY_JOBS_ROOT:
+break;
+case ITEM_CATEGORY_JOB:
+{
+String realpath[]=new String[level - 3];
+for (int i=0; i < realpath.length; i++) realpath[i]=path[i + 3];
+final RepositoryDirectory repdir=rep.getDirectoryTree().findDirectory(realpath);
+MenuItem miDel=new MenuItem(mTree,SWT.PUSH);
+miDel.setText("&Delete job");
+miDel.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+if (delJob(item,repdir)) ti.dispose();
+}
+}
+);
+miDel.setEnabled(!userinfo.isReadonly());
+MenuItem miRen=new MenuItem(mTree,SWT.PUSH);
+miRen.setText("&Rename job \tF2");
+miRen.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+renameJob(ti,item,repdir);
+}
+}
+);
+miRen.setEnabled(!userinfo.isReadonly());
+}
+break;
+case ITEM_CATEGORY_SCHEMAS_ROOT:
+break;
+case ITEM_CATEGORY_SCHEMA:
+break;
+case ITEM_CATEGORY_USERS_ROOT:
+{
+mTree=new Menu(shell,SWT.POP_UP);
+MenuItem miNew=new MenuItem(mTree,SWT.PUSH);
+miNew.setText("&New user");
+SelectionAdapter lsNew=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+newUser();
+}
+}
+;
+miNew.addSelectionListener(lsNew);
+miNew.setEnabled(!userinfo.isReadonly());
+}
+break;
+case ITEM_CATEGORY_USER:
+{
+MenuItem miNew=new MenuItem(mTree,SWT.PUSH);
+miNew.setText("&New user");
+SelectionAdapter lsNew=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+newUser();
+}
+}
+;
+miNew.addSelectionListener(lsNew);
+miNew.setEnabled(!userinfo.isReadonly());
+MenuItem miEdit=new MenuItem(mTree,SWT.PUSH);
+miEdit.setText("&Edit user");
+SelectionAdapter lsEdit=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+editUser(item);
+}
+}
+;
+miEdit.addSelectionListener(lsEdit);
+miEdit.setEnabled(!userinfo.isReadonly());
+MenuItem miRen=new MenuItem(mTree,SWT.PUSH);
+miRen.setText("&Rename user");
+SelectionAdapter lsRen=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+renameUser();
+}
+}
+;
+miRen.addSelectionListener(lsRen);
+miRen.setEnabled(!userinfo.isReadonly());
+MenuItem miDel=new MenuItem(mTree,SWT.PUSH);
+miDel.setText("&Delete user");
+SelectionAdapter lsDel=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+delUser(item);
+}
+}
+;
+miDel.addSelectionListener(lsDel);
+miDel.setEnabled(!userinfo.isReadonly());
+}
+break;
+case ITEM_CATEGORY_PROFILES_ROOT:
+{
+MenuItem miNew=new MenuItem(mTree,SWT.PUSH);
+miNew.setText("&New profile");
+SelectionAdapter lsNew=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+newProfile();
+}
+}
+;
+miNew.addSelectionListener(lsNew);
+miNew.setEnabled(!userinfo.isReadonly());
+}
+break;
+case ITEM_CATEGORY_PROFILE:
+{
+MenuItem miNew=new MenuItem(mTree,SWT.PUSH);
+miNew.setText("&New profile");
+SelectionAdapter lsNew=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+newProfile();
+}
+}
+;
+miNew.addSelectionListener(lsNew);
+miNew.setEnabled(!userinfo.isReadonly());
+MenuItem miEdit=new MenuItem(mTree,SWT.PUSH);
+miEdit.setText("&Edit profile");
+SelectionAdapter lsEdit=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+editProfile(item);
+}
+}
+;
+miEdit.addSelectionListener(lsEdit);
+miEdit.setEnabled(!userinfo.isReadonly());
+MenuItem miRen=new MenuItem(mTree,SWT.PUSH);
+miRen.setText("&Rename profile");
+SelectionAdapter lsRen=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+renameProfile();
+}
+}
+;
+miRen.addSelectionListener(lsRen);
+miRen.setEnabled(!userinfo.isReadonly());
+MenuItem miDel=new MenuItem(mTree,SWT.PUSH);
+miDel.setText("&Delete profile");
+SelectionAdapter lsDel=new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+delProfile(item);
+}
+}
+;
+miDel.addSelectionListener(lsDel);
+miDel.setEnabled(!userinfo.isReadonly());
+}
+break;
+default :
+mTree=null;
+}
+}
+wTree.setMenu(mTree);
+}

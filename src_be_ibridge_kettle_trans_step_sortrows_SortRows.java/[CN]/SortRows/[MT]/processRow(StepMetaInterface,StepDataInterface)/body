@@ -1,0 +1,35 @@
+{
+  Row r=null;
+  boolean err=true;
+  int i;
+  r=getRow();
+  if (first && r != null) {
+    first=false;
+    data.fieldnrs=new int[meta.getFieldName().length];
+    for (i=0; i < meta.getFieldName().length; i++) {
+      data.fieldnrs[i]=r.searchValueIndex(meta.getFieldName()[i]);
+      if (data.fieldnrs[i] < 0) {
+        logError("Sort field [" + meta.getFieldName()[i] + "] not found!");
+        setOutputDone();
+        return false;
+      }
+    }
+  }
+  err=addBuffer(r);
+  if (!err) {
+    setOutputDone();
+    return false;
+  }
+  if (r == null) {
+    r=getBuffer();
+    while (r != null) {
+      logRowlevel("Read row: " + r.toString());
+      putRow(r);
+      r=getBuffer();
+    }
+    setOutputDone();
+    return false;
+  }
+  if ((linesRead > 0) && (linesRead % Const.ROWS_UPDATE) == 0)   logBasic("Linenr " + linesRead);
+  return true;
+}

@@ -1,0 +1,49 @@
+{
+  meta=(JoinRowsMeta)smi;
+  data=(JoinRowsData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      data.caching=true;
+      data.filenr=1;
+      for (int i=0; i < input.size(); i++) {
+        RowSet rs=(RowSet)input.get(i);
+        if (rs.getOriginStepName().equalsIgnoreCase(meta.getMainStepname())) {
+          RowSet zero=(RowSet)input.get(0);
+          input.set(0,rs);
+          input.set(i,zero);
+        }
+      }
+      data.file=new File[input.size()];
+      data.fileInputStream=new FileInputStream[input.size()];
+      data.dataInputStream=new DataInputStream[input.size()];
+      data.size=new int[input.size()];
+      data.row=new Row[input.size()];
+      data.joinrow=new Row[input.size()];
+      data.rs=new RowSet[input.size()];
+      data.cache=new ArrayList[input.size()];
+      data.position=new int[input.size()];
+      data.fileOutputStream=new FileOutputStream[input.size()];
+      data.dataOutputStream=new DataOutputStream[input.size()];
+      data.restart=new boolean[input.size()];
+      for (int i=1; i < input.size(); i++) {
+        String directoryName=Const.replEnv(meta.getDirectory());
+        data.file[i]=File.createTempFile(meta.getPrefix(),".tmp",new File(directoryName));
+        data.file[i].deleteOnExit();
+        data.size[i]=0;
+        data.rs[i]=(RowSet)input.get(i);
+        data.cache[i]=null;
+        data.row[i]=null;
+        data.position[i]=0;
+        data.dataInputStream[i]=null;
+        data.dataOutputStream[i]=null;
+        data.joinrow[i]=null;
+        data.restart[i]=false;
+      }
+      return true;
+    }
+ catch (    IOException e) {
+      logError("Error creating temporary file(s) : " + e.toString());
+    }
+  }
+  return false;
+}

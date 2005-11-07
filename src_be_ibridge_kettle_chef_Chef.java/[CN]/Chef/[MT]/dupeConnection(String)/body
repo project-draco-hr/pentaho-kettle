@@ -1,0 +1,29 @@
+{
+  int i, pos=0;
+  DatabaseMeta db=null, look=null;
+  for (i=0; i < jobMeta.nrDatabases() && db == null; i++) {
+    look=jobMeta.getDatabase(i);
+    if (look.getName().equalsIgnoreCase(name)) {
+      db=look;
+      pos=i;
+    }
+  }
+  if (db != null) {
+    DatabaseMeta newdb=(DatabaseMeta)db.clone();
+    String dupename="(copy of) " + name;
+    newdb.setName(dupename);
+    jobMeta.addDatabase(pos + 1,newdb);
+    refreshTree();
+    DatabaseDialog con=new DatabaseDialog(shell,SWT.NONE,log,newdb,props);
+    String newname=con.open();
+    if (newname != null) {
+      jobMeta.removeDatabase(pos + 1);
+      jobMeta.addDatabase(pos + 1,newdb);
+      if (!newname.equalsIgnoreCase(dupename))       refreshTree();
+    }
+ else {
+      addUndoNew(new DatabaseMeta[]{(DatabaseMeta)db.clone()},new int[]{jobMeta.indexOfDatabase(db)});
+      saveConnection(db);
+    }
+  }
+}

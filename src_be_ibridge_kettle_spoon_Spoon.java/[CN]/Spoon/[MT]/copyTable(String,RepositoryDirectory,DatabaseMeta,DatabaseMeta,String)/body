@@ -1,0 +1,72 @@
+{
+  try {
+    TransMeta ti=new TransMeta();
+    ti.setName(transname);
+    ti.setDirectory(repdir);
+    ti.setDatabases(transMeta.getDatabases());
+    String note="Reads information from table [" + tablename + "] on database ["+ sourceDBInfo+ "]"+ Const.CR;
+    note+="After that, it writes the information to table [" + tablename + "] on database ["+ targetDBInfo+ "]";
+    NotePadMeta ni=new NotePadMeta(note,150,10,-1,-1);
+    ti.addNote(ni);
+    String fromstepname="read from [" + tablename + "]";
+    TableInputMeta tii=new TableInputMeta();
+    tii.setDatabaseMeta(sourceDBInfo);
+    tii.setSQL("SELECT * FROM " + tablename);
+    StepLoader steploader=StepLoader.getInstance();
+    String fromstepid=steploader.getStepPluginID(tii);
+    StepMeta fromstep=new StepMeta(log,fromstepid,fromstepname,(StepMetaInterface)tii);
+    fromstep.setLocation(150,100);
+    fromstep.setDraw(true);
+    fromstep.setDescription("Reads information from table [" + tablename + "] on database ["+ sourceDBInfo+ "]");
+    ti.addStep(fromstep);
+    Database sourceDB=new Database(sourceDBInfo);
+    sourceDB.connect();
+    Row fields=sourceDB.getTableFields(tablename);
+    int nrReserved=targetDBInfo.getNrReservedWords(fields);
+    if (nrReserved > 0) {
+      SelectValuesMeta svi=new SelectValuesMeta();
+      svi.allocate(0,0,nrReserved);
+      int nr=0;
+      for (int i=0; i < fields.size(); i++) {
+        Value v=fields.getValue(i);
+        if (targetDBInfo.isReservedWord(v.getName())) {
+          svi.getMetaName()[nr]=v.getName();
+          svi.getMetaRename()[nr]=targetDBInfo.quoteField(v.getName());
+          nr++;
+        }
+      }
+      String selstepname="Handle reserved words";
+      String selstepid=steploader.getStepPluginID(svi);
+      StepMeta selstep=new StepMeta(log,selstepid,selstepname,(StepMetaInterface)svi);
+      selstep.setLocation(350,100);
+      selstep.setDraw(true);
+      selstep.setDescription("Renames reserved words for " + targetDBInfo.getDatabaseTypeDesc());
+      ti.addStep(selstep);
+      TransHopMeta shi=new TransHopMeta(fromstep,selstep);
+      ti.addTransHop(shi);
+      fromstep=selstep;
+    }
+    String tostepname="write to [" + tablename + "]";
+    TableOutputMeta toi=new TableOutputMeta();
+    toi.setDatabase(targetDBInfo);
+    toi.setTablename(tablename);
+    toi.setCommitSize(200);
+    toi.setTruncateTable(true);
+    String tostepid=steploader.getStepPluginID(toi);
+    StepMeta tostep=new StepMeta(log,tostepid,tostepname,(StepMetaInterface)toi);
+    tostep.setLocation(550,100);
+    tostep.setDraw(true);
+    tostep.setDescription("Write information to table [" + tablename + "] on database ["+ targetDBInfo+ "]");
+    ti.addStep(tostep);
+    TransHopMeta hi=new TransHopMeta(fromstep,tostep);
+    ti.addTransHop(hi);
+    transMeta=ti;
+    refreshGraph();
+    refreshTree(true);
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,props,"Unexpected error","An unexpected error occurred creating the new transformation",new KettleException(e.getMessage(),e));
+    return false;
+  }
+  return true;
+}

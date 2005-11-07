@@ -1,0 +1,45 @@
+{
+  this();
+  try {
+    Row r=rep.getDatabase(id_database);
+    if (r != null) {
+      long id_database_type=r.getInteger("ID_DATABASE_TYPE",0);
+      String dbTypeDesc=rep.getDatabaseTypeCode(id_database_type);
+      if (dbTypeDesc != null) {
+        databaseInterface=getDatabaseInterface(dbTypeDesc);
+        setAttributes(new Properties());
+      }
+ else {
+        throw new KettleException("No database type was specified [id_database_type=" + id_database_type + "]");
+      }
+      setID(id_database);
+      setName(r.getString("NAME",""));
+      long id_database_contype=r.getInteger("ID_DATABASE_CONTYPE",0);
+      setAccessType(getAccessType(rep.getDatabaseConTypeCode(id_database_contype)));
+      setHostname(r.getString("HOST_NAME",""));
+      setDBName(r.getString("DATABASE_NAME",""));
+      setDBPort((int)r.getInteger("PORT",-1L));
+      setUsername(r.getString("USERNAME",""));
+      setPassword(r.getString("PASSWORD",""));
+      setServername(r.getString("SERVERNAME",""));
+      setDataTablespace(r.getString("DATA_TBS",""));
+      setIndexTablespace(r.getString("INDEX_TBS",""));
+      if (getPassword() != null && getPassword().startsWith("Encrypted ")) {
+        setPassword(Encr.decryptPassword(getPassword().substring(10)));
+      }
+ else {
+        setPassword(Encr.decryptPassword(getPassword()));
+      }
+      long ids[]=rep.getDatabaseAttributeIDs(id_database);
+      for (int i=0; i < ids.length; i++) {
+        Row row=rep.getDatabaseAttribute(ids[i]);
+        String code=row.getString("CODE","");
+        String attribute=row.getString("VALUE_STR","");
+        getAttributes().put(code,Const.NVL(attribute,""));
+      }
+    }
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleException("Error loading database connection from repository (id_database=" + id_database + ")",dbe);
+  }
+}

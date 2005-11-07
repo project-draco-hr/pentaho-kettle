@@ -1,0 +1,407 @@
+{
+  final int mousex=x;
+  final int mousey=y;
+  final StepMeta stepMeta=spoon.transMeta.getStep(x,y,iconsize);
+  if (stepMeta != null) {
+    Menu mPop=new Menu((Control)this);
+    MenuItem miNewHop=null;
+    MenuItem miHideStep=null;
+    int sels=spoon.transMeta.nrSelectedSteps();
+    if (sels == 2) {
+      miNewHop=new MenuItem(mPop,SWT.CASCADE);
+      miNewHop.setText("New hop");
+    }
+    MenuItem miEditStep=new MenuItem(mPop,SWT.CASCADE);
+    miEditStep.setText("Edit step");
+    MenuItem miEditDesc=new MenuItem(mPop,SWT.CASCADE);
+    miEditDesc.setText("Edit step description");
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPopDC=new MenuItem(mPop,SWT.CASCADE);
+    miPopDC.setText("Data movement...");
+    Menu mPopDC=new Menu(miPopDC);
+    MenuItem miStepDist=new MenuItem(mPopDC,SWT.CASCADE | SWT.CHECK);
+    miStepDist.setText("Distribute data to next steps");
+    MenuItem miStepCopy=new MenuItem(mPopDC,SWT.CASCADE | SWT.CHECK);
+    miStepCopy.setText("Copy data to next steps");
+    miPopDC.setMenu(mPopDC);
+    if (stepMeta.distributes)     miStepDist.setSelection(true);
+ else     miStepCopy.setSelection(true);
+    MenuItem miCopies=new MenuItem(mPop,SWT.CASCADE);
+    miCopies.setText("Change number of copies to start...");
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miCopyStep=new MenuItem(mPop,SWT.CASCADE);
+    miCopyStep.setText("Copy to clipboard\tCTRL-C");
+    MenuItem miDupeStep=new MenuItem(mPop,SWT.CASCADE);
+    miDupeStep.setText("Duplicate step");
+    MenuItem miDelStep=new MenuItem(mPop,SWT.CASCADE);
+    miDelStep.setText("Delete step\tDEL");
+    if (stepMeta.isDrawn() && !spoon.transMeta.isStepUsedInTransHops(stepMeta)) {
+      miHideStep=new MenuItem(mPop,SWT.CASCADE);
+      miHideStep.setText("Hide step");
+      miHideStep.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          for (int i=0; i < spoon.transMeta.nrSteps(); i++) {
+            StepMeta sti=spoon.transMeta.getStep(i);
+            if (sti.isDrawn() && sti.isSelected()) {
+              sti.hideStep();
+              spoon.refreshTree();
+            }
+          }
+          stepMeta.hideStep();
+          spoon.refreshTree();
+          redraw();
+        }
+      }
+);
+    }
+    if (spoon.transMeta.isStepUsedInTransHops(stepMeta)) {
+      MenuItem miDetach=new MenuItem(mPop,SWT.CASCADE);
+      miDetach.setText("Detach step");
+      miDetach.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          detach(stepMeta);
+          selected_steps=null;
+        }
+      }
+);
+    }
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPopFieldsBef=new MenuItem(mPop,SWT.CASCADE);
+    miPopFieldsBef.setText("Show input fields");
+    MenuItem miPopFieldsAft=new MenuItem(mPop,SWT.CASCADE);
+    miPopFieldsAft.setText("Show output fields");
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPopAD=new MenuItem(mPop,SWT.CASCADE);
+    miPopAD.setText("Allign / Distribute");
+    Menu mPopAD=new Menu(miPopAD);
+    MenuItem miPopALeft=new MenuItem(mPopAD,SWT.CASCADE);
+    miPopALeft.setText("Allign left\tCTRL-LEFT");
+    MenuItem miPopARight=new MenuItem(mPopAD,SWT.CASCADE);
+    miPopARight.setText("Allign right\tCTRL-RIGHT");
+    MenuItem miPopATop=new MenuItem(mPopAD,SWT.CASCADE);
+    miPopATop.setText("Allign top\tCTRL-UP");
+    MenuItem miPopABottom=new MenuItem(mPopAD,SWT.CASCADE);
+    miPopABottom.setText("Allign bottom\tCTRL-DOWN");
+    new MenuItem(mPopAD,SWT.SEPARATOR);
+    MenuItem miPopDHoriz=new MenuItem(mPopAD,SWT.CASCADE);
+    miPopDHoriz.setText("Distribute horizontally\tALT-RIGHT");
+    MenuItem miPopDVertic=new MenuItem(mPopAD,SWT.CASCADE);
+    miPopDVertic.setText("Distribute vertically\tALT-UP");
+    new MenuItem(mPopAD,SWT.SEPARATOR);
+    MenuItem miPopSSnap=new MenuItem(mPopAD,SWT.CASCADE);
+    miPopSSnap.setText("Snap to grid (size " + Const.GRID_SIZE + ")\tALT-HOME");
+    miPopAD.setMenu(mPopAD);
+    miPopALeft.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        allignleft();
+      }
+    }
+);
+    miPopARight.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        allignright();
+      }
+    }
+);
+    miPopATop.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        alligntop();
+      }
+    }
+);
+    miPopABottom.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        allignbottom();
+      }
+    }
+);
+    miPopDHoriz.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        distributehorizontal();
+      }
+    }
+);
+    miPopDVertic.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        distributevertical();
+      }
+    }
+);
+    miPopSSnap.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        snaptogrid(Const.GRID_SIZE);
+      }
+    }
+);
+    if (sels <= 1) {
+      miPopAD.setEnabled(false);
+    }
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPreview=new MenuItem(mPop,SWT.CASCADE);
+    miPreview.setText("Check selected steps");
+    miPreview.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        spoon.checkTrans(true);
+      }
+    }
+);
+    if (sels == 2) {
+      miNewHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selected_steps=null;
+          newHop();
+        }
+      }
+);
+    }
+    miEditStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        editStep(stepMeta);
+      }
+    }
+);
+    miEditDesc.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        editDescription(stepMeta);
+      }
+    }
+);
+    miStepDist.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        stepMeta.distributes=true;
+        spoon.refreshGraph();
+        spoon.refreshTree();
+      }
+    }
+);
+    miStepCopy.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        stepMeta.distributes=false;
+        spoon.refreshGraph();
+        spoon.refreshTree();
+      }
+    }
+);
+    miCopies.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        String tt="Nr of copies of step...";
+        String mt="Number of copies (1 or higher)";
+        EnterNumberDialog nd=new EnterNumberDialog(shell,spoon.props,stepMeta.getCopies(),tt,mt);
+        int cop=nd.open();
+        if (cop >= 0) {
+          if (cop == 0)           cop=1;
+          if (stepMeta.getCopies() != cop) {
+            stepMeta.setCopies(cop);
+            spoon.refreshGraph();
+          }
+        }
+      }
+    }
+);
+    miDupeStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        if (spoon.transMeta.nrSelectedSteps() <= 1) {
+          spoon.dupeStep(stepMeta.getName());
+        }
+ else {
+          for (int i=0; i < spoon.transMeta.nrSteps(); i++) {
+            StepMeta stepMeta=spoon.transMeta.getStep(i);
+            if (stepMeta.isSelected()) {
+              spoon.dupeStep(stepMeta.getName());
+            }
+          }
+        }
+      }
+    }
+);
+    miCopyStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        spoon.copySelected(spoon.transMeta.getSelectedSteps(),spoon.transMeta.getSelectedNotes());
+      }
+    }
+);
+    miDelStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        delSelected(stepMeta);
+      }
+    }
+);
+    miPopFieldsBef.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        inputOutputFields(stepMeta,true);
+      }
+    }
+);
+    miPopFieldsAft.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        inputOutputFields(stepMeta,false);
+      }
+    }
+);
+    setMenu(mPop);
+  }
+ else {
+    final TransHopMeta hi=findHop(x,y);
+    if (hi != null) {
+      Menu mPop=new Menu((Control)this);
+      MenuItem miEditHop=new MenuItem(mPop,SWT.CASCADE);
+      miEditHop.setText("Edit hop");
+      MenuItem miFlipHop=new MenuItem(mPop,SWT.CASCADE);
+      miFlipHop.setText("Flip direction");
+      MenuItem miDisHop=new MenuItem(mPop,SWT.CASCADE);
+      if (hi.isEnabled())       miDisHop.setText("Disable hop");
+ else       miDisHop.setText("Enable hop");
+      MenuItem miDelHop=new MenuItem(mPop,SWT.CASCADE);
+      miDelHop.setText("Delete hop");
+      miEditHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          editHop(hi);
+        }
+      }
+);
+      miFlipHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          hi.flip();
+          if (spoon.transMeta.hasLoop(hi.getFromStep())) {
+            spoon.refreshGraph();
+            MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
+            mb.setMessage("This hop flip causes a loop!  Loops are not allowed.");
+            mb.setText("Warning!");
+            mb.open();
+            hi.flip();
+            spoon.refreshGraph();
+          }
+ else {
+            hi.setChanged();
+            spoon.refreshGraph();
+            spoon.refreshTree();
+            spoon.setShellText();
+          }
+        }
+      }
+);
+      miDisHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          TransHopMeta before=(TransHopMeta)hi.clone();
+          hi.setEnabled(!hi.isEnabled());
+          if (spoon.transMeta.hasLoop(hi.getToStep())) {
+            hi.setEnabled(!hi.isEnabled());
+            MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+            mb.setMessage("I couldn't enable the hop because it would cause a loop in the transformation.");
+            mb.setText("Loop warning!");
+            mb.open();
+          }
+ else {
+            TransHopMeta after=(TransHopMeta)hi.clone();
+            spoon.addUndoChange(new TransHopMeta[]{before},new TransHopMeta[]{after},new int[]{spoon.transMeta.indexOfTransHop(hi)});
+            spoon.refreshGraph();
+            spoon.refreshTree();
+          }
+        }
+      }
+);
+      miDelHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          int idx=spoon.transMeta.indexOfTransHop(hi);
+          spoon.addUndoDelete(new TransHopMeta[]{(TransHopMeta)hi.clone()},new int[]{idx});
+          spoon.transMeta.removeTransHop(idx);
+          spoon.refreshTree();
+          spoon.refreshGraph();
+        }
+      }
+);
+      setMenu(mPop);
+    }
+ else {
+      final NotePadMeta ni=spoon.transMeta.getNote(x,y);
+      if (ni != null) {
+        Menu mPop=new Menu((Control)this);
+        MenuItem miNoteEdit=new MenuItem(mPop,SWT.CASCADE);
+        miNoteEdit.setText("Edit note");
+        MenuItem miNoteDel=new MenuItem(mPop,SWT.CASCADE);
+        miNoteDel.setText("Delete note");
+        miNoteEdit.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            selrect=null;
+            editNote(ni);
+          }
+        }
+);
+        miNoteDel.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            selrect=null;
+            int idx=spoon.transMeta.indexOfNote(ni);
+            if (idx >= 0) {
+              spoon.transMeta.removeNote(idx);
+              spoon.addUndoDelete(new NotePadMeta[]{(NotePadMeta)ni.clone()},new int[]{idx});
+              redraw();
+            }
+          }
+        }
+);
+        setMenu(mPop);
+      }
+ else {
+        Menu mPop=new Menu((Control)this);
+        MenuItem miNoteNew=new MenuItem(mPop,SWT.CASCADE);
+        miNoteNew.setText("New &note");
+        miNoteNew.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            selrect=null;
+            String title="Notes";
+            String message="Note text:";
+            EnterTextDialog dd=new EnterTextDialog(shell,spoon.props,title,message,"");
+            String n=dd.open();
+            if (n != null) {
+              NotePadMeta npi=new NotePadMeta(n,lastclick.x,lastclick.y,Const.NOTE_MIN_SIZE,Const.NOTE_MIN_SIZE);
+              spoon.transMeta.addNote(npi);
+              spoon.addUndoNew(new NotePadMeta[]{npi},new int[]{spoon.transMeta.indexOfNote(npi)});
+              redraw();
+            }
+          }
+        }
+);
+        MenuItem miStepNew=new MenuItem(mPop,SWT.CASCADE);
+        miStepNew.setText("New &step ...");
+        Menu mStep=new Menu(miStepNew);
+        StepLoader steploader=StepLoader.getInstance();
+        final StepPlugin sp[]=steploader.getStepsWithType(StepPlugin.TYPE_ALL);
+        for (int i=0; i < sp.length; i++) {
+          MenuItem miStepX=new MenuItem(mStep,SWT.CASCADE);
+          miStepX.setText(sp[i].getDescription());
+          final String description=sp[i].getDescription();
+          miStepX.addSelectionListener(new SelectionAdapter(){
+            public void widgetSelected(            SelectionEvent e){
+              StepMeta stepMeta=spoon.newStep(description,description,false,true);
+              stepMeta.setLocation(mousex,mousey);
+              stepMeta.setDraw(true);
+              redraw();
+            }
+          }
+);
+        }
+        MenuItem miPasteStep=new MenuItem(mPop,SWT.CASCADE);
+        miPasteStep.setText("&Paste from clipboard\tCTRL-V");
+        final String clipcontent=spoon.fromClipboard();
+        if (clipcontent == null)         miPasteStep.setEnabled(false);
+        miPasteStep.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            Point loc=new Point(mousex,mousey);
+            spoon.pasteXML(clipcontent,loc);
+          }
+        }
+);
+        miStepNew.setMenu(mStep);
+        setMenu(mPop);
+      }
+    }
+  }
+}

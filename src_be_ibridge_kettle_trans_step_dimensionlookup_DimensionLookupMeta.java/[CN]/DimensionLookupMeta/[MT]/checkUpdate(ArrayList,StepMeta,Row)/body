@@ -1,0 +1,156 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  CheckResult cr;
+  String error_message="";
+  if (database != null) {
+    Database db=new Database(database);
+    try {
+      db.connect();
+      if (tableName != null && tableName.length() != 0) {
+        boolean first=true;
+        boolean error_found=false;
+        error_message="";
+        Row r=db.getTableFields(tableName);
+        if (r != null) {
+          for (int i=0; i < fieldLookup.length; i++) {
+            String lufield=fieldLookup[i];
+            log.logDebug(toString(),"Check lookupfield #" + i + " --> "+ lufield+ " in lookup table...");
+            Value v=r.searchValue(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+="Missing compare fields in target table:" + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All lookup fields found in the dimension table.",stepinfo);
+          }
+          remarks.add(cr);
+          if (keyField != null && keyField.length() > 0) {
+            if (r.searchValueIndex(keyField) < 0) {
+              error_message="Technical key [" + keyField + "] not found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="Technical key [" + keyField + "] found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+          }
+ else {
+            error_message="Please specify a fieldname to store the technical/surrogate key of the dimension in." + Const.CR;
+            remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo));
+          }
+          if (versionField != null && versionField.length() > 0) {
+            if (r.searchValueIndex(versionField) < 0) {
+              error_message="Version field [" + versionField + "] not found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="Version field [" + versionField + "] found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+          }
+ else {
+            error_message="Please specify a fieldname to store the version of the dimension entry in." + Const.CR;
+            remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo));
+          }
+          if (dateFrom != null && dateFrom.length() > 0) {
+            if (r.searchValueIndex(dateFrom) < 0) {
+              error_message="Start of daterange field [" + dateFrom + "] not found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="Start of daterange field [" + dateFrom + "] found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+          }
+ else {
+            error_message="Please specify a fieldname to store the start of the date range of the dimension entry in." + Const.CR;
+            remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo));
+          }
+          if (dateTo != null && dateTo.length() > 0) {
+            if (r.searchValueIndex(dateTo) < 0) {
+              error_message="End of daterange field [" + dateTo + "] not found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="End of daterange field [" + dateTo + "] found in target dimension table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+          }
+ else {
+            error_message="Please specify a fieldname to store the end of the date range of the dimension entry in." + Const.CR;
+            remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo));
+          }
+        }
+ else {
+          error_message="Couldn't read the table info, please check the table-name & permissions.";
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < fieldStream.length; i++) {
+          log.logDebug(toString(),"Check field #" + i + " --> "+ fieldStream[i]+ ", in inputstream from previous steps");
+          Value v=prev.searchValue(fieldStream[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+="Missing fields, not found in input from previous steps:" + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + fieldStream[i] + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All fields found in the input stream.",stepinfo);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message="Couldn't read fields from the previous step." + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        remarks.add(cr);
+      }
+      if (database.supportsSequences() && sequenceName != null && sequenceName.length() != 0) {
+        Value last=db.checkSequence(sequenceName);
+        if (last != null) {
+          error_message="No problem reading sequence " + sequenceName + ", it's at value "+ last;
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+          remarks.add(cr);
+        }
+ else {
+          error_message+="Error reading sequence " + sequenceName + "!";
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+      }
+    }
+ catch (    KettleException e) {
+      error_message="Couldn't connect to database, please check the connection: " + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+      remarks.add(cr);
+    }
+  }
+ else {
+    error_message="Please select a connection name!";
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+}

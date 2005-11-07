@@ -1,0 +1,66 @@
+{
+  int i;
+  boolean OK=true;
+  transMeta.setReadStep(transMeta.findStep(wReadStep.getText()));
+  transMeta.setWriteStep(transMeta.findStep(wWriteStep.getText()));
+  transMeta.setInputStep(transMeta.findStep(wInputStep.getText()));
+  transMeta.setOutputStep(transMeta.findStep(wOutputStep.getText()));
+  transMeta.setUpdateStep(transMeta.findStep(wUpdateStep.getText()));
+  transMeta.setLogConnection(transMeta.findDatabase(wLogconnection.getText()));
+  transMeta.setLogTable(wLogtable.getText());
+  transMeta.setMaxDateConnection(transMeta.findDatabase(wMaxdateconnection.getText()));
+  transMeta.setMaxDateTable(wMaxdatetable.getText());
+  transMeta.setMaxDateField(wMaxdatefield.getText());
+  transMeta.setBatchIdUsed(wBatch.getSelection());
+  transMeta.setLogfieldUsed(wLogfield.getSelection());
+  transMeta.setName(wTransname.getText());
+  try {
+    transMeta.setMaxDateOffset(Double.parseDouble(wMaxdateoffset.getText()));
+  }
+ catch (  Exception e) {
+    MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+    mb.setText("Not a number!");
+    mb.setMessage("The offset number could not be parsed!");
+    mb.open();
+    wMaxdateoffset.setFocus();
+    wMaxdateoffset.selectAll();
+    OK=false;
+  }
+  try {
+    transMeta.setMaxDateDifference(Double.parseDouble(wMaxdatediff.getText()));
+  }
+ catch (  Exception e) {
+    MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+    mb.setText("Not a number!");
+    mb.setMessage("The date difference number could not be parsed!");
+    mb.open();
+    wMaxdatediff.setFocus();
+    wMaxdatediff.selectAll();
+    OK=false;
+  }
+  transMeta.removeAllDependencies();
+  for (i=0; i < wFields.nrNonEmpty(); i++) {
+    TableItem item=wFields.getNonEmpty(i);
+    DatabaseMeta db=transMeta.findDatabase(item.getText(1));
+    String tablename=item.getText(2);
+    String fieldname=item.getText(3);
+    TransDependency td=new TransDependency(db,tablename,fieldname);
+    transMeta.addDependency(td);
+  }
+  transMeta.setSizeRowset(Const.toInt(wSizeRowset.getText(),Const.ROWS_IN_ROWSET));
+  if (newDirectory != null) {
+    RepositoryDirectory dirFrom=transMeta.getDirectory();
+    long idDirFrom=dirFrom == null ? -1L : dirFrom.getID();
+    try {
+      rep.moveTransformation(transMeta.getName(),idDirFrom,newDirectory.getID());
+      log.logDetailed(getClass().getName(),"Moved directory to [" + newDirectory.getPath() + "]");
+      transMeta.setDirectory(newDirectory);
+    }
+ catch (    KettleException ke) {
+      transMeta.setDirectory(dirFrom);
+      OK=false;
+      new ErrorDialog(shell,props,"Error moving transformation","There was an error moving the transformation to another directory!",ke);
+    }
+  }
+  if (OK)   dispose();
+}

@@ -1,0 +1,77 @@
+{
+  try {
+    rep.lockRepository();
+    rep.clearNextIDCounters();
+    if (directory.getID() < 0) {
+      throw new KettleException("Please select a valid directory before saving the transformation!");
+    }
+    int nrWorks=2 + nrDatabases() + nrNotes()+ nrSteps()+ nrTransHops();
+    if (monitor != null)     monitor.beginTask("Saving transformation " + getPathAndName(),nrWorks);
+    log.logDebug(toString(),"Saving of transofmation started.");
+    if (monitor != null)     monitor.subTask("Handling old version of transformation (if any)...");
+    setID(rep.getTransformationID(getName(),directory.getID()));
+    if (getID() <= 0) {
+      setID(rep.getNextTransformationID());
+    }
+ else {
+      if (monitor != null)       monitor.subTask("deleting old version of transformation...");
+      log.logDebug(toString(),"deleting old version of transformation...");
+      rep.delAllFromTrans(getID());
+      log.logDebug(toString(),"Old version of transformation removed.");
+    }
+    if (monitor != null)     monitor.worked(1);
+    log.logDebug(toString(),"Saving notes...");
+    for (int i=0; i < nrNotes(); i++) {
+      if (monitor != null)       monitor.subTask("Saving note #" + (i + 1) + "/"+ nrNotes());
+      NotePadMeta ni=getNote(i);
+      ni.saveRep(rep,getID());
+      if (ni.getID() > 0)       rep.insertTransNote(getID(),ni.getID());
+      if (monitor != null)       monitor.worked(1);
+    }
+    log.logDebug(toString(),"Saving database connections...");
+    for (int i=0; i < nrDatabases(); i++) {
+      if (monitor != null)       monitor.subTask("Saving database #" + (i + 1) + "/"+ nrDatabases());
+      DatabaseMeta ci=getDatabase(i);
+      ci.saveRep(rep);
+      if (monitor != null)       monitor.worked(1);
+    }
+    log.logDebug(toString(),"Checking step types...");
+    rep.updateStepTypes();
+    log.logDebug(toString(),"Saving steps...");
+    for (int i=0; i < nrSteps(); i++) {
+      if (monitor != null)       monitor.subTask("Saving step #" + (i + 1) + "/"+ nrSteps());
+      StepMeta stepMeta=getStep(i);
+      stepMeta.saveRep(rep,getID());
+      if (monitor != null)       monitor.worked(1);
+    }
+    rep.closeStepAttributeInsertPreparedStatement();
+    log.logDebug(toString(),"Saving hops...");
+    for (int i=0; i < nrTransHops(); i++) {
+      if (monitor != null)       monitor.subTask("Saving hop #" + (i + 1) + "/"+ nrTransHops());
+      TransHopMeta hi=getTransHop(i);
+      hi.saveRep(rep,getID());
+      if (monitor != null)       monitor.worked(1);
+    }
+    if (monitor != null)     monitor.subTask("finishing...");
+    log.logDebug(toString(),"Saving transformation info...");
+    saveRepTrans(rep);
+    log.logDebug(toString(),"Saving dependencies...");
+    for (int i=0; i < nrDependencies(); i++) {
+      TransDependency td=getDependency(i);
+      td.saveRep(rep,getID());
+    }
+    log.logDebug(toString(),"Saving finished...");
+    rep.commit();
+    clearChanged();
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null)     monitor.done();
+  }
+ catch (  KettleDatabaseException dbe) {
+    rep.rollback();
+    log.logError(toString(),"Error saving transformation to repository!" + Const.CR + dbe.getMessage());
+    throw new KettleException("Error saving transformation to repository!",dbe);
+  }
+ finally {
+    rep.unlockRepository();
+  }
+}

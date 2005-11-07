@@ -1,0 +1,86 @@
+{
+  SQLStatement retval=new SQLStatement(stepMeta.getName(),database,null);
+  if (database != null) {
+    if (prev != null && prev.size() > 0) {
+      if (tablename != null && tablename.length() > 0) {
+        Database db=new Database(database);
+        try {
+          db.connect();
+          Row fields=new Row();
+          Value vkeyfield=new Value(technicalKeyField,Value.VALUE_TYPE_INTEGER);
+          vkeyfield.setLength(10,0);
+          fields.addValue(vkeyfield);
+          if (useHash && hashField != null && hashField.length() > 0) {
+            Value vhashfield=new Value(hashField,Value.VALUE_TYPE_INTEGER);
+            vhashfield.setLength(15,0);
+            fields.addValue(vhashfield);
+          }
+          for (int i=0; i < keyLookup.length; i++) {
+            String error_fields="";
+            Value vkey=prev.searchValue(keyLookup[i]);
+            if (vkey != null) {
+              fields.addValue(vkey);
+            }
+ else {
+              if (error_fields.length() > 0)               error_fields+=", ";
+              error_fields+=keyLookup[i];
+            }
+            if (error_fields.length() > 0) {
+              retval.setError("Can't find fields : " + error_fields);
+            }
+          }
+          String cr_table=db.getDDL(tablename,fields,(sequenceFrom != null && sequenceFrom.length() == 0) ? technicalKeyField : null,useAutoinc,null,true);
+          String cr_index="";
+          String idx_fields[]=null;
+          if (useHash) {
+            if (hashField != null && hashField.length() > 0) {
+              idx_fields=new String[]{hashField};
+            }
+ else {
+              retval.setError("No hashfield is specified.  Please enter a name for the hashfield.");
+            }
+          }
+ else {
+            if (keyLookup != null && keyLookup.length > 0) {
+              int nrfields=keyLookup.length;
+              if (nrfields > 32 && database.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) {
+                nrfields=32;
+              }
+              idx_fields=new String[nrfields];
+              for (int i=0; i < nrfields; i++)               idx_fields[i]=keyLookup[i];
+            }
+ else {
+              retval.setError("No fields are specified.  Please specify the fields to combine in this table.");
+            }
+          }
+          if (idx_fields != null && idx_fields.length > 0 && !db.checkIndexExists(tablename,idx_fields)) {
+            String indexname="idx_" + tablename + "_lookup";
+            cr_index=db.getCreateIndexStatement(tablename,indexname,idx_fields,false,false,false,true);
+            cr_index+=Const.CR;
+          }
+          String cr_seq="";
+          if ((database.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) && sequenceFrom != null && sequenceFrom.length() > 0) {
+            if (!db.checkSequenceExists(sequenceFrom)) {
+              cr_seq+=db.getCreateSequenceStatement(sequenceFrom,1L,1L,-1L,true);
+              cr_seq+=Const.CR;
+            }
+          }
+          retval.setSQL(cr_table + cr_index + cr_seq);
+        }
+ catch (        KettleException e) {
+          retval.setError("An error occurred: " + Const.CR + e.getMessage());
+        }
+      }
+ else {
+        retval.setError("No table is defined on this connection.");
+      }
+    }
+ else {
+      retval.setError("Not receiving any fields from previous steps. Check the previous steps for errors & the connecting hops.");
+    }
+  }
+ else {
+    retval.setError("There is no connection defined in this step.");
+  }
+  return retval;
+}

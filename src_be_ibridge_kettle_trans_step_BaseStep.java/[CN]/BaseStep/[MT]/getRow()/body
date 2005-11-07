@@ -1,0 +1,43 @@
+{
+  int sleeptime;
+  int switches;
+  RowSet in=currentInputStream();
+  switches=0;
+  sleeptime=Const.SLEEP_EMPTY_NANOS;
+  while (in.isEmpty() && !stopped) {
+    if (in.isDone()) {
+      input.remove(in_handling);
+      if (input.size() == 0) {
+        return null;
+      }
+    }
+    nextInputStream();
+    in=currentInputStream();
+    switches++;
+    if (switches >= input.size()) {
+      switches=0;
+      try {
+        sleep(0,sleeptime);
+      }
+ catch (      Exception e) {
+        logError("Sleep interupted! Stopping: " + e.toString());
+        setErrors(1);
+        stopAll();
+        return null;
+      }
+      if (sleeptime < 5000)       sleeptime*=1.2;
+ else       sleeptime=5000;
+      get_sleeps+=sleeptime;
+    }
+  }
+  if (stopped) {
+    logDebug("Stopped looking for more rows.");
+    stopAll();
+    return null;
+  }
+  in.setPriorityTo(calcGetPriority(in));
+  Row r=in.getRow();
+  linesRead++;
+  nextInputStream();
+  return r;
+}

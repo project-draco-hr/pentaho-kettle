@@ -1,0 +1,67 @@
+{
+  debug="start";
+  if (r == null) {
+    logDetailed("Last line inserted: stop");
+    return false;
+  }
+  PreparedStatement insertStatement=null;
+  String tableName=meta.getTablename();
+  if (meta.isPartitioningEnabled() && (meta.isPartitioningDaily() || meta.isPartitioningMonthly()) && (meta.getPartitioningField() != null && meta.getPartitioningField().length() > 0)) {
+    if (data.indexOfPartitioningField < 0) {
+      data.indexOfPartitioningField=r.searchValueIndex(meta.getPartitioningField());
+      if (data.indexOfPartitioningField < 0) {
+        throw new KettleStepException("Unable to find field [" + meta.getPartitioningField() + "] in the input row!");
+      }
+      if (meta.isPartitioningDaily()) {
+        data.dateFormater=new SimpleDateFormat("yyyyMMdd");
+      }
+ else {
+        data.dateFormater=new SimpleDateFormat("yyyyMM");
+      }
+    }
+    Value partitioningValue=r.getValue(data.indexOfPartitioningField);
+    if (!partitioningValue.isDate() || partitioningValue.isNull()) {
+      throw new KettleStepException("Sorry, the partitioning field needs to contain a data value and can't be empty!");
+    }
+    tableName+="_" + data.dateFormater.format(partitioningValue.getDate());
+  }
+  insertStatement=(PreparedStatement)data.preparedStatements.get(tableName);
+  if (insertStatement == null) {
+    debug="prepareInsert for table [" + tableName + "]";
+    String sql=data.db.getInsertStatement(tableName,r);
+    logDetailed("Prepared statement : " + sql);
+    insertStatement=data.db.prepareSQL(sql);
+    data.preparedStatements.put(tableName,insertStatement);
+  }
+  try {
+    debug="setValuesInsert";
+    data.db.setValues(r,insertStatement);
+    debug="insertRow";
+    data.db.insertRow(insertStatement,data.batchMode);
+    linesOutput++;
+  }
+ catch (  KettleDatabaseBatchException be) {
+    data.db.clearBatch(insertStatement);
+    data.db.rollback();
+    throw new KettleException("Error batch inserting rows into table [" + meta.getTablename() + "]",be);
+  }
+catch (  KettleDatabaseException dbe) {
+    debug="Normal exception";
+    if (meta.ignoreErrors()) {
+      if (data.warnings < 20) {
+        logBasic("WARNING: Coudln't insert row into table: " + r);
+      }
+ else       if (data.warnings == 20) {
+        logBasic("FINAL WARNING (no more then 20 displayed): Coudln't insert row into table: " + r);
+      }
+      data.warnings++;
+    }
+ else {
+      setErrors(getErrors() + 1);
+      data.db.rollback();
+      throw new KettleException("Error inserting row into table [" + meta.getTablename() + "] with values: "+ r,dbe);
+    }
+  }
+  debug="end";
+  return true;
+}

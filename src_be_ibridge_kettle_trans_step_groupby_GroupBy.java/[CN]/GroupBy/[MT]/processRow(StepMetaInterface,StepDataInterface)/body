@@ -1,0 +1,58 @@
+{
+  debug="processRow";
+  Row r=getRow();
+  if (r == null) {
+    if (data.previous != null) {
+      if (meta.passAllRows()) {
+        Row normal=buildRegular(data.previous);
+        putRow(normal);
+      }
+      calcAggregate(data.previous);
+      Row result=buildResult(data.previous);
+      putRow(result);
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    data.counts=new long[meta.getSubjectField().length];
+    data.subjectnrs=new int[meta.getSubjectField().length];
+    for (int i=0; i < meta.getSubjectField().length; i++) {
+      data.subjectnrs[i]=r.searchValueIndex(meta.getSubjectField()[i]);
+      if (data.subjectnrs[i] < 0) {
+        logError("Aggregate subject field [" + meta.getSubjectField()[i] + "] couldn't be found!");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+    data.groupnrs=new int[meta.getGroupField().length];
+    for (int i=0; i < meta.getGroupField().length; i++) {
+      data.groupnrs[i]=r.searchValueIndex(meta.getGroupField()[i]);
+      if (data.groupnrs[i] < 0) {
+        logError("Grouping field [" + meta.getGroupField()[i] + "] couldn't be found!");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+    data.previous=new Row(r);
+    newAggregate(r);
+    first=false;
+  }
+ else {
+    calcAggregate(data.previous);
+    if (meta.passAllRows()) {
+      Row normal=buildRegular(data.previous);
+      putRow(normal);
+    }
+  }
+  if (!sameGroup(data.previous,r)) {
+    Row result=buildResult(data.previous);
+    putRow(result);
+    newAggregate(r);
+  }
+  data.previous=new Row(r);
+  if ((linesRead > 0) && (linesRead % Const.ROWS_UPDATE) == 0)   logBasic("Linenr " + linesRead);
+  return true;
+}

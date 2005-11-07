@@ -1,0 +1,48 @@
+{
+  if (showChangedWarning()) {
+    if (rep == null || importfile) {
+      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+      dialog.setFilterPath("C:\\Projects\\kettle\\source\\");
+      dialog.setFilterExtensions(STRING_FILTER_EXT);
+      dialog.setFilterNames(STRING_FILTER_NAMES);
+      String fname=dialog.open();
+      if (fname != null) {
+        try {
+          transMeta=new TransMeta(fname);
+          props.addLastFile(Props.TYPE_PROPERTIES_MENU,fname,Const.FILE_SEPARATOR,false,"");
+          addMenuLast();
+          if (!importfile)           transMeta.clearChanged();
+          setFilename(fname);
+        }
+ catch (        KettleException e) {
+          clear();
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+          mb.setMessage("Error opening : " + fname + Const.CR+ e.getMessage());
+          mb.setText("Error!");
+          mb.open();
+        }
+        refreshGraph();
+        refreshTree(true);
+      }
+    }
+ else {
+      SelectObjectDialog sod=new SelectObjectDialog(shell,props,rep,true,false,false);
+      String transname=sod.open();
+      RepositoryDirectory repdir=sod.getDirectory();
+      if (transname != null && repdir != null) {
+        TransLoadProgressDialog tlpd=new TransLoadProgressDialog(shell,rep,transname,repdir);
+        TransMeta transInfo=tlpd.open();
+        if (transInfo != null) {
+          transMeta=transInfo;
+          log.logDetailed(toString(),"Transformation [" + transname + "] in directory ["+ repdir+ "] loaded from the repository.");
+          props.addLastFile(Props.TYPE_PROPERTIES_SPOON,transname,repdir.getPath(),true,rep.getName());
+          addMenuLast();
+          transMeta.clearChanged();
+          setFilename(transname);
+        }
+        refreshGraph();
+        refreshTree(true);
+      }
+    }
+  }
+}

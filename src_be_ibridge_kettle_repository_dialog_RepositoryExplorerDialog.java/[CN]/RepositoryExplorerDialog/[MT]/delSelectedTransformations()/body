@@ -1,0 +1,48 @@
+{
+  boolean retval=false;
+  TreeItem tiSel[]=wTree.getSelection();
+  boolean done=false;
+  boolean error=false;
+  MessageBox mb=new MessageBox(shell,SWT.ICON_WARNING | SWT.YES | SWT.NO);
+  mb.setMessage("Are you sure you want to remove " + (tiSel.length > 1 ? "these " + tiSel.length + " transformations?" : "this transformation?"));
+  mb.setText("Confirm delete...");
+  int answer=mb.open();
+  if (answer != SWT.YES) {
+    return false;
+  }
+  for (int i=0; i < tiSel.length; i++) {
+    TreeItem ti=tiSel[i];
+    String name=ti.getText();
+    done=false;
+    RepositoryDirectory repdir=getDirectory(ti);
+    try {
+      long id=rep.getTransformationID(ti.getText(),repdir.getID());
+      if (id > 0) {
+        try {
+          rep.delAllFromTrans(id);
+          done=true;
+        }
+ catch (        KettleDatabaseException dbe) {
+          new ErrorDialog(shell,props,"Error","Kettle couldn't remove transformation [" + name + "]",dbe);
+          error=true;
+        }
+      }
+ else {
+        mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+        mb.setMessage("Sorry, couldn't find transformation [" + name + "]"+ Const.CR+ "It's probably already removed.");
+        mb.setText("ERROR");
+        mb.open();
+        error=true;
+      }
+      if (!error) {
+        retval=true;
+      }
+      if (done)       ti.dispose();
+    }
+ catch (    KettleDatabaseException dbe) {
+      new ErrorDialog(shell,props,"Error","An error occurred deleting this transformation: ",dbe);
+      error=true;
+    }
+  }
+  return retval;
+}

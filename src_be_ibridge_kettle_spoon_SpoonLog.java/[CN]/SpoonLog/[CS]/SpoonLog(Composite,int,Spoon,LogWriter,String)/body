@@ -1,0 +1,176 @@
+{
+  super(parent,style);
+  shell=parent.getShell();
+  spoon=sp;
+  log=l;
+  trans=null;
+  display=shell.getDisplay();
+  running=false;
+  preview=false;
+  lastUpdateView=0L;
+  lastUpdateLog=0L;
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  setLayout(formLayout);
+  setVisible(true);
+  spoon.props.setLook(this);
+  SashForm sash=new SashForm(this,SWT.VERTICAL);
+  spoon.props.setLook(sash);
+  sash.setLayout(new FillLayout());
+  final int FieldsCols=12;
+  final int FieldsRows=1;
+  colinf=new ColumnInfo[FieldsCols];
+  colinf[0]=new ColumnInfo("Stepname",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[1]=new ColumnInfo("Copynr",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[2]=new ColumnInfo("Read",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[3]=new ColumnInfo("Written",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[4]=new ColumnInfo("Input",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[5]=new ColumnInfo("Output",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[6]=new ColumnInfo("Updated",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[7]=new ColumnInfo("Errors",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[8]=new ColumnInfo("Active",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[9]=new ColumnInfo("Time",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[10]=new ColumnInfo("Speed (r/s)",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[11]=new ColumnInfo("Pri/in/out",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true);
+  colinf[1].setAllignement(SWT.RIGHT);
+  colinf[2].setAllignement(SWT.RIGHT);
+  colinf[3].setAllignement(SWT.RIGHT);
+  colinf[4].setAllignement(SWT.RIGHT);
+  colinf[5].setAllignement(SWT.RIGHT);
+  colinf[6].setAllignement(SWT.RIGHT);
+  colinf[7].setAllignement(SWT.RIGHT);
+  colinf[8].setAllignement(SWT.RIGHT);
+  colinf[9].setAllignement(SWT.RIGHT);
+  colinf[10].setAllignement(SWT.RIGHT);
+  colinf[11].setAllignement(SWT.RIGHT);
+  wFields=new TableView(sash,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,true,null,spoon.props);
+  wText=new Text(sash,SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL| SWT.READ_ONLY);
+  spoon.props.setLook(wText);
+  wText.setVisible(true);
+  wStart=new Button(this,SWT.PUSH);
+  wStart.setText(START_TEXT);
+  wPreview=new Button(this,SWT.PUSH);
+  wPreview.setText(" &Preview ");
+  wError=new Button(this,SWT.PUSH);
+  wError.setText(" &Show error lines ");
+  wClear=new Button(this,SWT.PUSH);
+  wClear.setText(" &Clear log ");
+  wLog=new Button(this,SWT.PUSH);
+  wLog.setText(" &Log settings ");
+  wlOnlyActive=new Label(this,SWT.RIGHT);
+  wlOnlyActive.setText("Only show active steps");
+  wOnlyActive=new Button(this,SWT.CHECK);
+  fdStart=new FormData();
+  fdPreview=new FormData();
+  fdError=new FormData();
+  fdClear=new FormData();
+  fdLog=new FormData();
+  fdStart.left=new FormAttachment(15,0);
+  fdStart.bottom=new FormAttachment(100,0);
+  wStart.setLayoutData(fdStart);
+  fdPreview.left=new FormAttachment(wStart,10);
+  fdPreview.bottom=new FormAttachment(100,0);
+  wPreview.setLayoutData(fdPreview);
+  fdError.left=new FormAttachment(wPreview,10);
+  fdError.bottom=new FormAttachment(100,0);
+  wError.setLayoutData(fdError);
+  fdClear.left=new FormAttachment(wError,10);
+  fdClear.bottom=new FormAttachment(100,0);
+  wClear.setLayoutData(fdClear);
+  fdLog.left=new FormAttachment(wClear,10);
+  fdLog.bottom=new FormAttachment(100,0);
+  wLog.setLayoutData(fdLog);
+  spoon.props.setLook(wlOnlyActive);
+  fdlOnlyActive=new FormData();
+  fdlOnlyActive.left=new FormAttachment(wLog,10);
+  fdlOnlyActive.top=new FormAttachment(wLog,0,SWT.CENTER);
+  wlOnlyActive.setLayoutData(fdlOnlyActive);
+  spoon.props.setLook(wOnlyActive);
+  fdOnlyActive=new FormData();
+  fdOnlyActive.left=new FormAttachment(wlOnlyActive,Const.MARGIN);
+  fdOnlyActive.top=new FormAttachment(wLog,0,SWT.CENTER);
+  wOnlyActive.setLayoutData(fdOnlyActive);
+  wOnlyActive.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent arg0){
+      spoon.props.setOnlyActiveSteps(wOnlyActive.getSelection());
+    }
+  }
+);
+  wOnlyActive.setSelection(spoon.props.getOnlyActiveSteps());
+  fdText=new FormData();
+  fdText.left=new FormAttachment(0,0);
+  fdText.top=new FormAttachment(0,0);
+  fdText.right=new FormAttachment(100,0);
+  fdText.bottom=new FormAttachment(100,0);
+  wText.setLayoutData(fdText);
+  fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(0,0);
+  fdSash.right=new FormAttachment(100,0);
+  fdSash.bottom=new FormAttachment(wStart,-5);
+  sash.setLayoutData(fdSash);
+  pack();
+  try {
+    in=log.getFileInputStream();
+  }
+ catch (  Exception e) {
+    log.logError(Spoon.APP_NAME,"Couldn't create input-pipe connection to output-pipe!");
+  }
+  lsError=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      showErrors();
+    }
+  }
+;
+  final Timer tim=new Timer();
+  TimerTask timtask=new TimerTask(){
+    public void run(){
+      if (display != null && !display.isDisposed())       display.asyncExec(new Runnable(){
+        public void run(){
+          checkErrors();
+          readLog();
+          refreshView();
+        }
+      }
+);
+    }
+  }
+;
+  tim.schedule(timtask,0L,REFRESH_TIME);
+  lsStart=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      startstop();
+    }
+  }
+;
+  lsPreview=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      preview();
+    }
+  }
+;
+  lsClear=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      clearLog();
+    }
+  }
+;
+  lsLog=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      setLog();
+    }
+  }
+;
+  wError.addSelectionListener(lsError);
+  wStart.addSelectionListener(lsStart);
+  wPreview.addSelectionListener(lsPreview);
+  wClear.addSelectionListener(lsClear);
+  wLog.addSelectionListener(lsLog);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      tim.cancel();
+    }
+  }
+);
+}

@@ -1,0 +1,82 @@
+{
+  int i;
+  boolean comma;
+  if (prepStatementInsert == null) {
+    String sql="INSERT INTO " + table + "( ";
+    comma=false;
+    if (!autoinc) {
+      sql+=keyfield;
+      comma=true;
+    }
+ else     if (databaseMeta.needsPlaceHolder()) {
+      sql+="0";
+      comma=true;
+    }
+    if (crc) {
+      if (comma)       sql+=", ";
+      sql+=crcfield;
+      comma=true;
+    }
+    for (i=0; i < keylookup.length; i++) {
+      if (comma)       sql+=", ";
+      sql+=keylookup[i];
+      comma=true;
+    }
+    sql+=") VALUES (";
+    comma=false;
+    if (keyfield != null) {
+      sql+="?";
+      comma=true;
+    }
+    if (crc) {
+      if (comma)       sql+=",";
+      sql+="?";
+      comma=true;
+    }
+    for (i=0; i < keylookup.length; i++) {
+      if (comma)       sql+=",";
+ else       comma=true;
+      sql+="?";
+    }
+    sql+=" )";
+    try {
+      if (keyfield == null) {
+        log.logDetailed(toString(),"SQL with return keys: " + sql);
+        prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql),Statement.RETURN_GENERATED_KEYS);
+      }
+ else {
+        log.logDetailed(toString(),"SQL without return keys: " + sql);
+        prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql));
+      }
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sql,ex);
+    }
+catch (    Exception ex) {
+      throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sql,ex);
+    }
+  }
+  Row rins=new Row();
+  if (!autoinc)   rins.addValue(val_key);
+  if (crc) {
+    rins.addValue(val_crc);
+  }
+  for (i=0; i < keynrs.length; i++) {
+    rins.addValue(row.getValue(keynrs[i]));
+  }
+  setValues(rins,prepStatementInsert);
+  insertRow(prepStatementInsert);
+  if (keyfield == null) {
+    try {
+      ResultSet keys=pstmt.getGeneratedKeys();
+      if (keys.next())       val_key.setValue(keys.getDouble(1));
+ else {
+        throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + keyfield + ", no fields in resultset");
+      }
+      keys.close();
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + keyfield,ex);
+    }
+  }
+}

@@ -1,0 +1,191 @@
+{
+  debug="opening repository explorer";
+  try {
+    dircolor=GUIResource.getInstance().getColorDirectory();
+    debug="open new shell";
+    Shell parent=getParent();
+    shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX| SWT.MIN);
+    props.setLook(shell);
+    shell.setText("Repository explorer on [" + rep.getName() + "]");
+    FormLayout formLayout=new FormLayout();
+    formLayout.marginWidth=Const.FORM_MARGIN;
+    formLayout.marginHeight=Const.FORM_MARGIN;
+    shell.setLayout(formLayout);
+    wTree=new Tree(shell,SWT.MULTI | SWT.BORDER);
+    props.setLook(wTree);
+    wOK=new Button(shell,SWT.PUSH);
+    wOK.setText("  &OK  ");
+    wCancel=new Button(shell,SWT.PUSH);
+    wCancel.setText("  &Cancel  ");
+    FormData fdTree=new FormData();
+    int margin=10;
+    fdTree.left=new FormAttachment(0,0);
+    fdTree.top=new FormAttachment(0,0);
+    fdTree.right=new FormAttachment(100,0);
+    fdTree.bottom=new FormAttachment(100,-50);
+    wTree.setLayoutData(fdTree);
+    BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCancel},margin,null);
+    wOK.addListener(SWT.Selection,new Listener(){
+      public void handleEvent(      Event e){
+        handleOK();
+      }
+    }
+);
+    wCancel.addListener(SWT.Selection,new Listener(){
+      public void handleEvent(      Event e){
+        dispose();
+      }
+    }
+);
+    SelectionAdapter selAdapter=new SelectionAdapter(){
+      public void widgetDefaultSelected(      SelectionEvent e){
+        doubleClick();
+      }
+    }
+;
+    wTree.addSelectionListener(selAdapter);
+    wTree.addMouseListener(new MouseAdapter(){
+      public void mouseDown(      MouseEvent e){
+        if (e.button == 3) {
+          setTreeMenu();
+        }
+      }
+    }
+);
+    wTree.addKeyListener(new KeyAdapter(){
+      public void keyPressed(      KeyEvent e){
+        if (e.keyCode == SWT.F2) {
+          renameInTree();
+        }
+        if (e.keyCode == SWT.F5) {
+          refreshTree();
+        }
+      }
+    }
+);
+    Transfer[] ttypes=new Transfer[]{TextTransfer.getInstance()};
+    DragSource ddSource=new DragSource(wTree,DND.DROP_MOVE);
+    ddSource.setTransfer(ttypes);
+    ddSource.addDragListener(new DragSourceListener(){
+      public void dragStart(      DragSourceEvent event){
+        debug="drag start";
+        event.doit=true;
+      }
+      public void dragSetData(      DragSourceEvent event){
+        debug="drag set data";
+        event.data="";
+        event.doit=false;
+        TreeItem ti[]=wTree.getSelection();
+        if (ti.length >= 1) {
+          int cat=getItemCategory(ti[0]);
+          if (cat == ITEM_CATEGORY_TRANSFORMATION) {
+            debug="drag set: drag around transformation";
+            RepositoryDirectory repdir=getDirectory(ti[0]);
+            if (repdir != null) {
+              String xml=XMLHandler.getXMLHeader();
+              xml+="<dragdrop>" + Const.CR;
+              xml+="  " + XMLHandler.addTagValue("directory",repdir.getPath());
+              xml+="  " + XMLHandler.addTagValue("transformation",ti[0].getText());
+              xml+="</dragdrop>" + Const.CR;
+              event.data=xml;
+              event.doit=true;
+            }
+          }
+ else {
+            debug="do nothing";
+            String xml=XMLHandler.getXMLHeader();
+            xml+="<dragdrop>" + Const.CR;
+            xml+="</dragdrop>" + Const.CR;
+            event.data=xml;
+            event.doit=true;
+          }
+        }
+      }
+      public void dragFinished(      DragSourceEvent event){
+      }
+    }
+);
+    DropTarget ddTarget=new DropTarget(wTree,DND.DROP_MOVE);
+    ddTarget.setTransfer(ttypes);
+    ddTarget.addDropListener(new DropTargetListener(){
+      public void dragEnter(      DropTargetEvent event){
+      }
+      public void dragLeave(      DropTargetEvent event){
+        debug="drag leave";
+      }
+      public void dragOperationChanged(      DropTargetEvent event){
+      }
+      public void dragOver(      DropTargetEvent event){
+        debug="drag over";
+      }
+      public void drop(      DropTargetEvent event){
+        try {
+          debug="Drop item in tree";
+          if (event.data == null) {
+            event.detail=DND.DROP_NONE;
+            return;
+          }
+          TreeItem ti=(TreeItem)event.item;
+          if (ti != null) {
+            debug="Get category";
+            int category=getItemCategory(ti);
+            if (category == ITEM_CATEGORY_TRANSFORMATION_DIRECTORY || category == ITEM_CATEGORY_TRANSFORMATION) {
+              debug="Get directory";
+              RepositoryDirectory repdir=getDirectory(ti);
+              if (repdir != null) {
+                event.feedback=DND.FEEDBACK_SELECT | DND.FEEDBACK_SCROLL;
+                if (moveTransformation((String)event.data,repdir)) {
+                  refreshTree();
+                }
+ else {
+                  MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
+                  mb.setMessage("I'm sorry, but I can't move the transformation.");
+                  mb.setText("Sorry...");
+                  mb.open();
+                }
+              }
+            }
+ else {
+              MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
+              mb.setMessage("I'm sorry, but I can't move this item at this time.");
+              mb.setText("Sorry...");
+              mb.open();
+            }
+          }
+        }
+ catch (        Throwable e) {
+          new ErrorDialog(shell,props,"Unexpected error","Error in part [" + debug + "]"+ Const.CR+ "Please report this error to the Kettle developers!",new Exception(e));
+        }
+      }
+      public void dropAccept(      DropTargetEvent event){
+        debug="drop accept";
+      }
+    }
+);
+    shell.addShellListener(new ShellAdapter(){
+      public void shellClosed(      ShellEvent e){
+        dispose();
+      }
+    }
+);
+    debug="set screen size and position";
+    WindowProperty winprop=props.getScreen(shell.getText());
+    if (winprop != null)     winprop.setShell(shell);
+ else {
+      debug="pack screen";
+      shell.pack();
+      debug="set default screen size ";
+      shell.setSize(400,480);
+    }
+    refreshTree();
+    shell.open();
+    Display display=parent.getDisplay();
+    while (!shell.isDisposed()) {
+      if (!display.readAndDispatch())       display.sleep();
+    }
+  }
+ catch (  Throwable e) {
+    new ErrorDialog(shell,props,"Unexpected error","An unexpected error occurred in the repository explorer in part [" + debug + "]"+ Const.CR+ "Please contact support for a software update."+ Const.CR+ "We appoligize for the unconvenience.",new Exception(e));
+  }
+  return object_name;
+}

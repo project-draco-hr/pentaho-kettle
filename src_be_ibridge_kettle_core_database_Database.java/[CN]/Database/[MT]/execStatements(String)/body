@@ -1,0 +1,70 @@
+{
+  Result result=new Result();
+  String all=script;
+  int from=0;
+  int to=0;
+  int length=all.length();
+  int nrstats=0;
+  while (to < length) {
+    char c=all.charAt(to);
+    if (c == '"') {
+      to++;
+      c=' ';
+      while (to < length && c != '"') {
+        c=all.charAt(to);
+        to++;
+      }
+    }
+ else     if (c == '\'') {
+      to++;
+      c=' ';
+      while (to < length && c != '\'') {
+        c=all.charAt(to);
+        to++;
+      }
+    }
+ else     if (all.substring(to).startsWith("--")) {
+      to++;
+      while (to < length && c != '\n' && c != '\r') {
+        c=all.charAt(to);
+        to++;
+      }
+    }
+    if (c == ';' || to >= length - 1) {
+      if (to >= length - 1)       to++;
+      String stat=all.substring(from,to);
+      if (!Const.onlySpaces(stat)) {
+        String sql=Const.trim(stat);
+        if (sql.toUpperCase().startsWith("SELECT")) {
+          log.logDetailed(toString(),"launch SELECT statement: " + Const.CR + sql);
+          nrstats++;
+          ResultSet rs=openQuery(sql);
+          if (rs != null) {
+            Row r=getRow(rs);
+            while (r != null) {
+              result.setNrLinesRead(result.getNrLinesRead() + 1);
+              log.logDetailed(toString(),r.toString());
+              r=getRow(rs);
+            }
+          }
+ else {
+            log.logDebug(toString(),"Error executing query: " + Const.CR + sql);
+          }
+        }
+ else {
+          log.logDetailed(toString(),"launch DDL statement: " + Const.CR + sql);
+          nrstats++;
+          Result res=execStatement(sql);
+          result.add(res);
+        }
+      }
+      to++;
+      from=to;
+    }
+ else {
+      to++;
+    }
+  }
+  log.logDetailed(toString(),nrstats + " statement" + (nrstats == 1 ? "" : "s")+ " executed");
+  return result;
+}

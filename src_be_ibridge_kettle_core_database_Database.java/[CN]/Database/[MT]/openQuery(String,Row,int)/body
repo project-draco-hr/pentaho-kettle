@@ -1,0 +1,53 @@
+{
+  ResultSet res;
+  String debug="Start";
+  try {
+    if (params != null) {
+      debug="P create prepared statement (con==null? " + (connection == null) + ")";
+      pstmt=connection.prepareStatement(databaseMeta.stripCR(sql),ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      debug="P Set values";
+      setValues(params);
+      if (databaseMeta.isFetchSizeSupported() && pstmt.getMaxRows() > 0) {
+        debug="P Set fetchsize";
+        int fs=Const.FETCH_SIZE <= pstmt.getMaxRows() ? pstmt.getMaxRows() : Const.FETCH_SIZE;
+        pstmt.setFetchSize(fs);
+        debug="P Set fetch direction";
+        pstmt.setFetchDirection(fetch_mode);
+      }
+      debug="P Set max rows";
+      if (rowlimit > 0)       pstmt.setMaxRows(rowlimit);
+      debug="exec query";
+      res=pstmt.executeQuery();
+    }
+ else {
+      debug="create statement";
+      sel_stmt=connection.createStatement();
+      if (databaseMeta.isFetchSizeSupported() && sel_stmt.getMaxRows() > 0) {
+        debug="Set fetchsize";
+        int fs=Const.FETCH_SIZE <= sel_stmt.getMaxRows() ? sel_stmt.getMaxRows() : Const.FETCH_SIZE;
+        sel_stmt.setFetchSize(fs);
+        debug="Set fetch direction";
+        sel_stmt.setFetchDirection(ResultSet.FETCH_FORWARD);
+      }
+      debug="Set max rows";
+      if (rowlimit > 0)       sel_stmt.setMaxRows(rowlimit);
+      debug="exec query";
+      res=sel_stmt.executeQuery(databaseMeta.stripCR(sql));
+    }
+    debug="get metadata";
+    rsmd=res.getMetaData();
+    rowinfo=getRowInfo();
+  }
+ catch (  SQLException ex) {
+    log.logError(toString(),"ERROR executing [" + sql + "]");
+    log.logError(toString(),"ERROR in part: [" + debug + "]");
+    printSQLException(ex);
+    throw new KettleDatabaseException("An error occurred executing SQL: " + Const.CR + sql,ex);
+  }
+catch (  Exception e) {
+    log.logError(toString(),"ERROR executing query: " + e.toString());
+    log.logError(toString(),"ERROR in part: " + debug);
+    throw new KettleDatabaseException("An error occurred executing SQL in part [" + debug + "]:"+ Const.CR+ sql,e);
+  }
+  return res;
+}

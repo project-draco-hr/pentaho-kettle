@@ -1,0 +1,32 @@
+{
+  meta=(AddSequenceMeta)smi;
+  data=(AddSequenceData)sdi;
+  if (super.init(smi,sdi)) {
+    if (meta.isDatabaseUsed()) {
+      data.setDb(new Database(meta.getDatabase()));
+      try {
+        data.getDb().connect();
+        logBasic("Connected to database...");
+        return true;
+      }
+ catch (      KettleDatabaseException dbe) {
+        logError("Step couldn't connect to the database: " + dbe.getMessage());
+      }
+    }
+ else     if (meta.isCounterUsed()) {
+      data.setLookup("@@sequence:" + meta.getValuename());
+      if (getTransMeta().getCounters() != null) {
+        Hashtable counters=getTransMeta().getCounters();
+        counters.put(data.getLookup(),new Long(meta.getStartAt()));
+        return true;
+      }
+ else {
+        logError("Sorry, Transformation counters hash table not allocated! (internal error)");
+      }
+    }
+ else {
+      logError("You need to select to create a sequence either using a database or an internal counter.");
+    }
+  }
+  return false;
+}

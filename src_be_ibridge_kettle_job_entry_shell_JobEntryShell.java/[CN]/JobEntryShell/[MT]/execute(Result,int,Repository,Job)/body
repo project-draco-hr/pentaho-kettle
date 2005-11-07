@@ -1,0 +1,59 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=prev_result;
+  result.setEntryNr(nr);
+  try {
+    String cmd[]=null;
+    String base[]=null;
+    if (System.getProperty("os.name").startsWith("Windows")) {
+      base=new String[]{getFileName()};
+    }
+ else {
+      base=new String[]{getFileName()};
+    }
+    if (arg_from_previous && prev_result.rows != null) {
+      cmd=new String[prev_result.rows.size() + base.length];
+      for (int i=0; i < base.length; i++)       cmd[i]=base[i];
+      for (int i=0; i < prev_result.rows.size(); i++) {
+        Row r=(Row)prev_result.rows.get(i);
+        cmd[i + base.length]=r.toString();
+      }
+    }
+ else     if (arguments != null) {
+      cmd=new String[arguments.length + base.length];
+      for (int i=0; i < base.length; i++)       cmd[i]=base[i];
+      for (int i=0; i < arguments.length; i++) {
+        cmd[i + base.length]=arguments[i];
+      }
+    }
+    log.logDetailed(toString(),"Passing " + (cmd.length - 1) + " arguments to command : ["+ cmd[0]+ "]");
+    Process proc;
+    proc=java.lang.Runtime.getRuntime().exec(cmd);
+    proc.waitFor();
+    log.logDetailed(toString(),"command [" + cmd[0] + "] has finished");
+    result.exitStatus=proc.exitValue();
+    if (result.exitStatus != 0) {
+      log.logDetailed(toString(),"Exit status of shell [" + getFileName() + "] was "+ result.exitStatus);
+      result.setNrErrors(1);
+    }
+  }
+ catch (  IOException ioe) {
+    log.logError(toString(),"Error running shell [" + getFileName() + "] : "+ ioe.toString());
+    result.setNrErrors(1);
+  }
+catch (  InterruptedException ie) {
+    log.logError(toString(),"Shell [" + getFileName() + "] was interupted : "+ ie.toString());
+    result.setNrErrors(1);
+  }
+catch (  Exception e) {
+    log.logError(toString(),"Unexpected error running shell [" + getFileName() + "] : "+ e.toString());
+    result.setNrErrors(1);
+  }
+  if (result.getNrErrors() > 0) {
+    result.setResult(false);
+  }
+ else {
+    result.setResult(true);
+  }
+  return result;
+}

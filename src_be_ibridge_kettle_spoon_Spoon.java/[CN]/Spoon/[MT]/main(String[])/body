@@ -1,0 +1,214 @@
+{
+  ArrayList args=new ArrayList();
+  for (int i=0; i < a.length; i++)   args.add(a[i]);
+  Display display=new Display();
+  Splash splash=new Splash(display);
+  String repname=Const.getCommandlineOption(args,"-rep");
+  String username=Const.getCommandlineOption(args,"-user");
+  String password=Const.getCommandlineOption(args,"-pass");
+  String transname=Const.getCommandlineOption(args,"-trans");
+  String filename=Const.getCommandlineOption(args,"-file");
+  String dirname=Const.getCommandlineOption(args,"-dir");
+  String logfile=Const.getCommandlineOption(args,"-log");
+  String loglevel=Const.getCommandlineOption(args,"-level");
+  String version=Const.JAVA_VERSION;
+  if ("1.4".compareToIgnoreCase(version) > 0) {
+    System.out.println("Spoon is running on Java version " + version);
+    System.out.println("Unfortunately, it needs version 1.4 or higher to run.");
+    return;
+  }
+  Locale.setDefault(Const.DEFAULT_LOCALE);
+  LogWriter log;
+  if (logfile == null) {
+    log=LogWriter.getInstance(Const.SPOON_LOG_FILE,false,LogWriter.LOG_LEVEL_BASIC);
+  }
+ else {
+    log=LogWriter.getInstance(logfile,true,LogWriter.LOG_LEVEL_BASIC);
+  }
+  if (log.getRealFilename() != null)   log.logBasic(APP_NAME,"Logging goes to " + log.getRealFilename());
+  if (loglevel != null) {
+    log.setLogLevel(loglevel);
+    log.logBasic(APP_NAME,"Logging is at level : " + log.getLogLevelDesc());
+  }
+  StepLoader stloader=StepLoader.getInstance();
+  if (!stloader.read()) {
+    log.logError(APP_NAME,"Error loading steps & plugins... halting Spoon!");
+    return;
+  }
+  final Spoon win=new Spoon(log,display,null);
+  win.setDestroy(true);
+  win.setArguments((String[])args.toArray(new String[args.size()]));
+  log.logBasic(APP_NAME,"Main window is created.");
+  Licenses licenses=Licenses.getInstance();
+  win.license_nr=licenses.checkLicense(Licenses.PRODUCT_SPOON);
+  if (win.license_nr < 0) {
+    log.logBasic(APP_NAME,"Demo mode activated.");
+    win.demo_mode=true;
+  }
+ else {
+    log.logBasic(APP_NAME,"License verified.");
+    win.demo_mode=false;
+  }
+  int retval=SWT.YES;
+  if (win.demo_mode) {
+    splash.hide();
+    ShowLicenseDialog ld=new ShowLicenseDialog(log,win.props,win.disp,Licenses.PRODUCT_SPOON);
+    ld.shell.setImage(GUIResource.getInstance().getImageSpoon());
+    retval=ld.open();
+    if (retval == SWT.YES) {
+      win.demo_mode=false;
+      win.license_nr=licenses.getNrLicenses();
+      log.logBasic(APP_NAME,"License verified.");
+    }
+ else     if (retval == SWT.CANCEL) {
+      win.quitFile();
+      return;
+    }
+ else {
+      ShowDemoDialog sdd=new ShowDemoDialog(win.shell,win.props,GUIResource.getInstance().getImageKettle());
+      if (!sdd.open()) {
+        splash.dispose();
+        win.quitFile();
+        return;
+      }
+    }
+  }
+  RepositoryMeta repinfo=null;
+  UserInfo userinfo=null;
+  if (repname == null && filename == null && win.props.showRepositoriesDialogAtStartup()) {
+    log.logBasic(APP_NAME,"Asking for repository");
+    int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
+    splash.hide();
+    RepositoriesDialog rd=new RepositoriesDialog(win.disp,SWT.NONE,perms,"Spoon");
+    if (rd.open()) {
+      repinfo=rd.getRepository();
+      userinfo=rd.getUser();
+      if (!userinfo.useTransformations()) {
+        MessageBox mb=new MessageBox(win.shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage("Sorry, this repository user can't work with transformations from the repository.");
+        mb.setText("Error!");
+        mb.open();
+        userinfo=null;
+        repinfo=null;
+      }
+    }
+ else {
+      if (rd.isCancelled()) {
+        splash.dispose();
+        win.quitFile();
+        return;
+      }
+    }
+  }
+  try {
+    if (repname != null || filename != null) {
+      if (repname != null) {
+        RepositoriesMeta repsinfo=new RepositoriesMeta(log);
+        if (repsinfo.readData()) {
+          repinfo=repsinfo.findRepository(repname);
+          if (repinfo != null) {
+            win.rep=new Repository(log,repinfo,userinfo);
+            if (win.rep.connect("Spoon")) {
+              if (dirname == null)               dirname=Const.FILE_SEPARATOR;
+              win.rep.userinfo=new UserInfo(win.rep,username,password);
+              if (win.rep.userinfo.getID() > 0) {
+                RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(dirname);
+                if (repdir != null) {
+                  win.transMeta=new TransMeta(win.rep,transname,repdir);
+                  win.setFilename(repname);
+                  win.transMeta.clearChanged();
+                }
+ else {
+                  log.logError(APP_NAME,"Can't find directory [" + dirname + "] in the repository.");
+                }
+              }
+ else {
+                log.logError(APP_NAME,"Can't verify username and password.");
+                win.rep.disconnect();
+                win.rep=null;
+              }
+            }
+ else {
+              log.logError(APP_NAME,"Can't connect to the repository.");
+            }
+          }
+ else {
+            log.logError(APP_NAME,"No repository provided, can't load transformation.");
+          }
+        }
+ else {
+          log.logError(APP_NAME,"No repositories defined on this system.");
+        }
+      }
+ else       if (filename != null) {
+        win.transMeta=new TransMeta(filename);
+        win.setFilename(filename);
+        win.transMeta.clearChanged();
+      }
+    }
+ else {
+      if (repinfo != null && userinfo != null) {
+        win.rep=new Repository(log,repinfo,userinfo);
+        if (!win.rep.connect("Spoon")) {
+          win.rep=null;
+        }
+      }
+      if (win.props.openLastFile()) {
+        log.logDetailed(APP_NAME,"Trying to open the last file used.");
+        String lastfiles[]=win.props.getLastFiles();
+        String lastdirs[]=win.props.getLastDirs();
+        boolean lasttypes[]=win.props.getLastTypes();
+        String lastrepos[]=win.props.getLastRepositories();
+        if (lastfiles.length > 0) {
+          boolean use_repository=repinfo != null;
+          if (lasttypes[0]) {
+            if (lastrepos[0] != null && lastrepos[0].length() > 0) {
+              if (use_repository && !lastrepos[0].equalsIgnoreCase(repinfo.getName())) {
+                use_repository=false;
+              }
+            }
+          }
+          if (use_repository || !lasttypes[0]) {
+            if (win.rep != null) {
+              if (win.rep.getName().equalsIgnoreCase(lastrepos[0])) {
+                RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(lastdirs[0]);
+                if (repdir != null) {
+                  log.logDetailed(APP_NAME,"Auto loading transformation [" + lastfiles[0] + "] from repository directory ["+ lastdirs[0]+ "]");
+                  TransLoadProgressDialog tlpd=new TransLoadProgressDialog(win.shell,win.rep,lastfiles[0],repdir);
+                  TransMeta transInfo=tlpd.open();
+                  if (transInfo != null) {
+                    win.transMeta=transInfo;
+                    win.setFilename(lastfiles[0]);
+                  }
+                }
+              }
+            }
+ else {
+              win.transMeta=new TransMeta(lastfiles[0]);
+              win.setFilename(lastfiles[0]);
+            }
+          }
+          win.transMeta.clearChanged();
+        }
+      }
+    }
+  }
+ catch (  KettleException ke) {
+    log.logError(APP_NAME,"An error occurred: " + Const.CR + ke.getMessage());
+  }
+  win.open();
+  splash.dispose();
+  try {
+    while (!win.isDisposed()) {
+      if (!win.readAndDispatch())       win.sleep();
+    }
+  }
+ catch (  Throwable e) {
+    log.logError(APP_NAME,"An unexpected error occurred in Spoon: probable cause: please close all windows before stopping Spoon! " + Const.CR + e.getMessage());
+    e.printStackTrace();
+  }
+  win.dispose();
+  log.logBasic(APP_NAME,APP_NAME + " has ended.");
+  log.close();
+  System.exit(0);
+}

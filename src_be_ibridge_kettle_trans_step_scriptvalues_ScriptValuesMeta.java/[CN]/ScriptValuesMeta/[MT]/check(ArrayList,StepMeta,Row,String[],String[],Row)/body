@@ -1,0 +1,85 @@
+{
+  boolean error_found=false;
+  String error_message="";
+  CheckResult cr;
+  Context jscx;
+  Scriptable jsscope;
+  Script jsscript;
+  jscx=Context.enter();
+  jsscope=jscx.initStandardObjects(null);
+  if (prev != null && prev.size() > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is connected to previous one, receiving " + prev.size() + " fields",stepinfo);
+    remarks.add(cr);
+    Scriptable jsrow=Context.toObject(prev,jsscope);
+    jsscope.put("row",jsscope,jsrow);
+    for (int i=0; i < prev.size(); i++) {
+      Value val=prev.getValue(i);
+      if (val.isDate())       val.setValue(new Date());
+      if (val.isString())       val.setValue("test value test value test value test value test value test value test value test value test value test value");
+      Scriptable jsarg=Context.toObject(val,jsscope);
+      jsscope.put(val.getName(),jsscope,jsarg);
+    }
+    Scriptable jsval=Context.toObject(Value.class,jsscope);
+    jsscope.put("Value",jsscope,jsval);
+    try {
+      jsscript=jscx.compileString(script,"script",1,null);
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Script compiled without a problem",stepinfo);
+      remarks.add(cr);
+      try {
+        jsscript.exec(jscx,jsscope);
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Script executed without a problem",stepinfo);
+        remarks.add(cr);
+        if (name.length > 0) {
+          StringBuffer message=new StringBuffer("Trying to retrieve " + name.length + " fields: "+ Const.CR+ Const.CR);
+          for (int i=0; i < name.length; i++) {
+            Value res=new Value();
+            message.append("   ");
+            if (getValue(jsscope,i,res,message)) {
+              error_found=true;
+            }
+            message.append(Const.CR);
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,message.toString(),stepinfo);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,message.toString(),stepinfo);
+          }
+          remarks.add(cr);
+        }
+      }
+ catch (      JavaScriptException jse) {
+        Context.exit();
+        error_message="Couldn't execute this script! Error:" + Const.CR + jse.toString();
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        remarks.add(cr);
+      }
+catch (      Exception e) {
+        Context.exit();
+        error_message="General error executing script:" + Const.CR + e.toString();
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        remarks.add(cr);
+      }
+    }
+ catch (    Exception e) {
+      Context.exit();
+      error_message="Couldn't compile this script! Error:" + Const.CR + e.toString();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+      remarks.add(cr);
+    }
+  }
+ else {
+    Context.exit();
+    error_message="Couldn't get fields from previous steps, please connect all needed hops!";
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is receiving info from other steps.",stepinfo);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"No input received from other steps!",stepinfo);
+    remarks.add(cr);
+  }
+}

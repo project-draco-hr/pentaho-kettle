@@ -1,0 +1,145 @@
+{
+  int i;
+  boolean error_found=false;
+  String error_message="";
+  boolean first;
+  CheckResult cr;
+  if (database != null) {
+    Database db=new Database(database);
+    try {
+      db.connect();
+      if (tableName != null && tableName.length() != 0) {
+        Row r=db.getTableFields(tableName);
+        if (r != null) {
+          if (prev != null && prev.size() > 0) {
+            first=true;
+            boolean warning_found=false;
+            for (i=0; i < keyStream.length; i++) {
+              String strfield=keyStream[i];
+              Value strvalue=prev.searchValue(strfield);
+              if (strvalue == null) {
+                if (first) {
+                  first=false;
+                  error_message+="Keys with a problem:" + Const.CR;
+                }
+                error_found=true;
+                error_message+="\t\t" + keyField + " (not present in input stream)"+ Const.CR;
+              }
+ else {
+                String dimfield=keyLookup[i];
+                Value dimvalue=r.searchValue(dimfield);
+                if (dimvalue == null) {
+                  if (first) {
+                    first=false;
+                    error_message+="Keys with a problem:" + Const.CR;
+                  }
+                  error_found=true;
+                  error_message+="\t\t" + dimfield + " (not present in dimension table "+ tableName+ ")"+ Const.CR;
+                }
+ else {
+                  if (strvalue.getType() != dimvalue.getType()) {
+                    if (first) {
+                      first=false;
+                      error_message+="Keys with a problem:" + Const.CR;
+                    }
+                    warning_found=true;
+                    error_message+="\t\t" + strfield + " ("+ strvalue.getOrigin()+ ") is not of the same type as "+ dimfield+ " ("+ tableName+ ")"+ Const.CR;
+                    error_message+="\t\tThis is a warning and in many cases (for ex. Oracle) the conversion is handled by the database.";
+                  }
+                }
+              }
+            }
+            if (error_found) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else             if (warning_found) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,error_message,stepinfo);
+            }
+ else {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All keys fields found in the input stream and dimension table. (with matching types)",stepinfo);
+            }
+            remarks.add(cr);
+            error_found=false;
+            for (i=0; i < fieldStream.length; i++) {
+              String lufield=fieldStream[i];
+              if (lufield != null && lufield.length() > 0) {
+                Value v=r.searchValue(lufield);
+                if (v == null) {
+                  if (first) {
+                    first=false;
+                    error_message+="Fields to retrieve that don't exist in the dimension:" + Const.CR;
+                  }
+                  error_found=true;
+                  error_message+="\t\t" + lufield + Const.CR;
+                }
+              }
+            }
+            if (error_found) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All fields to retrieve are found in the dimension.",stepinfo);
+            }
+            remarks.add(cr);
+            if (r.searchValueIndex(keyField) < 0) {
+              error_message="Technical key [" + keyField + "] not found in dimension lookup table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="Technical key [" + keyField + "] found in dimension lookup table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+            if (r.searchValueIndex(versionField) < 0) {
+              error_message="Version field [" + versionField + "] not found in dimension lookup table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="Version field [" + versionField + "] found in dimension lookup table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+            if (r.searchValueIndex(dateFrom) < 0) {
+              error_message="Start of daterange field [" + dateFrom + "] not found in dimension lookup table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="Start of daterange field [" + dateFrom + "] found in dimension lookup table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+            if (r.searchValueIndex(dateTo) < 0) {
+              error_message="End of daterange field [" + dateTo + "] not found in dimension lookup table."+ Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message="End of daterange field [" + dateTo + "] found in dimension lookup table.";
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+          }
+ else {
+            error_message="Couldn't read fields from the previous step." + Const.CR;
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            remarks.add(cr);
+          }
+        }
+ else {
+          error_message="Couldn't read the table info, please check the table-name & permissions.";
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+      }
+    }
+ catch (    KettleException e) {
+      error_message="Couldn't connect to database, please check the connection: " + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+      remarks.add(cr);
+    }
+  }
+ else {
+    error_message="Please select or create a connection!";
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+}

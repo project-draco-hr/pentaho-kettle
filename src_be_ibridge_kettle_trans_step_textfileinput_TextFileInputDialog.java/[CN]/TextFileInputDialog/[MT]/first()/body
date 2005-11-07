@@ -1,0 +1,64 @@
+{
+  TextFileInputMeta info=new TextFileInputMeta();
+  getInfo(info);
+  String files[]=info.getFiles();
+  String debug="Start";
+  MessageBox mb;
+  FileInputStream fi=null;
+  ZipInputStream zi=null;
+  BufferedInputStream f=null;
+  if (files != null && files.length > 0) {
+    String filename=files[0];
+    try {
+      fi=new FileInputStream(new File(filename));
+      if (input.isZipped()) {
+        zi=new ZipInputStream(fi);
+        zi.getNextEntry();
+        f=new BufferedInputStream(zi);
+      }
+ else {
+        f=new BufferedInputStream(fi);
+      }
+      String shell_text="Nr of lines to view.  0 means all lines.";
+      String line_text="Number of lines (0=all lines)";
+      EnterNumberDialog end=new EnterNumberDialog(shell,props,100,shell_text,line_text);
+      int nrlines=end.open();
+      if (nrlines >= 0) {
+        String firstlines="";
+        int linenr=0;
+        String line=TextFileInput.getLine(log,f,wFormat.getText());
+        while (line != null && (linenr < nrlines || nrlines == 0)) {
+          firstlines+=line + Const.CR;
+          linenr++;
+          line=TextFileInput.getLine(log,f,wFormat.getText());
+        }
+        EnterTextDialog etd=new EnterTextDialog(shell,props,"File " + filename,(nrlines == 0 ? "All" : "" + nrlines) + " lines:",firstlines,true);
+        etd.setReadOnly();
+        etd.open();
+      }
+    }
+ catch (    Exception e) {
+      mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage("Error opening file : " + e.toString() + Const.CR+ "--> "+ debug);
+      mb.setText("ERROR");
+      mb.open();
+    }
+ finally {
+      try {
+        if (input.isZipped() && zi != null) {
+          zi.closeEntry();
+          zi.close();
+        }
+        f.close();
+      }
+ catch (      Exception e) {
+      }
+    }
+  }
+ else {
+    mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("I couldn't find a valid file to work with.  Please check the files, directories & expression.");
+    mb.setText("ERROR");
+    mb.open();
+  }
+}

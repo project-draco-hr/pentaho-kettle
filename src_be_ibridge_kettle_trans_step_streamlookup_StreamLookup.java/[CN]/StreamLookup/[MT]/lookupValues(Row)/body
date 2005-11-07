@@ -1,0 +1,88 @@
+{
+  Row lu=new Row();
+  Row add=null;
+  debug="start lookupValues";
+  if (first) {
+    debug="First part";
+    first=false;
+    data.keynrs=new int[meta.getKeystream().length];
+    for (int i=0; i < meta.getKeystream().length; i++) {
+      data.keynrs[i]=row.searchValueIndex(meta.getKeystream()[i]);
+      if (data.keynrs[i] < 0) {
+        logError("Not a valid field [" + meta.getKeystream()[i] + "]");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+ else {
+        logDetailed("Field [" + meta.getKeystream()[i] + "] has nr ["+ data.keynrs[i]+ "]");
+      }
+    }
+    handleNullIf();
+    debug="first: do lookup";
+    try {
+      if (meta.getKeystream().length > 0) {
+        add=(Row)data.look.get(lu);
+      }
+ else {
+        add=data.firstrow;
+        logRowlevel("Got row without keys: " + add);
+      }
+    }
+ catch (    Exception e) {
+      add=null;
+    }
+  }
+  if (stopped)   return false;
+  debug="Copy value references to lookup table (meta==null? " + (meta == null) + ")";
+  for (int i=0; i < meta.getKeystream().length; i++)   lu.addValue(row.getValue(data.keynrs[i]));
+  debug="lookup size=" + lu.size() + ", keyTypes size="+ data.keyTypes.size();
+  for (int i=0; i < lu.size(); i++) {
+    Value inputValue=lu.getValue(i);
+    Value lookupValue=data.keyTypes.getValue(i);
+    if (inputValue.getType() != lookupValue.getType()) {
+      Value newValue=new Value(inputValue);
+      newValue.setType(lookupValue.getType());
+      lu.setValue(i,newValue);
+    }
+  }
+  try {
+    debug="do lookup";
+    if (meta.getKeystream().length > 0) {
+      add=(Row)data.look.get(lu);
+    }
+ else {
+      add=data.firstrow;
+      logRowlevel("Got row without keys: " + add);
+    }
+  }
+ catch (  Exception e) {
+    add=null;
+  }
+  if (add == null) {
+    debug="add null values";
+    add=new Row();
+    for (int i=0; i < meta.getValue().length; i++) {
+      add.addValue(data.nullIf[i]);
+    }
+  }
+  debug="add returned values";
+  try {
+    for (int i=0; i < add.size(); i++) {
+      Value v=add.getValue(i);
+      debug="add returned value #" + i + " : "+ v.toString()+ " ("+ v.toStringMeta()+ ")";
+      if (v.getType() != meta.getValueDefaultType()[i]) {
+        v.setType(meta.getValueDefaultType()[i]);
+      }
+      if (meta.getValueName()[i] != null && meta.getValueName()[i].length() > 0) {
+        v.setName(meta.getValueName()[i]);
+      }
+      row.addValue(v);
+    }
+  }
+ catch (  Exception e) {
+    throw new RuntimeException(e);
+  }
+  debug="Finished lookupValues";
+  return true;
+}

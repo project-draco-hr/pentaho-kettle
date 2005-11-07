@@ -1,0 +1,38 @@
+{
+  DatabaseMeta databaseMeta=new DatabaseMeta(xml);
+  RepositoryMeta repositoryMeta=new RepositoryMeta(databaseMeta.getName(),databaseMeta.getName(),databaseMeta);
+  Repository repository=new Repository(log,repositoryMeta,null);
+  repository.connect(true,false,databaseMeta.getName());
+  repository.dropRepositorySchema();
+  repository.createRepositorySchema(null,false);
+  RepositoryDirectory root=repository.getDirectoryTree();
+  log.logBasic(databaseMeta.getName(),"Create directory " + root + directoryName);
+  RepositoryDirectory newDirectory=new RepositoryDirectory(repository.getDirectoryTree(),"directory");
+  log.logBasic(databaseMeta.getName(),"Add directory " + newDirectory + " to repository");
+  newDirectory.addToRep(repository);
+  repository.log.logBasic(databaseMeta.getName(),"Load test transformation from file " + testTransformationFile);
+  TransMeta transMeta1=new TransMeta(testTransformationFile);
+  transMeta1.setDirectory(newDirectory);
+  log.logBasic(databaseMeta.getName(),"Save transformation [" + transMeta1.getName() + "] to directory ["+ transMeta1.getDirectory()+ "] in the repository");
+  transMeta1.saveRep(repository);
+  log.logBasic(databaseMeta.getName(),"Load transformation [" + transMeta1.getName() + "] from directory ["+ transMeta1.getDirectory()+ "] in the repository");
+  TransMeta transMeta2=new TransMeta(repository,transMeta1.getName(),newDirectory);
+  String xml1=transMeta1.getXML();
+  String xml2=transMeta2.getXML();
+  if (xml1.equals(xml2)) {
+    log.logBasic(databaseMeta.getName(),"The saved transformation is equal to the re-loaded transformation (the XML form)");
+  }
+ else {
+    log.logError(databaseMeta.getName(),"The saved transformation is NOT equal to the re-loaded transformation (the XML form)");
+    DataOutputStream dos=new DataOutputStream(new FileOutputStream(new File(testXML1)));
+    dos.write(xml1.getBytes(Const.XML_ENCODING));
+    dos.close();
+    DataOutputStream dos2=new DataOutputStream(new FileOutputStream(new File(testXML2)));
+    dos2.write(xml2.getBytes(Const.XML_ENCODING));
+    dos2.close();
+    throw new KettleException("XML Read-back is not the same as the one we saved!  Please run a diff " + testXML1 + " "+ testXML2);
+  }
+  log.logBasic(databaseMeta.getName(),"Save transformation [" + transMeta1.getName() + "] to directory ["+ transMeta1.getDirectory()+ "] in the repository");
+  repository.dropRepositorySchema();
+  repository.disconnect();
+}

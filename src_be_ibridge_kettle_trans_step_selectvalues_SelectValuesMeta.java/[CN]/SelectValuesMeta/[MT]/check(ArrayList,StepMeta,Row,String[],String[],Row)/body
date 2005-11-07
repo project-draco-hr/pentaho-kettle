@@ -1,0 +1,115 @@
+{
+  CheckResult cr;
+  if (prev != null && prev.size() > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is connected to previous one, receiving " + prev.size() + " fields",stepMeta);
+    remarks.add(cr);
+    String error_message="";
+    boolean error_found=false;
+    for (int i=0; i < this.selectName.length; i++) {
+      int idx=prev.searchValueIndex(selectName[i]);
+      if (idx < 0) {
+        error_message+="\t\t" + selectName[i] + Const.CR;
+        error_found=true;
+      }
+    }
+    if (error_found) {
+      error_message="Selected fields that were not found in input stream:" + Const.CR + Const.CR+ error_message;
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ else {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All selected fields are found in the input stream, coming from previous steps",stepMeta);
+      remarks.add(cr);
+    }
+    if (this.selectName.length > 0) {
+      for (int i=0; i < prev.size(); i++) {
+        Value pv=prev.getValue(i);
+        int idx=Const.indexOfString(pv.getName(),selectName);
+        if (idx < 0) {
+          error_message+="\t\t" + pv.getName() + " ("+ pv.getTypeDesc()+ ")"+ Const.CR;
+          error_found=true;
+        }
+      }
+      if (error_found) {
+        error_message="Fields in input stream, not found in selection:" + Const.CR + Const.CR+ error_message;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_COMMENT,error_message,stepMeta);
+        remarks.add(cr);
+      }
+ else {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All selected fields, coming from previous steps, are found in the selection",stepMeta);
+        remarks.add(cr);
+      }
+    }
+    error_message="";
+    error_found=false;
+    for (int i=0; i < this.deleteName.length; i++) {
+      int idx=prev.searchValueIndex(deleteName[i]);
+      if (idx < 0) {
+        error_message+="\t\t" + deleteName[i] + Const.CR;
+        error_found=true;
+      }
+    }
+    if (error_found) {
+      error_message="De-Selected fields that were not found in input stream:" + Const.CR + Const.CR+ error_message;
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ else {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All de-selected fields in the table are found in the input stream, coming from previous steps",stepMeta);
+      remarks.add(cr);
+    }
+    error_message="";
+    error_found=false;
+    for (int i=0; i < this.metaName.length; i++) {
+      int idx=prev.searchValueIndex(metaName[i]);
+      if (idx < 0) {
+        error_message+="\t\t" + metaName[i] + Const.CR;
+        error_found=true;
+      }
+    }
+    if (error_found) {
+      error_message="Meta-data fields that were not found in input stream:" + Const.CR + Const.CR+ error_message;
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ else {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All meta-data fields are found in the input stream, coming from previous steps",stepMeta);
+      remarks.add(cr);
+    }
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"Couldn't find fields from previous steps, check the hops...!",stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is receiving info from other steps.",stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"No input received from other steps!",stepMeta);
+    remarks.add(cr);
+  }
+  int cnt[]=new int[selectName.length];
+  boolean error_found=false;
+  String error_message="";
+  for (int i=0; i < selectName.length; i++) {
+    cnt[i]=0;
+    for (int j=0; j < selectName.length; j++) {
+      if (selectName[i].equalsIgnoreCase(selectName[j]))       cnt[i]++;
+    }
+    if (cnt[i] > 1) {
+      if (!error_found) {
+        error_message="Duplicate fields specified:" + Const.CR;
+      }
+ else {
+        error_found=true;
+      }
+      error_message+="\t\trow #" + i + " : "+ selectName[i]+ "  ("+ cnt[i]+ " occurences)"+ Const.CR;
+      error_found=true;
+    }
+  }
+  if (error_found) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+}

@@ -1,0 +1,63 @@
+{
+  if (first) {
+    determineUsedFields(row);
+    debug="first row";
+    data.cx=Context.enter();
+    data.scope=data.cx.initStandardObjects(null);
+    first=false;
+    Scriptable jsvalue=Context.toObject(this,data.scope);
+    data.scope.put("_step_",data.scope,jsvalue);
+    try {
+      debug="compile reader";
+      data.script=data.cx.compileString(meta.getScript(),"script",1,null);
+    }
+ catch (    Exception e) {
+      logError("Couldn't compile javascript: " + e.toString());
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+  }
+  debug="toObject row";
+  Scriptable jsrow=Context.toObject(row,data.scope);
+  data.scope.put("row",data.scope,jsrow);
+  debug="toObject row values";
+  for (int i=0; i < data.fields_used.length; i++) {
+    Value val=row.getValue(data.fields_used[i]);
+    debug="toObject row value #" + i;
+    Scriptable jsarg=Context.toObject(val,data.scope);
+    debug="toObject row value #" + i + " name==null?"+ (val.getName() == null)+ " row="+ row;
+    data.scope.put(val.getName(),data.scope,jsarg);
+  }
+  debug="toObject Value class";
+  Scriptable jsval=Context.toObject(Value.class,data.scope);
+  data.scope.put("Value",data.scope,jsval);
+  try {
+    debug="exec";
+    data.script.exec(data.cx,data.scope);
+    StringBuffer message=new StringBuffer();
+    for (int i=0; i < meta.getName().length; i++) {
+      Value res=new Value();
+      if (meta.getValue(data.scope,i,res,message)) {
+        logError(message.toString());
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+      row.addValue(res);
+    }
+  }
+ catch (  JavaScriptException jse) {
+    logError("Javascript error: " + jse.toString());
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+catch (  Exception e) {
+    logError("Javascript error: " + e.toString());
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+  return true;
+}

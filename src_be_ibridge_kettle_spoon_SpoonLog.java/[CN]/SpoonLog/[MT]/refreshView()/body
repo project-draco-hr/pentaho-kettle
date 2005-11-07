@@ -1,0 +1,85 @@
+{
+  boolean insert=true;
+  TableItem ti;
+  float lapsed;
+  if (wFields.isDisposed())   return;
+  if (refresh_busy)   return;
+  refresh_busy=true;
+  Table table=wFields.table;
+  boolean doPreview=trans != null && trans.previewComplete() && preview;
+  long time=new Date().getTime();
+  long msSinceLastUpdate=time - lastUpdateView;
+  if ((trans != null && msSinceLastUpdate > UPDATE_TIME_VIEW) || doPreview) {
+    lastUpdateView=time;
+    int nrSteps=trans.nrSteps();
+    if (wOnlyActive.getSelection())     nrSteps=trans.nrActiveSteps();
+    if (table.getItemCount() != nrSteps)     table.removeAll();
+ else     insert=false;
+    if (nrSteps == 0) {
+      if (table.getItemCount() == 0)       ti=new TableItem(table,SWT.NONE);
+    }
+    int nr=0;
+    for (int i=0; i < trans.nrSteps(); i++) {
+      BaseStep rt=trans.getRunThread(i);
+      if (rt.isAlive() || !wOnlyActive.getSelection()) {
+        if (insert)         ti=new TableItem(table,SWT.NONE);
+ else         ti=table.getItem(nr);
+        long in_proc=rt.linesInput + rt.linesRead;
+        long out_proc=rt.linesOutput + rt.linesWritten + rt.linesUpdated;
+        lapsed=((float)rt.getRuntime()) / 1000;
+        double in_speed=0;
+        double out_speed=0;
+        if (lapsed != 0) {
+          in_speed=Math.floor(10 * (in_proc / lapsed)) / 10;
+          out_speed=Math.floor(10 * (out_proc / lapsed)) / 10;
+        }
+        String fields[]=new String[colinf.length + 1];
+        fields[1]=rt.getStepname();
+        fields[2]="" + rt.getCopy();
+        fields[3]="" + rt.linesRead;
+        fields[4]="" + rt.linesWritten;
+        fields[5]="" + rt.linesInput;
+        fields[6]="" + rt.linesOutput;
+        fields[7]="" + rt.linesUpdated;
+        fields[8]="" + rt.getErrors();
+        fields[9]="" + rt.getStatus();
+        fields[10]="" + Math.floor((lapsed * 10) + 0.5) / 10;
+        fields[11]=lapsed == 0 ? "-" : "" + (in_speed > out_speed ? in_speed : out_speed);
+        fields[12]=rt.isAlive() ? "" + rt.getPriority() + "/"+ rt.rowsetInputSize()+ "/"+ rt.rowsetOutputSize() : "-";
+        for (int f=1; f < fields.length; f++) {
+          if (!fields[f].equalsIgnoreCase(ti.getText(f))) {
+            ti.setText(f,fields[f]);
+          }
+        }
+        if (rt.getErrors() > 0) {
+          ti.setBackground(GUIResource.getInstance().getColorRed());
+        }
+ else {
+          ti.setBackground(GUIResource.getInstance().getColorWhite());
+        }
+        nr++;
+      }
+    }
+    wFields.setRowNums();
+    wFields.optWidth(true);
+  }
+ else {
+    if (table.getItemCount() == 0)     ti=new TableItem(table,SWT.NONE);
+  }
+  if (doPreview) {
+    trans.stopAll();
+    showPreview();
+  }
+  if (trans != null && trans.isFinished() && running) {
+    log.logBasic(Spoon.APP_NAME,"The transformation has finished!!");
+    wStart.setText(START_TEXT);
+    running=false;
+    try {
+      trans.endProcessing("end");
+    }
+ catch (    KettleException e) {
+      new ErrorDialog(shell,spoon.props,"Error writing log record","Unable to write log record to the logging table",e);
+    }
+  }
+  refresh_busy=false;
+}

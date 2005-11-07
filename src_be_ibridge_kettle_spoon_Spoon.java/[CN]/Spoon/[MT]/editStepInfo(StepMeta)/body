@@ -1,0 +1,44 @@
+{
+  String stepname=null;
+  if (stepMeta != null) {
+    String name=stepMeta.getName();
+    StepMeta before=(StepMeta)stepMeta.clone();
+    StepMetaInterface stepint=stepMeta.getStepMetaInterface();
+    try {
+      StepDialogInterface dialog=stepint.getDialog(shell,stepMeta.getStepMetaInterface(),transMeta,name);
+      stepname=dialog.open();
+    }
+ catch (    Exception e) {
+      new ErrorDialog(shell,props,"Oops!","Unable to open dialog for this step",e);
+    }
+    if (stepname != null) {
+      StepMeta after=(StepMeta)stepMeta.clone();
+      addUndoChange(new StepMeta[]{before},new StepMeta[]{after},new int[]{transMeta.indexOfStep(stepMeta)});
+      String newname=stepname;
+      StepMeta smeta=transMeta.findStep(newname,stepMeta);
+      int nr=2;
+      while (smeta != null) {
+        newname=stepname + " " + nr;
+        smeta=transMeta.findStep(newname);
+        nr++;
+      }
+      if (nr > 2) {
+        stepname=newname;
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+        mb.setMessage("This stepname already exists.  Spoon changed the stepname to [" + stepname + "]");
+        mb.setText("Tip!");
+        mb.open();
+      }
+      stepMeta.setName(stepname);
+      refreshTree(true);
+    }
+ else {
+      if (transMeta.haveConnectionsChanged()) {
+        refreshTree(true);
+      }
+    }
+    refreshGraph();
+    setShellText();
+  }
+  return stepname;
+}

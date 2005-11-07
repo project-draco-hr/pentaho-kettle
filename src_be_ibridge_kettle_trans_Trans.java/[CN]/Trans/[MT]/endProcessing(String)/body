@@ -1,0 +1,27 @@
+{
+  if (preview)   return true;
+  Result result=getResult();
+  logDate=new Date();
+  String log_string=null;
+  if (transMeta.isLogfieldUsed()) {
+    log_string=log.getString();
+    log_string+=Const.CR + "END";
+    log.setString("");
+    log.setStringCapture(false);
+  }
+  DatabaseMeta logcon=transMeta.getLogConnection();
+  if (logcon != null) {
+    Database ldb=new Database(logcon);
+    try {
+      ldb.connect();
+      ldb.writeLogRecord(transMeta.getLogTable(),transMeta.isBatchIdUsed(),transMeta.getBatchId(),false,transMeta.getName(),status,result.getNrLinesRead(),result.getNrLinesWritten(),result.getNrLinesUpdated(),result.getNrLinesInput() + result.getNrFilesRetrieved(),result.getNrLinesOutput(),result.getNrErrors(),startDate,endDate,logDate,depDate,log_string);
+    }
+ catch (    Exception e) {
+      throw new KettleException("Error writing log record to table [" + transMeta.getLogTable() + "]",e);
+    }
+ finally {
+      ldb.disconnect();
+    }
+  }
+  return true;
+}

@@ -1,0 +1,54 @@
+{
+  meta=(ExecSQLMeta)smi;
+  data=(ExecSQLData)sdi;
+  debug="execute SQ start";
+  Row row=null;
+  if (!meta.isExecutedEachInputRow()) {
+    debug="exec once: return result";
+    row=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
+    putRow(row);
+    setOutputDone();
+    return false;
+  }
+  row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  StringBuffer sql=new StringBuffer(meta.getSql());
+  if (first) {
+    first=false;
+    debug="Find the indexes of the arguments";
+    data.argumentIndexes=new int[meta.getArguments().length];
+    for (int i=0; i < meta.getArguments().length; i++) {
+      data.argumentIndexes[i]=row.searchValueIndex(meta.getArguments()[i]);
+      if (data.argumentIndexes[i] < 0) {
+        logError("Error finding field: " + meta.getArguments()[i] + "]");
+        throw new KettleStepException("Couldn't find field '" + meta.getArguments()[i] + "' in row!");
+      }
+    }
+    debug="Find the locations of the question marks in the String...";
+    data.markerPositions=new ArrayList();
+    int len=sql.length();
+    int pos=len - 1;
+    while (pos >= 0) {
+      if (sql.charAt(pos) == '?')       data.markerPositions.add(new Integer(pos));
+      pos--;
+    }
+  }
+  debug="Replace the values in the SQL string...";
+  for (int i=0; i < data.markerPositions.size(); i++) {
+    Value value=row.getValue(data.argumentIndexes[i]);
+    int pos=((Integer)data.markerPositions.get(i)).intValue();
+    sql.replace(pos,pos + 1,value.getString());
+  }
+  debug="Execute sql: " + sql;
+  logRowlevel("Executing SQL script:" + Const.CR + sql);
+  data.result=data.db.execStatements(sql.toString());
+  debug="Get result";
+  Row add=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
+  row.addRow(add);
+  putRow(row);
+  if ((linesWritten > 0) && (linesWritten % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesWritten);
+  return true;
+}

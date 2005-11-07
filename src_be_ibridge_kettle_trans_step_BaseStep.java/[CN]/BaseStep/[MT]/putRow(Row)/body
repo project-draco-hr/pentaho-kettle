@@ -1,0 +1,62 @@
+{
+  int i;
+  int sleeptime;
+  RowSet rs;
+  if (previewSize > 0 && previewBuffer.size() < previewSize) {
+    previewBuffer.add(new Row(in));
+  }
+  if (terminator && terminator_rows != null) {
+    terminator_rows.add(new Row(in));
+  }
+  if (output.size() == 0)   return;
+  for (i=0; i < output.size(); i++) {
+    sleeptime=Const.SLEEP_FULL_NANOS;
+    rs=(RowSet)output.get(i);
+    try {
+      rs.setPriorityFrom(calcPutPriority(rs));
+    }
+ catch (    Exception e) {
+      logError("Error occured setting priorityFrom");
+      setErrors(1);
+      stopAll();
+      return;
+    }
+    while (rs.isFull() && !stopped) {
+      try {
+        sleep(sleeptime);
+      }
+ catch (      Exception e) {
+        logError("Interupted while trying to put a new row in a buffer: " + e.toString());
+        setErrors(1);
+        stopAll();
+        return;
+      }
+      put_sleeps+=sleeptime;
+      if (sleeptime < 500)       sleeptime*=1.2;
+ else       sleeptime=500;
+    }
+  }
+  if (stopped) {
+    logDebug("Stopped while putting a row on the buffer");
+    stopAll();
+    return;
+  }
+  if (distribute) {
+    rs=(RowSet)output.get(out_handling);
+    rs.putRow(in);
+    linesWritten++;
+    if (output.size() > 1) {
+      out_handling++;
+      if (out_handling >= output.size())       out_handling=0;
+    }
+  }
+ else {
+    rs=(RowSet)output.get(0);
+    rs.putRow(in);
+    linesWritten++;
+    for (i=1; i < output.size(); i++) {
+      rs=(RowSet)output.get(i);
+      rs.putRow(new Row(in));
+    }
+  }
+}

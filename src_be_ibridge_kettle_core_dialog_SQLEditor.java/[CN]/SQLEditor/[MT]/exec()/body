@@ -1,0 +1,89 @@
+{
+  DatabaseMeta ci=connection;
+  if (ci == null)   return;
+  Database db=new Database(ci);
+  try {
+    db.connect();
+    String all=wScript.getText() + Const.CR;
+    int from=0;
+    int to=0;
+    int length=all.length();
+    int nrstats=0;
+    while (to < length) {
+      char c=all.charAt(to);
+      if (c == '"') {
+        to++;
+        c=' ';
+        while (to < length && c != '"') {
+          c=all.charAt(to);
+          to++;
+        }
+      }
+ else       if (c == '\'') {
+        to++;
+        c=' ';
+        while (to < length && c != '\'') {
+          c=all.charAt(to);
+          to++;
+        }
+      }
+      if (c == ';' || to >= length - 1) {
+        if (to >= length - 1)         to++;
+        String stat=all.substring(from,to);
+        if (!onlySpaces(stat)) {
+          String sql=Const.trim(stat);
+          if (sql.toUpperCase().startsWith("SELECT")) {
+            log.logDetailed(toString(),"launch SELECT statement: " + Const.CR + sql);
+            nrstats++;
+            try {
+              ArrayList rows=db.getRows(sql,1000);
+              if (rows.size() > 0) {
+                PreviewRowsDialog prd=new PreviewRowsDialog(shell,SWT.NONE,"SQL statement #" + nrstats,rows);
+                prd.open();
+              }
+ else {
+                MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
+                mb.setMessage("Couldn't find any rows for statement #" + nrstats + Const.CR+ Const.CR+ sql);
+                mb.setText("Sorry");
+                mb.open();
+              }
+            }
+ catch (            KettleDatabaseException dbe) {
+              new ErrorDialog(shell,props,"Error","I encountered an error executing statement #" + nrstats,dbe);
+            }
+          }
+ else {
+            log.logDetailed(toString(),"launch DDL statement: " + Const.CR + sql);
+            nrstats++;
+            try {
+              log.logDetailed(toString(),"Executing SQL: " + Const.CR + sql);
+              db.execStatement(sql);
+              if (dbcache != null)               dbcache.clear(ci.getName());
+            }
+ catch (            Exception dbe) {
+              new ErrorDialog(shell,props,"Error","Error executing SQL statement nr " + nrstats + " :",dbe);
+            }
+          }
+        }
+        to++;
+        from=to;
+      }
+ else {
+        to++;
+      }
+    }
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+    mb.setMessage(nrstats + " statement" + (nrstats == 1 ? "" : "s")+ " executed");
+    mb.setText("OK");
+    mb.open();
+  }
+ catch (  KettleDatabaseException dbe) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("Unable to connect to the database!" + Const.CR + "Please check the connection setting for connection["+ (connection == null ? "" : connection.getName())+ "]"+ Const.CR+ dbe.getMessage());
+    mb.setText("ERROR");
+    mb.open();
+  }
+ finally {
+    db.disconnect();
+  }
+}

@@ -1,0 +1,46 @@
+{
+  String debug="insertRow start";
+  try {
+    boolean useBatchInsert=batch && getDatabaseMetaData().supportsBatchUpdates();
+    if (!isAutoCommit()) {
+      if (useBatchInsert) {
+        debug="insertRow add batch";
+        batchCounter++;
+        ps.addBatch();
+        testCounter++;
+      }
+ else {
+        debug="insertRow exec update";
+        ps.executeUpdate();
+      }
+    }
+ else {
+      ps.executeUpdate();
+    }
+    written++;
+    if (!isAutoCommit() && (written % commitsize) == 0) {
+      if (useBatchInsert) {
+        debug="insertRow executeBatch commit";
+        ps.executeBatch();
+        commit();
+        ps.clearBatch();
+        batchCounter=0;
+      }
+ else {
+        debug="insertRow normal commit";
+        commit();
+      }
+    }
+  }
+ catch (  BatchUpdateException ex) {
+    KettleDatabaseBatchException kdbe=new KettleDatabaseBatchException("Error updating batch",ex);
+    kdbe.setUpdateCounts(ex.getUpdateCounts());
+    throw kdbe;
+  }
+catch (  SQLException ex) {
+    throw new KettleDatabaseException("Error inserting row",ex);
+  }
+catch (  Exception e) {
+    throw new KettleDatabaseException("Unexpected error inserting row in part [" + debug + "]",e);
+  }
+}

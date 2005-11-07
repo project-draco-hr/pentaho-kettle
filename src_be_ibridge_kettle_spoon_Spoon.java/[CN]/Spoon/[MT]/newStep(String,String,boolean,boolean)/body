@@ -1,0 +1,55 @@
+{
+  StepMeta inf=null;
+  if (rename && transMeta.findStep(name) != null) {
+    int i=2;
+    String newname=name + " " + i;
+    while (transMeta.findStep(newname) != null) {
+      i++;
+      newname=name + " " + i;
+    }
+    name=newname;
+  }
+  try {
+    StepLoader steploader=StepLoader.getInstance();
+    StepPlugin sp=steploader.findStepPluginWithDescription(description);
+    if (sp != null) {
+      StepMetaInterface info=BaseStep.getStepInfo(sp,steploader);
+      info.setDefault();
+      if (openit) {
+        StepDialogInterface dialog=info.getDialog(shell,info,transMeta,name);
+        name=dialog.open();
+      }
+      inf=new StepMeta(log,sp.getID(),name,info);
+      if (name != null) {
+        String newname=name;
+        StepMeta stepMeta=transMeta.findStep(newname);
+        int nr=2;
+        while (stepMeta != null) {
+          newname=name + " " + nr;
+          stepMeta=transMeta.findStep(newname);
+          nr++;
+        }
+        if (nr > 2) {
+          inf.setName(newname);
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+          mb.setMessage("This stepname already exists.  Spoon changed the stepname to [" + newname + "]");
+          mb.setText("Info!");
+          mb.open();
+        }
+        inf.setLocation(20,20);
+        transMeta.addStep(inf);
+        if (openit) {
+          addUndoNew(new StepMeta[]{inf},new int[]{transMeta.indexOfStep(inf)});
+        }
+        props.addPluginHistory(sp.getID());
+        refreshTree();
+      }
+      setShellText();
+    }
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,props,"Error creating step","I was unable to create a new step",e);
+    return null;
+  }
+  return inf;
+}

@@ -1,0 +1,63 @@
+{
+  String debug="-";
+  Row r=null;
+  try {
+    debug="get next record from reader!";
+    Object rowobj[]=reader.nextRecord();
+    if (rowobj == null)     return null;
+    debug="copy the default row for speed!";
+    r=new Row(fields);
+    debug="set the values in the row";
+    for (int i=0; i < reader.getFieldCount(); i++) {
+      debug="getting value #" + i;
+      Value v=r.getValue(i);
+      debug="setting value #" + i + " : "+ v.getName()+ " datatype='"+ (char)datatype[i]+ "'";
+switch (datatype[i]) {
+case DBFField.FIELD_TYPE_M:
+        if (rowobj[i] == null)         v.setNull();
+ else         v.setValue((String)rowobj[i]);
+      break;
+case DBFField.FIELD_TYPE_C:
+    v.setValue(Const.rtrim((String)rowobj[i]));
+  break;
+case DBFField.FIELD_TYPE_N:
+try {
+  if (rowobj[i] == null)   v.setNull();
+ else   v.setValue(((Double)rowobj[i]).doubleValue());
+}
+ catch (NumberFormatException e) {
+  v.setNull();
+}
+break;
+case DBFField.FIELD_TYPE_F:
+try {
+if (rowobj[i] == null) v.setNull();
+ else v.setValue(((Float)rowobj[i]).doubleValue());
+}
+ catch (NumberFormatException e) {
+v.setNull();
+}
+break;
+case DBFField.FIELD_TYPE_L:
+v.setValue(((Boolean)rowobj[i]).booleanValue());
+break;
+case DBFField.FIELD_TYPE_D:
+v.setValue(((Date)rowobj[i]));
+break;
+default :
+break;
+}
+}
+}
+ catch (DBFException e) {
+log.logError(toString(),"Unable to read row in part [" + debug + "] : "+ e.toString());
+error=true;
+return null;
+}
+catch (Exception e) {
+log.logError(toString(),"Unexpected error in part [" + debug + "] : "+ e.toString());
+error=true;
+return null;
+}
+return r;
+}

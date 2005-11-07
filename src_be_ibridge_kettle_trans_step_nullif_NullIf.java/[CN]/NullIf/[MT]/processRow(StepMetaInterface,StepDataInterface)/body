@@ -1,0 +1,34 @@
+{
+  meta=(NullIfMeta)smi;
+  data=(NullIfData)sdi;
+  Row r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  logRowlevel("Convert field values to NULL for row: " + r);
+  if (first) {
+    first=false;
+    data.keynr=new int[meta.getFieldValue().length];
+    data.nullValue=new Value[meta.getFieldValue().length];
+    for (int i=0; i < meta.getFieldValue().length; i++) {
+      data.keynr[i]=r.searchValueIndex(meta.getFieldName()[i]);
+      if (data.keynr[i] < 0) {
+        logError("Couldn't find field '" + meta.getFieldValue()[i] + "' in row!");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+      data.nullValue[i]=new Value(meta.getFieldName()[i],meta.getFieldValue()[i]);
+      data.nullValue[i].setType(r.getValue(data.keynr[i]).getType());
+    }
+  }
+  for (int i=0; i < meta.getFieldValue().length; i++) {
+    Value field=r.getValue(data.keynr[i]);
+    if (field != null && field.equals(data.nullValue[i])) {
+      field.setNull();
+    }
+  }
+  putRow(r);
+  return true;
+}

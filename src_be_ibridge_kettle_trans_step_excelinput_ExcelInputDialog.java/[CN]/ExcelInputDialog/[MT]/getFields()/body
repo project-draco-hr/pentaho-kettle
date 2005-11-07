@@ -1,0 +1,77 @@
+{
+  Row fields=new Row();
+  ExcelInputMeta info=new ExcelInputMeta();
+  getInfo(info);
+  String files[]=info.getFiles();
+  for (int i=0; i < files.length; i++) {
+    try {
+      File file=new File(files[i]);
+      Workbook workbook=Workbook.getWorkbook(file);
+      int nrSheets=workbook.getNumberOfSheets();
+      for (int j=0; j < nrSheets; j++) {
+        Sheet sheet=workbook.getSheet(j);
+        int sheetIndex=Const.indexOfString(sheet.getName(),info.getSheetName());
+        if (sheetIndex >= 0) {
+          int rownr=info.getStartRow()[sheetIndex];
+          int startcol=info.getStartColumn()[sheetIndex];
+          boolean stop=false;
+          for (int colnr=startcol; colnr < 256 && !stop; colnr++) {
+            try {
+              String fieldname=null;
+              int fieldtype=Value.VALUE_TYPE_NONE;
+              Cell cell=sheet.getCell(colnr,rownr);
+              if (!cell.getType().equals(CellType.EMPTY)) {
+                fieldname=cell.getContents();
+              }
+              Cell below=sheet.getCell(colnr,rownr + 1);
+              if (below.getType().equals(CellType.BOOLEAN)) {
+                fieldtype=Value.VALUE_TYPE_BOOLEAN;
+              }
+ else               if (below.getType().equals(CellType.DATE)) {
+                fieldtype=Value.VALUE_TYPE_DATE;
+              }
+ else               if (below.getType().equals(CellType.LABEL)) {
+                fieldtype=Value.VALUE_TYPE_STRING;
+              }
+ else               if (below.getType().equals(CellType.NUMBER)) {
+                fieldtype=Value.VALUE_TYPE_NUMBER;
+              }
+              if (fieldname != null && fieldtype != Value.VALUE_TYPE_NONE) {
+                Value field=new Value(fieldname,fieldtype);
+                if (fields.searchValueIndex(field.getName()) < 0)                 fields.addValue(field);
+              }
+ else {
+                if (fieldname == null)                 stop=true;
+              }
+            }
+ catch (            ArrayIndexOutOfBoundsException aioobe) {
+              stop=true;
+            }
+          }
+        }
+      }
+      workbook.close();
+    }
+ catch (    Exception e) {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage("I was unable to read the Excel file [" + files[i] + "]."+ Const.CR+ "  Please check the files, directories & expression."+ Const.CR+ e.toString());
+      mb.setText("ERROR");
+      mb.open();
+    }
+  }
+  if (fields.size() > 0) {
+    for (int j=0; j < fields.size(); j++) {
+      Value field=fields.getValue(j);
+      wFields.add(new String[]{field.getName(),field.getTypeDesc(),"-1","-1","none","N"});
+    }
+    wFields.removeEmptyRows();
+    wFields.setRowNums();
+    wFields.optWidth(true);
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+    mb.setMessage("I was unable to find any fields in the Excel file(s).");
+    mb.setText("No success");
+    mb.open();
+  }
+}

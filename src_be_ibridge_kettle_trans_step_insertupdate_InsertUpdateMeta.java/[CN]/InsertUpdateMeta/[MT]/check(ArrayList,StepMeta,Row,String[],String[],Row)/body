@@ -1,0 +1,154 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (database != null) {
+    Database db=new Database(database);
+    try {
+      db.connect();
+      if (tableName != null && tableName.length() != 0) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Table name is filled in.",stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        boolean error_found=false;
+        error_message="";
+        Row r=db.getTableFields(tableName);
+        if (r != null) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Table exists and we can read data from it.",stepMeta);
+          remarks.add(cr);
+          for (int i=0; i < keyLookup.length; i++) {
+            String lufield=keyLookup[i];
+            Value v=r.searchValue(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+="Missing compare fields in target table:" + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All lookup fields found in the table.",stepMeta);
+          }
+          remarks.add(cr);
+          first=true;
+          error_found=false;
+          error_message="";
+          for (int i=0; i < updateLookup.length; i++) {
+            String lufield=updateLookup[i];
+            Value v=r.searchValue(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+="Missing fields to update/insert in target table:" + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All insert/update fields found in the table.",stepMeta);
+          }
+          remarks.add(cr);
+        }
+ else {
+          error_message="Couldn't read the table info, please check the table-name & permissions.";
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is connected to previous one, receiving " + prev.size() + " fields",stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < keyStream.length; i++) {
+          Value v=prev.searchValue(keyStream[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+="Missing fields, not found in input from previous steps:" + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + keyStream[i] + Const.CR;
+          }
+        }
+        for (int i=0; i < keyStream2.length; i++) {
+          if (keyStream2[i] != null && keyStream2[i].length() > 0) {
+            Value v=prev.searchValue(keyStream2[i]);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+="Missing fields, not found in input from previous steps:" + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + keyStream[i] + Const.CR;
+            }
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All fields found in the input stream.",stepMeta);
+        }
+        remarks.add(cr);
+        first=true;
+        error_found=false;
+        error_message="";
+        for (int i=0; i < updateStream.length; i++) {
+          String lufield=updateStream[i];
+          Value v=prev.searchValue(lufield);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+="Missing input stream fields to update/insert the target table with:" + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + lufield + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All insert/update fields found in the input stream.",stepMeta);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message="Couldn't read fields from the previous step." + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message="A database error occurred: " + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message="Please select or create a connection!";
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is receiving info from other steps.",stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"No input received from other steps!",stepMeta);
+    remarks.add(cr);
+  }
+}

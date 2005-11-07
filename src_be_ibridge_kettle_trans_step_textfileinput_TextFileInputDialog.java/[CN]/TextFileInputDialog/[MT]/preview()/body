@@ -1,0 +1,154 @@
+{
+  String debug="Start";
+  TextFileInputMeta info=new TextFileInputMeta();
+  debug="gef info";
+  getInfo(info);
+  debug="gef files";
+  String files[]=info.getFiles();
+  Row previous_row=null;
+  int nr_repeats=0;
+  long rownumber=1;
+  if (files != null && files.length > 0) {
+    int max_lines;
+    if (previewlimit >= 0) {
+      max_lines=previewlimit;
+    }
+ else {
+      String shell_text="Number of preview rows";
+      String line_text="How many lines do you want to preview?";
+      EnterNumberDialog end=new EnterNumberDialog(shell,props,100,shell_text,line_text);
+      max_lines=end.open();
+    }
+    boolean stop_preview=false;
+    if (max_lines >= 0 && !stop_preview) {
+      debug="A";
+      for (int i=0; i < info.getInputFields().length; i++)       if (info.getInputFields()[i].isRepeated())       nr_repeats++;
+      try {
+        int linenr=0;
+        ArrayList rowbuffer=new ArrayList();
+        for (int x=0; x < files.length && (linenr < max_lines || max_lines == 0) && !stop_preview; x++) {
+          debug="B";
+          FileInputStream fi=new FileInputStream(new File(files[x]));
+          ZipInputStream zi=null;
+          InputStream f=null;
+          if (info.isZipped()) {
+            zi=new ZipInputStream(fi);
+            zi.getNextEntry();
+            f=zi;
+          }
+ else {
+            f=fi;
+          }
+          debug="C";
+          String line=TextFileInput.getLine(log,f,wFormat.getText());
+          if (info.hasHeader())           line=TextFileInput.getLine(log,f,wFormat.getText());
+          debug="D";
+          while (line != null && (linenr < max_lines || max_lines == 0)) {
+            StringBuffer error=new StringBuffer();
+            Row r=TextFileInput.convertLineToRow(log,line,info,true,df,dfs,daf,dafs,files[x],rownumber);
+            if (r != null) {
+              rownumber++;
+              if (nr_repeats > 0) {
+                if (previous_row == null) {
+                  previous_row=new Row();
+                  for (int i=0; i < info.getInputFields().length; i++) {
+                    if (info.getInputFields()[i].isRepeated()) {
+                      Value value=r.getValue(i);
+                      previous_row.addValue(new Value(value));
+                    }
+                  }
+                }
+ else {
+                  int repnr=0;
+                  for (int i=0; i < info.getInputFields().length; i++) {
+                    if (info.getInputFields()[i].isRepeated()) {
+                      Value value=r.getValue(i);
+                      if (value.isNull()) {
+                        Value prev=previous_row.getValue(repnr);
+                        r.removeValue(i);
+                        r.addValue(i,prev);
+                      }
+ else {
+                        previous_row.removeValue(repnr);
+                        previous_row.addValue(repnr,new Value(value));
+                      }
+                      repnr++;
+                    }
+                  }
+                }
+              }
+              if (!(input.noEmptyLines() && r.isEmpty()) && !r.isIgnored()) {
+                rowbuffer.add(r);
+              }
+ else {
+                rownumber--;
+                linenr--;
+              }
+              line=TextFileInput.getLine(log,f,wFormat.getText());
+            }
+ else {
+              MessageBox mb=new MessageBox(shell,SWT.OK | SWT.CANCEL | SWT.ICON_ERROR);
+              mb.setMessage("Error previewing file on line " + linenr + " : "+ error);
+              mb.setText("ERROR");
+              int answer=mb.open();
+              if (answer == SWT.CANCEL)               stop_preview=true;
+              line=null;
+            }
+            linenr++;
+          }
+          debug="E";
+          if (info.isZipped()) {
+            zi.closeEntry();
+            zi.close();
+          }
+          f.close();
+        }
+        debug="EA";
+        if (previewlimit >= 0) {
+          if (!previewdialog.isDisposed()) {
+            previewdialog.dispose();
+            debug="EB";
+            previewbounds=previewdialog.getBounds();
+            debug="EC";
+            previewhscroll=previewdialog.getHScroll();
+            debug="ED";
+            previewvscroll=previewdialog.getVScroll();
+          }
+        }
+ else {
+          previewlimit=max_lines;
+        }
+        debug="F";
+        wPreview.setText(STRING_PREVIEW_REFRESH);
+        previewdialog=new PreviewRowsDialog(shell,SWT.NONE,wStepname.getText(),rowbuffer);
+        previewdialog.setBounds(previewbounds);
+        previewdialog.setHScroll(previewhscroll);
+        previewdialog.setVScroll(previewvscroll);
+        if (previewdialog.open() == null) {
+          previewbounds=previewdialog.getBounds();
+          previewhscroll=previewdialog.getHScroll();
+          previewvscroll=previewdialog.getVScroll();
+          previewlimit=-1;
+          wPreview.setText(STRING_PREVIEW_ROWS);
+        }
+      }
+ catch (      Exception e) {
+        wPreview.setText(STRING_PREVIEW_ROWS);
+        previewdialog=null;
+        previewlimit=-1;
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage("The following error occured while trying to preview rows: " + Const.CR + e.toString()+ Const.CR+ "Part: "+ debug);
+        mb.setText("ERROR");
+        mb.open();
+      }
+ finally {
+      }
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("I couldn't find a valid file to work with.  Please check the files, directories & expression.");
+    mb.setText("ERROR");
+    mb.open();
+  }
+}

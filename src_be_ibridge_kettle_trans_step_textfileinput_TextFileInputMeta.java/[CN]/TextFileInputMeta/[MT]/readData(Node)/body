@@ -1,0 +1,57 @@
+{
+  try {
+    int nrfiles, nrfields;
+    String lim;
+    separator=XMLHandler.getTagValue(stepnode,"separator");
+    enclosure=XMLHandler.getTagValue(stepnode,"enclosure");
+    header="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"header"));
+    footer="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"footer"));
+    String nempty=XMLHandler.getTagValue(stepnode,"noempty");
+    noEmptyLines="Y".equalsIgnoreCase(nempty) || nempty == null;
+    includeFilename="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"include"));
+    filenameField=XMLHandler.getTagValue(stepnode,"include_field");
+    includeRowNumber="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"rownum"));
+    rowNumberField=XMLHandler.getTagValue(stepnode,"rownum_field");
+    fileFormat=XMLHandler.getTagValue(stepnode,"format");
+    filter="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"filter"));
+    filterPosition=Const.toInt(XMLHandler.getTagValue(stepnode,"filter_position"),-1);
+    filterString=XMLHandler.getTagValue(stepnode,"filter_string");
+    Node filenode=XMLHandler.getSubNode(stepnode,"file");
+    Node fields=XMLHandler.getSubNode(stepnode,"fields");
+    nrfiles=XMLHandler.countNodes(filenode,"name");
+    nrfields=XMLHandler.countNodes(fields,"field");
+    allocate(nrfiles,nrfields);
+    for (int i=0; i < nrfiles; i++) {
+      Node filenamenode=XMLHandler.getSubNodeByNr(filenode,"name",i);
+      Node filemasknode=XMLHandler.getSubNodeByNr(filenode,"filemask",i);
+      fileName[i]=XMLHandler.getNodeValue(filenamenode);
+      fileMask[i]=XMLHandler.getNodeValue(filemasknode);
+    }
+    fileType=XMLHandler.getTagValue(stepnode,"file","type");
+    zipped="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"file","zipped"));
+    for (int i=0; i < nrfields; i++) {
+      Node fnode=XMLHandler.getSubNodeByNr(fields,"field",i);
+      TextFileInputField field=new TextFileInputField();
+      field.setName(XMLHandler.getTagValue(fnode,"name"));
+      field.setType(Value.getType(XMLHandler.getTagValue(fnode,"type")));
+      field.setFormat(XMLHandler.getTagValue(fnode,"format"));
+      field.setCurrencySymbol(XMLHandler.getTagValue(fnode,"currency"));
+      field.setDecimalSymbol(XMLHandler.getTagValue(fnode,"decimal"));
+      field.setGroupSymbol(XMLHandler.getTagValue(fnode,"group"));
+      field.setNullString(XMLHandler.getTagValue(fnode,"nullif"));
+      field.setPosition(Const.toInt(XMLHandler.getTagValue(fnode,"position"),-1));
+      field.setLength(Const.toInt(XMLHandler.getTagValue(fnode,"length"),-1));
+      field.setPrecision(Const.toInt(XMLHandler.getTagValue(fnode,"precision"),-1));
+      field.setTrimType(getTrimType(XMLHandler.getTagValue(fnode,"trim_type")));
+      String srepeat=XMLHandler.getTagValue(fnode,"repeat");
+      if (srepeat != null)       field.setRepeated("Y".equalsIgnoreCase(srepeat));
+ else       field.setRepeated(false);
+      inputFields[i]=field;
+    }
+    lim=XMLHandler.getTagValue(stepnode,"limit");
+    rowLimit=Const.toLong(lim,0L);
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException("Unable to load step info from XML",e);
+  }
+}

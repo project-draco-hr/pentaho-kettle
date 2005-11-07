@@ -1,0 +1,60 @@
+{
+  for (int dirNr=0; dirNr < pluginDirectory.length; dirNr++) {
+    try {
+      File f=new File(pluginDirectory[dirNr]);
+      if (f.isDirectory() && f.exists()) {
+        LogWriter log=LogWriter.getInstance();
+        log.logDetailed("StepLoader","Looking for plugins in directory: " + pluginDirectory[dirNr]);
+        String dirs[]=f.list();
+        for (int i=0; i < dirs.length; i++) {
+          String piDir=pluginDirectory[dirNr] + Const.FILE_SEPARATOR + dirs[i];
+          File pi=new File(piDir);
+          if (pi.isDirectory()) {
+            String pixml=pi.toString() + Const.FILE_SEPARATOR + "plugin.xml";
+            File fpixml=new File(pixml);
+            if (fpixml.canRead()) {
+              try {
+                DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
+                DocumentBuilder db=dbf.newDocumentBuilder();
+                Document doc=db.parse(fpixml);
+                Node plugin=XMLHandler.getSubNode(doc,"plugin");
+                String id=XMLHandler.getTagAttribute(plugin,"id");
+                String description=XMLHandler.getTagAttribute(plugin,"description");
+                String iconfile=XMLHandler.getTagAttribute(plugin,"iconfile");
+                String tooltip=XMLHandler.getTagAttribute(plugin,"tooltip");
+                String category=XMLHandler.getTagAttribute(plugin,"category");
+                String classname=XMLHandler.getTagAttribute(plugin,"classname");
+                Node libsnode=XMLHandler.getSubNode(plugin,"libraries");
+                int nrlibs=XMLHandler.countNodes(libsnode,"library");
+                String jarfiles[]=new String[nrlibs];
+                for (int j=0; j < nrlibs; j++) {
+                  Node libnode=XMLHandler.getSubNodeByNr(libsnode,"library",j);
+                  String jarfile=XMLHandler.getTagAttribute(libnode,"name");
+                  jarfiles[j]=pi.toString() + Const.FILE_SEPARATOR + jarfile;
+                }
+                String iconFilename=pi.toString() + Const.FILE_SEPARATOR + iconfile;
+                StepPlugin sp=new StepPlugin(StepPlugin.TYPE_PLUGIN,id,description,tooltip,dirs[i],jarfiles,iconFilename,classname,category);
+                if (findStepPluginWithID(id) == null) {
+                  pluginList.add(sp);
+                }
+ else {
+                  int idx=pluginList.indexOf(sp);
+                  pluginList.set(idx,sp);
+                  System.out.println("Replaced existing plugin with ID : " + id);
+                }
+              }
+ catch (              Exception e) {
+                System.out.println("Error reading plugin XML file: " + e.toString());
+                return false;
+              }
+            }
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      System.out.println("Couldn't find directory [" + pluginDirectory[dirNr] + "]");
+    }
+  }
+  return true;
+}

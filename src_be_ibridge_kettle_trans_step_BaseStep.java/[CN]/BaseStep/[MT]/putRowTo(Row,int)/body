@@ -1,0 +1,33 @@
+{
+  int sleeptime;
+  if (previewSize > 0 && previewBuffer.size() < previewSize) {
+    previewBuffer.add(new Row(in));
+  }
+  if (terminator && terminator_rows != null) {
+    terminator_rows.add(new Row(in));
+  }
+  if (output.size() == 0)   return;
+  RowSet rs=(RowSet)output.get(output_rowset_nr);
+  sleeptime=Const.SLEEP_FULL_NANOS;
+  while (rs.isFull() && !stopped) {
+    try {
+      sleep(sleeptime);
+    }
+ catch (    Exception e) {
+      logError("Interupted while trying to put a new row in a buffer: " + e.toString());
+      setErrors(1);
+      stopAll();
+      return;
+    }
+    put_sleeps+=sleeptime;
+    if (sleeptime < 500)     sleeptime*=1.2;
+ else     sleeptime=500;
+  }
+  if (stopped) {
+    logDebug("Stopped while putting a row on the buffer");
+    stopAll();
+    return;
+  }
+  rs.putRow(in);
+  linesWritten++;
+}

@@ -1,0 +1,98 @@
+{
+  if (database != null) {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Connection exists",stepMeta);
+    remarks.add(cr);
+    Database db=new Database(database);
+    try {
+      db.connect();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Connection to database OK",stepMeta);
+      remarks.add(cr);
+      if (tablename != null && tablename.length() != 0) {
+        if (db.checkTableExists(tablename)) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Table [" + tablename + "] exists and is accessible",stepMeta);
+          remarks.add(cr);
+          Row r=db.getTableFields(tablename);
+          if (r != null) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Table [" + tablename + "] is readeable and we got the fields from it.",stepMeta);
+            remarks.add(cr);
+            String error_message="";
+            boolean error_found=false;
+            if (prev != null && prev.size() > 0) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is connected to previous one, receiving " + prev.size() + " fields",stepMeta);
+              remarks.add(cr);
+              for (int i=0; i < prev.size(); i++) {
+                Value pv=prev.getValue(i);
+                int idx=r.searchValueIndex(pv.getName());
+                if (idx < 0) {
+                  error_message+="\t\t" + pv.getName() + " ("+ pv.getTypeDesc()+ ")"+ Const.CR;
+                  error_found=true;
+                }
+              }
+              if (error_found) {
+                error_message="Fields in input stream, not found in output table:" + Const.CR + Const.CR+ error_message;
+                cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+                remarks.add(cr);
+              }
+ else {
+                cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All fields, coming from previous steps, are found in the output table",stepMeta);
+                remarks.add(cr);
+              }
+              for (int i=0; i < r.size(); i++) {
+                Value rv=r.getValue(i);
+                int idx=prev.searchValueIndex(rv.getName());
+                if (idx < 0) {
+                  error_message+="\t\t" + rv.getName() + " ("+ rv.getTypeDesc()+ ")"+ Const.CR;
+                  error_found=true;
+                }
+              }
+              if (error_found) {
+                error_message="Fields in table, not found in input stream:" + Const.CR + Const.CR+ error_message;
+                cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+                remarks.add(cr);
+              }
+ else {
+                cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All fields in the table are found in the input stream, coming from previous steps",stepMeta);
+                remarks.add(cr);
+              }
+            }
+ else {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"Couldn't find fields from previous steps, check the hops...!",stepMeta);
+              remarks.add(cr);
+            }
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"Couldn't read the table info, please check the table-name & permissions.",stepMeta);
+            remarks.add(cr);
+          }
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"Table [" + tablename + "] doesn't exist or can't be read on this database connection.",stepMeta);
+          remarks.add(cr);
+        }
+      }
+ else {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"No table name was entered in this step.",stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"An error occurred: " + e.getMessage(),stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"Please select or create a connection to use",stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is receiving info from other steps.",stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"No input received from other steps!",stepMeta);
+    remarks.add(cr);
+  }
+}

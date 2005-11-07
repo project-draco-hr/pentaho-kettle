@@ -1,0 +1,123 @@
+{
+  boolean retval=true;
+  String scr=wScript.getText();
+  String error_message="";
+  Context jscx;
+  Scriptable jsscope;
+  Script jsscript;
+  jscx=Context.enter();
+  jsscope=jscx.initStandardObjects(null);
+  Scriptable jsvalue=Context.toObject(new Value("empty",Value.VALUE_TYPE_NONE),jsscope);
+  jsscope.put("empty",jsscope,jsvalue);
+  try {
+    Row row=transMeta.getPrevStepFields(stepname);
+    if (row != null) {
+      Scriptable jsrow=Context.toObject(row,jsscope);
+      jsscope.put("row",jsscope,jsrow);
+      for (int i=0; i < row.size(); i++) {
+        Value val=row.getValue(i);
+        if (val.isDate())         val.setValue(new Date());
+        if (val.isString())         val.setValue("test value test value test value test value test value test value test value test value test value test value");
+        Scriptable jsarg=Context.toObject(val,jsscope);
+        jsscope.put(val.getName(),jsscope,jsarg);
+      }
+      Scriptable jsval=Context.toObject(Value.class,jsscope);
+      jsscope.put("Value",jsscope,jsval);
+      try {
+        jsscript=jscx.compileString(scr,"script",1,null);
+        try {
+          jsscript.exec(jscx,jsscope);
+          if (getvars) {
+            Object id[]=jsscope.getIds();
+            for (int i=0; i < id.length; i++) {
+              String varname=(String)id[i];
+              if (!varname.equalsIgnoreCase("row") && !varname.equalsIgnoreCase("Value") && !varname.equalsIgnoreCase("empty")&& row.searchValueIndex(varname) < 0) {
+                int type=Value.VALUE_TYPE_STRING;
+                int length=-1, precision=-1;
+                Object result=jsscope.get(varname,jsscope);
+                if (result != null) {
+                  String classname=result.getClass().getName();
+                  if (classname.equalsIgnoreCase("java.lang.Byte")) {
+                    type=Value.VALUE_TYPE_INTEGER;
+                    length=3;
+                    precision=0;
+                  }
+ else                   if (classname.equalsIgnoreCase("java.lang.Integer")) {
+                    type=Value.VALUE_TYPE_INTEGER;
+                    length=9;
+                    precision=0;
+                  }
+ else                   if (classname.equalsIgnoreCase("java.lang.Long")) {
+                    type=Value.VALUE_TYPE_INTEGER;
+                    length=18;
+                    precision=0;
+                  }
+ else                   if (classname.equalsIgnoreCase("java.lang.Double")) {
+                    type=Value.VALUE_TYPE_NUMBER;
+                    length=16;
+                    precision=2;
+                  }
+ else                   if (classname.equalsIgnoreCase("org.mozilla.javascript.NativeDate") || classname.equalsIgnoreCase("java.lang.Date")) {
+                    type=Value.VALUE_TYPE_DATE;
+                  }
+ else                   if (classname.equalsIgnoreCase("java.lang.Boolean")) {
+                    type=Value.VALUE_TYPE_BOOLEAN;
+                  }
+                }
+                TableItem ti=new TableItem(wFields.table,SWT.NONE);
+                ti.setText(1,varname);
+                ti.setText(2,varname);
+                ti.setText(3,Value.getTypeDesc(type));
+                ti.setText(4,"" + length);
+                ti.setText(5,"" + precision);
+              }
+            }
+            wFields.removeEmptyRows();
+            wFields.setRowNums();
+            wFields.optWidth(true);
+          }
+        }
+ catch (        JavaScriptException jse) {
+          error_message="Coundln't execute this script! Error:" + Const.CR + jse.toString();
+          retval=false;
+        }
+catch (        Exception e) {
+          error_message="General error executing script:" + Const.CR + e.toString();
+          retval=false;
+        }
+      }
+ catch (      Exception e) {
+        error_message="Coundln't compile this script! Error:" + Const.CR + e.toString();
+        retval=false;
+      }
+    }
+ else {
+      error_message="Coundln't get fields from previous steps, please connect all needed hops!";
+      retval=false;
+    }
+    if (popup) {
+      if (retval) {
+        if (!getvars) {
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+          mb.setMessage("This script compiled without problems." + Const.CR);
+          mb.setText("OK");
+          mb.open();
+        }
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage(error_message);
+        mb.setText("ERROR");
+        mb.open();
+      }
+    }
+  }
+ catch (  KettleException ke) {
+    retval=false;
+    new ErrorDialog(shell,props,"Test failed","Unable to get fields from previous steps because of an error",ke);
+  }
+ finally {
+    if (jscx != null)     Context.exit();
+  }
+  return retval;
+}

@@ -1,0 +1,88 @@
+{
+  meta=(JoinRowsMeta)smi;
+  data=(JoinRowsData)sdi;
+  debug="data.caching=" + data.caching;
+  if (data.caching) {
+    if (data.filenr >= data.file.length) {
+      data.caching=false;
+      data.filenr=0;
+      return true;
+    }
+    if (data.dataOutputStream[data.filenr] == null) {
+      debug="Opening file outputstream #" + data.filenr;
+      try {
+        debug="Opening file outputstream #" + data.filenr + " file==null?"+ (data.file[data.filenr] == null);
+        data.fileOutputStream[data.filenr]=new FileOutputStream(data.file[data.filenr]);
+        debug="Opening data outputstream #" + data.filenr;
+        data.dataOutputStream[data.filenr]=new DataOutputStream(data.fileOutputStream[data.filenr]);
+      }
+ catch (      FileNotFoundException fnfe) {
+        logError("Unable to open outputstream to temporary file [" + data.file[data.filenr].toString() + "] : "+ fnfe.toString());
+        stopAll();
+        setErrors(1);
+        return false;
+      }
+    }
+    String fromStep=data.rs[data.filenr].getOriginStepName();
+    debug="Get row from step [" + fromStep + "]";
+    Row r=getRowFrom(fromStep);
+    if (r != null) {
+      if (data.row[data.filenr] == null) {
+        data.row[data.filenr]=new Row(r);
+      }
+      debug="Write the data to temp file #" + data.filenr;
+      r.writeData(data.dataOutputStream[data.filenr]);
+      data.size[data.filenr]++;
+      logRowlevel(r.toString());
+      if (data.size[data.filenr] <= meta.getCacheSize()) {
+        if (data.cache[data.filenr] == null)         data.cache[data.filenr]=new ArrayList();
+        data.cache[data.filenr].add(r);
+      }
+ else {
+        logDetailed("More then " + meta.getCacheSize() + " rows found: clearing cache from step ["+ data.rs[data.filenr].getOriginStepName()+ "]");
+        data.cache[data.filenr]=null;
+      }
+    }
+ else {
+      debug="Close outputstream #" + data.filenr;
+      try {
+        data.dataOutputStream[data.filenr].close();
+        data.fileOutputStream[data.filenr].close();
+        data.dataOutputStream[data.filenr]=null;
+        data.fileOutputStream[data.filenr]=null;
+      }
+ catch (      IOException ioe) {
+        logError("Error closing outputstream #" + data.filenr + " : ["+ data.file[data.filenr].toString()+ "] : "+ ioe.toString());
+      }
+      data.filenr++;
+    }
+  }
+ else {
+    data.joinrow[data.filenr]=getRowData(data.filenr);
+    if (data.joinrow[data.filenr] == null) {
+      setOutputDone();
+      return false;
+    }
+    if (data.filenr >= data.file.length - 1) {
+      debug="Stich together #" + data.filenr;
+      Row sum=new Row();
+      for (int i=0; i <= data.filenr; i++) {
+        sum.addRow(data.joinrow[i]);
+      }
+      if (meta.getCondition() != null && !meta.getCondition().isEmpty()) {
+        if (meta.getCondition().evaluate(sum))         putRow(sum);
+      }
+ else {
+        putRow(sum);
+      }
+      while (data.restart[data.filenr]) {
+        debug="Go back to file #" + (data.filenr - 1);
+        data.filenr--;
+      }
+    }
+ else {
+      data.filenr++;
+    }
+  }
+  return true;
+}

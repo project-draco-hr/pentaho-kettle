@@ -1,0 +1,101 @@
+{
+  int i;
+  if (prepStatementInsert == null && prepStatementUpdate == null) {
+    String sql="INSERT INTO " + table + "( ";
+    if (!autoinc)     sql+=keyfield + ", ";
+ else     if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_INFORMIX)     sql+="0, ";
+    sql+=versionfield + ", " + datefrom+ ", "+ dateto;
+    for (i=0; i < keylookup.length; i++) {
+      sql+=", " + keylookup[i];
+    }
+    for (i=0; i < fieldlookup.length; i++) {
+      sql+=", " + fieldlookup[i];
+    }
+    sql+=") VALUES(";
+    if (!autoinc)     sql+="?, ";
+    sql+="?, ?, ?";
+    for (i=0; i < keynrs.length; i++) {
+      sql+=", ?";
+    }
+    for (i=0; i < fieldnrs.length; i++) {
+      sql+=", ?";
+    }
+    sql+=" )";
+    try {
+      if (keyfield == null) {
+        log.logDetailed(toString(),"SQL w/ return keys=[" + sql + "]");
+        prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql),Statement.RETURN_GENERATED_KEYS);
+      }
+ else {
+        log.logDetailed(toString(),"SQL=[" + sql + "]");
+        prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql));
+      }
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Unable to prepare dimension insert :" + Const.CR + sql,ex);
+    }
+    String sql_upd="UPDATE " + table + Const.CR+ "SET "+ dateto+ " = ?"+ Const.CR;
+    sql_upd+="WHERE ";
+    for (i=0; i < keylookup.length; i++) {
+      if (i > 0)       sql_upd+="AND   ";
+      sql_upd+=keylookup[i] + " = ?" + Const.CR;
+    }
+    sql_upd+="AND   " + versionfield + " = ? ";
+    try {
+      log.logDetailed(toString(),"Preparing update: " + Const.CR + sql+ Const.CR);
+      prepStatementUpdate=connection.prepareStatement(databaseMeta.stripCR(sql_upd));
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Unable to prepare dimension update :" + Const.CR + sql,ex);
+    }
+  }
+  Row rins=new Row();
+  if (!autoinc)   rins.addValue(technicalKey);
+  if (!newentry) {
+    Value val_new_version=new Value(val_version);
+    val_new_version.setValue(val_new_version.getNumber() + 1);
+    rins.addValue(val_new_version);
+  }
+ else {
+    rins.addValue(val_version);
+  }
+  rins.addValue(val_datfrom);
+  rins.addValue(val_datto);
+  for (i=0; i < keynrs.length; i++) {
+    rins.addValue(row.getValue(keynrs[i]));
+  }
+  for (i=0; i < fieldnrs.length; i++) {
+    Value val=row.getValue(fieldnrs[i]);
+    rins.addValue(val);
+  }
+  log.logDebug(toString(),"rins, size=" + rins.size() + ", values="+ rins.toString());
+  setValues(rins,prepStatementInsert);
+  insertRow(prepStatementInsert);
+  log.logDebug(toString(),"Row inserted!");
+  if (keyfield == null) {
+    try {
+      ResultSet keys=prepStatementInsert.getGeneratedKeys();
+      if (keys.next())       technicalKey.setValue(keys.getLong(1));
+ else {
+        throw new KettleDatabaseException("Unable to retrieve technical key value from auto-increment field : " + keyfield + ", no fields in resultset.");
+      }
+      keys.close();
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Unable to retrieve technical key value from auto-increment field : " + keyfield,ex);
+    }
+  }
+  if (!newentry) {
+    Row rupd=new Row();
+    rupd.addValue(val_datfrom);
+    for (i=0; i < keynrs.length; i++) {
+      rupd.addValue(row.getValue(keynrs[i]));
+    }
+    rupd.addValue(val_version);
+    log.logRowlevel(toString(),"UPDATE using rupd=" + rupd.toString());
+    setValues(rupd,prepStatementUpdate);
+    log.logDebug(toString(),"Values set for update (" + rupd.size() + ")");
+    insertRow(prepStatementUpdate);
+    log.logDebug(toString(),"Row updated!");
+  }
+}

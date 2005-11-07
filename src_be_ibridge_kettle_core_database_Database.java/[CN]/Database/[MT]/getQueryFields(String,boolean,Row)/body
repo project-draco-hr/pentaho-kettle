@@ -1,0 +1,71 @@
+{
+  Row fields;
+  DBCache dbcache=DBCache.getInstance();
+  DBCacheEntry entry=null;
+  if (dbcache != null) {
+    entry=new DBCacheEntry(databaseMeta.getName(),sql);
+    fields=dbcache.get(entry);
+    if (fields != null) {
+      return fields;
+    }
+  }
+  if (connection == null)   return null;
+  String debug="";
+  try {
+    if (inform == null) {
+      debug="inform==null";
+      sel_stmt=connection.createStatement(ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      debug="isFetchSizeSupported()";
+      if (databaseMeta.isFetchSizeSupported() && sel_stmt.getMaxRows() >= 1) {
+        debug="Set fetchsize";
+        sel_stmt.setFetchSize(1);
+      }
+      debug="Set max rows to 1";
+      sel_stmt.setMaxRows(1);
+      debug="exec query";
+      ResultSet r=sel_stmt.executeQuery(databaseMeta.stripCR(sql));
+      debug="get metadata";
+      rsmd=r.getMetaData();
+      fields=getRowInfo();
+      debug="close resultset";
+      r.close();
+      debug="close statement";
+      sel_stmt.close();
+      sel_stmt=null;
+    }
+ else {
+      debug="prepareStatement";
+      PreparedStatement ps=connection.prepareStatement(databaseMeta.stripCR(sql));
+      if (param) {
+        Row par=inform;
+        debug="getParameterMetaData()";
+        if (par == null)         par=getParameterMetaData(ps);
+        debug="getParameterMetaData()";
+        if (par == null)         par=getParameterMetaData(sql,inform);
+        setValues(par,ps);
+      }
+      debug="executeQuery()";
+      ResultSet r=ps.executeQuery();
+      debug="getMetaData";
+      rsmd=ps.getMetaData();
+      debug="getRowInfo";
+      fields=getRowInfo(rsmd);
+      debug="close resultset";
+      r.close();
+      debug="close preparedStatement";
+      ps.close();
+    }
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Couldn't get field info from [" + sql + "]"+ Const.CR+ "Location: "+ debug,ex);
+  }
+catch (  Exception e) {
+    throw new KettleDatabaseException("Couldn't get field info in part [" + debug + "]",e);
+  }
+  if (dbcache != null && entry != null) {
+    if (fields != null) {
+      dbcache.put(entry,fields);
+    }
+  }
+  return fields;
+}

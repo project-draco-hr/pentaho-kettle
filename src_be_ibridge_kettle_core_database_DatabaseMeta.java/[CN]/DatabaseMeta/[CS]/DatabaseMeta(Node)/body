@@ -1,0 +1,42 @@
+{
+  this();
+  try {
+    String type=XMLHandler.getTagValue(con,"type");
+    try {
+      databaseInterface=getDatabaseInterface(type);
+    }
+ catch (    KettleDatabaseException kde) {
+      throw new KettleXMLException("Unable to create new database interface",kde);
+    }
+    setName(XMLHandler.getTagValue(con,"name"));
+    setHostname(XMLHandler.getTagValue(con,"server"));
+    String acc=XMLHandler.getTagValue(con,"access");
+    setAccessType(getAccessType(acc));
+    setDBName(XMLHandler.getTagValue(con,"database"));
+    setDBPort(Const.toInt(XMLHandler.getTagValue(con,"port"),-1));
+    setUsername(XMLHandler.getTagValue(con,"username"));
+    setPassword(XMLHandler.getTagValue(con,"password"));
+    setServername(XMLHandler.getTagValue(con,"servername"));
+    setDataTablespace(XMLHandler.getTagValue(con,"data_tablespace"));
+    setIndexTablespace(XMLHandler.getTagValue(con,"index_tablespace"));
+    if (getPassword() != null && getPassword().startsWith("Encrypted ")) {
+      setPassword(Encr.decryptPassword(getPassword().substring(10)));
+    }
+    if (getDatabaseType() == TYPE_DATABASE_GENERIC || getDatabaseType() == TYPE_DATABASE_ACCESS || getDatabaseType() == TYPE_DATABASE_DBASE) {
+      setAccessType(TYPE_ACCESS_ODBC);
+    }
+    Node attrsnode=XMLHandler.getSubNode(con,"attributes");
+    if (attrsnode != null) {
+      int nr=XMLHandler.countNodes(attrsnode,"attribute");
+      for (int i=0; i < nr; i++) {
+        Node attrnode=XMLHandler.getSubNodeByNr(attrsnode,"attribute",i);
+        String code=XMLHandler.getTagValue(attrnode,"code");
+        String attribute=XMLHandler.getTagValue(attrnode,"attribute");
+        if (code != null && attribute != null)         getAttributes().put(code,attribute);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException("Unable to load database connection info from XML node",e);
+  }
+}

@@ -1,0 +1,47 @@
+{
+  try {
+    sendFalseStepname=XMLHandler.getTagValue(stepnode,"send_false_to");
+    sendTrueStepname=XMLHandler.getTagValue(stepnode,"send_true_to");
+    Node compare=XMLHandler.getSubNode(stepnode,"compare");
+    Node condnode=XMLHandler.getSubNode(compare,"condition");
+    if (condnode != null) {
+      condition=new Condition(condnode);
+    }
+ else {
+      condition=new Condition();
+      int nrkeys=XMLHandler.countNodes(compare,"key");
+      if (nrkeys == 1) {
+        Node knode=XMLHandler.getSubNodeByNr(compare,"key",0);
+        String key=XMLHandler.getTagValue(knode,"name");
+        String value=XMLHandler.getTagValue(knode,"value");
+        String field=XMLHandler.getTagValue(knode,"field");
+        String comparator=XMLHandler.getTagValue(knode,"condition");
+        condition.setOperator(Condition.OPERATOR_NONE);
+        condition.setLeftValuename(key);
+        condition.setFunction(Condition.getFunction(comparator));
+        condition.setRightValuename(field);
+        condition.setRightExact(new Value("value",value));
+      }
+ else {
+        for (int i=0; i < nrkeys; i++) {
+          Node knode=XMLHandler.getSubNodeByNr(compare,"key",i);
+          String key=XMLHandler.getTagValue(knode,"name");
+          String value=XMLHandler.getTagValue(knode,"value");
+          String field=XMLHandler.getTagValue(knode,"field");
+          String comparator=XMLHandler.getTagValue(knode,"condition");
+          Condition subc=new Condition();
+          if (i > 0)           subc.setOperator(Condition.OPERATOR_OR);
+ else           subc.setOperator(Condition.OPERATOR_NONE);
+          subc.setLeftValuename(key);
+          subc.setFunction(Condition.getFunction(comparator));
+          subc.setRightValuename(field);
+          subc.setRightExact(new Value("value",value));
+          condition.addCondition(subc);
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException("Unable to load step info from XML",e);
+  }
+}

@@ -1,0 +1,31 @@
+{
+  meta=(StreamLookupMeta)smi;
+  data=(StreamLookupData)sdi;
+  if (data.readLookupValues) {
+    data.readLookupValues=false;
+    logBasic("Reading lookup values from step [" + meta.getLookupFromStep() + "]");
+    if (readLookupValues()) {
+      logBasic("Read " + data.look.size() + " values in memory for lookup!");
+    }
+ else {
+      logError("Unable to read data from lookup-stream.");
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+  }
+  Row r=getRow();
+  if (r == null) {
+    logDetailed("Stopped processing with empty row after " + linesRead + " rows.");
+    setOutputDone();
+    return false;
+  }
+  boolean err=lookupValues(r);
+  if (!err) {
+    setOutputDone();
+    return false;
+  }
+  putRow(r);
+  if ((linesRead > 0) && (linesRead % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesRead);
+  return true;
+}

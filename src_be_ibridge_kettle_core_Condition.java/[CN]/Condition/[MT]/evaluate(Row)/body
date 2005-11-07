@@ -1,0 +1,98 @@
+{
+  String debug="Start of evaluate";
+  boolean retval=false;
+  try {
+    if (isAtomic()) {
+      debug="Atomic : get fieldnrs left value";
+      if (left_valuename != null && left_valuename.length() > 0 && left_fieldnr < 0)       left_fieldnr=r.searchValueIndex(left_valuename);
+      debug="Atomic : get fieldnrs right value";
+      if (right_valuename != null && right_valuename.length() > 0 && right_fieldnr < 0)       right_fieldnr=r.searchValueIndex(right_valuename);
+      debug="Atomic : get fieldnrs left field";
+      Value field=null;
+      if (left_fieldnr >= 0)       field=r.getValue(left_fieldnr);
+      debug="Atomic : get fieldnrs right exact";
+      Value field2=right_exact;
+      if (field2 == null && right_fieldnr >= 0)       field2=r.getValue(right_fieldnr);
+      debug="Atomic : evaluate (function=" + Condition.functions[function] + ")";
+switch (function) {
+case FUNC_EQUAL:
+        retval=(field.compare(field2) == 0);
+      break;
+case FUNC_NOT_EQUAL:
+    retval=(field.compare(field2) != 0);
+  break;
+case FUNC_SMALLER:
+retval=(field.compare(field2) < 0);
+break;
+case FUNC_SMALLER_EQUAL:
+retval=(field.compare(field2) <= 0);
+break;
+case FUNC_LARGER:
+retval=(field.compare(field2) > 0);
+break;
+case FUNC_LARGER_EQUAL:
+retval=(field.compare(field2) >= 0);
+break;
+case FUNC_REGEXP:
+retval=Pattern.matches(field2.getString(),field.getString());
+break;
+case FUNC_NULL:
+retval=(field.isNull());
+break;
+case FUNC_NOT_NULL:
+retval=(!field.isNull());
+break;
+case FUNC_IN_LIST:
+String list[]=Const.splitString(field2.getString(),";");
+retval=Const.indexOfString(field.getString(),list) >= 0;
+break;
+case FUNC_CONTAINS:
+retval=field.getString() != null ? field.getString().indexOf(field2.getString()) >= 0 : false;
+break;
+case FUNC_STARTS_WITH:
+retval=field.getString() != null ? field.getString().startsWith(field2.getString()) : false;
+break;
+case FUNC_ENDS_WITH:
+retval=field.getString() != null ? field.getString().endsWith(field2.getString()) : false;
+break;
+default :
+break;
+}
+if (isNegated()) retval=!retval;
+}
+ else {
+debug="Composite : get first";
+Condition cb0=(Condition)list.get(0);
+retval=cb0.evaluate(r);
+for (int i=1; i < list.size(); i++) {
+debug="Composite : evaluate #" + i;
+Condition cb=(Condition)list.get(i);
+boolean cmp=cb.evaluate(r);
+switch (cb.getOperator()) {
+case Condition.OPERATOR_OR:
+retval=retval || cmp;
+break;
+case Condition.OPERATOR_AND:
+retval=retval && cmp;
+break;
+case Condition.OPERATOR_OR_NOT:
+retval=retval || (!cmp);
+break;
+case Condition.OPERATOR_AND_NOT:
+retval=retval && (!cmp);
+break;
+case Condition.OPERATOR_XOR:
+retval=retval ^ cmp;
+break;
+default :
+break;
+}
+}
+if (isNegated()) retval=!retval;
+}
+}
+ catch (Exception e) {
+throw new RuntimeException("Unexpected error evaluation condition [" + toString() + "] in part ["+ debug+ "] for row: "+ r+ Const.CR+ e.toString());
+}
+return retval;
+}

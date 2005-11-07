@@ -1,0 +1,38 @@
+{
+  if (monitor != null)   monitor.beginTask("Getting the SQL needed for this transformation...",nrSteps() + 1);
+  ArrayList stats=new ArrayList();
+  for (int i=0; i < nrSteps(); i++) {
+    StepMeta stepMeta=getStep(i);
+    if (monitor != null)     monitor.subTask("Getting SQL statements for step [" + stepMeta + "]");
+    Row prev=getPrevStepFields(stepMeta);
+    SQLStatement sql=stepMeta.getStepMetaInterface().getSQLStatements(this,stepMeta,prev);
+    if (sql.getSQL() != null || sql.hasError()) {
+      stats.add(sql);
+    }
+    if (monitor != null)     monitor.worked(1);
+  }
+  if (monitor != null)   monitor.subTask("Getting SQL statements for the transformation (logtable, etc.)");
+  if (logConnection != null && logTable != null && logTable.length() > 0) {
+    Database db=new Database(logConnection);
+    try {
+      db.connect();
+      Row fields=Database.getTransLogrecordFields(useBatchId,logfieldUsed);
+      String sql=db.getDDL(logTable,fields);
+      if (sql != null && sql.length() > 0) {
+        SQLStatement stat=new SQLStatement("<this transformation>",logConnection,sql);
+        stats.add(stat);
+      }
+    }
+ catch (    KettleDatabaseException dbe) {
+      SQLStatement stat=new SQLStatement("<this transformation>",logConnection,null);
+      stat.setError("Error obtaining transformation log table info: " + dbe.getMessage());
+      stats.add(stat);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  if (monitor != null)   monitor.done();
+  return stats;
+}

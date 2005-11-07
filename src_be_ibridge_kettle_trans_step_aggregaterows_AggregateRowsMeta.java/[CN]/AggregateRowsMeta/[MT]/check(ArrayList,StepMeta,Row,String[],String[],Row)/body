@@ -1,0 +1,58 @@
+{
+  CheckResult cr;
+  String message="";
+  if (fieldName.length > 0) {
+    boolean error_found=false;
+    message="The following fields are not found in the input stream: " + Const.CR;
+    for (int i=0; i < fieldName.length; i++) {
+      if (prev.searchValueIndex(fieldName[i]) < 0) {
+        message+="  " + fieldName[i] + Const.CR;
+        error_found=true;
+      }
+    }
+    if (error_found) {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,message,stepinfo);
+    }
+ else {
+      message="All fields are present in the input rows.";
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,message,stepinfo);
+    }
+    remarks.add(cr);
+    message="The following fields from the input stream are ignored and dropped: " + Const.CR;
+    error_found=false;
+    for (int i=0; i < prev.size(); i++) {
+      Value v=prev.getValue(i);
+      boolean value_found=false;
+      for (int j=0; j < fieldName.length && !value_found; j++) {
+        if (v.getName().equalsIgnoreCase(fieldName[j])) {
+          value_found=true;
+        }
+      }
+      if (!value_found) {
+        message+="  " + v.getName() + " ("+ v.toStringMeta()+ ")"+ Const.CR;
+        error_found=true;
+      }
+    }
+    if (error_found) {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_COMMENT,message,stepinfo);
+    }
+ else {
+      message="All fields from the input rows are used.";
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,message,stepinfo);
+    }
+    remarks.add(cr);
+  }
+ else {
+    message="Nothing specified to aggregate: result is going to be empty";
+    cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,message,stepinfo);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is receiving info from other steps.",stepinfo);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"No input received from other steps!",stepinfo);
+    remarks.add(cr);
+  }
+}

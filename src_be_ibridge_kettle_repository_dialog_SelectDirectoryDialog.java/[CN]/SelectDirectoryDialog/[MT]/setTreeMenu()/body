@@ -1,0 +1,55 @@
+{
+  Menu mTree=null;
+  TreeItem ti[]=wTree.getSelection();
+  if (ti.length == 1) {
+    mTree=new Menu(wTree);
+    MenuItem miNew=new MenuItem(mTree,SWT.CASCADE);
+    miNew.setText("New sub-directory");
+    miNew.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        if (!rep.getUserInfo().isReadonly()) {
+          TreeItem ti=wTree.getSelection()[0];
+          String str[]=Const.getTreeStrings(ti);
+          RepositoryDirectory dir=rep.getDirectoryTree().findDirectory(str);
+          if (dir != null) {
+            EnterStringDialog etd=new EnterStringDialog(shell,props,"New directory","Enter the directory name","New directory");
+            String newdir=etd.open();
+            if (newdir != null) {
+              RepositoryDirectory subdir=new RepositoryDirectory(dir,newdir);
+              if (subdir.addToRep(rep)) {
+                dir.addSubdirectory(subdir);
+                TreeItem tiNew=new TreeItem(ti,SWT.NONE);
+                tiNew.setText(newdir);
+                wTree.setSelection(new TreeItem[]{tiNew});
+              }
+ else {
+                MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+                mb.setMessage("Unable to create new directory in the repository!");
+                mb.setText("ERROR");
+                mb.open();
+              }
+            }
+          }
+ else {
+            MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+            mb.setMessage("Couldn't locate this directory!");
+            mb.setText("ERROR");
+            mb.open();
+          }
+        }
+ else {
+          MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+          mb.setMessage("User [" + rep.getUserInfo().getLogin() + "] doesn't have the permissions to create directories!");
+          mb.setText("ERROR");
+          mb.open();
+        }
+      }
+    }
+);
+    MenuItem miRen=new MenuItem(mTree,SWT.CASCADE);
+    miRen.setText("Rename directory\tF2");
+    MenuItem miDel=new MenuItem(mTree,SWT.CASCADE);
+    miDel.setText("Delete directory\tDEL");
+  }
+  wTree.setMenu(mTree);
+}

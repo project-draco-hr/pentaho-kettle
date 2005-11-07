@@ -1,0 +1,405 @@
+{
+  super(par,style);
+  shell=par.getShell();
+  log=LogWriter.getInstance();
+  chef=je;
+  canvas=this;
+  newProps();
+  selrect=null;
+  hop_candidate=null;
+  last_hop_split=null;
+  selected_entries=null;
+  selected_note=null;
+  hori=getHorizontalBar();
+  vert=getVerticalBar();
+  hori.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      redraw();
+    }
+  }
+);
+  vert.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      redraw();
+    }
+  }
+);
+  hori.setThumb(100);
+  vert.setThumb(100);
+  hori.setVisible(true);
+  vert.setVisible(true);
+  setVisible(true);
+  loadImages();
+  addPaintListener(new PaintListener(){
+    public void paintControl(    PaintEvent e){
+      ChefGraph.this.paintControl(e);
+    }
+  }
+);
+  selected_entries=null;
+  lastclick=null;
+  addKeyListener(new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      shift=(e.keyCode == SWT.SHIFT);
+      control=(e.keyCode == SWT.CONTROL);
+    }
+    public void keyReleased(    KeyEvent e){
+      shift=(e.keyCode == SWT.SHIFT);
+      control=(e.keyCode == SWT.CONTROL);
+    }
+  }
+);
+  addMouseListener(new MouseAdapter(){
+    public void mouseDoubleClick(    MouseEvent e){
+      clearSettings();
+      control=(e.stateMask & SWT.CONTROL) != 0;
+      shift=(e.stateMask & SWT.SHIFT) != 0;
+      Point real=screen2real(e.x,e.y);
+      JobEntryCopy jobentry=chef.jobMeta.getChefGraphEntry(real.x,real.y,iconsize);
+      if (jobentry != null) {
+        if (e.button == 1) {
+          editEntry(jobentry);
+        }
+ else {
+          launchStuff(jobentry);
+        }
+      }
+ else {
+        JobHopMeta online=findJobHop(real.x,real.y);
+        if (online != null) {
+        }
+ else {
+          NotePadMeta ni=chef.jobMeta.getNote(real.x,real.y);
+          if (ni != null) {
+            editNote(ni);
+          }
+        }
+      }
+    }
+    public void mouseDown(    MouseEvent e){
+      clearSettings();
+      control=(e.stateMask & SWT.CONTROL) != 0;
+      shift=(e.stateMask & SWT.SHIFT) != 0;
+      last_button=e.button;
+      Point real=screen2real(e.x,e.y);
+      setToolTipText(null);
+      setMenu(real.x,real.y);
+      JobEntryCopy je=chef.jobMeta.getChefGraphEntry(real.x,real.y,iconsize);
+      if (je != null) {
+        selected_entries=chef.jobMeta.getSelectedEntries();
+        selected_icon=je;
+        prev_locations=chef.jobMeta.getSelectedLocations();
+        Point p=je.getLocation();
+        iconoffset=new Point(real.x - p.x,real.y - p.y);
+      }
+ else {
+        NotePadMeta ni=chef.jobMeta.getNote(real.x,real.y);
+        if (ni != null && last_button == 1) {
+          selected_note=ni;
+          Point loc=ni.getLocation();
+          previous_note_location=new Point(loc.x,loc.y);
+          noteoffset=new Point(real.x - loc.x,real.y - loc.y);
+          System.out.println("We hit a note!!");
+        }
+ else {
+          selrect=new Rectangle(real.x,real.y,0,0);
+        }
+      }
+      lastclick=new Point(real.x,real.y);
+      redraw();
+    }
+    public void mouseUp(    MouseEvent e){
+      control=(e.stateMask & SWT.CONTROL) != 0;
+      shift=(e.stateMask & SWT.SHIFT) != 0;
+      if (iconoffset == null)       iconoffset=new Point(0,0);
+      Point real=screen2real(e.x,e.y);
+      Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
+      if (hop_candidate != null) {
+        if (chef.jobMeta.findJobHop(hop_candidate.from_entry,hop_candidate.to_entry) == null) {
+          if (!hop_candidate.from_entry.evaluates() && hop_candidate.from_entry.isUnconditional()) {
+            hop_candidate.setUnconditional();
+          }
+ else {
+            hop_candidate.setConditional();
+            int nr=chef.jobMeta.findNrNextChefGraphEntries(hop_candidate.from_entry);
+            if (nr == 1) {
+              JobEntryCopy jge=chef.jobMeta.findNextChefGraphEntry(hop_candidate.from_entry,0);
+              JobHopMeta other=chef.jobMeta.findJobHop(hop_candidate.from_entry,jge);
+              if (other != null) {
+                hop_candidate.setEvaluation(!other.getEvaluation());
+              }
+            }
+          }
+          chef.jobMeta.addJobHop(hop_candidate);
+          chef.addUndoNew(new JobHopMeta[]{hop_candidate},new int[]{chef.jobMeta.indexOfJobHop(hop_candidate)});
+          chef.refreshTree();
+        }
+        hop_candidate=null;
+        selected_entries=null;
+        last_button=0;
+        redraw();
+      }
+ else       if (selrect != null) {
+        selrect.width=real.x - selrect.x;
+        selrect.height=real.y - selrect.y;
+        chef.jobMeta.unselectAll();
+        chef.jobMeta.selectInRect(selrect);
+        selrect=null;
+        redraw();
+      }
+ else       if (selected_icon != null) {
+        if (e.button == 1) {
+          if (lastclick.x == e.x && lastclick.y == e.y) {
+            if (control) {
+              selected_icon.flipSelected();
+            }
+ else {
+              chef.jobMeta.unselectAll();
+              selected_icon.setSelected(true);
+            }
+          }
+ else           if (selected_entries != null && prev_locations != null) {
+            int indexes[]=chef.jobMeta.getEntryIndexes(selected_entries);
+            chef.addUndoPosition(selected_entries,indexes,prev_locations,chef.jobMeta.getSelectedLocations());
+          }
+        }
+        if (split_hop) {
+          JobHopMeta hi=findJobHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
+          if (hi != null) {
+            int id=0;
+            if (!chef.props.getAutoSplit()) {
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Split hop?",null,"Do you want to split this hop?" + Const.CR + hi.from_entry.getName()+ " --> "+ hi.to_entry.getName(),MessageDialog.QUESTION,new String[]{"Yes","No"},0,"Don't ask again",chef.props.getAutoSplit());
+              id=md.open();
+              chef.props.setAutoSplit(md.getToggleState());
+            }
+            if (id == 0) {
+              JobHopMeta newhop1=new JobHopMeta(hi.from_entry,selected_icon);
+              chef.jobMeta.addJobHop(newhop1);
+              JobHopMeta newhop2=new JobHopMeta(selected_icon,hi.to_entry);
+              chef.jobMeta.addJobHop(newhop2);
+              if (!selected_icon.evaluates())               newhop2.setUnconditional();
+              chef.addUndoNew(new JobHopMeta[]{(JobHopMeta)newhop1.clone(),(JobHopMeta)newhop2.clone()},new int[]{chef.jobMeta.indexOfJobHop(newhop1),chef.jobMeta.indexOfJobHop(newhop2)});
+              int idx=chef.jobMeta.indexOfJobHop(hi);
+              chef.addUndoDelete(new JobHopMeta[]{(JobHopMeta)hi.clone()},new int[]{idx});
+              chef.jobMeta.removeJobHop(idx);
+              chef.refreshTree();
+            }
+          }
+          split_hop=false;
+        }
+        selected_entries=null;
+        redraw();
+      }
+ else       if (selected_note != null) {
+        Point note=new Point(real.x - noteoffset.x,real.y - noteoffset.y);
+        if (last_button == 1) {
+          if (lastclick.x != e.x || lastclick.y != e.y) {
+            int indexes[]=new int[]{chef.jobMeta.indexOfNote(selected_note)};
+            chef.addUndoPosition(new NotePadMeta[]{selected_note},indexes,new Point[]{previous_note_location},new Point[]{note});
+          }
+        }
+        selected_note=null;
+      }
+    }
+  }
+);
+  addMouseMoveListener(new MouseMoveListener(){
+    public void mouseMove(    MouseEvent e){
+      lastMove=new Point(e.x,e.y);
+      if (iconoffset == null)       iconoffset=new Point(0,0);
+      Point real=screen2real(e.x,e.y);
+      Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
+      setToolTip(real.x,real.y);
+      if (selected_icon != null && !selected_icon.isSelected()) {
+        chef.jobMeta.unselectAll();
+        selected_icon.setSelected(true);
+        selected_entries=new JobEntryCopy[]{selected_icon};
+        prev_locations=new Point[]{selected_icon.getLocation()};
+      }
+      if (selrect != null) {
+        selrect.width=real.x - selrect.x;
+        selrect.height=real.y - selrect.y;
+        redraw();
+      }
+ else       if (selected_entries != null) {
+        if (last_button == 1 && !shift) {
+          int dx=icon.x - selected_icon.getLocation().x;
+          int dy=icon.y - selected_icon.getLocation().y;
+          JobHopMeta hi=findJobHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
+          if (hi != null) {
+            if (!chef.jobMeta.isEntryUsedInHops(selected_icon)) {
+              split_hop=true;
+              last_hop_split=hi;
+              hi.setSplit(true);
+            }
+          }
+ else {
+            if (last_hop_split != null) {
+              last_hop_split.setSplit(false);
+              last_hop_split=null;
+              split_hop=false;
+            }
+          }
+          for (int i=0; i < chef.jobMeta.nrJobEntries(); i++) {
+            JobEntryCopy je=chef.jobMeta.getJobEntry(i);
+            if (je.isSelected()) {
+              je.setLocation(je.getLocation().x + dx,je.getLocation().y + dy);
+            }
+          }
+          redraw();
+        }
+ else         if (last_button == 2 || (last_button == 1 && shift)) {
+          JobEntryCopy si=chef.jobMeta.getChefGraphEntry(real.x,real.y,iconsize);
+          if (si != null && !selected_icon.equals(si)) {
+            if (hop_candidate == null) {
+              hop_candidate=new JobHopMeta(selected_icon,si);
+              redraw();
+            }
+          }
+ else {
+            if (hop_candidate != null) {
+              hop_candidate=null;
+              redraw();
+            }
+          }
+        }
+      }
+ else       if (selected_note != null) {
+        if (last_button == 1) {
+          Point note=new Point(real.x - noteoffset.x,real.y - noteoffset.y);
+          selected_note.setLocation(note.x,note.y);
+          chef.refreshGraph();
+        }
+      }
+    }
+  }
+);
+  Transfer[] ttypes=new Transfer[]{TextTransfer.getInstance()};
+  DropTarget ddTarget=new DropTarget(this,DND.DROP_MOVE | DND.DROP_COPY);
+  ddTarget.setTransfer(ttypes);
+  ddTarget.addDropListener(new DropTargetListener(){
+    public void dragEnter(    DropTargetEvent event){
+      drop_candidate=getRealPosition(canvas,event.x,event.y);
+      redraw();
+    }
+    public void dragLeave(    DropTargetEvent event){
+      drop_candidate=null;
+      redraw();
+    }
+    public void dragOperationChanged(    DropTargetEvent event){
+    }
+    public void dragOver(    DropTargetEvent event){
+      drop_candidate=getRealPosition(canvas,event.x,event.y);
+      redraw();
+    }
+    public void drop(    DropTargetEvent event){
+      if (event.data == null) {
+        event.detail=DND.DROP_NONE;
+        return;
+      }
+      Point p=getRealPosition(canvas,event.x,event.y);
+      StringTokenizer strtok=new StringTokenizer((String)event.data,Const.CR);
+      if (strtok.countTokens() == 1) {
+        String entry=strtok.nextToken();
+        JobEntryCopy jge=chef.jobMeta.findJobEntry(entry,0);
+        if (jge != null) {
+          log.logDebug(toString(),"DROP " + jge.toString() + ", type="+ JobEntryCopy.getTypeDesc(jge.getType())+ ", start="+ jge.isStart()+ ", drawn="+ jge.isDrawn());
+          if (jge.isStart() && jge.isDrawn()) {
+            MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_ERROR);
+            mb.setMessage("You can only use the start icon once in a job.");
+            mb.setText("Sorry!");
+            mb.open();
+            return;
+          }
+          boolean jge_changed=false;
+          JobEntryCopy before=(JobEntryCopy)jge.clone_deep();
+          JobEntryCopy newjge=jge;
+          if (jge.isDrawn()) {
+            newjge=(JobEntryCopy)jge.clone();
+            if (newjge != null) {
+              log.logDebug(toString(),"entry aft = " + ((Object)jge.getEntry()).toString());
+              newjge.setNr(chef.jobMeta.findUnusedNr(newjge.getName()));
+              chef.jobMeta.addJobEntry(newjge);
+              chef.addUndoNew(new JobEntryCopy[]{newjge},new int[]{chef.jobMeta.indexOfJobEntry(newjge)});
+            }
+ else {
+              log.logDebug(toString(),"jge is not cloned!");
+            }
+          }
+ else {
+            log.logDebug(toString(),jge.toString() + " is not drawn");
+            jge_changed=true;
+          }
+          newjge.setLocation(p.x,p.y);
+          newjge.setDrawn();
+          if (jge_changed) {
+            chef.addUndoChange(new JobEntryCopy[]{before},new JobEntryCopy[]{newjge},new int[]{chef.jobMeta.indexOfJobEntry(newjge)});
+          }
+          redraw();
+          chef.refreshTree();
+          log.logBasic("DropTargetEvent","DROP " + newjge.toString() + "!, type="+ JobEntryCopy.getTypeDesc(newjge.getType()));
+        }
+ else {
+          log.logDebug(toString(),"New entry of type [" + entry + "]");
+          jge=chef.newChefGraphEntry(entry);
+          if (jge != null) {
+            jge.setLocation(p.x,p.y);
+            jge.setDrawn();
+            redraw();
+          }
+        }
+      }
+    }
+    public void dropAccept(    DropTargetEvent event){
+      drop_candidate=null;
+    }
+  }
+);
+  addKeyListener(new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      if ((int)e.character == 1) {
+        chef.jobMeta.selectAll();
+        redraw();
+      }
+      if ((int)e.character == 3) {
+        chef.copyJobEntries(chef.jobMeta.getSelectedEntries());
+      }
+      if ((int)e.character == 22) {
+        String clipcontent=chef.fromClipboard();
+        if (clipcontent != null) {
+          if (lastMove != null) {
+            chef.pasteSteps(clipcontent,lastMove);
+          }
+        }
+      }
+      if (e.keyCode == SWT.ESC) {
+        chef.jobMeta.unselectAll();
+        redraw();
+      }
+      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.CONTROL) != 0) {
+        alligntop();
+      }
+      if (e.keyCode == SWT.ARROW_DOWN && (e.stateMask & SWT.CONTROL) != 0) {
+        allignbottom();
+      }
+      if (e.keyCode == SWT.ARROW_LEFT && (e.stateMask & SWT.CONTROL) != 0) {
+        allignleft();
+      }
+      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.CONTROL) != 0) {
+        allignright();
+      }
+      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.ALT) != 0) {
+        distributehorizontal();
+      }
+      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.ALT) != 0) {
+        distributevertical();
+      }
+      if (e.keyCode == SWT.HOME && (e.stateMask & SWT.ALT) != 0) {
+        snaptogrid(Const.GRID_SIZE);
+      }
+    }
+  }
+);
+  addKeyListener(chef.defKeys);
+  setBackground(GUIResource.getInstance().getColorBackground());
+}

@@ -1,0 +1,105 @@
+{
+  TextFileInputMeta meta=new TextFileInputMeta();
+  getInfo(meta);
+  String files[]=meta.getFiles();
+  FileInputStream fileInputStream=null;
+  ZipInputStream zipInputStream=null;
+  InputStream inputStream=null;
+  String fileFormat=wFormat.getText();
+  if (files != null && files.length > 0) {
+    int clearFields=meta.hasHeader() ? SWT.YES : SWT.NO;
+    int nrInputFields=meta.getInputFields().length;
+    if (meta.hasHeader() && nrInputFields > 0) {
+      MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.ICON_QUESTION);
+      mb.setMessage("Do you want to clear the field list before starting?");
+      mb.setText("Question");
+      clearFields=mb.open();
+    }
+    try {
+      if (clearFields == SWT.YES) {
+        wFields.table.removeAll();
+      }
+      fileInputStream=new FileInputStream(new File(files[0]));
+      Table table=wFields.table;
+      if (meta.isZipped()) {
+        zipInputStream=new ZipInputStream(fileInputStream);
+        zipInputStream.getNextEntry();
+        inputStream=zipInputStream;
+      }
+ else {
+        inputStream=fileInputStream;
+      }
+      if (clearFields == SWT.YES || !meta.hasHeader() || nrInputFields > 0) {
+        String line=null;
+        if (meta.hasHeader() || meta.getInputFields().length == 0) {
+          line=TextFileInput.getLine(log,inputStream,fileFormat);
+          if (line != null) {
+            ArrayList fields=TextFileInput.convertLineToStrings(log,line.toString(),meta);
+            for (int i=0; i < fields.size(); i++) {
+              String field=(String)fields.get(i);
+              if (field == null || field.length() == 0 || (nrInputFields == 0 && !meta.hasHeader())) {
+                field="Field" + (i + 1);
+              }
+ else {
+                field=Const.trim(field);
+                field=Const.replace(field," ","_");
+                field=Const.replace(field,"-","_");
+              }
+              TableItem item=new TableItem(table,SWT.NONE);
+              item.setText(1,field);
+              item.setText(2,"String");
+              getInfo(meta);
+            }
+          }
+        }
+        String shell_text="Nr of lines to sample.  0 means all lines.";
+        String line_text="Number of sample lines (0=all lines)";
+        EnterNumberDialog end=new EnterNumberDialog(shell,props,100,shell_text,line_text);
+        int samples=end.open();
+        if (samples >= 0) {
+          getInfo(meta);
+          TextFileCSVImportProgressDialog pd=new TextFileCSVImportProgressDialog(log,props,shell,meta,inputStream,samples,clearFields);
+          String message=pd.open();
+          if (message != null) {
+            getData(meta);
+            wFields.removeEmptyRows();
+            wFields.setRowNums();
+            wFields.optWidth(true);
+            EnterTextDialog etd=new EnterTextDialog(shell,props,"Scan results","Result:",message,true);
+            etd.setReadOnly();
+            etd.open();
+          }
+        }
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage("I couldn't read the header-line from the input file! (empty file?)");
+        mb.setText("ERROR");
+        mb.open();
+      }
+    }
+ catch (    IOException e) {
+      new ErrorDialog(shell,props,"I/O Error","I/O error getting file description:",e);
+    }
+catch (    KettleException e) {
+      new ErrorDialog(shell,props,"Error","Error getting file description:",e);
+    }
+ finally {
+      try {
+        if (meta.isZipped() && zipInputStream != null) {
+          zipInputStream.closeEntry();
+          zipInputStream.close();
+        }
+        inputStream.close();
+      }
+ catch (      Exception e) {
+      }
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("I couldn't find a valid file to work with.  Please check the files, directories & expression.");
+    mb.setText("ERROR");
+    mb.open();
+  }
+}

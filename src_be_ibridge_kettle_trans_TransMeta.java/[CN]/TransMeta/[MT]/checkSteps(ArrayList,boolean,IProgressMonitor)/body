@@ -1,0 +1,152 @@
+{
+  try {
+    remarks.clear();
+    Hashtable values=new Hashtable();
+    String stepnames[];
+    StepMeta steps[];
+    if (!only_selected || nrSelectedSteps() == 0) {
+      stepnames=getStepNames();
+      steps=getStepsArray();
+    }
+ else {
+      stepnames=getSelectedStepNames();
+      steps=getSelectedSteps();
+    }
+    boolean stop_checking=false;
+    if (monitor != null)     monitor.beginTask("Verifying this transformation...",steps.length + 2);
+    for (int i=0; i < steps.length && !stop_checking; i++) {
+      if (monitor != null)       monitor.subTask("Verifying step [" + stepnames[i] + "]");
+      StepMeta stepMeta=steps[i];
+      int nrinfo=findNrInfoSteps(stepMeta);
+      StepMeta[] infostep=null;
+      if (nrinfo > 0) {
+        infostep=getInfoStep(stepMeta);
+      }
+      Row info=null;
+      if (infostep != null) {
+        try {
+          info=getStepFields(infostep);
+        }
+ catch (        KettleStepException kse) {
+          info=null;
+          CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"An error occurred getting step info fields for step [" + stepMeta + "] :"+ Const.CR+ kse.getMessage(),stepMeta);
+          remarks.add(cr);
+        }
+      }
+      Row prev=null;
+      try {
+        prev=getPrevStepFields(stepMeta);
+      }
+ catch (      KettleStepException kse) {
+        CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"An error occurred getting input fields for step [" + stepMeta + "] :"+ Const.CR+ kse.getMessage(),stepMeta);
+        remarks.add(cr);
+        stop_checking=true;
+      }
+      if (isStepUsedInTransHops(stepMeta)) {
+        String input[]=getPrevStepNames(stepMeta);
+        String output[]=getPrevStepNames(stepMeta);
+        stepMeta.check(remarks,prev,input,output,info);
+        if (prev != null) {
+          for (int x=0; x < prev.size(); x++) {
+            Value v=prev.getValue(x);
+            String name=v.getName();
+            if (name == null)             values.put(v,"Field name is empty.");
+ else             if (name.indexOf(' ') >= 0)             values.put(v,"Field name contains one or more spaces.  (database unfriendly!)");
+ else {
+              char list[]=new char[]{'.',',','-','/','+','*','\'','\t','"','|','@','(',')','{','}','!','^'};
+              for (int c=0; c < list.length; c++) {
+                if (name.indexOf(list[c]) >= 0)                 values.put(v,"Field name contains one or more " + list[c] + "  (database unfriendly!)");
+              }
+            }
+          }
+          if (prev.size() > 1) {
+            String fieldNames[]=prev.getFieldNames();
+            String sortedNames[]=Const.sortStrings(fieldNames);
+            String prevName=sortedNames[0];
+            for (int x=1; x < sortedNames.length; x++) {
+              if (prevName.equalsIgnoreCase(sortedNames[x])) {
+                CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,"I found input fields that have the same name [" + prevName + "]",stepMeta);
+                remarks.add(cr);
+              }
+ else {
+                prevName=sortedNames[x];
+              }
+            }
+          }
+        }
+ else {
+          CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"Can't find previous fields for step: " + stepMeta.getName(),stepMeta);
+          remarks.add(cr);
+        }
+      }
+ else {
+        CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,"This step is not used in the transformation.",stepMeta);
+        remarks.add(cr);
+      }
+      if (monitor != null) {
+        monitor.worked(1);
+        if (monitor.isCanceled())         stop_checking=true;
+      }
+    }
+    if (monitor == null || !monitor.isCanceled()) {
+      if (monitor != null)       monitor.subTask("Checking the logging table...");
+      if (getLogConnection() != null) {
+        Database logdb=new Database(getLogConnection());
+        try {
+          logdb.connect();
+          CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Transformation logging connection supplied: connecting works",null);
+          remarks.add(cr);
+          if (getLogTable() != null) {
+            if (logdb.checkTableExists(getLogTable())) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"The logging table [" + getLogTable() + "] exists.",null);
+              remarks.add(cr);
+              Row fields=Database.getTransLogrecordFields(isBatchIdUsed(),isLogfieldUsed());
+              String sql=logdb.getDDL(getLogTable(),fields);
+              if (sql == null || sql.length() == 0) {
+                cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"The logging table has the correct layout.",null);
+                remarks.add(cr);
+              }
+ else {
+                cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"The logging table needs some adjustments:" + Const.CR + sql,null);
+                remarks.add(cr);
+              }
+            }
+ else {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"The logging table doesn't exist on the logging connection",null);
+              remarks.add(cr);
+            }
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"The log table is not specified, the logging connection is",null);
+            remarks.add(cr);
+          }
+        }
+ catch (        KettleDatabaseException dbe) {
+        }
+ finally {
+          logdb.disconnect();
+        }
+      }
+      if (monitor != null)       monitor.worked(1);
+    }
+    if (monitor != null)     monitor.subTask("Checking for database unfriendly characters in field names...");
+    if (values.size() > 0) {
+      Enumeration keys=values.keys();
+      while (keys.hasMoreElements()) {
+        Value v=(Value)keys.nextElement();
+        String message=(String)values.get(v);
+        CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,"Field [" + v.getName() + "] : "+ message+ " in step ["+ v.getOrigin()+ "]",findStep(v.getOrigin()));
+        remarks.add(cr);
+      }
+    }
+ else {
+      CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"None of the field names seem to contain spaces or other database unfriendly characters(OK)",null);
+      remarks.add(cr);
+    }
+    if (monitor != null)     monitor.worked(1);
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    throw new RuntimeException(e);
+  }
+}

@@ -1,0 +1,29 @@
+{
+  Value next=null;
+  if (meta.isDatabaseUsed()) {
+    try {
+      next=data.getDb().getNextSequenceValue(meta.getSequenceName(),meta.getValuename());
+    }
+ catch (    KettleDatabaseException dbe) {
+      throw new KettleStepException("Error reading next value of sequence [" + meta.getSequenceName() + "] from database",dbe);
+    }
+  }
+ else   if (meta.isCounterUsed()) {
+    Long prev=(Long)getTransMeta().getCounters().get(data.getLookup());
+    long nval=prev.longValue() + meta.getIncrementBy();
+    if (meta.getIncrementBy() > 0 && nval > meta.getMaxValue())     nval=meta.getStartAt();
+    if (meta.getIncrementBy() < 0 && nval < meta.getMaxValue())     nval=meta.getStartAt();
+    getTransMeta().getCounters().put(data.getLookup(),new Long(nval));
+    next=new Value(meta.getValuename(),prev.longValue());
+  }
+ else {
+    throw new KettleStepException("No method is specified in this step!");
+  }
+  if (next != null) {
+    row.addValue(next);
+  }
+ else {
+    throw new KettleStepException("Couldn't find next value for sequence : " + meta.getValuename());
+  }
+  return true;
+}

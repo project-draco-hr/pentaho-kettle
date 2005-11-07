@@ -1,0 +1,96 @@
+{
+  String retval="";
+  TextFileField field=null;
+  if (idx >= 0)   field=meta.getOutputFields()[idx];
+  if (v.isBigNumber()) {
+    retval+=v.getString();
+  }
+ else   if (v.isNumeric()) {
+    debug="Number is formatted?";
+    if (idx >= 0 && field.getFormat() != null) {
+      if (v.isNull()) {
+        if (field.getNullString() != null)         retval=field.getNullString();
+      }
+ else {
+        debug="Formatted number pattern, field=" + v.getName() + ", idx="+ idx;
+        data.df.applyPattern(field.getFormat());
+        if (field.getDecimalSymbol() != null && field.getDecimalSymbol().length() > 0)         data.dfs.setDecimalSeparator(field.getDecimalSymbol().charAt(0));
+        if (field.getGroupingSymbol() != null && field.getGroupingSymbol().length() > 0)         data.dfs.setGroupingSeparator(field.getGroupingSymbol().charAt(0));
+        if (field.getCurrencySymbol() != null)         data.dfs.setCurrencySymbol(field.getCurrencySymbol());
+        data.df.setDecimalFormatSymbols(data.dfs);
+        retval=data.df.format(v.getNumber());
+      }
+    }
+ else {
+      debug="Not formatted number";
+      if (v.isNull()) {
+        if (idx >= 0 && field.getNullString() != null)         retval=field.getNullString();
+      }
+ else {
+        retval=v.toString();
+      }
+    }
+  }
+ else   if (v.isDate()) {
+    debug="Number is formatted?";
+    if (idx >= 0 && field.getFormat() != null && v.getDate() != null) {
+      debug="Formatted date pattern, field=" + v.getName() + ", idx="+ idx;
+      data.daf.applyPattern(field.getFormat());
+      data.daf.setDateFormatSymbols(data.dafs);
+      retval=data.daf.format(v.getDate());
+    }
+ else {
+      if (v.isNull() || v.getDate() == null) {
+        if (idx >= 0 && field.getNullString() != null)         retval=field.getNullString();
+      }
+ else {
+        retval=v.toString();
+      }
+    }
+  }
+ else   if (v.isString()) {
+    debug="String length=" + v.getLength() + ", value="+ v.toString();
+    if (v.isNull() || v.getString() == null) {
+      if (idx >= 0 && field.getNullString() != null)       retval=field.getNullString();
+    }
+ else {
+      int seppos=v.toString().indexOf(meta.separator);
+      if (seppos < 0)       retval=v.toString();
+ else       retval=meta.enclosure + v.toString() + meta.enclosure;
+    }
+  }
+ else {
+    debug="Boolean: " + v.getBoolean();
+    if (v.isNull()) {
+      if (idx >= 0 && field.getNullString() != null)       retval=field.getNullString();
+    }
+ else {
+      retval=v.toString();
+    }
+  }
+  if (meta.padded) {
+    int length, precision;
+    if (idx < 0) {
+      length=v.getLength() < 0 ? 0 : v.getLength();
+      precision=v.getPrecision() < 0 ? 0 : v.getPrecision();
+    }
+ else {
+      length=field.getLength() < 0 ? 0 : field.getLength();
+      precision=field.getPrecision() < 0 ? 0 : field.getPrecision();
+    }
+    if (v.isNumber()) {
+      length++;
+      if (precision > 0)       length++;
+    }
+    if (v.isDate()) {
+      length=23;
+      precision=0;
+    }
+    if (v.isBoolean()) {
+      length=5;
+      precision=0;
+    }
+    retval=Const.rightPad(new StringBuffer(retval),length + precision);
+  }
+  return retval;
+}

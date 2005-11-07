@@ -1,0 +1,50 @@
+{
+  TextFileInputMeta info=new TextFileInputMeta();
+  getInfo(info);
+  String files[]=info.getFiles();
+  FileInputStream fi=null;
+  ZipInputStream zi=null;
+  InputStream f=null;
+  ArrayList retval=new ArrayList();
+  if (files != null && files.length > 0) {
+    String filename=files[0];
+    try {
+      fi=new FileInputStream(new File(filename));
+      if (info.isZipped()) {
+        zi=new ZipInputStream(fi);
+        zi.getNextEntry();
+        f=zi;
+      }
+ else {
+        f=fi;
+      }
+      String firstlines="";
+      int linenr=0;
+      int maxnr=nrlines + (info.hasHeader() ? 1 : 0);
+      String line=TextFileInput.getLine(log,f,wFormat.getText());
+      while (line != null && (linenr < maxnr || nrlines == 0)) {
+        if (linenr > 0 || (linenr == 0 && !info.hasHeader()))         retval.add(line);
+        firstlines+=line + Const.CR;
+        linenr++;
+        line=TextFileInput.getLine(log,f,wFormat.getText());
+      }
+      if (info.hasFooter() && (linenr < maxnr || nrlines == 0)) {
+        if (retval.size() > 0)         retval.remove(retval.size() - 1);
+      }
+    }
+ catch (    Exception e) {
+    }
+ finally {
+      try {
+        if (info.isZipped() && zi != null) {
+          zi.closeEntry();
+          zi.close();
+        }
+        f.close();
+      }
+ catch (      Exception e) {
+      }
+    }
+  }
+  return retval;
+}

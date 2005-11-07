@@ -1,0 +1,86 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    databases=new Database[]{db};
+    try {
+      db.connect();
+      if (sql != null && sql.length() != 0) {
+        Row param=getParameterRow(prev);
+        error_message="";
+        Row r=db.getQueryFields(sql,true,param);
+        if (r != null) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"The query is specified and working correctly.",stepinfo);
+          remarks.add(cr);
+        }
+ else {
+          error_message="Couldn't verify the database query: check the log for more info!";
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+        int q=db.countParameters(sql);
+        if (q != parameterField.length) {
+          error_message="The number of parameters and the number of question marks is different." + Const.CR;
+          error_message+="\t\tThe number of question marks = " + q + Const.CR;
+          error_message+="\t\tThe number of parameters     = " + parameterField.length;
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"The number of parameters is correct. (" + q + ")",stepinfo);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < parameterField.length; i++) {
+          Value v=prev.searchValue(parameterField[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+="Missing fields, not found in input from previous steps:" + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + parameterField[i] + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"All fields found in the input stream.",stepinfo);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message="Couldn't read fields from the previous step." + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message="An error occurred: " + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message="Please select or create a connection!";
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,"Step is receiving info from other steps.",stepinfo);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,"No input received from other steps!",stepinfo);
+    remarks.add(cr);
+  }
+}

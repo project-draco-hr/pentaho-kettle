@@ -1,0 +1,29 @@
+{
+  meta=(AggregateRowsMeta)smi;
+  data=(AggregateRowsData)sdi;
+  Row r=null;
+  r=getRow();
+  if (r == null) {
+    Row agg=buildAggregate();
+    putRow(agg);
+    setOutputDone();
+    return false;
+  }
+  if (linesRead == 0) {
+    logError("Start of aggreg.rows, row=" + r.toString());
+    logError("Start of aggreg.rows, row.size()=" + r.size());
+    for (int i=0; i < meta.getFieldName().length; i++) {
+      data.fieldnrs[i]=r.searchValueIndex(meta.getFieldName()[i]);
+      if (data.fieldnrs[i] < 0) {
+        logError("Couldn't find field '" + meta.getFieldName()[i] + "' in row!");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+      data.counts[i]=0L;
+    }
+  }
+  AddAggregate(r);
+  if ((linesRead > 0) && (linesRead % Const.ROWS_UPDATE) == 0)   logBasic("Linenr " + linesRead);
+  return true;
+}

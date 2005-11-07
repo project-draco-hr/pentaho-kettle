@@ -1,0 +1,72 @@
+{
+  System.out.println("Loading repository info...");
+  RepositoryMeta repinfo=new RepositoryMeta();
+  getInfo(repinfo);
+  if (repinfo.getConnection() != null) {
+    System.out.println("Allocating repository...");
+    Repository rep=new Repository(log,repinfo,null);
+    System.out.println("Connecting to database for repository creation...");
+    if (rep.connect(true,false,getClass().getName())) {
+      boolean upgrade=false;
+      String cu="create";
+      try {
+        upgrade=rep.getDatabase().checkTableExists("R_USER");
+        if (upgrade)         cu="upgrade";
+      }
+ catch (      KettleDatabaseException dbe) {
+        rep.rollback();
+      }
+      MessageBox qmb=new MessageBox(shell,SWT.ICON_WARNING | SWT.YES | SWT.NO);
+      qmb.setMessage("Are you sure you want to " + cu + " the repository on the specified database connection?");
+      qmb.setText("OK");
+      int answer=qmb.open();
+      if (answer == SWT.YES) {
+        boolean goAhead=!upgrade;
+        if (!goAhead) {
+          EnterPasswordDialog etd=new EnterPasswordDialog(shell,props,"Confirm the password","Give the password of the admin user!","");
+          String pwd=etd.open();
+          if (pwd != null) {
+            try {
+              UserInfo ui=new UserInfo(rep,"admin");
+              if (pwd.equalsIgnoreCase(ui.getPassword())) {
+                goAhead=true;
+              }
+ else {
+                MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+                mb.setMessage("Kettle couldn't upgrade the repository tables on this connection.  The password was not correct.");
+                mb.setText("ERROR");
+                mb.open();
+              }
+            }
+ catch (            KettleException e) {
+              new ErrorDialog(shell,props,"ERROR","Kettle couldn't verify the user: ",e);
+            }
+          }
+        }
+        if (goAhead) {
+          System.out.println("Trying to " + cu + " the Kettle repository tables...");
+          UpgradeRepositoryProgressDialog urpd=new UpgradeRepositoryProgressDialog(log,props,shell,rep,upgrade);
+          if (urpd.open()) {
+            MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
+            mb.setMessage("Kettle " + cu + "d the repository on the specified connection.");
+            mb.setText("OK");
+            mb.open();
+          }
+        }
+      }
+      rep.disconnect();
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+      mb.setMessage("Kettle couldn't connect to the database to create or upgrade the repository." + Const.CR);
+      mb.setText("ERROR");
+      mb.open();
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+    mb.setMessage("Please, first select or create a valid repository database connection!");
+    mb.setText("ERROR");
+    mb.open();
+  }
+}

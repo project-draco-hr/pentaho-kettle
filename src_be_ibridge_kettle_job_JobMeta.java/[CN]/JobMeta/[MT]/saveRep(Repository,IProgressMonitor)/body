@@ -1,0 +1,50 @@
+{
+  try {
+    int nrWorks=2 + nrDatabases() + nrNotes()+ nrJobEntries()+ nrJobHops();
+    if (monitor != null)     monitor.beginTask("Saving transformation " + directory + Const.FILE_SEPARATOR+ getName(),nrWorks);
+    if (monitor != null)     monitor.subTask("Handling previous version of job...");
+    setID(rep.getJobID(getName(),directory.getID()));
+    if (getID() <= 0) {
+      setID(rep.getNextJobID());
+    }
+ else {
+      rep.delAllFromJob(getID());
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null)     monitor.subTask("Saving job details...");
+    log.logDetailed(toString(),"Saving job info to repository...");
+    saveRepJob(rep);
+    if (monitor != null)     monitor.worked(1);
+    log.logDetailed(toString(),"Saving notes to repository...");
+    for (int i=0; i < nrNotes(); i++) {
+      if (monitor != null)       monitor.subTask("Saving note #" + (i + 1) + "/"+ nrNotes());
+      NotePadMeta ni=getNote(i);
+      ni.saveRep(rep,getID());
+      if (ni.getID() > 0) {
+        rep.insertJobNote(getID(),ni.getID());
+      }
+      if (monitor != null)       monitor.worked(1);
+    }
+    log.logDetailed(toString(),"Saving " + nrJobEntries() + " ChefGraphEntries to repository...");
+    for (int i=0; i < nrJobEntries(); i++) {
+      if (monitor != null)       monitor.subTask("Saving job entry #" + (i + 1) + "/"+ nrJobEntries());
+      JobEntryCopy cge=getJobEntry(i);
+      cge.saveRep(rep,getID());
+      if (monitor != null)       monitor.worked(1);
+    }
+    log.logDetailed(toString(),"Saving job hops to repository...");
+    for (int i=0; i < nrJobHops(); i++) {
+      if (monitor != null)       monitor.subTask("Saving job hop #" + (i + 1) + "/"+ nrJobHops());
+      JobHopMeta hi=getJobHop(i);
+      hi.saveRep(rep,getID());
+      if (monitor != null)       monitor.worked(1);
+    }
+    rep.commit();
+    clearChanged();
+    if (monitor != null)     monitor.done();
+  }
+ catch (  KettleDatabaseException dbe) {
+    rep.rollback();
+    throw new KettleException("Unable to save Job in repository, database rollback performed.",dbe);
+  }
+}

@@ -1,0 +1,187 @@
+{
+  ArrayList args=new ArrayList();
+  for (int i=0; i < a.length; i++)   args.add(a[i]);
+  Display display=new Display();
+  Splash splash=new Splash(display);
+  String repname=Const.getCommandlineOption(args,"-rep");
+  String username=Const.getCommandlineOption(args,"-user");
+  String password=Const.getCommandlineOption(args,"-pass");
+  String jobname=Const.getCommandlineOption(args,"-job");
+  String filename=Const.getCommandlineOption(args,"-file");
+  String dirname=Const.getCommandlineOption(args,"-dir");
+  String logfile=Const.getCommandlineOption(args,"-log");
+  Locale.setDefault(Const.DEFAULT_LOCALE);
+  LogWriter log;
+  if (logfile == null) {
+    log=LogWriter.getInstance(Const.SPOON_LOG_FILE,false,LogWriter.LOG_LEVEL_BASIC);
+  }
+ else {
+    log=LogWriter.getInstance(logfile,true,LogWriter.LOG_LEVEL_BASIC);
+  }
+  if (log.getRealFilename() != null)   log.logBasic(APP_NAME,"Logging goes to " + log.getRealFilename());
+  StepLoader stloader=StepLoader.getInstance();
+  if (!stloader.read()) {
+    log.logError(APP_NAME,"Error loading steps... halting Chef!");
+    return;
+  }
+  JobEntryLoader jeloader=JobEntryLoader.getInstance();
+  if (!jeloader.read()) {
+    log.logError(APP_NAME,"Error loading job entries & plugins... halting Chef!");
+    return;
+  }
+  final Chef win=new Chef(log,display,null);
+  win.setDestroy(true);
+  log.logDetailed(APP_NAME,"Main window is created.");
+  Licenses licenses=Licenses.getInstance();
+  win.license_nr=licenses.checkLicense(Licenses.PRODUCT_CHEF);
+  if (win.license_nr < 0) {
+    log.logDetailed(APP_NAME,"Demo mode activated.");
+    win.demo_mode=true;
+  }
+ else {
+    log.logDetailed(APP_NAME,"Licence verified.");
+    win.demo_mode=false;
+  }
+  int retval=SWT.YES;
+  if (win.demo_mode) {
+    splash.hide();
+    ShowLicenseDialog ld=new ShowLicenseDialog(log,win.props,win.disp,"Chef");
+    ld.shell.setImage(win.chefgraph.images[JobEntryInterface.TYPE_JOBENTRY_JOB]);
+    retval=ld.open();
+    if (retval == SWT.YES) {
+      win.demo_mode=false;
+      win.license_nr=licenses.getNrLicenses();
+      log.logDetailed(APP_NAME,"Licence verified.");
+    }
+ else     if (retval == SWT.CANCEL) {
+      splash.dispose();
+      win.quitFile();
+      return;
+    }
+ else {
+      ShowDemoDialog sdd=new ShowDemoDialog(win.shell,win.props,GUIResource.getInstance().getImageKettle());
+      if (!sdd.open()) {
+        win.quitFile();
+        return;
+      }
+    }
+    splash.show();
+  }
+  RepositoryMeta repinfo=null;
+  UserInfo userinfo=null;
+  if (repname == null && filename == null && win.props.showRepositoriesDialogAtStartup()) {
+    log.logDetailed(APP_NAME,"Asking for repository");
+    int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_JOB};
+    splash.hide();
+    RepositoriesDialog rd=new RepositoriesDialog(win.disp,SWT.NONE,perms,"Chef");
+    if (rd.open()) {
+      repinfo=rd.getRepository();
+      userinfo=rd.getUser();
+      if (!userinfo.useJobs()) {
+        MessageBox mb=new MessageBox(win.shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage("Sorry, this repository user can't work with jobs from the repository.");
+        mb.setText("Error!");
+        mb.open();
+        userinfo=null;
+        repinfo=null;
+      }
+    }
+ else {
+      if (rd.isCancelled()) {
+        splash.dispose();
+        win.quitFile();
+        return;
+      }
+    }
+  }
+  try {
+    if (repname != null || filename != null) {
+      if (repname != null) {
+        RepositoriesMeta repsinfo=new RepositoriesMeta(log);
+        if (repsinfo.readData()) {
+          repinfo=repsinfo.findRepository(repname);
+          if (repinfo != null) {
+            win.rep=new Repository(log,repinfo,userinfo);
+            if (win.rep.connect("Chef")) {
+              if (dirname == null)               dirname=Const.FILE_SEPARATOR;
+              win.rep.userinfo=new UserInfo(win.rep,username,password);
+              if (win.rep.getUserInfo().getID() > 0) {
+                RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(dirname);
+                win.jobMeta=new JobMeta(log,win.rep,jobname,repdir);
+                win.setFilename(repname);
+                win.jobMeta.clearChanged();
+              }
+ else {
+                log.logError(APP_NAME,"Can't verify username and password.");
+                win.rep=null;
+              }
+            }
+ else {
+              log.logError(APP_NAME,"Can't connect to the repository.");
+            }
+          }
+ else {
+            log.logError(APP_NAME,"No repository provided, can't load the job.");
+          }
+        }
+ else {
+          log.logError(APP_NAME,"No repositories defined on this system.");
+        }
+      }
+ else       if (filename != null) {
+        win.jobMeta=new JobMeta(log,filename);
+        win.jobMeta.clearChanged();
+      }
+    }
+ else {
+      if (repinfo != null && userinfo != null) {
+        win.rep=new Repository(log,repinfo,userinfo);
+        if (!win.rep.connect("Spoon")) {
+          win.rep=null;
+        }
+      }
+      if (win.props.openLastFile()) {
+        String lastfiles[]=win.props.getLastFiles();
+        String lastdirs[]=win.props.getLastDirs();
+        boolean lasttypes[]=win.props.getLastTypes();
+        String lastrepos[]=win.props.getLastRepositories();
+        if (lastfiles.length > 0) {
+          boolean use_repository=win.rep != null;
+          if (use_repository || !lasttypes[0]) {
+            if (win.rep != null) {
+              if (win.rep.getName().equalsIgnoreCase(lastrepos[0])) {
+                RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(lastdirs[0]);
+                if (repdir != null) {
+                  log.logDetailed(APP_NAME,"Auto loading job [" + lastfiles[0] + "] from repository directory ["+ repdir.getPath()+ "]");
+                  JobLoadProgressDialog jlpd=new JobLoadProgressDialog(log,win.props,win.shell,win.rep,lastfiles[0],repdir);
+                  JobMeta jobInfo=jlpd.open();
+                  if (jobInfo != null) {
+                    win.jobMeta=jobInfo;
+                    win.setFilename(lastfiles[0]);
+                  }
+                }
+              }
+            }
+ else {
+              win.jobMeta=new JobMeta(log,lastfiles[0]);
+            }
+            win.setFilename(lastfiles[0]);
+          }
+          win.jobMeta.clearChanged();
+        }
+      }
+    }
+  }
+ catch (  KettleException ke) {
+    log.logError(APP_NAME,"Error loading job: " + ke.getMessage());
+  }
+  win.open();
+  splash.dispose();
+  while (!win.isDisposed()) {
+    if (!win.readAndDispatch())     win.sleep();
+  }
+  win.dispose();
+  log.logBasic(APP_NAME,APP_NAME + " has ended.");
+  log.close();
+  System.exit(0);
+}

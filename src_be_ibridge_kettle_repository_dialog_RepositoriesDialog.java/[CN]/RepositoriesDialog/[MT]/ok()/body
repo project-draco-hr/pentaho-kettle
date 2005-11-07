@@ -1,0 +1,73 @@
+{
+  if (wRepository.getItemCount() != 0) {
+    int idx=wRepository.getSelectionIndex();
+    repinfo=input.getRepository(idx);
+    Repository rep=new Repository(log,repinfo,userinfo);
+    if (rep.connect(getClass().getName())) {
+      try {
+        userinfo=new UserInfo(rep,wUsername.getText(),wPassword.getText());
+        props.setLastRepository(repinfo.getName());
+        props.setLastRepositoryLogin(wUsername.getText());
+      }
+ catch (      KettleException e) {
+        userinfo=null;
+        repinfo=null;
+      }
+ finally {
+        rep.disconnect();
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage("I couldn't connect to this repository!" + Const.CR + "Please check the settings in the repository connection.");
+      mb.setText("Sorry");
+      mb.open();
+      return;
+    }
+  }
+  input.writeData();
+  if (userinfo == null) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("Incorrect username or password!");
+    mb.setText("ERROR");
+    mb.open();
+  }
+ else {
+    boolean ok=true;
+    String mess="";
+    for (int i=0; i < tools_permissions.length; i++) {
+switch (tools_permissions[i]) {
+case PermissionMeta.TYPE_PERMISSION_TRANSFORMATION:
+        ok=ok && userinfo.useTransformations();
+      mess+=mess.length() > 0 ? ", " : "";
+    mess+="Spoon";
+  break;
+case PermissionMeta.TYPE_PERMISSION_SCHEMA:
+ok=ok && userinfo.useSchemas();
+mess+=mess.length() > 0 ? ", " : "";
+mess+="Menu";
+break;
+case PermissionMeta.TYPE_PERMISSION_JOB:
+ok=ok && userinfo.useJobs();
+mess+=mess.length() > 0 ? ", " : "";
+mess+="Chef";
+break;
+default :
+break;
+}
+}
+if (!ok) {
+int idx=mess.lastIndexOf(',');
+if (idx > 0) mess=mess.substring(0,idx) + "and" + mess.substring(idx + 1);
+MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+mb.setMessage("Sorry, you don't have permissions to run " + mess);
+mb.setText("ERROR");
+mb.open();
+userinfo=null;
+repinfo=null;
+}
+ else {
+dispose();
+}
+}
+}

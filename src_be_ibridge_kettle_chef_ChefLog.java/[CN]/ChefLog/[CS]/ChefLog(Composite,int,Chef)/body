@@ -1,0 +1,128 @@
+{
+  super(parent,style);
+  shell=parent.getShell();
+  this.log=LogWriter.getInstance();
+  display=shell.getDisplay();
+  this.chef=chef;
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  setLayout(formLayout);
+  setVisible(true);
+  white=Display.getCurrent().getSystemColor(SWT.COLOR_WHITE);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      white.dispose();
+    }
+  }
+);
+  SashForm sash=new SashForm(this,SWT.VERTICAL);
+  ColumnInfo colinf[]={new ColumnInfo("Nr",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true),new ColumnInfo("Icon",ColumnInfo.COLUMN_TYPE_ICON,""),new ColumnInfo("Job name",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true),new ColumnInfo("Entry name",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true),new ColumnInfo("Result",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true),new ColumnInfo("Previous entry",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true),new ColumnInfo("Comment",ColumnInfo.COLUMN_TYPE_TEXT,"",false,true)};
+  jobEntryResults=new ArrayList();
+  wTable=new KTable(sash,SWT.V_SCROLL | SWT.H_SCROLL);
+  wTable.setRowSelectionMode(true);
+  wTable.setModel(new ChefLogTableModel(colinf,jobEntryResults,chef.getChefGraph()));
+  FormData fdTable=new FormData();
+  fdTable.left=new FormAttachment(0,0);
+  fdTable.top=new FormAttachment(0,0);
+  fdTable.right=new FormAttachment(100,0);
+  fdTable.bottom=new FormAttachment(100,0);
+  wTable.setLayoutData(fdTable);
+  wText=new Text(sash,SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL| SWT.READ_ONLY);
+  wText.setBackground(white);
+  wText.setVisible(true);
+  wStart=new Button(this,SWT.PUSH);
+  wStart.setText(START_TEXT);
+  wRefresh=new Button(this,SWT.PUSH);
+  wRefresh.setText("&Refresh log");
+  wClear=new Button(this,SWT.PUSH);
+  wClear.setText("&Clear log");
+  wLog=new Button(this,SWT.PUSH);
+  wLog.setText("&Log settings");
+  fdStart=new FormData();
+  fdRefresh=new FormData();
+  fdClear=new FormData();
+  fdLog=new FormData();
+  fdStart.left=new FormAttachment(15,0);
+  fdStart.bottom=new FormAttachment(100,0);
+  wStart.setLayoutData(fdStart);
+  fdRefresh.left=new FormAttachment(wStart,10);
+  fdRefresh.bottom=new FormAttachment(100,0);
+  wRefresh.setLayoutData(fdRefresh);
+  fdClear.left=new FormAttachment(wRefresh,10);
+  fdClear.bottom=new FormAttachment(100,0);
+  wClear.setLayoutData(fdClear);
+  fdLog.left=new FormAttachment(wClear,10);
+  fdLog.bottom=new FormAttachment(100,0);
+  wLog.setLayoutData(fdLog);
+  fdText=new FormData();
+  fdText.left=new FormAttachment(0,0);
+  fdText.top=new FormAttachment(0,0);
+  fdText.right=new FormAttachment(100,0);
+  fdText.bottom=new FormAttachment(100,-30);
+  wText.setLayoutData(fdText);
+  fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(0,0);
+  fdSash.right=new FormAttachment(100,0);
+  fdSash.bottom=new FormAttachment(wStart,-5);
+  sash.setLayoutData(fdSash);
+  sash.setWeights(new int[]{60,40});
+  pack();
+  try {
+    in=log.getFileInputStream();
+  }
+ catch (  Exception e) {
+    System.out.println("Couldn't create input-pipe connection to output-pipe!");
+  }
+  lsRefresh=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      readLog();
+      refreshView();
+    }
+  }
+;
+  final Timer tim=new Timer();
+  TimerTask timtask=new TimerTask(){
+    public void run(){
+      if (display != null && !display.isDisposed())       display.asyncExec(new Runnable(){
+        public void run(){
+          checkErrors();
+          readLog();
+          refreshView();
+        }
+      }
+);
+    }
+  }
+;
+  tim.schedule(timtask,2000L,2000L);
+  lsStart=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      startstop();
+    }
+  }
+;
+  lsClear=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      clearLog();
+    }
+  }
+;
+  lsLog=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      setLog();
+    }
+  }
+;
+  wRefresh.addSelectionListener(lsRefresh);
+  wStart.addSelectionListener(lsStart);
+  wClear.addSelectionListener(lsClear);
+  wLog.addSelectionListener(lsLog);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      tim.cancel();
+    }
+  }
+);
+}

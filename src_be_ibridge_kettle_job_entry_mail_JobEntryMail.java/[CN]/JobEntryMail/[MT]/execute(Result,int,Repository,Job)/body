@@ -1,0 +1,110 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=new Result(nr);
+  Properties props=new Properties();
+  props.put("mail.smtp.host",server);
+  boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
+  if (debug)   props.put("mail.debug","true");
+  Session session=Session.getInstance(props,null);
+  session.setDebug(debug);
+  try {
+    Message msg=new MimeMessage(session);
+    msg.setFrom(new InternetAddress(replyto));
+    InternetAddress[] address={new InternetAddress(destination)};
+    msg.setRecipients(Message.RecipientType.TO,address);
+    msg.setSubject(subject);
+    msg.setSentDate(new Date());
+    String messageText="";
+    if (comment != null) {
+      messageText+=comment + Const.CR + Const.CR;
+    }
+    messageText+="Job:" + Const.CR;
+    messageText+="-----" + Const.CR;
+    messageText+="Name       : " + parentJob.getJobinfo().getName() + Const.CR;
+    messageText+="Directory  : " + parentJob.getJobinfo().getDirectory() + Const.CR;
+    messageText+="JobEntry   : " + getName() + Const.CR;
+    messageText+=Const.CR;
+    if (include_date) {
+      Value date=new Value("date",new Date());
+      messageText+="Message date: " + date.toString() + Const.CR+ Const.CR;
+    }
+    if (prev_result != null) {
+      messageText+="Previous result:" + Const.CR;
+      messageText+="-----------------" + Const.CR;
+      messageText+="Job entry nr         : " + prev_result.getEntryNr() + Const.CR;
+      messageText+="Errors               : " + prev_result.getNrErrors() + Const.CR;
+      messageText+="Lines read           : " + prev_result.getNrLinesRead() + Const.CR;
+      messageText+="Lines written        : " + prev_result.getNrLinesWritten() + Const.CR;
+      messageText+="Lines input          : " + prev_result.getNrLinesInput() + Const.CR;
+      messageText+="Lines output         : " + prev_result.getNrLinesOutput() + Const.CR;
+      messageText+="Lines updated        : " + prev_result.getNrLinesUpdated() + Const.CR;
+      messageText+="Script exit status   : " + prev_result.getExitStatus() + Const.CR;
+      messageText+="Result               : " + prev_result.getResult() + Const.CR;
+      messageText+=Const.CR;
+    }
+    ArrayList path=parentJob.getJobEntryResults();
+    if (path != null) {
+      messageText+="Path to this job entry:" + Const.CR;
+      messageText+="------------------------" + Const.CR;
+      for (int i=0; i < path.size(); i++) {
+        JobEntryResult jer=(JobEntryResult)path.get(i);
+        messageText+="#" + i + " : "+ jer.getThisJobEntry().getName()+ Const.CR;
+      }
+    }
+    msg.setText(messageText);
+    Transport.send(msg);
+  }
+ catch (  MessagingException mex) {
+    log.logError(toString(),"Problem while sending message: " + mex.toString());
+    result.setNrErrors(1);
+    Exception ex=mex;
+    do {
+      if (ex instanceof SendFailedException) {
+        SendFailedException sfex=(SendFailedException)ex;
+        Address[] invalid=sfex.getInvalidAddresses();
+        if (invalid != null) {
+          log.logError(toString(),"    ** Invalid Addresses");
+          if (invalid != null) {
+            for (int i=0; i < invalid.length; i++) {
+              log.logError(toString(),"         " + invalid[i]);
+              result.setNrErrors(1);
+            }
+          }
+        }
+        Address[] validUnsent=sfex.getValidUnsentAddresses();
+        if (validUnsent != null) {
+          log.logError(toString(),"    ** ValidUnsent Addresses");
+          if (validUnsent != null) {
+            for (int i=0; i < validUnsent.length; i++) {
+              log.logError(toString(),"         " + validUnsent[i]);
+              result.setNrErrors(1);
+            }
+          }
+        }
+        Address[] validSent=sfex.getValidSentAddresses();
+        if (validSent != null) {
+          if (validSent != null) {
+            for (int i=0; i < validSent.length; i++) {
+              log.logError(toString(),"         " + validSent[i]);
+              result.setNrErrors(1);
+            }
+          }
+        }
+      }
+      if (ex instanceof MessagingException) {
+        ex=((MessagingException)ex).getNextException();
+      }
+ else {
+        ex=null;
+      }
+    }
+ while (ex != null);
+  }
+  if (result.getNrErrors() > 0) {
+    result.setResult(false);
+  }
+ else {
+    result.setResult(true);
+  }
+  return result;
+}

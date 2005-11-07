@@ -1,0 +1,60 @@
+{
+  debug="Start of selectValues";
+  if (data.firstselect) {
+    debug="Init (first)";
+    data.firstselect=false;
+    data.fieldnrs=new int[meta.getSelectName().length];
+    data.values=new Value[meta.getSelectName().length];
+    for (int i=0; i < data.fieldnrs.length; i++) {
+      data.fieldnrs[i]=row.searchValueIndex(meta.getSelectName()[i]);
+      if (data.fieldnrs[i] < 0) {
+        logError("Couldn't find field '" + meta.getSelectName()[i] + "' in row!");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+    int cnt[]=new int[meta.getSelectName().length];
+    for (int i=0; i < meta.getSelectName().length; i++) {
+      cnt[i]=0;
+      for (int j=0; j < meta.getSelectName().length; j++) {
+        if (meta.getSelectName()[i].equalsIgnoreCase(meta.getSelectName()[j]))         cnt[i]++;
+        if (cnt[i] > 1) {
+          logError("Field '" + meta.getSelectName()[i] + "' is specified twice with the same name!");
+          setErrors(1);
+          stopAll();
+          return false;
+        }
+      }
+    }
+  }
+  debug="get fields values";
+  for (int i=0; i < meta.getSelectName().length; i++) {
+    debug="get start loop (fieldnrs[" + i + "]="+ data.fieldnrs[i]+ ")";
+    if (data.fieldnrs[i] < row.size()) {
+      data.values[i]=row.getValue(data.fieldnrs[i]);
+      if (meta.getSelectRename()[i] != null && meta.getSelectRename()[i].length() > 0) {
+        data.values[i].setName(meta.getSelectRename()[i]);
+      }
+ else {
+        data.values[i].setName(meta.getSelectName()[i]);
+      }
+      if (meta.getSelectLength()[i] != -2)       data.values[i].setLength(meta.getSelectLength()[i]);
+      if (meta.getSelectPrecision()[i] != -2)       data.values[i].setPrecision(meta.getSelectPrecision()[i]);
+    }
+ else {
+      logDetailed("WARNING: Mixing streams with different nr of fields.");
+    }
+  }
+  debug="add values to row in correct order...";
+  for (int i=0; i < meta.getSelectName().length; i++) {
+    if (i > row.size())     row.addValue(data.values[i]);
+ else     row.setValue(i,data.values[i]);
+  }
+  debug="remove unwanted/unselected fields.";
+  for (int i=row.size() - 1; i >= meta.getSelectName().length; i--) {
+    row.removeValue(i);
+  }
+  debug="End of selectValues";
+  return true;
+}

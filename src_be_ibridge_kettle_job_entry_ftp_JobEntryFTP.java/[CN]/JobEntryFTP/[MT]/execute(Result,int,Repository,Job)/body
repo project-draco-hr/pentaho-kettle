@@ -1,0 +1,66 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  log4j.info("Started FTP job to " + serverName);
+  Result result=new Result(nr);
+  result.setResult(false);
+  long filesRetrieved=0;
+  log.logDetailed(toString(),"Start of FTP job entry");
+  try {
+    FTPClient ftpclient=new FTPClient(InetAddress.getByName(serverName));
+    log.logDetailed(toString(),"Opened FTP connection to server [" + serverName + "]");
+    ftpclient.setConnectMode(FTPConnectMode.PASV);
+    log.logDetailed(toString(),"set Passive ftp connection mode");
+    ftpclient.setTimeout(timeout);
+    log.logDetailed(toString(),"set timeout to " + timeout);
+    ftpclient.login(userName,password);
+    log.logDetailed(toString(),"logged in using " + userName + "/"+ password);
+    if (ftpDirectory != null && ftpDirectory.length() > 0) {
+      ftpclient.chdir(ftpDirectory);
+      log.logDetailed(toString(),"Changed to directory [" + ftpDirectory + "]");
+    }
+    String[] filelist=ftpclient.dir();
+    log.logDetailed(toString(),"Found " + filelist.length + " files in the remote ftp directory");
+    if (binaryMode) {
+      ftpclient.setType(FTPTransferType.BINARY);
+      log.logDetailed(toString(),"set binary transfer mode");
+    }
+ else {
+      ftpclient.setType(FTPTransferType.ASCII);
+      log.logDetailed(toString(),"set ASCII transfer mode");
+    }
+    if (filelist.length == 1) {
+      if (filelist[0].startsWith(wildcard)) {
+        throw new FTPException(filelist[0]);
+      }
+    }
+    Pattern pattern=null;
+    if (wildcard != null && wildcard.length() > 0) {
+      pattern=Pattern.compile(wildcard);
+    }
+    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      boolean getIt=true;
+      if (pattern != null) {
+        Matcher matcher=pattern.matcher(filelist[i]);
+        getIt=matcher.matches();
+      }
+      if (getIt) {
+        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ targetDirectory+ "]");
+        ftpclient.get(targetDirectory + Const.FILE_SEPARATOR + filelist[i],filelist[i]);
+        filesRetrieved++;
+        log.logDetailed(toString(),"Got file [" + filelist[i] + "]");
+        if (remove) {
+          ftpclient.delete(filelist[i]);
+          log.logDetailed(toString(),"deleted file [" + filelist[i] + "]");
+        }
+      }
+    }
+    result.setResult(true);
+    result.setNrFilesRetrieved(filesRetrieved);
+  }
+ catch (  Exception e) {
+    result.setNrErrors(1);
+    e.printStackTrace();
+    log.logError(toString(),"Error getting files from FTP : " + e.getMessage());
+  }
+  return result;
+}

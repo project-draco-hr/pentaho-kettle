@@ -1,0 +1,32 @@
+{
+  try {
+    String filename=getFilename();
+    File file=new File(filename);
+    if (!file.exists() || file.canWrite()) {
+      FileOutputStream fos=new FileOutputStream(file);
+      DataOutputStream dos=new DataOutputStream(fos);
+      int counter=0;
+      boolean ok=true;
+      Enumeration keys=cache.keys();
+      while (ok && keys.hasMoreElements()) {
+        DBCacheEntry entry=(DBCacheEntry)keys.nextElement();
+        entry.write(dos);
+        Row row=get(entry);
+        if (row != null) {
+          row.write(dos);
+          counter++;
+        }
+ else {
+          throw new KettleFileException("The database cache contains an empty row. We can't save this!");
+        }
+      }
+      log.logDetailed("DBCache","We wrote " + counter + " cached rows to the database cache!");
+    }
+ else {
+      throw new KettleFileException("We can't write to the cache file: " + filename);
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleFileException("Couldn't write to the database cache",e);
+  }
+}

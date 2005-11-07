@@ -1,0 +1,32 @@
+{
+  meta=(TextFileOutputMeta)smi;
+  data=(TextFileOutputData)sdi;
+  Row r;
+  boolean result=true;
+  r=getRow();
+  if ((r == null && data.headerrow != null && meta.footer) || (r != null && linesOutput > 0 && meta.splitEvery > 0 && (linesOutput % meta.splitEvery) == 0)) {
+    if (writeHeader())     linesOutput++;
+    closeFile();
+    if (r != null) {
+      if (!openNewFile()) {
+        logError("Unable to open new file (split #" + data.splitnr + "...");
+        setErrors(1);
+        return false;
+      }
+      if (meta.header && data.headerrow != null)       if (writeHeader())       linesOutput++;
+    }
+  }
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  result=writeRowToFile(r);
+  if (!result) {
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+  putRow(r);
+  if ((linesOutput > 0) && (linesOutput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesOutput);
+  return result;
+}

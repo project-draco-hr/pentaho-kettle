@@ -1,0 +1,49 @@
+{
+  int idx[]=wFields.table.getSelectionIndices();
+  if (idx.length == 0) {
+    idx=new int[stats.size()];
+    for (int i=0; i < stats.size(); i++)     idx[i]=i;
+  }
+  int errors=0;
+  for (int i=0; i < idx.length; i++) {
+    SQLStatement stat=(SQLStatement)stats.get(idx[i]);
+    if (stat.hasError())     errors++;
+  }
+  if (errors == 0) {
+    for (int i=0; i < idx.length; i++) {
+      SQLStatement stat=(SQLStatement)stats.get(idx[i]);
+      DatabaseMeta di=stat.getDatabase();
+      if (di != null && !stat.hasError()) {
+        Database db=new Database(di);
+        try {
+          db.connect();
+          try {
+            db.execStatements(stat.getSQL());
+          }
+ catch (          KettleDatabaseException dbe) {
+            errors++;
+            new ErrorDialog(shell,props,"Error","The following statement could not be executed: " + Const.CR + stat.getSQL(),dbe);
+          }
+        }
+ catch (        KettleDatabaseException dbe) {
+          new ErrorDialog(shell,props,"Error","I was unable to connect to database connection [" + (di == null ? "" : di.getName()) + "]",dbe);
+        }
+ finally {
+          db.disconnect();
+        }
+      }
+    }
+    if (errors == 0) {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+      mb.setMessage("All " + idx.length + " SQL statements were executed.");
+      mb.setText("OK!");
+      mb.open();
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("We can't execute the selected statetements as there are " + errors + " with errors.");
+    mb.setText("ERROR");
+    mb.open();
+  }
+}

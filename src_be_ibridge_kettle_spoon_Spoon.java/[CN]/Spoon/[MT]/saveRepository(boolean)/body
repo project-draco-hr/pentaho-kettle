@@ -1,0 +1,59 @@
+{
+  log.logDetailed(toString(),"Save to repository...");
+  if (rep != null) {
+    boolean answer=true;
+    boolean ask=ask_name;
+    while (answer && (ask || transMeta.getName() == null || transMeta.getName().length() == 0)) {
+      if (!ask) {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        mb.setMessage("Please give this transformation a name before saving it in the database.");
+        mb.setText("Transformation has no name.");
+        mb.open();
+      }
+      ask=false;
+      answer=setTrans();
+    }
+    if (answer && transMeta.getName() != null && transMeta.getName().length() > 0) {
+      if (!rep.getUserInfo().isReadonly()) {
+        int response=SWT.YES;
+        if (transMeta.showReplaceWarning(rep)) {
+          MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.ICON_QUESTION);
+          mb.setMessage("There already is a transformation called [" + transMeta.getName() + "] in the repository."+ Const.CR+ "Do you want to overwrite the transformation?");
+          mb.setText("Overwrite?");
+          response=mb.open();
+        }
+        if (response == SWT.YES) {
+          shell.setCursor(cursor_hourglass);
+          transMeta.setModifiedDate(new Value("MODIFIED_DATE",Value.VALUE_TYPE_DATE));
+          transMeta.getModifiedDate().sysdate();
+          transMeta.setModifiedUser(rep.getUserInfo().getLogin());
+          TransSaveProgressDialog tspd=new TransSaveProgressDialog(log,props,shell,rep,transMeta);
+          if (tspd.open()) {
+            if (!props.getSaveConfirmation()) {
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Save OK!",null,"This transformation was stored in repository",MessageDialog.QUESTION,new String[]{"OK!"},0,"Don't show this message again.",props.getSaveConfirmation());
+              md.open();
+              props.setSaveConfirmation(md.getToggleState());
+            }
+            props.addLastFile(Props.TYPE_PROPERTIES_SPOON,transMeta.getName(),transMeta.getDirectory().getPath(),true,getRepositoryName());
+            saveSettings();
+            addMenuLast();
+            setShellText();
+          }
+          shell.setCursor(null);
+        }
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.CLOSE | SWT.ICON_ERROR);
+        mb.setMessage("Sorry, the user you're logged on with, can only read from the repository");
+        mb.setText("Transformation not saved!");
+        mb.open();
+      }
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("There is no repository connection available.");
+    mb.setText("No repository available.");
+    mb.open();
+  }
+}

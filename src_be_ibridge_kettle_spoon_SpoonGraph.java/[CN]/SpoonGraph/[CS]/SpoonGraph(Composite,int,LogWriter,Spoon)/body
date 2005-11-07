@@ -1,0 +1,455 @@
+{
+  super(par,style);
+  shell=par.getShell();
+  log=l;
+  spoon=sp;
+  canvas=this;
+  iconsize=spoon.props.getIconSize();
+  clearSettings();
+  hori=getHorizontalBar();
+  vert=getVerticalBar();
+  hori.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      redraw();
+    }
+  }
+);
+  vert.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      redraw();
+    }
+  }
+);
+  hori.setThumb(100);
+  vert.setThumb(100);
+  hori.setVisible(true);
+  vert.setVisible(true);
+  setVisible(true);
+  newProps();
+  canvas.setBackground(GUIResource.getInstance().getColorBackground());
+  addPaintListener(new PaintListener(){
+    public void paintControl(    PaintEvent e){
+      if (!spoon.isStopped())       SpoonGraph.this.paintControl(e);
+    }
+  }
+);
+  selected_steps=null;
+  lastclick=null;
+  addKeyListener(spoon.modKeys);
+  addMouseListener(new MouseAdapter(){
+    public void mouseDoubleClick(    MouseEvent e){
+      clearSettings();
+      control=(e.stateMask & SWT.CONTROL) != 0;
+      shift=(e.stateMask & SWT.SHIFT) != 0;
+      Point real=screen2real(e.x,e.y);
+      StepMeta stepMeta=spoon.transMeta.getStep(real.x,real.y,iconsize);
+      if (stepMeta != null) {
+        if (e.button == 1)         editStep(stepMeta);
+ else         editDescription(stepMeta);
+      }
+ else {
+        TransHopMeta online=findHop(real.x,real.y);
+        if (online != null) {
+          editHop(online);
+        }
+ else {
+          NotePadMeta ni=spoon.transMeta.getNote(real.x,real.y);
+          if (ni != null) {
+            selected_note=null;
+            editNote(ni);
+          }
+        }
+      }
+    }
+    public void mouseDown(    MouseEvent e){
+      clearSettings();
+      control=(e.stateMask & SWT.CONTROL) != 0;
+      shift=(e.stateMask & SWT.SHIFT) != 0;
+      last_button=e.button;
+      Point real=screen2real(e.x,e.y);
+      setToolTipText(null);
+      setMenu(real.x,real.y);
+      StepMeta stepMeta=spoon.transMeta.getStep(real.x,real.y,iconsize);
+      if (stepMeta != null) {
+        selected_steps=spoon.transMeta.getSelectedSteps();
+        selected_step=stepMeta;
+        previous_step_locations=spoon.transMeta.getSelectedStepLocations();
+        Point p=stepMeta.getLocation();
+        iconoffset=new Point(real.x - p.x,real.y - p.y);
+      }
+ else {
+        NotePadMeta ni=spoon.transMeta.getNote(real.x,real.y);
+        if (ni != null && last_button == 1) {
+          selected_notes=spoon.transMeta.getSelectedNotes();
+          selected_note=ni;
+          Point loc=ni.getLocation();
+          previous_note_locations=spoon.transMeta.getSelectedNoteLocations();
+          noteoffset=new Point(real.x - loc.x,real.y - loc.y);
+        }
+ else {
+          if (!control)           selrect=new Rectangle(real.x,real.y,0,0);
+        }
+      }
+      lastclick=new Point(real.x,real.y);
+      redraw();
+    }
+    public void mouseUp(    MouseEvent e){
+      control=(e.stateMask & SWT.CONTROL) != 0;
+      shift=(e.stateMask & SWT.SHIFT) != 0;
+      if (iconoffset == null)       iconoffset=new Point(0,0);
+      Point real=screen2real(e.x,e.y);
+      Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
+      if (candidate != null) {
+        if (spoon.transMeta.findTransHop(candidate) == null) {
+          spoon.transMeta.addTransHop(candidate);
+          spoon.refreshTree();
+          if (spoon.transMeta.hasLoop(candidate.getFromStep())) {
+            MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
+            mb.setMessage("This hop causes a loop in the transformation.  Loops are not allowed!");
+            mb.setText("Warning!");
+            mb.open();
+            int idx=spoon.transMeta.indexOfTransHop(candidate);
+            spoon.transMeta.removeTransHop(idx);
+            spoon.refreshTree();
+          }
+ else {
+            spoon.addUndoNew(new TransHopMeta[]{candidate},new int[]{spoon.transMeta.indexOfTransHop(candidate)});
+          }
+        }
+        candidate=null;
+        selected_steps=null;
+        last_button=0;
+        redraw();
+      }
+ else       if (selrect != null) {
+        selrect.width=real.x - selrect.x;
+        selrect.height=real.y - selrect.y;
+        spoon.transMeta.unselectAll();
+        spoon.transMeta.selectInRect(selrect);
+        selrect=null;
+        redraw();
+      }
+ else       if (selected_step != null) {
+        if (e.button == 1) {
+          if (lastclick.x == e.x && lastclick.y == e.y) {
+            if (control) {
+              selected_step.flipSelected();
+            }
+ else {
+              spoon.transMeta.unselectAll();
+              selected_step.setSelected(true);
+            }
+          }
+ else {
+            selected_steps=spoon.transMeta.getSelectedSteps();
+            selected_notes=spoon.transMeta.getSelectedNotes();
+            boolean also=false;
+            if (selected_notes != null && previous_note_locations != null) {
+              int indexes[]=spoon.transMeta.getNoteIndexes(selected_notes);
+              spoon.addUndoPosition(selected_notes,indexes,previous_note_locations,spoon.transMeta.getSelectedNoteLocations(),also);
+              also=selected_steps != null && selected_steps.length > 0;
+            }
+            if (selected_steps != null && previous_step_locations != null) {
+              int indexes[]=spoon.transMeta.getStepIndexes(selected_steps);
+              spoon.addUndoPosition(selected_steps,indexes,previous_step_locations,spoon.transMeta.getSelectedStepLocations(),also);
+            }
+          }
+        }
+        if (split_hop) {
+          TransHopMeta hi=findHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
+          if (hi != null) {
+            int id=0;
+            if (!spoon.props.getAutoSplit()) {
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Split hop?",null,"Do you want to split this hop?" + Const.CR + hi.toString(),MessageDialog.QUESTION,new String[]{"Yes","No"},0,"Don't ask again",spoon.props.getAutoSplit());
+              id=md.open();
+              spoon.props.setAutoSplit(md.getToggleState());
+            }
+            if (id == 0) {
+              TransHopMeta newhop1=new TransHopMeta(hi.getFromStep(),selected_step);
+              spoon.transMeta.addTransHop(newhop1);
+              spoon.addUndoNew(new TransHopMeta[]{newhop1},new int[]{spoon.transMeta.indexOfTransHop(newhop1)},true);
+              TransHopMeta newhop2=new TransHopMeta(selected_step,hi.getToStep());
+              spoon.transMeta.addTransHop(newhop2);
+              spoon.addUndoNew(new TransHopMeta[]{newhop2},new int[]{spoon.transMeta.indexOfTransHop(newhop2)},true);
+              int idx=spoon.transMeta.indexOfTransHop(hi);
+              spoon.addUndoDelete(new TransHopMeta[]{hi},new int[]{idx},true);
+              spoon.transMeta.removeTransHop(idx);
+              spoon.refreshTree();
+            }
+          }
+          split_hop=false;
+        }
+        selected_steps=null;
+        selected_notes=null;
+        selected_step=null;
+        selected_note=null;
+        redraw();
+      }
+ else       if (selected_note != null) {
+        if (e.button == 1) {
+          if (lastclick.x == e.x && lastclick.y == e.y) {
+            if (control) {
+              selected_note.flipSelected();
+            }
+ else {
+              spoon.transMeta.unselectAll();
+              selected_note.setSelected(true);
+            }
+          }
+ else {
+            selected_steps=spoon.transMeta.getSelectedSteps();
+            selected_notes=spoon.transMeta.getSelectedNotes();
+            boolean also=false;
+            if (selected_notes != null && previous_note_locations != null) {
+              int indexes[]=spoon.transMeta.getNoteIndexes(selected_notes);
+              spoon.addUndoPosition(selected_notes,indexes,previous_note_locations,spoon.transMeta.getSelectedNoteLocations(),also);
+              also=selected_steps != null && selected_steps.length > 0;
+            }
+            if (selected_steps != null && previous_step_locations != null) {
+              int indexes[]=spoon.transMeta.getStepIndexes(selected_steps);
+              spoon.addUndoPosition(selected_steps,indexes,previous_step_locations,spoon.transMeta.getSelectedStepLocations(),also);
+            }
+          }
+        }
+        selected_notes=null;
+        selected_steps=null;
+        selected_step=null;
+        selected_note=null;
+      }
+    }
+  }
+);
+  addMouseMoveListener(new MouseMoveListener(){
+    public void mouseMove(    MouseEvent e){
+      lastMove=new Point(e.x,e.y);
+      Point real=screen2real(e.x,e.y);
+      if (iconoffset == null)       iconoffset=new Point(0,0);
+      Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
+      if (noteoffset == null)       noteoffset=new Point(0,0);
+      Point note=new Point(real.x - noteoffset.x,real.y - noteoffset.y);
+      setToolTip(real.x,real.y);
+      if (selected_step != null && !selected_step.isSelected()) {
+        spoon.transMeta.unselectAll();
+        selected_step.setSelected(true);
+        selected_steps=new StepMeta[]{selected_step};
+        previous_step_locations=new Point[]{selected_step.getLocation()};
+      }
+      if (selected_note != null && !selected_note.isSelected()) {
+        spoon.transMeta.unselectAll();
+        selected_note.setSelected(true);
+        selected_notes=new NotePadMeta[]{selected_note};
+        previous_note_locations=new Point[]{selected_note.getLocation()};
+      }
+      if (selrect != null) {
+        selrect.width=real.x - selrect.x;
+        selrect.height=real.y - selrect.y;
+        redraw();
+      }
+ else       if (selected_step != null) {
+        if (last_button == 1 && !shift) {
+          int dx=icon.x - selected_step.getLocation().x;
+          int dy=icon.y - selected_step.getLocation().y;
+          TransHopMeta hi=findHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
+          if (hi != null) {
+            if (!hi.getFromStep().equals(selected_step) && !hi.getToStep().equals(selected_step)) {
+              split_hop=true;
+              last_hop_split=hi;
+              hi.split=true;
+            }
+          }
+ else {
+            if (last_hop_split != null) {
+              last_hop_split.split=false;
+              last_hop_split=null;
+              split_hop=false;
+            }
+          }
+          selected_notes=spoon.transMeta.getSelectedNotes();
+          selected_steps=spoon.transMeta.getSelectedSteps();
+          if (selected_steps != null)           for (int i=0; i < selected_steps.length; i++) {
+            StepMeta stepMeta=selected_steps[i];
+            stepMeta.setLocation(stepMeta.getLocation().x + dx,stepMeta.getLocation().y + dy);
+          }
+          if (selected_notes != null)           for (int i=0; i < selected_notes.length; i++) {
+            NotePadMeta ni=selected_notes[i];
+            ni.setLocation(ni.getLocation().x + dx,ni.getLocation().y + dy);
+          }
+          redraw();
+        }
+ else         if (last_button == 2 || (last_button == 1 && shift)) {
+          StepMeta stepMeta=spoon.transMeta.getStep(real.x,real.y,iconsize);
+          if (stepMeta != null && !selected_step.equals(stepMeta)) {
+            if (candidate == null) {
+              candidate=new TransHopMeta(selected_step,stepMeta);
+              redraw();
+            }
+          }
+ else {
+            if (candidate != null) {
+              candidate=null;
+              redraw();
+            }
+          }
+        }
+      }
+ else       if (selected_note != null) {
+        if (last_button == 1 && !shift) {
+          int dx=note.x - selected_note.getLocation().x;
+          int dy=note.y - selected_note.getLocation().y;
+          selected_notes=spoon.transMeta.getSelectedNotes();
+          selected_steps=spoon.transMeta.getSelectedSteps();
+          if (selected_steps != null)           for (int i=0; i < selected_steps.length; i++) {
+            StepMeta stepMeta=selected_steps[i];
+            stepMeta.setLocation(stepMeta.getLocation().x + dx,stepMeta.getLocation().y + dy);
+          }
+          if (selected_notes != null)           for (int i=0; i < selected_notes.length; i++) {
+            NotePadMeta ni=selected_notes[i];
+            ni.setLocation(ni.getLocation().x + dx,ni.getLocation().y + dy);
+          }
+          redraw();
+        }
+      }
+    }
+  }
+);
+  Transfer[] ttypes=new Transfer[]{TextTransfer.getInstance()};
+  DropTarget ddTarget=new DropTarget(this,DND.DROP_MOVE | DND.DROP_COPY);
+  ddTarget.setTransfer(ttypes);
+  ddTarget.addDropListener(new DropTargetListener(){
+    public void dragEnter(    DropTargetEvent event){
+      clearSettings();
+      drop_candidate=getRealPosition(canvas,event.x,event.y);
+      redraw();
+    }
+    public void dragLeave(    DropTargetEvent event){
+      drop_candidate=null;
+      redraw();
+    }
+    public void dragOperationChanged(    DropTargetEvent event){
+    }
+    public void dragOver(    DropTargetEvent event){
+      drop_candidate=getRealPosition(canvas,event.x,event.y);
+      redraw();
+    }
+    public void drop(    DropTargetEvent event){
+      if (event.data == null) {
+        event.detail=DND.DROP_NONE;
+        return;
+      }
+      Point p=getRealPosition(canvas,event.x,event.y);
+      String tokens[]=getDropStrings((String)event.data,Const.CR);
+      if (tokens.length == 1) {
+        String step=tokens[0];
+        StepMeta stepMeta=spoon.transMeta.findStep(step);
+        boolean newstep=false;
+        if (step.startsWith("#BASE STEP#")) {
+          newstep=true;
+          String steptype=step.substring(11);
+          stepMeta=spoon.newStep(steptype,steptype,false,true);
+          if (stepMeta == null)           return;
+        }
+ else         if (step.startsWith("#CONNECTION#")) {
+          newstep=true;
+          String connectionName=step.substring(12);
+          TableInputMeta tii=new TableInputMeta();
+          tii.setDatabaseMeta(spoon.transMeta.findDatabase(connectionName));
+          StepLoader steploader=StepLoader.getInstance();
+          String stepID=steploader.getStepPluginID(tii);
+          StepPlugin stepPlugin=steploader.findStepPluginWithID(stepID);
+          String stepName=spoon.transMeta.getAlternativeStepname(stepPlugin.getDescription());
+          stepMeta=new StepMeta(log,stepID,stepName,tii);
+          if (spoon.editStepInfo(stepMeta) != null) {
+            spoon.transMeta.addStep(stepMeta);
+            spoon.refreshTree(true);
+            spoon.refreshGraph();
+          }
+        }
+        if (stepMeta.isDrawn() || spoon.transMeta.isStepUsedInTransHops(stepMeta)) {
+          MessageBox mb=new MessageBox(shell,SWT.OK);
+          mb.setMessage("Step is allready on canvas!");
+          mb.setText("Warning!");
+          mb.open();
+          return;
+        }
+        spoon.transMeta.unselectAll();
+        StepMeta before=(StepMeta)stepMeta.clone();
+        stepMeta.drawStep();
+        stepMeta.setSelected(true);
+        stepMeta.setLocation(p.x,p.y);
+        if (newstep) {
+          spoon.addUndoNew(new StepMeta[]{stepMeta},new int[]{spoon.transMeta.indexOfStep(stepMeta)});
+        }
+ else {
+          spoon.addUndoChange(new StepMeta[]{before},new StepMeta[]{(StepMeta)stepMeta.clone()},new int[]{spoon.transMeta.indexOfStep(stepMeta)});
+        }
+        canvas.forceFocus();
+        redraw();
+      }
+    }
+    public void dropAccept(    DropTargetEvent event){
+    }
+  }
+);
+  addKeyListener(new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      if ((int)e.character == 1) {
+        spoon.transMeta.selectAll();
+        redraw();
+      }
+      if ((int)e.character == 3) {
+        spoon.copySelected(spoon.transMeta.getSelectedSteps(),spoon.transMeta.getSelectedNotes());
+      }
+      if ((int)e.character == 22) {
+        String clipcontent=spoon.fromClipboard();
+        if (clipcontent != null) {
+          if (lastMove != null) {
+            spoon.pasteXML(clipcontent,lastMove);
+          }
+        }
+      }
+      if (e.keyCode == SWT.ESC) {
+        spoon.transMeta.unselectAll();
+        clearSettings();
+        redraw();
+      }
+      if (e.keyCode == SWT.DEL) {
+        StepMeta stepMeta[]=spoon.transMeta.getSelectedSteps();
+        if (stepMeta != null && stepMeta.length > 0) {
+          delSelected(null);
+        }
+      }
+      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.CONTROL) != 0) {
+        alligntop();
+      }
+      if (e.keyCode == SWT.ARROW_DOWN && (e.stateMask & SWT.CONTROL) != 0) {
+        allignbottom();
+      }
+      if (e.keyCode == SWT.ARROW_LEFT && (e.stateMask & SWT.CONTROL) != 0) {
+        allignleft();
+      }
+      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.CONTROL) != 0) {
+        allignright();
+      }
+      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.ALT) != 0) {
+        distributehorizontal();
+      }
+      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.ALT) != 0) {
+        distributevertical();
+      }
+      if (e.keyCode == SWT.HOME && (e.stateMask & SWT.ALT) != 0) {
+        snaptogrid(Const.GRID_SIZE);
+      }
+      if (e.character == ' ' && lastMove != null) {
+        Point real=screen2real(lastMove.x,lastMove.y);
+        setToolTipText(null);
+        StepMeta stepMeta=spoon.transMeta.getStep(real.x,real.y,iconsize);
+        if (stepMeta != null) {
+          inputOutputFields(stepMeta,false);
+        }
+      }
+    }
+  }
+);
+  addKeyListener(spoon.defKeys);
+  setBackground(GUIResource.getInstance().getColorBackground());
+}

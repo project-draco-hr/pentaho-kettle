@@ -1,0 +1,113 @@
+{
+  this.log=log;
+  this.steploader=steploader;
+  if (d != null) {
+    disp=d;
+    destroy=false;
+  }
+ else {
+    disp=new Display();
+    destroy=true;
+  }
+  shell=new Shell(disp);
+  shell.setText(MENU_TITLE);
+  FormLayout layout=new FormLayout();
+  layout.marginWidth=0;
+  layout.marginHeight=0;
+  shell.setLayout(layout);
+  schema=new SchemaMeta(log);
+  if (!Props.isInitialized())   Props.init(disp,Props.TYPE_PROPERTIES_SPOON);
+  schema.props=Props.getInstance();
+  loadSettings();
+  shell.setFont(GUIResource.getInstance().getFontDefault());
+  menu_image=new Image(disp,getClass().getResourceAsStream(Const.IMAGE_DIRECTORY + "spoon32.png"));
+  shell.setImage(menu_image);
+  defKeys=new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      if (e.keyCode == SWT.ESC) {
+        schema.unselectAll();
+        refreshGraph();
+      }
+      ;
+      if (e.keyCode == SWT.F5) {
+        refreshGraph();
+        refreshTree(true);
+      }
+      if ((int)e.character == 1) {
+        schema.selectAll();
+        refreshGraph();
+      }
+      ;
+      if ((int)e.character == 14) {
+        newFile();
+        pmenugraph.control=false;
+      }
+      if ((int)e.character == 15) {
+        openFile();
+        pmenugraph.control=false;
+      }
+      if ((int)e.character == 16) {
+        printFile();
+        pmenugraph.control=false;
+      }
+      if ((int)e.character == 19) {
+        saveFile();
+        pmenugraph.control=false;
+      }
+      if ((int)e.character == 22) {
+        buildSQL();
+        pmenugraph.control=false;
+      }
+      if ((int)e.character == 25) {
+        redoAction();
+        pmenugraph.control=false;
+      }
+      if ((int)e.character == 26) {
+        undoAction();
+        pmenugraph.control=false;
+      }
+    }
+  }
+;
+  modKeys=new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      if (e.keyCode == SWT.SHIFT)       pmenugraph.shift=true;
+      if (e.keyCode == SWT.CONTROL)       pmenugraph.control=true;
+    }
+    public void keyReleased(    KeyEvent e){
+      if (e.keyCode == SWT.SHIFT)       pmenugraph.shift=false;
+      if (e.keyCode == SWT.CONTROL)       pmenugraph.control=false;
+    }
+  }
+;
+  addBar();
+  FormData fdBar=new FormData();
+  fdBar.left=new FormAttachment(0,0);
+  fdBar.top=new FormAttachment(0,0);
+  tBar.setLayoutData(fdBar);
+  sashform=new SashForm(shell,SWT.HORIZONTAL);
+  sashform.setFont(GUIResource.getInstance().getFontDefault());
+  FormData fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(tBar,0);
+  fdSash.bottom=new FormAttachment(100,0);
+  fdSash.right=new FormAttachment(100,0);
+  sashform.setLayoutData(fdSash);
+  addMenu();
+  addTree();
+  addTabs();
+  setTreeImages();
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      e.doit=quitFile();
+    }
+  }
+);
+  int weights[]=schema.props.getSashWeights();
+  sashform.setWeights(weights);
+  sashform.setVisible(true);
+  WindowProperty winprop=schema.props.getScreen(shell.getText());
+  if (winprop != null)   winprop.setShell(shell);
+ else   shell.pack();
+  shell.layout();
+}

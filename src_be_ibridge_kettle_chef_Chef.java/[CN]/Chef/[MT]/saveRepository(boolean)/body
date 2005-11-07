@@ -1,0 +1,57 @@
+{
+  log.logDetailed(toString(),"Save to repository...");
+  if (rep != null) {
+    boolean answer=true;
+    boolean ask=ask_name;
+    while (answer && (ask || jobMeta.getName() == null || jobMeta.getName().length() == 0)) {
+      if (!ask) {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        mb.setMessage("Please give this job a name before saving it in the database.");
+        mb.setText("This job has no name.");
+        mb.open();
+      }
+      ask=false;
+      answer=setJob();
+    }
+    if (answer && jobMeta.getName() != null && jobMeta.getName().length() > 0) {
+      if (!rep.getUserInfo().isReadonly()) {
+        int response=SWT.YES;
+        if (jobMeta.showReplaceWarning(rep)) {
+          MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.ICON_QUESTION);
+          mb.setMessage("There already is a job called [" + jobMeta.getName() + "] in the repository."+ Const.CR+ "Do you want to overwrite the job?");
+          mb.setText("Overwrite?");
+          response=mb.open();
+        }
+        if (response == SWT.YES) {
+          jobMeta.modified_date=new Value("MODIFIED_DATE",Value.VALUE_TYPE_DATE);
+          jobMeta.modified_date.sysdate();
+          jobMeta.modified_user=rep.getUserInfo().getLogin();
+          JobSaveProgressDialog jspd=new JobSaveProgressDialog(log,props,shell,rep,jobMeta);
+          if (jspd.open()) {
+            if (!props.getSaveConfirmation()) {
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Save OK!",null,"This job was stored in repository",MessageDialog.QUESTION,new String[]{"OK!"},0,"Don't show this message again.",props.getSaveConfirmation());
+              md.open();
+              props.setSaveConfirmation(md.getToggleState());
+            }
+            props.addLastFile(Props.TYPE_PROPERTIES_CHEF,jobMeta.getName(),jobMeta.getDirectory().getPath(),true,rep.getName());
+            saveSettings();
+            addMenuLast();
+            setShellText();
+          }
+        }
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.CLOSE | SWT.ICON_ERROR);
+        mb.setMessage("Sorry, the user you're logged on with, can only read from the repository");
+        mb.setText("Job not saved!");
+        mb.open();
+      }
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("There is no repository connection available.");
+    mb.setText("No repository available.");
+    mb.open();
+  }
+}

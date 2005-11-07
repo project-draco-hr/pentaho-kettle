@@ -1,0 +1,103 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  SQLStatement retval=new SQLStatement(stepMeta.getName(),database,null);
+  if (update) {
+    log.logDebug(toString(),"Update!");
+    if (database != null) {
+      if (prev != null && prev.size() > 0) {
+        if (tableName != null && tableName.length() > 0) {
+          Database db=new Database(database);
+          try {
+            db.connect();
+            String sql="";
+            Row fields=new Row();
+            Value vkeyfield=new Value(keyField,Value.VALUE_TYPE_INTEGER);
+            vkeyfield.setLength(10);
+            fields.addValue(vkeyfield);
+            Value vversion=new Value(versionField,Value.VALUE_TYPE_INTEGER);
+            vversion.setLength(5);
+            fields.addValue(vversion);
+            Value vdatefrom=new Value(dateFrom,Value.VALUE_TYPE_DATE);
+            fields.addValue(vdatefrom);
+            Value vdateto=new Value(dateTo,Value.VALUE_TYPE_DATE);
+            fields.addValue(vdateto);
+            String errors="";
+            for (int i=0; i < keyLookup.length; i++) {
+              Value vprev=prev.searchValue(keyStream[i]);
+              if (vprev != null) {
+                Value field=new Value(vprev);
+                field.setName(keyLookup[i]);
+                fields.addValue(field);
+              }
+ else {
+                if (errors.length() > 0)                 errors+=", ";
+                errors+=keyStream[i];
+              }
+            }
+            for (int i=0; i < fieldLookup.length; i++) {
+              Value vprev=prev.searchValue(fieldStream[i]);
+              if (vprev != null) {
+                Value field=new Value(vprev);
+                field.setName(fieldLookup[i]);
+                fields.addValue(field);
+              }
+ else {
+                if (errors.length() > 0)                 errors+=", ";
+                errors+=fieldStream[i];
+              }
+            }
+            if (errors.length() > 0) {
+              retval.setError("Unable to find these fields in the input stream: " + errors);
+            }
+            log.logDebug(toString(),"Get DDL for table [" + tableName + "] : "+ fields.toStringMeta());
+            sql+=db.getDDL(tableName,fields,(sequenceName != null && sequenceName.length() == 0) ? keyField : null,autoIncrement,null,true);
+            log.logDebug(toString(),"sql = " + sql);
+            String idx_fields[]=null;
+            if (keyLookup != null && keyLookup.length > 0) {
+              idx_fields=new String[keyLookup.length];
+              for (int i=0; i < keyLookup.length; i++)               idx_fields[i]=keyLookup[i];
+            }
+ else {
+              retval.setError("No key fields are specified.  Please specify the fields use as key for this dimension.");
+            }
+            if (idx_fields != null && idx_fields.length > 0 && !db.checkIndexExists(tableName,idx_fields)) {
+              String indexname="idx_" + tableName + "_lookup";
+              sql+=db.getCreateIndexStatement(tableName,indexname,idx_fields,false,false,false,true);
+            }
+            idx_fields=new String[]{keyField};
+            if (keyField != null && keyField.length() > 0) {
+              if (!db.checkIndexExists(tableName,idx_fields)) {
+                String indexname="idx_" + tableName + "_tk";
+                sql+=db.getCreateIndexStatement(tableName,indexname,idx_fields,true,false,true,true);
+              }
+            }
+ else {
+              retval.setError("Please specifiy the name of the technical key field (a.k.a. the surrogate key)");
+            }
+            if (!db.checkSequenceExists(sequenceName)) {
+              sql+=db.getCreateSequenceStatement(sequenceName,1L,1L,-1L,true);
+            }
+            if (sql.length() == 0)             retval.setSQL(null);
+ else             retval.setSQL(sql);
+          }
+ catch (          KettleDatabaseException dbe) {
+            retval.setError("An error occurred: " + dbe.getMessage());
+          }
+ finally {
+            db.disconnect();
+          }
+        }
+ else {
+          retval.setError("No table is defined on this connection.");
+        }
+      }
+ else {
+        retval.setError("Not receiving any fields from previous steps. Check the previous steps for errors & the connecting hops.");
+      }
+    }
+ else {
+      retval.setError("There is no connection defined in this step.");
+    }
+  }
+  return retval;
+}

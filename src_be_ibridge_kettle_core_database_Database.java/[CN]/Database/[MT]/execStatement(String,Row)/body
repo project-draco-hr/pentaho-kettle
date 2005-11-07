@@ -1,0 +1,36 @@
+{
+  Result result=new Result();
+  try {
+    boolean resultSet;
+    int count;
+    if (params != null) {
+      PreparedStatement prep_stmt=connection.prepareStatement(databaseMeta.stripCR(sql));
+      setValues(params,prep_stmt);
+      resultSet=prep_stmt.execute();
+      count=prep_stmt.getUpdateCount();
+      prep_stmt.close();
+    }
+ else {
+      Statement stmt=connection.createStatement();
+      resultSet=stmt.execute(databaseMeta.stripCR(sql));
+      count=stmt.getUpdateCount();
+      stmt.close();
+    }
+    if (resultSet) {
+    }
+ else {
+      if (count > 0) {
+        if (sql.toUpperCase().startsWith("INSERT"))         result.setNrLinesOutput((long)count);
+        if (sql.toUpperCase().startsWith("UPDATE"))         result.setNrLinesUpdated((long)count);
+        if (sql.toUpperCase().startsWith("DELETE"))         result.setNrLinesDeleted((long)count);
+      }
+    }
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Couldn't execute SQL: " + sql + Const.CR,ex);
+  }
+catch (  Exception e) {
+    throw new KettleDatabaseException("Unexpected error executing SQL: " + Const.CR,e);
+  }
+  return result;
+}

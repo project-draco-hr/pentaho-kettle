@@ -1,0 +1,49 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=prev_result;
+  result.setEntryNr(nr);
+  LogWriter logwriter=log;
+  if (set_logfile)   logwriter=LogWriter.getInstance(getLogFilename(),true,loglevel);
+  log.logDetailed(toString(),"Starting transformation...(file=" + getFileName() + ", name="+ getName()+ "), repinfo="+ getDescription());
+  Trans trans=new Trans(logwriter,getFileName(),getTransname(),arguments);
+  trans.getTransMeta().setSourceRows(prev_result.rows);
+  log.logBasic(toString(),"Opening transformation: [" + getTransname() + "] in directory ["+ directory.getPath()+ "]");
+  try {
+    trans.open(rep,getTransname(),directory.getPath(),getFileName());
+    trans.setSourceRows(prev_result.rows);
+    if (!trans.execute(arguments)) {
+      result.setNrErrors(1);
+    }
+ else {
+      while (!trans.isFinished() && !parentJob.isStopped()) {
+        try {
+          Thread.sleep(100);
+        }
+ catch (        InterruptedException e) {
+        }
+      }
+      if (parentJob.isStopped()) {
+        trans.stopAll();
+        trans.waitUntilFinished();
+        trans.endProcessing("stop");
+      }
+ else {
+        trans.endProcessing("end");
+      }
+      result=trans.getResult();
+      result.setEntryNr(nr);
+    }
+  }
+ catch (  KettleException e) {
+    log.logError(toString(),"Unable to open transformation: " + e.getMessage());
+    result.setNrErrors(1);
+  }
+  if (set_logfile)   logwriter.close();
+  if (result.getNrErrors() == 0) {
+    result.setResult(true);
+  }
+ else {
+    result.setResult(false);
+  }
+  return result;
+}

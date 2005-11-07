@@ -1,0 +1,52 @@
+{
+  Row row=new Row(r);
+  for (int i=r.size() - 1; i >= 0; i--) {
+    String fieldName=row.getValue(i).getName();
+    boolean found=false;
+    for (int j=0; j < groupField.length && !found; j++) {
+      if (fieldName.equalsIgnoreCase(groupField[j]))       found=true;
+    }
+    if (!found)     r.removeValue(i);
+  }
+  for (int i=0; i < subjectField.length; i++) {
+    Value subj=row.searchValue(subjectField[i]);
+    if (subj != null) {
+      String value_name=aggregateField[i];
+      int value_type=Value.VALUE_TYPE_NONE;
+      int length=-1;
+      int precision=-1;
+switch (aggregateType[i]) {
+case TYPE_GROUP_SUM:
+case TYPE_GROUP_AVERAGE:
+case TYPE_GROUP_COUNT_ALL:
+        value_type=Value.VALUE_TYPE_NUMBER;
+      break;
+case TYPE_GROUP_MIN:
+case TYPE_GROUP_MAX:
+    value_type=subj.getType();
+  break;
+case TYPE_GROUP_CONCAT_COMMA:
+value_type=Value.VALUE_TYPE_STRING;
+break;
+default :
+break;
+}
+if (aggregateType[i] != TYPE_GROUP_COUNT_ALL) {
+length=subj.getLength();
+precision=subj.getPrecision();
+}
+if (value_type != Value.VALUE_TYPE_NONE) {
+Value v=new Value(value_name,value_type);
+v.setOrigin(name);
+v.setLength(length,precision);
+r.addValue(v);
+}
+}
+}
+if (passFlagField != null && passFlagField.length() != 0) {
+Value v=new Value(passFlagField,Value.VALUE_TYPE_BOOLEAN);
+v.setOrigin(name);
+r.addValue(v);
+}
+return row;
+}
