@@ -5,7 +5,7 @@
     int valtype=Value.getType(meta.getFieldType()[i]);
     if (meta.getFieldName()[i] != null) {
       value=new Value(meta.getFieldName()[i],valtype);
-      String def_value=meta.getValue()[i];
+      String stringValue=meta.getValue()[i];
       if (value.isNumber()) {
         try {
           if (meta.getFieldFormat()[i] != null || meta.getDecimal()[i] != null || meta.getGroup()[i] != null || meta.getCurrency()[i] != null) {
@@ -15,17 +15,17 @@
             if (meta.getCurrency()[i] != null && meta.getCurrency()[i].length() >= 1)             data.dfs.setCurrencySymbol(meta.getCurrency()[i]);
             data.df.setDecimalFormatSymbols(data.dfs);
           }
-          value.setValue(data.nf.parse(def_value).doubleValue());
+          value.setValue(data.nf.parse(stringValue).doubleValue());
         }
  catch (        Exception e) {
-          logError("Couldn't parse number field [" + value.getName() + "] with value ["+ def_value+ "] -->"+ e.toString());
+          logError("Couldn't parse number field [" + value.getName() + "] with value ["+ stringValue+ "] -->"+ e.toString());
           setErrors(1);
           stopAll();
           return null;
         }
       }
  else       if (value.isString()) {
-        value.setValue(def_value);
+        value.setValue(stringValue);
       }
  else       if (value.isDate()) {
         try {
@@ -33,14 +33,42 @@
             data.daf.applyPattern(meta.getFieldFormat()[i]);
             data.daf.setDateFormatSymbols(data.dafs);
           }
-          value.setValue(data.daf.parse(def_value));
+          value.setValue(data.daf.parse(stringValue));
         }
  catch (        Exception e) {
-          logError("Couldn't parse date field [" + value.getName() + "] with value ["+ def_value+ "] -->"+ e.toString());
+          logError("Couldn't parse date field [" + value.getName() + "] with value ["+ stringValue+ "] -->"+ e.toString());
           setErrors(1);
           stopAll();
           return null;
         }
+      }
+ else       if (value.isInteger()) {
+        try {
+          value.setValue(Long.parseLong(stringValue));
+        }
+ catch (        Exception e) {
+          logError("Couldn't parse Integer field [" + value.getName() + "] with value ["+ stringValue+ "] -->"+ e.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+      }
+ else       if (value.isBigNumber()) {
+        try {
+          value.setValue(new BigDecimal(stringValue));
+        }
+ catch (        Exception e) {
+          logError("Couldn't parse BigNumber field [" + value.getName() + "] with value ["+ stringValue+ "] -->"+ e.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+      }
+ else {
+        logError("Please specify the value type of field [" + value.getName() + "] with value ["+ stringValue+ "] -->");
+        setErrors(1);
+        stopAll();
+        return null;
       }
       r.addValue(value);
     }
