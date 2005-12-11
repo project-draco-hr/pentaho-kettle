@@ -6,6 +6,7 @@
   }
   PreparedStatement insertStatement=null;
   String tableName=null;
+  Value removedValue=null;
   if (meta.isTableNameInField()) {
     if (data.indexOfTableNameField < 0) {
       data.indexOfTableNameField=r.searchValueIndex(meta.getTableNameField());
@@ -16,6 +17,10 @@
       }
     }
     tableName=r.getValue(data.indexOfTableNameField).getString();
+    if (!meta.isTableNameInTable()) {
+      removedValue=r.getValue(data.indexOfTableNameField);
+      r.removeValue(data.indexOfTableNameField);
+    }
   }
  else   if (meta.isPartitioningEnabled() && (meta.isPartitioningDaily() || meta.isPartitioningMonthly()) && (meta.getPartitioningField() != null && meta.getPartitioningField().length() > 0)) {
     if (data.indexOfPartitioningField < 0) {
@@ -78,6 +83,9 @@ catch (  KettleDatabaseException dbe) {
       data.db.rollback();
       throw new KettleException("Error inserting row into table [" + tableName + "] with values: "+ r,dbe);
     }
+  }
+  if (!meta.isTableNameInTable()) {
+    r.addValue(data.indexOfTableNameField,removedValue);
   }
   debug="end";
   return true;
