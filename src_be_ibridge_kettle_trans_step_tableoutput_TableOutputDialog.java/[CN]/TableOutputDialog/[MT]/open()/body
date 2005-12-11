@@ -52,13 +52,20 @@
   fdbTable.right=new FormAttachment(100,0);
   fdbTable.top=new FormAttachment(wConnection,margin);
   wbTable.setLayoutData(fdbTable);
+  wbcTable=new Button(shell,SWT.PUSH | SWT.CENTER);
+  props.setLook(wbcTable);
+  wbcTable.setText("&Variable...");
+  fdbcTable=new FormData();
+  fdbcTable.right=new FormAttachment(wbTable,0);
+  fdbcTable.top=new FormAttachment(wConnection,margin);
+  wbcTable.setLayoutData(fdbcTable);
   wTable=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wTable);
   wTable.addModifyListener(lsMod);
   fdTable=new FormData();
   fdTable.top=new FormAttachment(wConnection,margin * 2);
   fdTable.left=new FormAttachment(middle,0);
-  fdTable.right=new FormAttachment(wbTable,-margin);
+  fdTable.right=new FormAttachment(wbcTable,-margin);
   wTable.setLayoutData(fdTable);
   wlCommit=new Label(shell,SWT.RIGHT);
   wlCommit.setText("Commit size ");
@@ -223,13 +230,50 @@
     }
   }
 );
+  wlNameInField=new Label(shell,SWT.RIGHT);
+  wlNameInField.setText("Is the name of the table defined in a field? ");
+  props.setLook(wlNameInField);
+  fdlNameInField=new FormData();
+  fdlNameInField.left=new FormAttachment(0,0);
+  fdlNameInField.top=new FormAttachment(wPartDaily,margin);
+  fdlNameInField.right=new FormAttachment(middle,-margin);
+  wlNameInField.setLayoutData(fdlNameInField);
+  wNameInField=new Button(shell,SWT.CHECK);
+  props.setLook(wNameInField);
+  fdNameInField=new FormData();
+  fdNameInField.left=new FormAttachment(middle,0);
+  fdNameInField.top=new FormAttachment(wPartDaily,margin);
+  fdNameInField.right=new FormAttachment(100,0);
+  wNameInField.setLayoutData(fdNameInField);
+  wNameInField.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent arg0){
+      setFlags();
+    }
+  }
+);
+  wlNameField=new Label(shell,SWT.RIGHT);
+  wlNameField.setText("Field that contains name of table: ");
+  props.setLook(wlNameField);
+  fdlNameField=new FormData();
+  fdlNameField.left=new FormAttachment(0,0);
+  fdlNameField.right=new FormAttachment(middle,-margin);
+  fdlNameField.top=new FormAttachment(wNameInField,margin);
+  wlNameField.setLayoutData(fdlNameField);
+  wNameField=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wNameField);
+  wNameField.addModifyListener(lsMod);
+  fdNameField=new FormData();
+  fdNameField.left=new FormAttachment(middle,0);
+  fdNameField.top=new FormAttachment(wNameInField,margin);
+  fdNameField.right=new FormAttachment(100,0);
+  wNameField.setLayoutData(fdNameField);
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText("  &OK  ");
   wCreate=new Button(shell,SWT.PUSH);
   wCreate.setText("  &SQL  ");
   wCancel=new Button(shell,SWT.PUSH);
   wCancel.setText("  &Cancel  ");
-  setButtonPositions(new Button[]{wOK,wCreate,wCancel},margin,wPartDaily);
+  setButtonPositions(new Button[]{wOK,wCreate,wCancel},margin,wNameField);
   lsOK=new Listener(){
     public void handleEvent(    Event e){
       ok();
@@ -263,6 +307,30 @@
   wbTable.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
       getTableName();
+    }
+  }
+);
+  wbcTable.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      Properties sp=System.getProperties();
+      Enumeration keys=sp.keys();
+      int size=sp.values().size();
+      String key[]=new String[size];
+      String val[]=new String[size];
+      String str[]=new String[size];
+      int i=0;
+      while (keys.hasMoreElements()) {
+        key[i]=(String)keys.nextElement();
+        val[i]=sp.getProperty(key[i]);
+        str[i]=key[i] + "  [" + val[i]+ "]";
+        i++;
+      }
+      EnterSelectionDialog esd=new EnterSelectionDialog(shell,props,str,"Select an Environment Variable","Select an Environment Variable");
+      if (esd.open() != null) {
+        int nr=esd.getSelectionNr();
+        wTable.insert("%%" + key[nr] + "%%");
+        wTable.setToolTipText(Const.replEnv(wTable.getText()));
+      }
     }
   }
 );

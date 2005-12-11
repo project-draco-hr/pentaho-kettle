@@ -5,8 +5,19 @@
     return false;
   }
   PreparedStatement insertStatement=null;
-  String tableName=Const.replEnv(meta.getTablename());
-  if (meta.isPartitioningEnabled() && (meta.isPartitioningDaily() || meta.isPartitioningMonthly()) && (meta.getPartitioningField() != null && meta.getPartitioningField().length() > 0)) {
+  String tableName=null;
+  if (meta.isTableNameInField()) {
+    if (data.indexOfTableNameField < 0) {
+      data.indexOfTableNameField=r.searchValueIndex(meta.getTableNameField());
+      if (data.indexOfTableNameField < 0) {
+        String message="Unable to find table name field [" + meta.getTableNameField() + "] in input row";
+        log.logError(toString(),message);
+        throw new KettleStepException(message);
+      }
+    }
+    tableName=r.getValue(data.indexOfTableNameField).getString();
+  }
+ else   if (meta.isPartitioningEnabled() && (meta.isPartitioningDaily() || meta.isPartitioningMonthly()) && (meta.getPartitioningField() != null && meta.getPartitioningField().length() > 0)) {
     if (data.indexOfPartitioningField < 0) {
       data.indexOfPartitioningField=r.searchValueIndex(meta.getPartitioningField());
       if (data.indexOfPartitioningField < 0) {
@@ -24,6 +35,12 @@
       throw new KettleStepException("Sorry, the partitioning field needs to contain a data value and can't be empty!");
     }
     tableName+="_" + data.dateFormater.format(partitioningValue.getDate());
+  }
+ else {
+    tableName=Const.replEnv(meta.getTablename());
+  }
+  if (tableName == null || tableName.length() == 0) {
+    throw new KettleStepException("The tablename is not defined (empty)");
   }
   insertStatement=(PreparedStatement)data.preparedStatements.get(tableName);
   if (insertStatement == null) {
