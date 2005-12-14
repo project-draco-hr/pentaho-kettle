@@ -2,14 +2,26 @@
   debug="processRow";
   Row r=getRow();
   if (r == null) {
-    if (data.previous != null) {
-      if (meta.passAllRows()) {
-        Row normal=buildRegular(data.previous);
-        putRow(normal);
+    if (meta.passAllRows()) {
+      if (data.previous != null) {
+        calcAggregate(data.previous);
+        addToBuffer(data.previous);
       }
-      calcAggregate(data.previous);
-      Row result=buildResult(data.previous);
-      putRow(result);
+      data.groupResult=getAggregateResult();
+      Row row=getRowFromBuffer();
+      while (row != null) {
+        row.addRow(data.groupResult);
+        putRow(row);
+        row=getRowFromBuffer();
+      }
+      closeInput();
+    }
+ else {
+      if (data.previous != null) {
+        calcAggregate(data.previous);
+        Row result=buildResult(data.previous);
+        putRow(result);
+      }
     }
     setOutputDone();
     return false;
@@ -43,13 +55,25 @@
  else {
     calcAggregate(data.previous);
     if (meta.passAllRows()) {
-      Row normal=buildRegular(data.previous);
-      putRow(normal);
+      addToBuffer(data.previous);
     }
   }
   if (!sameGroup(data.previous,r)) {
-    Row result=buildResult(data.previous);
-    putRow(result);
+    if (meta.passAllRows()) {
+      closeOutput();
+      data.groupResult=getAggregateResult();
+      Row row=getRowFromBuffer();
+      while (row != null) {
+        row.addRow(data.groupResult);
+        putRow(row);
+        row=getRowFromBuffer();
+      }
+      closeInput();
+    }
+ else {
+      Row result=buildResult(data.previous);
+      putRow(result);
+    }
     newAggregate(r);
   }
   data.previous=new Row(r);
