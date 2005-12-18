@@ -1,0 +1,53 @@
+{
+  String baseName="";
+  for (int p=0; p < path.size(); p++) {
+    XMLInputFieldPosition pos=(XMLInputFieldPosition)path.get(p);
+    String elementName=pos.getName() + pos.getElementNr();
+    if (!elementName.startsWith("#")) {
+      baseName+=new Value("p",elementName).initcap().getString();
+    }
+  }
+  String attributes[]=XMLHandler.getNodeAttributes(node);
+  if (attributes != null) {
+    for (int i=0; i < attributes.length; i++) {
+      XMLInputFieldPosition attrPos=new XMLInputFieldPosition(attributes[i],XMLInputFieldPosition.XML_ATTRIBUTE);
+      path.add(attrPos);
+      String attribute=new Value("a",attributes[i]).initcap().getString();
+      String fieldName=baseName + attribute;
+      if (row.searchValueIndex(fieldName) < 0) {
+        Value field=new Value(fieldName,Value.VALUE_TYPE_STRING);
+        String encoded=XMLInputFieldPosition.encodePath(path);
+        field.setOrigin(encoded);
+        row.addValue(field);
+      }
+      path.remove(path.size() - 1);
+    }
+  }
+  String elements[]=XMLHandler.getNodeElements(node);
+  if (elements != null) {
+    for (int e=0; e < elements.length; e++) {
+      int occurences=XMLHandler.countNodes(node,elements[e]);
+      for (int o=0; o < occurences; o++) {
+        Node itemNode=XMLHandler.getSubNodeByNr(node,elements[e],o);
+        XMLInputFieldPosition xmlPos=new XMLInputFieldPosition(elements[e],XMLInputFieldPosition.XML_ELEMENT,o + 1);
+        path.add(xmlPos);
+        getValues(itemNode,row,path);
+        path.remove(path.size() - 1);
+      }
+    }
+  }
+ else {
+    int idxLast=path.size() - 1;
+    XMLInputFieldPosition last=(XMLInputFieldPosition)path.get(idxLast);
+    path.remove(idxLast);
+    if (path.size() > 0) {
+      String encoded=XMLInputFieldPosition.encodePath(path);
+      if (row.searchValueIndex(baseName) < 0) {
+        Value value=new Value(baseName,Value.VALUE_TYPE_STRING);
+        value.setOrigin(encoded);
+        row.addValue(value);
+      }
+    }
+    path.add(last);
+  }
+}
