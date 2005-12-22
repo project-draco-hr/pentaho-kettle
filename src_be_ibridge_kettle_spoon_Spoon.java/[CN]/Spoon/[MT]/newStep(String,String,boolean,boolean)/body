@@ -9,17 +9,18 @@
     }
     name=newname;
   }
+  StepLoader steploader=StepLoader.getInstance();
+  StepPlugin stepPlugin=null;
   try {
-    StepLoader steploader=StepLoader.getInstance();
-    StepPlugin sp=steploader.findStepPluginWithDescription(description);
-    if (sp != null) {
-      StepMetaInterface info=BaseStep.getStepInfo(sp,steploader);
+    stepPlugin=steploader.findStepPluginWithDescription(description);
+    if (stepPlugin != null) {
+      StepMetaInterface info=BaseStep.getStepInfo(stepPlugin,steploader);
       info.setDefault();
       if (openit) {
         StepDialogInterface dialog=info.getDialog(shell,info,transMeta,name);
         name=dialog.open();
       }
-      inf=new StepMeta(log,sp.getID(),name,info);
+      inf=new StepMeta(log,stepPlugin.getID(),name,info);
       if (name != null) {
         String newname=name;
         StepMeta stepMeta=transMeta.findStep(newname);
@@ -41,14 +42,35 @@
         if (openit) {
           addUndoNew(new StepMeta[]{inf},new int[]{transMeta.indexOfStep(inf)});
         }
-        props.addPluginHistory(sp.getID());
+        props.addPluginHistory(stepPlugin.getID());
         refreshTree();
       }
       setShellText();
     }
   }
  catch (  KettleException e) {
-    new ErrorDialog(shell,props,"Error creating step","I was unable to create a new step",e);
+    String filename=stepPlugin.getErrorHelpFile();
+    if (stepPlugin != null && filename != null) {
+      try {
+        StringBuffer content=new StringBuffer();
+        System.out.println("Filename = " + filename);
+        FileInputStream fis=new FileInputStream(new File(filename));
+        int ch=fis.read();
+        while (ch >= 0) {
+          content.append((char)ch);
+          ch=fis.read();
+        }
+        System.out.println("Content = " + content);
+        ShowBrowserDialog sbd=new ShowBrowserDialog(shell,"Error help text",content.toString());
+        sbd.open();
+      }
+ catch (      Exception ex) {
+        new ErrorDialog(shell,props,"Error showing help text","I was unable to display error help text!",ex);
+      }
+    }
+ else {
+      new ErrorDialog(shell,props,"Error creating step","I was unable to create a new step",e);
+    }
     return null;
   }
 catch (  Throwable e) {
