@@ -17,7 +17,8 @@
         int len_encl=(inf.getEnclosure() == null ? 0 : inf.getEnclosure().length());
         int len_esc=(inf.getEscapeCharacter() == null ? 0 : inf.getEscapeCharacter().length());
         boolean encl_found;
-        boolean contains_escaped_chars=false;
+        boolean contains_escaped_enclosures=false;
+        boolean contains_escaped_separators=false;
         if (len_encl > 0 && line.substring(from,from + len_encl).equalsIgnoreCase(inf.getEnclosure())) {
           debug="convertLineToStrings if start";
           log.logRowlevel("convert line to row","encl substring=[" + line.substring(from,from + len_encl) + "]");
@@ -32,7 +33,7 @@
               p++;
               enclosure_after=true;
               dencl=true;
-              if (is_escape)               contains_escaped_chars=true;
+              if (is_escape)               contains_escaped_enclosures=true;
             }
           }
           while (!is_enclosure || enclosure_after) {
@@ -47,7 +48,7 @@
                 p++;
                 enclosure_after=true;
                 dencl=true;
-                if (is_escape)                 contains_escaped_chars=true;
+                if (is_escape)                 contains_escaped_enclosures=true;
               }
             }
           }
@@ -58,7 +59,27 @@
         }
  else {
           encl_found=false;
-          next=line.indexOf(inf.getSeparator(),from);
+          boolean found=false;
+          int startpoint=from;
+          int tries=1;
+          do {
+            next=line.indexOf(inf.getSeparator(),startpoint);
+            if (len_esc > 0 && next - len_esc > 0) {
+              String before=line.substring(next - len_esc,next);
+              if (inf.getEscapeCharacter().equals(before)) {
+                startpoint=next + 1;
+                tries++;
+                contains_escaped_separators=true;
+              }
+ else {
+                found=true;
+              }
+            }
+ else {
+              found=true;
+            }
+          }
+ while (!found && next >= 0);
         }
         if (next == -1)         next=length;
         if (encl_found) {
@@ -80,10 +101,14 @@
           }
           pol=sbpol.toString();
         }
-        if (contains_escaped_chars) {
+        if (contains_escaped_enclosures) {
           String replace=inf.getEscapeCharacter() + inf.getEnclosure();
           String replaceWith=inf.getEnclosure();
-          System.out.println("Replace [" + replace + "] with ["+ replaceWith+ "] in ["+ pol+ "]");
+          pol=Const.replace(pol,replace,replaceWith);
+        }
+        if (contains_escaped_separators) {
+          String replace=inf.getEscapeCharacter() + inf.getSeparator();
+          String replaceWith=inf.getSeparator();
           pol=Const.replace(pol,replace,replaceWith);
         }
         debug="convertLineToStrings add pol";
