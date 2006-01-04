@@ -2,33 +2,108 @@
   LogWriter log=LogWriter.getInstance();
   Result result=new Result(nr);
   result.setResult(false);
-  log.logBasic(toString(),"Start of HTTP job entry (" + url + ")");
-  URL server=null;
-  try {
-    FileOutputStream output=new FileOutputStream(new File(targetFilename));
-    server=new URL(url);
-    BufferedReader input=new BufferedReader(new InputStreamReader(server.openStream()));
-    String line;
-    while ((line=input.readLine()) != null) {
-      output.write((line + Const.CR).getBytes());
+  log.logBasic(toString(),"Start of HTTP job entry.");
+  List resultRows;
+  String urlFieldnameToUse=URL_FIELDNAME;
+  if (runForEveryRow) {
+    resultRows=prev_result.getRows();
+    if (resultRows == null) {
+      result.setNrErrors(1);
+      log.logError(toString(),"Unable to get result from previous job entry : can't continue.");
+      return result;
     }
-    input.close();
-    output.close();
   }
- catch (  MalformedURLException e) {
-    result.setNrErrors(1);
-    e.printStackTrace();
-    log.logError(toString(),"The specified URL is not valid [" + url + "] : "+ e.getMessage());
+ else {
+    resultRows=new ArrayList();
+    Row row=new Row();
+    row.addValue(new Value(urlFieldnameToUse,url));
+    resultRows.add(row);
+    System.out.println("Added one row to rows: " + row);
   }
-catch (  IOException e) {
-    result.setNrErrors(1);
-    e.printStackTrace();
-    log.logError(toString(),"I was unable to save the HTTP result to file because of a I/O error: " + e.getMessage());
+  URL server=null;
+  String beforeProxyHost=System.getProperty("http.proxyHost");
+  String beforeProxyPort=System.getProperty("http.proxyPort");
+  String beforeNonProxyHosts=System.getProperty("http.nonProxyHosts");
+  for (int i=0; i < resultRows.size() && result.getNrErrors() == 0; i++) {
+    Row row=(Row)resultRows.get(i);
+    FileOutputStream outputFile=null;
+    OutputStream uploadStream=null;
+    BufferedInputStream fileStream=null;
+    BufferedReader input=null;
+    try {
+      String urlToUse=row.getString(urlFieldnameToUse,"");
+      log.logBasic(toString(),"Connecting to URL: " + urlToUse);
+      if (proxyHostname != null) {
+        System.setProperty("http.proxyHost",proxyHostname);
+        System.setProperty("http.proxyPort","" + proxyPort);
+        if (nonProxyHosts != null)         System.setProperty("http.nonProxyHosts",nonProxyHosts);
+      }
+      if (username != null && username.length() > 0) {
+        Authenticator.setDefault(new Authenticator(){
+          protected PasswordAuthentication getPasswordAuthentication(){
+            return new PasswordAuthentication(username,password != null ? password.toCharArray() : new char[]{});
+          }
+        }
+);
+      }
+      outputFile=new FileOutputStream(new File(targetFilename),fileAppended);
+      server=new URL(urlToUse);
+      URLConnection connection=server.openConnection();
+      if (uploadFilename != null && uploadFilename.length() > 0) {
+        log.logDetailed(toString(),"Start sending content of file [" + uploadFilename + "] to server.");
+        uploadStream=connection.getOutputStream();
+        fileStream=new BufferedInputStream(new FileInputStream(new File(uploadFilename)));
+        int c;
+        while ((c=fileStream.read()) >= 0) {
+          uploadStream.write(c);
+        }
+        uploadStream.close();
+        uploadStream=null;
+        fileStream.close();
+        fileStream=null;
+        log.logDetailed(toString(),"Finished sending content to server.");
+      }
+      log.logDetailed(toString(),"Start reading reply from webserver.");
+      input=new BufferedReader(new InputStreamReader(connection.getInputStream()));
+      long bytesRead=0L;
+      String line;
+      while ((line=input.readLine()) != null) {
+        line+=Const.CR;
+        bytesRead+=line.length();
+        outputFile.write(line.getBytes());
+      }
+      log.logDetailed(toString(),"Finished writing " + bytesRead + " to result file.");
+    }
+ catch (    MalformedURLException e) {
+      result.setNrErrors(1);
+      e.printStackTrace();
+      log.logError(toString(),"The specified URL is not valid [" + url + "] : "+ e.getMessage());
+    }
+catch (    IOException e) {
+      result.setNrErrors(1);
+      e.printStackTrace();
+      log.logError(toString(),"I was unable to save the HTTP result to file because of a I/O error: " + e.getMessage());
+    }
+catch (    Exception e) {
+      result.setNrErrors(1);
+      e.printStackTrace();
+      log.logError(toString(),"Error getting file from HTTP : " + e.getMessage());
+    }
+ finally {
+      try {
+        if (uploadStream != null)         uploadStream.close();
+        if (fileStream != null)         fileStream.close();
+        if (input != null)         input.close();
+        if (outputFile != null)         outputFile.close();
+      }
+ catch (      Exception e) {
+        log.logError(toString(),"Unable to close streams : " + e.getMessage());
+        result.setNrErrors(1);
+      }
+    }
   }
-catch (  Exception e) {
-    result.setNrErrors(1);
-    e.printStackTrace();
-    log.logError(toString(),"Error getting file from HTTP : " + e.getMessage());
-  }
+  System.setProperty("http.proxyHost",Const.NVL(beforeProxyHost,""));
+  System.setProperty("http.proxyPort",Const.NVL(beforeProxyPort,""));
+  System.setProperty("http.nonProxyHosts",Const.NVL(beforeNonProxyHosts,""));
   return result;
 }
