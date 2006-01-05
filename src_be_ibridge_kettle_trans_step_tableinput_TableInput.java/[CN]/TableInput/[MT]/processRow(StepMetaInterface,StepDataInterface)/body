@@ -1,23 +1,25 @@
 {
   if (first) {
+    Row parameters;
     first=false;
     if (meta.getInfoSteps() != null) {
-      logDetailed("Reading query parameters from stream [" + meta.getLookupStepname() + "]");
-      readStartDate();
-      logDetailed("Query parameters found = " + data.parameters.toString());
+      if (meta.isExecuteEachInputRow()) {
+        logDetailed("Reading single row from stream [" + meta.getLookupStepname() + "]");
+        parameters=getRowFrom(meta.getLookupStepname());
+        logDetailed("Query parameters found = " + parameters.toString());
+      }
+ else {
+        logDetailed("Reading query parameters from stream [" + meta.getLookupStepname() + "]");
+        parameters=readStartDate();
+        logDetailed("Query parameters found = " + parameters.toString());
+      }
     }
-    data.rs=data.db.openQuery(meta.getSQL(),data.parameters);
-    if (data.rs == null) {
-      logError("Couldn't open Query [" + meta.getSQL() + "]");
-      setErrors(1);
-      stopAll();
+ else {
+      parameters=new Row();
+    }
+    boolean success=doQuery(parameters);
+    if (!success) {
       return false;
-    }
-    data.thisrow=data.db.getRow(data.rs);
-    if (data.thisrow != null) {
-      linesInput++;
-      data.nextrow=data.db.getRow(data.rs);
-      if (data.nextrow != null)       linesInput++;
     }
   }
  else {
@@ -27,11 +29,31 @@
     }
   }
   if (data.thisrow == null) {
-    setOutputDone();
-    return false;
+    boolean done=false;
+    if (meta.isExecuteEachInputRow()) {
+      Row nextRow=getRowFrom(meta.getLookupStepname());
+      if (nextRow == null) {
+        done=true;
+      }
+ else {
+        boolean success=doQuery(nextRow);
+        if (!success) {
+          return false;
+        }
+      }
+    }
+ else {
+      done=true;
+    }
+    if (done) {
+      setOutputDone();
+      return false;
+    }
   }
-  putRow(data.thisrow);
-  data.thisrow=data.nextrow;
-  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
+  if (data.thisrow != null) {
+    putRow(data.thisrow);
+    data.thisrow=data.nextrow;
+    if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)     logBasic("linenr " + linesInput);
+  }
   return true;
 }
