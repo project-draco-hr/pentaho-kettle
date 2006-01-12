@@ -1,4 +1,5 @@
 {
+  LogWriter log=LogWriter.getInstance();
   Row row;
   if (r == null)   row=new Row();
  else   row=r;
@@ -7,28 +8,35 @@
   v.setLength(9,0);
   v.setOrigin(name);
   row.addValue(v);
-  if (!update) {
-    if (info != null) {
-      for (int i=0; i < fieldStream.length; i++) {
-        v=info.searchValue(fieldStream[i]);
-        if (v != null) {
-          if (fieldLookup[i] != null && fieldLookup[i].length() > 0)           v.setName(fieldLookup[i]);
+  if (!update && fieldLookup.length > 0) {
+    try {
+      if (databaseMeta != null) {
+        Database db=new Database(databaseMeta);
+        Row extraFields=db.getTableFields(tableName);
+        for (int i=0; i < fieldLookup.length; i++) {
+          v=extraFields.searchValue(fieldLookup[i]);
+          if (v == null) {
+            String message="Unable to find return field [" + fieldLookup[i] + "] in the dimension table.";
+            log.logError(toString(),message);
+            throw new KettleStepException(message);
+          }
+          if (fieldStream[i] != null && fieldStream[i].length() > 0) {
+            v.setName(fieldStream[i]);
+          }
           v.setOrigin(name);
           row.addValue(v);
         }
       }
-    }
  else {
-      for (int i=0; i < fieldStream.length; i++) {
-        if (fieldLookup[i] != null && fieldLookup[i].length() > 0) {
-          v=new Value(fieldLookup[i],fieldUpdate[i]);
-        }
- else {
-          v=new Value(fieldStream[i],fieldUpdate[i]);
-        }
-        v.setOrigin(name);
-        row.addValue(v);
+        String message="Unable to retrieve data type of return fields because no database connection was specified";
+        log.logError(toString(),message);
+        throw new KettleStepException(message);
       }
+    }
+ catch (    Exception e) {
+      String message="Unable to retrieve data type of return fields because of an unexpected error";
+      log.logError(toString(),message);
+      throw new KettleStepException(message,e);
     }
   }
   return row;
