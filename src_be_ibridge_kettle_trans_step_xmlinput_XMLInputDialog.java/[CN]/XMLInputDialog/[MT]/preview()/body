@@ -1,25 +1,18 @@
 {
   try {
-    StepLoader stepLoader=StepLoader.getInstance();
-    TransMeta previewMeta=new TransMeta();
     XMLInputMeta oneMeta=new XMLInputMeta();
     getInfo(oneMeta);
-    StepMeta one=new StepMeta(log,stepLoader.getStepPluginID(oneMeta),wStepname.getText(),oneMeta);
-    one.setLocation(50,50);
-    one.setDraw(true);
-    previewMeta.addStep(one);
-    DummyTransMeta twoMeta=new DummyTransMeta();
-    StepMeta two=new StepMeta(log,stepLoader.getStepPluginID(twoMeta),"dummy",twoMeta);
-    two.setLocation(250,50);
-    two.setDraw(true);
-    previewMeta.addStep(two);
-    TransHopMeta hop=new TransHopMeta(one,two);
-    previewMeta.addTransHop(hop);
-    Trans trans=new Trans(log,previewMeta,new String[]{wStepname.getText()},new int[]{100});
-    trans.execute(null);
-    trans.waitUntilFinished();
-    PreviewRowsDialog prd=new PreviewRowsDialog(shell,SWT.NONE,wStepname.getText(),trans.getPreviewRows(wStepname.getText(),0));
-    prd.open();
+    TransMeta previewMeta=TransPreviewFactory.generatePreviewTransformation(oneMeta,wStepname.getText());
+    EnterNumberDialog numberDialog=new EnterNumberDialog(shell,props,500,"Enter preview size","Enter the number of rows you would like to preview:");
+    int previewSize=numberDialog.open();
+    if (previewSize > 0) {
+      TransPreviewProgressDialog progressDialog=new TransPreviewProgressDialog(shell,previewMeta,new String[]{wStepname.getText()},new int[]{previewSize});
+      progressDialog.open();
+      if (!progressDialog.isCancelled()) {
+        PreviewRowsDialog prd=new PreviewRowsDialog(shell,SWT.NONE,wStepname.getText(),progressDialog.getPreviewRows(wStepname.getText()));
+        prd.open();
+      }
+    }
   }
  catch (  KettleException e) {
     new ErrorDialog(shell,props,"Error displaying preview data","An error occurred while trying to preview XML data",e);
