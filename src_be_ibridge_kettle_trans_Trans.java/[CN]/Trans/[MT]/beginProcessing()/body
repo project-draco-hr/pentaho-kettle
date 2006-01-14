@@ -4,10 +4,11 @@
     logDate=new Date();
     startDate=Const.MIN_DATE;
     endDate=currentDate;
-    DatabaseMeta logcon=transMeta.getLogConnection();
-    if (logcon != null) {
-      Database ldb=new Database(logcon);
-      try {
+    Database ldb=null;
+    try {
+      DatabaseMeta logcon=transMeta.getLogConnection();
+      if (logcon != null) {
+        ldb=new Database(logcon);
         log.logDetailed(toString(),"Opening log connection [" + transMeta.getLogConnection() + "]");
         ldb.connect();
         Row lastr=ldb.getLastLogDate(transMeta.getLogTable(),transMeta.getName(),false,"end");
@@ -33,10 +34,6 @@
                 if (maxvalue != null && !maxvalue.isNull() && maxvalue.getDate() != null) {
                   log.logDetailed(toString(),"Last date found on the maxDate connection: " + r1);
                   endDate.setTime((long)(maxvalue.getDate().getTime() + (transMeta.getMaxDateOffset() * 1000)));
-                }
-                if (transMeta.getMaxDateDifference() > 0.0 && startDate.compareTo(Const.MIN_DATE) > 0) {
-                  Date maxdesired=new Date(startDate.getTime() + ((long)transMeta.getMaxDateDifference() * 1000));
-                  if (endDate.compareTo(maxdesired) > 0)                   endDate=maxdesired;
                 }
               }
  else {
@@ -115,14 +112,20 @@
           ldb.getNextValue(transMeta,transMeta.getLogTable(),id_batch);
           transMeta.setBatchId(id_batch.getInteger());
         }
+      }
+      if (transMeta.getMaxDateDifference() > 0.0 && startDate.getTime() > Const.MIN_DATE.getTime()) {
+        Date maxdesired=new Date(startDate.getTime() + ((long)transMeta.getMaxDateDifference() * 1000));
+        if (endDate.compareTo(maxdesired) > 0)         endDate=maxdesired;
+      }
+      if (logcon != null && transMeta.getLogTable() != null && transMeta.getName() != null) {
         ldb.writeLogRecord(transMeta.getLogTable(),transMeta.isBatchIdUsed(),transMeta.getBatchId(),false,transMeta.getName(),"start",0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,null);
       }
- catch (      KettleException e) {
-        throw new KettleTransException("Error writing log record to table [" + transMeta.getLogTable() + "]",e);
-      }
+    }
+ catch (    KettleException e) {
+      throw new KettleTransException("Error writing log record to table [" + transMeta.getLogTable() + "]",e);
+    }
  finally {
-        ldb.disconnect();
-      }
+      if (ldb != null)       ldb.disconnect();
     }
   }
  catch (  KettleException e) {
