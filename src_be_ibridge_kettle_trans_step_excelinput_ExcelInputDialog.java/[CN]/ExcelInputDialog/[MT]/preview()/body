@@ -1,26 +1,15 @@
 {
   ExcelInputMeta eii=new ExcelInputMeta();
   getInfo(eii);
-  StepMeta stepMeta1=new StepMeta(log,"ExcelInput",stepname,eii);
-  DummyTransMeta dti=new DummyTransMeta();
-  StepMeta stepMeta2=new StepMeta(log,"DummyTrans","Dummy step",dti);
-  TransHopMeta hop=new TransHopMeta(stepMeta1,stepMeta2);
-  TransMeta ti=new TransMeta((String)null,"Preview run",null);
-  ti.addStep(stepMeta1);
-  ti.addStep(stepMeta2);
-  ti.addTransHop(hop);
-  Trans tr=new Trans(log,ti,new String[]{stepMeta2.getName()},new int[]{100});
-  tr.execute(new String[]{"dummy transMeta"});
-  tr.waitUntilFinished();
-  BaseStep bs=tr.findRunThread(stepMeta2.getName());
-  if (bs.previewBuffer != null && bs.previewBuffer.size() > 0) {
-    PreviewRowsDialog prd=new PreviewRowsDialog(shell,SWT.NONE,stepMeta2.getName(),bs.previewBuffer);
-    prd.open();
-  }
- else {
-    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage("No rows found!.");
-    mb.setText("ERROR");
-    mb.open();
+  TransMeta previewMeta=TransPreviewFactory.generatePreviewTransformation(eii,wStepname.getText());
+  EnterNumberDialog numberDialog=new EnterNumberDialog(shell,props,500,"Enter preview size","Enter the number of rows you would like to preview:");
+  int previewSize=numberDialog.open();
+  if (previewSize > 0) {
+    TransPreviewProgressDialog progressDialog=new TransPreviewProgressDialog(shell,previewMeta,new String[]{wStepname.getText()},new int[]{previewSize});
+    progressDialog.open();
+    if (!progressDialog.isCancelled()) {
+      PreviewRowsDialog prd=new PreviewRowsDialog(shell,SWT.NONE,wStepname.getText(),progressDialog.getPreviewRows(wStepname.getText()));
+      prd.open();
+    }
   }
 }
