@@ -1,0 +1,49 @@
+{
+  IRunnableWithProgress op=new IRunnableWithProgress(){
+    public void run(    IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+      try {
+        doPreview(monitor);
+      }
+ catch (      KettleException e) {
+        throw new InvocationTargetException(e,"Error loading transformation");
+      }
+    }
+  }
+;
+  try {
+    final ProgressMonitorDialog pmd=new ProgressMonitorDialog(shell);
+    Runnable run=new Runnable(){
+      public void run(){
+        IProgressMonitor monitor=pmd.getProgressMonitor();
+        while (pmd.getShell() == null || (!pmd.getShell().isDisposed() && !monitor.isCanceled())) {
+          try {
+            Thread.sleep(100);
+          }
+ catch (          InterruptedException e) {
+          }
+          ;
+        }
+        if (monitor.isCanceled()) {
+          try {
+            trans.stopAll();
+          }
+ catch (          Exception e) {
+          }
+          ;
+        }
+      }
+    }
+;
+    new Thread(run).start();
+    pmd.run(true,true,op);
+  }
+ catch (  InvocationTargetException e) {
+    new ErrorDialog(shell,Props.getInstance(),"Error loading transformation","An error occured loading the transformation!",e);
+    transMeta=null;
+  }
+catch (  InterruptedException e) {
+    new ErrorDialog(shell,Props.getInstance(),"Error loading transformation","An error occured loading the transformation!",e);
+    transMeta=null;
+  }
+  return transMeta;
+}
