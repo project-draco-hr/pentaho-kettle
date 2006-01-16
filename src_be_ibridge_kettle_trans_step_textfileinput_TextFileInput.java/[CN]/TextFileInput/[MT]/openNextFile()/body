@@ -24,6 +24,31 @@
       }
     }
     data.filenr++;
+    data.doneReading=false;
+    int bufferSize=1;
+    bufferSize+=meta.hasHeader() ? meta.getNrHeaderLines() : 0;
+    bufferSize+=meta.isLayoutPaged() ? meta.getNrLinesPerPage() : 0;
+    bufferSize+=meta.hasFooter() ? meta.getNrFooterLines() : 0;
+    if (meta.isLayoutPaged()) {
+      for (int i=0; i < meta.getNrLinesDocHeader(); i++) {
+        getLine(log,data.isr,meta.getFileFormat(),meta.isLineWrapped() ? meta.getNrWraps() : 0);
+      }
+    }
+    String line;
+    for (int i=0; i < bufferSize && !data.doneReading; i++) {
+      line=getLine(log,data.isr,meta.getFileFormat(),meta.isLineWrapped() ? meta.getNrWraps() : 0);
+      if (line != null) {
+        linesInput++;
+        data.lineBuffer.add(line);
+      }
+ else {
+        data.doneReading=true;
+      }
+    }
+    data.headerLinesRead=0;
+    data.footerLinesRead=0;
+    data.pageLinesRead=0;
+    data.doneWithHeader=!meta.hasHeader();
   }
  catch (  Exception e) {
     logError("Couldn't open file #" + data.filenr + " : "+ data.filename+ " --> "+ e.toString());
