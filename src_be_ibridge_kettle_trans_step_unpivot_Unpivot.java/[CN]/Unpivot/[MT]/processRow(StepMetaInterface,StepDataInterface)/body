@@ -1,0 +1,74 @@
+{
+  debug="processRow";
+  Row r=getRow();
+  if (r == null) {
+    if (data.previous != null) {
+      unPivot(data.previous);
+      buildResult(data.previous);
+      putRow(data.previous);
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    data.keyFieldNr=r.searchValueIndex(meta.getKeyField());
+    if (data.keyFieldNr < 0) {
+      logError("Key field name [" + meta.getKeyField() + "] couldn't be found!");
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+    Hashtable subjects=new Hashtable();
+    data.fieldNameIndex=new int[meta.getPivotTargetField().length];
+    for (int i=0; i < meta.getPivotTargetField().length; i++) {
+      UnpivotTargetField field=meta.getPivotTargetField()[i];
+      int idx=r.searchValueIndex(field.getFieldName());
+      if (idx < 0) {
+        logError("Unpivot field name [" + field.getFieldName() + "] couldn't be found!");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+      data.fieldNameIndex[i]=idx;
+      subjects.put(new Integer(idx),new Integer(idx));
+      data.keyValue.put(field.getKeyValue(),new Integer(i));
+    }
+    Set subjectSet=subjects.keySet();
+    data.fieldNrs=(Integer[])subjectSet.toArray(new Integer[subjectSet.size()]);
+    data.groupnrs=new int[meta.getGroupField().length];
+    for (int i=0; i < meta.getGroupField().length; i++) {
+      data.groupnrs[i]=r.searchValueIndex(meta.getGroupField()[i]);
+      if (data.groupnrs[i] < 0) {
+        logError("Grouping field [" + meta.getGroupField()[i] + "] couldn't be found!");
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+    ArrayList removeList=new ArrayList();
+    removeList.add(new Integer(data.keyFieldNr));
+    for (int i=0; i < data.fieldNrs.length; i++) {
+      removeList.add(data.fieldNrs[i]);
+    }
+    Collections.sort(removeList);
+    data.removeNrs=new int[removeList.size()];
+    for (int i=0; i < removeList.size(); i++)     data.removeNrs[i]=((Integer)removeList.get(i)).intValue();
+    data.previous=new Row(r);
+    newGroup();
+    first=false;
+  }
+  if (!sameGroup(data.previous,r)) {
+    debug="Different group";
+    buildResult(data.previous);
+    putRow(data.previous);
+    newGroup();
+    unPivot(r);
+  }
+ else {
+    debug="unPivot()";
+    unPivot(r);
+  }
+  data.previous=new Row(r);
+  if ((linesRead > 0) && (linesRead % Const.ROWS_UPDATE) == 0)   logBasic("Linenr " + linesRead);
+  return true;
+}
