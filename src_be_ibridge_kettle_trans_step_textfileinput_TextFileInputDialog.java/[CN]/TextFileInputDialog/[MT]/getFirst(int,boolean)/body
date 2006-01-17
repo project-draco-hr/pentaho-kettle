@@ -28,26 +28,34 @@
       String firstlines="";
       int linenr=0;
       int maxnr=nrlines + (info.hasHeader() ? info.getNrHeaderLines() : 0);
-      if (info.hasHeader() && info.getNrHeaderLines() > 1) {
-        int skipped=0;
-        String line=TextFileInput.getLine(log,reader,wFormat.getText(),info.isLineWrapped() ? info.getNrWraps() : 0);
-        while (line != null && skipped < info.getNrHeaderLines()) {
-          skipped++;
-          line=TextFileInput.getLine(log,reader,wFormat.getText(),info.isLineWrapped() ? info.getNrWraps() : 0);
+      if (skipHeaders) {
+        if (info.isLayoutPaged() && info.getNrLinesDocHeader() > 0) {
+          int skipped=0;
+          String line=TextFileInput.getLine(log,reader,wFormat.getText());
+          while (line != null && skipped < info.getNrLinesDocHeader() - 1) {
+            skipped++;
+            line=TextFileInput.getLine(log,reader,wFormat.getText());
+          }
+        }
+        if (info.hasHeader() && info.getNrHeaderLines() > 0) {
+          int skipped=0;
+          String line=TextFileInput.getLine(log,reader,wFormat.getText());
+          while (line != null && skipped < info.getNrHeaderLines() - 1) {
+            skipped++;
+            line=TextFileInput.getLine(log,reader,wFormat.getText());
+          }
         }
       }
-      String line=TextFileInput.getLine(log,reader,wFormat.getText(),info.isLineWrapped() ? info.getNrWraps() : 0);
+      String line=TextFileInput.getLine(log,reader,wFormat.getText());
       while (line != null && (linenr < maxnr || nrlines == 0)) {
-        if (linenr > 0 || (linenr == 0 && !info.hasHeader()))         retval.add(line);
+        retval.add(line);
         firstlines+=line + Const.CR;
         linenr++;
-        line=TextFileInput.getLine(log,reader,wFormat.getText(),info.isLineWrapped() ? info.getNrWraps() : 0);
-      }
-      if (info.hasFooter() && (linenr < maxnr || nrlines == 0)) {
-        if (retval.size() > 0)         retval.remove(retval.size() - 1);
+        line=TextFileInput.getLine(log,reader,wFormat.getText());
       }
     }
  catch (    Exception e) {
+      throw new KettleException("Error getting first " + nrlines + " from file "+ filename,e);
     }
  finally {
       try {

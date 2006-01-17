@@ -18,17 +18,53 @@
   }
  else {
     if (!data.doneReading) {
-      debug="get a new line of data";
-      String line=getLine(log,data.isr,meta.getFileFormat(),meta.isLineWrapped() ? meta.getNrWraps() : 0);
-      if (line != null) {
-        linesInput++;
-        data.lineBuffer.add(line);
+      int repeats=1;
+      if (meta.isLineWrapped())       repeats=meta.getNrWraps() > 0 ? meta.getNrWraps() : repeats;
+      for (int i=0; i < repeats && !data.doneReading; i++) {
+        debug="get a new line of data";
+        String line=getLine(log,data.isr,meta.getFileFormat());
+        if (line != null) {
+          linesInput++;
+          boolean filterOK=true;
+          if (meta.hasFilter() && meta.getFilterString() != null && meta.getFilterString().length() > 0) {
+            int from=meta.getFilterPosition();
+            if (from >= 0) {
+              int to=from + meta.getFilterString().length();
+              debug="verify filter : get substring(" + from + ", "+ to+ ") line length="+ line.length();
+              if (line.length() >= from && line.length() >= to) {
+                String sub=line.substring(meta.getFilterPosition(),to);
+                if (sub.equalsIgnoreCase(meta.getFilterString())) {
+                  filterOK=false;
+                }
+              }
+            }
+ else {
+              int idx=line.indexOf(meta.getFilterString());
+              if (idx >= 0) {
+                filterOK=false;
+              }
+            }
+            if (!filterOK) {
+              if (meta.isFilterLastLine()) {
+                data.doneReading=true;
+              }
+              repeats++;
+            }
+          }
+          if (filterOK) {
+            data.lineBuffer.add(line);
+          }
+        }
+ else {
+          data.doneReading=true;
+        }
       }
     }
   }
   while (data.lineBuffer.size() == 0) {
     debug="empty buffer: open next file";
     if (!openNextFile()) {
+      debug="empty buffer: close last file";
       closeLastFile();
       setOutputDone();
       return false;
@@ -36,78 +72,84 @@
   }
   debug="take first line of buffer";
   String line=(String)data.lineBuffer.get(0);
+  debug="remove first line of buffer";
   data.lineBuffer.remove(0);
-  boolean filterOK=true;
-  boolean check_filter=meta.hasFilter() && meta.getFilterPosition() >= 0 && meta.getFilterPosition() < line.length();
-  if (check_filter) {
-    int from=meta.getFilterPosition();
-    int to=from + meta.getFilterString().length();
-    String sub=line.substring(meta.getFilterPosition(),to);
-    if (sub.equalsIgnoreCase(meta.getFilterString())) {
-      filterOK=false;
-      if (meta.isFilterLastLine()) {
-        closeLastFile();
-        setOutputDone();
-        return false;
+  if (meta.isLayoutPaged()) {
+    debug="paged layout";
+    if (!data.doneWithHeader && data.pageLinesRead == 0) {
+      debug="paged layout : header line " + data.headerLinesRead;
+      logRowlevel("P-HEADER (" + data.headerLinesRead + ") : "+ line);
+      data.headerLinesRead++;
+      if (data.headerLinesRead >= meta.getNrHeaderLines()) {
+        data.doneWithHeader=true;
+      }
+    }
+ else {
+      debug="paged layout : data or footer";
+      if (data.pageLinesRead < meta.getNrLinesPerPage()) {
+        if (meta.isLineWrapped()) {
+          for (int i=0; i < meta.getNrWraps(); i++) {
+            String extra="";
+            if (data.lineBuffer.size() > 0) {
+              extra=(String)data.lineBuffer.get(0);
+              data.lineBuffer.remove(0);
+            }
+            line+=extra;
+          }
+        }
+        debug="paged layout : data line";
+        logRowlevel("P-DATA: " + line);
+        data.pageLinesRead++;
+        r=convertLineToRow(log,line,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1);
+        if (r != null)         putrow=true;
+      }
+ else {
+        debug="paged layout : footer line";
+        if (meta.hasFooter() && data.footerLinesRead < meta.getNrFooterLines()) {
+          logRowlevel("P-FOOTER: " + line);
+          data.footerLinesRead++;
+        }
+        if (!meta.hasFooter() || data.footerLinesRead >= meta.getNrFooterLines()) {
+          debug="paged layout : end of page: restart";
+          data.doneWithHeader=false;
+          data.headerLinesRead=0;
+          data.pageLinesRead=0;
+          data.footerLinesRead=0;
+          logRowlevel("RESTART PAGE");
+        }
       }
     }
   }
-  if (filterOK) {
-    if (meta.isLayoutPaged()) {
-      debug="paged layout";
-      if (!data.doneWithHeader && data.pageLinesRead == 0) {
-        debug="paged layout : header line " + data.headerLinesRead;
-        logRowlevel("P-HEADER (" + data.headerLinesRead + ") : "+ line);
-        data.headerLinesRead++;
-        if (data.headerLinesRead >= meta.getNrHeaderLines()) {
-          data.doneWithHeader=true;
-        }
-      }
  else {
-        debug="paged layout : data or footer";
-        if (data.pageLinesRead < meta.getNrLinesPerPage()) {
-          debug="paged layout : data line";
-          logRowlevel("P-DATA: " + line);
-          data.pageLinesRead++;
-          r=convertLineToRow(log,line,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1);
-          if (r != null)           putrow=true;
-        }
- else {
-          debug="paged layout : footer line";
-          if (meta.hasFooter() && data.footerLinesRead < meta.getNrFooterLines()) {
-            logRowlevel("P-FOOTER: " + line);
-            data.footerLinesRead++;
-          }
-          if (!meta.hasFooter() || data.footerLinesRead >= meta.getNrFooterLines()) {
-            debug="paged layout : end of page: restart";
-            data.doneWithHeader=false;
-            data.headerLinesRead=0;
-            data.pageLinesRead=0;
-            data.footerLinesRead=0;
-            logRowlevel("RESTART PAGE");
-          }
-        }
+    debug="normal";
+    if (!data.doneWithHeader) {
+      debug="normal : header line";
+      data.headerLinesRead++;
+      if (data.headerLinesRead >= meta.getNrHeaderLines()) {
+        data.doneWithHeader=true;
       }
     }
  else {
-      debug="normal";
-      if (!data.doneWithHeader) {
-        debug="normal : header line";
-        data.headerLinesRead++;
-        if (data.headerLinesRead > meta.getNrHeaderLines()) {
-          data.doneWithHeader=true;
-        }
+      debug="normal : data and footer";
+      if (data.doneReading && meta.hasFooter() && data.lineBuffer.size() <= meta.getNrFooterLines()) {
+        debug="normal : footer";
+        data.lineBuffer.clear();
       }
  else {
-        debug="normal : data and footer";
-        if (data.doneReading && meta.hasFooter() && data.lineBuffer.size() <= meta.getNrFooterLines()) {
-          debug="normal : footer";
-          data.lineBuffer.clear();
+        if (meta.isLineWrapped()) {
+          for (int i=0; i < meta.getNrWraps(); i++) {
+            String extra="";
+            if (data.lineBuffer.size() > 0) {
+              extra=(String)data.lineBuffer.get(0);
+              data.lineBuffer.remove(0);
+            }
+            line+=extra;
+          }
         }
- else {
-          debug="normal : data";
-          r=convertLineToRow(log,line,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1);
-          if (r != null)           putrow=true;
+        debug="normal : data";
+        r=convertLineToRow(log,line,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1);
+        if (r != null) {
+          putrow=true;
         }
       }
     }
