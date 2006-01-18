@@ -1,0 +1,63 @@
+{
+  String key=r.getValue(data.keyFieldNr).getString();
+  Integer keyNr=(Integer)data.keyValue.get(key);
+  if (keyNr != null) {
+    int idx=keyNr.intValue();
+    DenormaliserTargetField field=meta.getDenormaliserTargetField()[idx];
+    Value targetValue=r.getValue(data.fieldNameIndex[idx]);
+    int targetType=field.getTargetType();
+    if (targetValue.getType() != targetType) {
+switch (field.getTargetType()) {
+case Value.VALUE_TYPE_STRING:
+switch (targetType) {
+case Value.VALUE_TYPE_DATE:
+          targetValue.str2dat(field.getTargetFormat());
+        break;
+case Value.VALUE_TYPE_INTEGER:
+      targetValue.setType(targetType);
+    break;
+case Value.VALUE_TYPE_NUMBER:
+  targetValue.str2num(field.getTargetFormat(),field.getTargetDecimalSymbol(),field.getTargetGroupingSymbol(),field.getTargetCurrencySymbol());
+break;
+case Value.VALUE_TYPE_BIGNUMBER:
+targetValue.setType(targetType);
+break;
+case Value.VALUE_TYPE_BOOLEAN:
+targetValue.setType(targetType);
+break;
+default :
+break;
+}
+default :
+targetValue.setType(targetType);
+break;
+}
+}
+Value prevTarget=data.targetResult.getValue(idx);
+switch (field.getTargetAggregationType()) {
+case DenormaliserTargetField.TYPE_AGGR_SUM:
+prevTarget.plus(targetValue);
+break;
+case DenormaliserTargetField.TYPE_AGGR_MIN:
+if (targetValue.compare(prevTarget) < 0) prevTarget.setValue(targetValue);
+break;
+case DenormaliserTargetField.TYPE_AGGR_MAX:
+if (targetValue.compare(prevTarget) > 0) prevTarget.setValue(targetValue);
+break;
+case DenormaliserTargetField.TYPE_AGGR_COUNT_ALL:
+if (!targetValue.isNull()) prevTarget.setValue(prevTarget.getInteger() + 1);
+break;
+case DenormaliserTargetField.TYPE_AGGR_AVERAGE:
+if (!targetValue.isNull()) {
+data.counters[idx]++;
+data.sum[idx].plus(targetValue);
+}
+break;
+case DenormaliserTargetField.TYPE_AGGR_NONE:
+default :
+prevTarget.setValue(targetValue);
+break;
+}
+System.out.println("TargetValue=" + targetValue + ", Prev TargetResult="+ prevTarget);
+}
+}
