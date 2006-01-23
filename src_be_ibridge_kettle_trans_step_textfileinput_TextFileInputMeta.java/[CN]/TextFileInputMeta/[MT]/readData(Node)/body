@@ -1,7 +1,5 @@
 {
   try {
-    int nrfiles, nrfields;
-    String lim;
     separator=XMLHandler.getTagValue(stepnode,"separator");
     enclosure=XMLHandler.getTagValue(stepnode,"enclosure");
     escapeCharacter=XMLHandler.getTagValue(stepnode,"escapechar");
@@ -22,15 +20,13 @@
     rowNumberField=XMLHandler.getTagValue(stepnode,"rownum_field");
     fileFormat=XMLHandler.getTagValue(stepnode,"format");
     encoding=XMLHandler.getTagValue(stepnode,"encoding");
-    filter="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"filter"));
-    filterPosition=Const.toInt(XMLHandler.getTagValue(stepnode,"filter_position"),-1);
-    filterString=XMLHandler.getTagValue(stepnode,"filter_string");
-    filterLastLine="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"filter_is_last_line"));
     Node filenode=XMLHandler.getSubNode(stepnode,"file");
     Node fields=XMLHandler.getSubNode(stepnode,"fields");
-    nrfiles=XMLHandler.countNodes(filenode,"name");
-    nrfields=XMLHandler.countNodes(fields,"field");
-    allocate(nrfiles,nrfields);
+    Node filtersNode=XMLHandler.getSubNode(stepnode,"filters");
+    int nrfiles=XMLHandler.countNodes(filenode,"name");
+    int nrfields=XMLHandler.countNodes(fields,"field");
+    int nrfilters=XMLHandler.countNodes(fields,"filter");
+    allocate(nrfiles,nrfields,nrfilters);
     for (int i=0; i < nrfiles; i++) {
       Node filenamenode=XMLHandler.getSubNodeByNr(filenode,"name",i);
       Node filemasknode=XMLHandler.getSubNodeByNr(filenode,"filemask",i);
@@ -39,6 +35,22 @@
     }
     fileType=XMLHandler.getTagValue(stepnode,"file","type");
     zipped="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"file","zipped"));
+    if (XMLHandler.getTagValue(stepnode,"filter") != null) {
+      filter=new TextFileFilter[1];
+      filter[0]=new TextFileFilter();
+      filter[0].setFilterPosition(Const.toInt(XMLHandler.getTagValue(stepnode,"filter_position"),-1));
+      filter[0].setFilterString(XMLHandler.getTagValue(stepnode,"filter_string"));
+      filter[0].setFilterLastLine("Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"filter_is_last_line")));
+    }
+ else {
+      for (int i=0; i < nrfilters; i++) {
+        Node fnode=XMLHandler.getSubNodeByNr(filtersNode,"filter",i);
+        filter[i]=new TextFileFilter();
+        filter[i].setFilterPosition(Const.toInt(XMLHandler.getTagValue(fnode,"filter_position"),-1));
+        filter[i].setFilterString(XMLHandler.getTagValue(fnode,"filter_string"));
+        filter[i].setFilterLastLine("Y".equalsIgnoreCase(XMLHandler.getTagValue(fnode,"filter_is_last_line")));
+      }
+    }
     for (int i=0; i < nrfields; i++) {
       Node fnode=XMLHandler.getSubNodeByNr(fields,"field",i);
       TextFileInputField field=new TextFileInputField();
@@ -58,8 +70,7 @@
  else       field.setRepeated(false);
       inputFields[i]=field;
     }
-    lim=XMLHandler.getTagValue(stepnode,"limit");
-    rowLimit=Const.toLong(lim,0L);
+    rowLimit=Const.toLong(XMLHandler.getTagValue(stepnode,"limit"),0L);
     errorIgnored="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"error_ignored"));
     errorCountField=XMLHandler.getTagValue(stepnode,"error_count_field");
     errorFieldsField=XMLHandler.getTagValue(stepnode,"error_fields_field");

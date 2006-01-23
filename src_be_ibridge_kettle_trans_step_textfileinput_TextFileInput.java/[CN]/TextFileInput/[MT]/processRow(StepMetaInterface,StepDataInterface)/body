@@ -26,29 +26,32 @@
         if (line != null) {
           linesInput++;
           boolean filterOK=true;
-          if (meta.hasFilter() && meta.getFilterString() != null && meta.getFilterString().length() > 0) {
-            int from=meta.getFilterPosition();
-            if (from >= 0) {
-              int to=from + meta.getFilterString().length();
-              debug="verify filter : get substring(" + from + ", "+ to+ ") line length="+ line.length();
-              if (line.length() >= from && line.length() >= to) {
-                String sub=line.substring(meta.getFilterPosition(),to);
-                if (sub.equalsIgnoreCase(meta.getFilterString())) {
+          for (int f=0; f < meta.getFilter().length && filterOK; f++) {
+            TextFileFilter filter=meta.getFilter()[f];
+            if (filter.getFilterString() != null && filter.getFilterString().length() > 0) {
+              int from=filter.getFilterPosition();
+              if (from >= 0) {
+                int to=from + filter.getFilterString().length();
+                debug="verify filter : get substring(" + from + ", "+ to+ ") line length="+ line.length();
+                if (line.length() >= from && line.length() >= to) {
+                  String sub=line.substring(filter.getFilterPosition(),to);
+                  if (sub.equalsIgnoreCase(filter.getFilterString())) {
+                    filterOK=false;
+                  }
+                }
+              }
+ else {
+                int idx=line.indexOf(filter.getFilterString());
+                if (idx >= 0) {
                   filterOK=false;
                 }
               }
-            }
- else {
-              int idx=line.indexOf(meta.getFilterString());
-              if (idx >= 0) {
-                filterOK=false;
+              if (!filterOK) {
+                if (filter.isFilterLastLine()) {
+                  data.doneReading=true;
+                }
+                repeats++;
               }
-            }
-            if (!filterOK) {
-              if (meta.isFilterLastLine()) {
-                data.doneReading=true;
-              }
-              repeats++;
             }
           }
           if (filterOK) {
