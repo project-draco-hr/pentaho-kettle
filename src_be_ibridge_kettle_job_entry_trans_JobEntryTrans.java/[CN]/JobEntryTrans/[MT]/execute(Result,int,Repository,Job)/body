@@ -4,12 +4,22 @@
   result.setEntryNr(nr);
   LogWriter logwriter=log;
   if (setLogfile)   logwriter=LogWriter.getInstance(getLogFilename(),true,loglevel);
-  log.logDetailed(toString(),"Starting transformation...(file=" + getFileName() + ", name="+ getName()+ "), repinfo="+ getDescription());
-  Trans trans=new Trans(logwriter,getFileName(),getTransname(),arguments);
-  trans.getTransMeta().setSourceRows(prev_result.rows);
   log.logBasic(toString(),"Opening transformation: [" + getTransname() + "] in directory ["+ directory.getPath()+ "]");
   try {
-    trans.open(rep,getTransname(),directory.getPath(),getFileName());
+    log.logDetailed(toString(),"Starting transformation...(file=" + getFileName() + ", name="+ getName()+ "), repinfo="+ getDescription());
+    TransMeta transMeta;
+    if (getTransname() != null && getTransname().length() > 0 && getDirectory() != null) {
+      transMeta=new TransMeta(rep,getTransname(),getDirectory());
+    }
+ else     if (getFileName() != null && getFileName().length() > 0) {
+      transMeta=new TransMeta(getFileName());
+    }
+ else {
+      throw new KettleJobException("The transformation to execute is not specified!");
+    }
+    transMeta.setArguments(arguments);
+    Trans trans=new Trans(logwriter,transMeta);
+    trans.getTransMeta().setSourceRows(prev_result.rows);
     trans.setSourceRows(prev_result.rows);
     if (!trans.execute(arguments)) {
       result.setNrErrors(1);
