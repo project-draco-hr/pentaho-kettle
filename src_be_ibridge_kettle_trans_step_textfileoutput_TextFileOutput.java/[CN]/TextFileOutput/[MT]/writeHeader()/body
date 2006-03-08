@@ -6,10 +6,18 @@
     if (meta.getOutputFields() != null && meta.getOutputFields().length > 0) {
       String header="";
       for (int i=0; i < meta.getOutputFields().length; i++) {
+        String fieldName=meta.getOutputFields()[i].getName();
+        Value v=r.searchValue(fieldName);
         if (i > 0 && meta.getSeparator() != null && meta.getSeparator().length() > 0) {
           header+=meta.getSeparator();
         }
-        header+=meta.getOutputFields()[i].getName();
+        if (meta.isEnclosureForced() && meta.getEnclosure() != null && v != null && v.isString()) {
+          header+=meta.getEnclosure();
+        }
+        header+=fieldName;
+        if (meta.isEnclosureForced() && meta.getEnclosure() != null && v != null && v.isString()) {
+          header+=meta.getEnclosure();
+        }
       }
       header+=meta.getNewline();
       data.writer.write(header.toCharArray());
@@ -20,33 +28,25 @@
         Value v=r.getValue(i);
         Value header_value=new Value(v.getName(),Value.VALUE_TYPE_STRING);
         header_value.setValue(v.getName());
-        int idx=-1;
-        for (int x=0; x < meta.getOutputFields().length && idx < 0; x++) {
-          if (meta.getOutputFields()[x].getName().equalsIgnoreCase(v.getName()))           idx=x;
+        if (meta.isEnclosureForced() && meta.getEnclosure() != null && v.isString()) {
+          data.writer.write(meta.getEnclosure().toCharArray());
         }
-switch (v.getType()) {
-case Value.VALUE_TYPE_DATE:
-          v.setValue(new Date());
-        break;
-case Value.VALUE_TYPE_STRING:
-      v.setValue("a");
-    break;
-default :
-  break;
-}
-data.writer.write(header_value.toString().toCharArray());
-}
-data.writer.write(meta.getNewline().toCharArray());
-}
+        data.writer.write(header_value.toString().toCharArray());
+        if (meta.isEnclosureForced() && meta.getEnclosure() != null && v.isString()) {
+          data.writer.write(meta.getEnclosure().toCharArray());
+        }
+      }
+      data.writer.write(meta.getNewline().toCharArray());
+    }
  else {
-data.writer.write(("no rows selected" + Const.CR).toCharArray());
-}
-}
- catch (Exception e) {
-logError("Error writing header line: " + e.toString());
-e.printStackTrace();
-retval=true;
-}
-linesOutput++;
-return retval;
+      data.writer.write(("no rows selected" + Const.CR).toCharArray());
+    }
+  }
+ catch (  Exception e) {
+    logError("Error writing header line: " + e.toString());
+    e.printStackTrace();
+    retval=true;
+  }
+  linesOutput++;
+  return retval;
 }
