@@ -25,6 +25,7 @@
         String line=getLine(log,data.isr,meta.getFileFormat());
         if (line != null) {
           linesInput++;
+          lineNumberInFile++;
           boolean filterOK=true;
           for (int f=0; f < meta.getFilter().length && filterOK; f++) {
             TextFileFilter filter=meta.getFilter()[f];
@@ -55,7 +56,7 @@
             }
           }
           if (filterOK) {
-            data.lineBuffer.add(line);
+            data.lineBuffer.add(new TextFileLine(line,lineNumberInFile));
           }
         }
  else {
@@ -74,14 +75,14 @@
     }
   }
   debug="take first line of buffer";
-  String line=(String)data.lineBuffer.get(0);
+  TextFileLine textLine=(TextFileLine)data.lineBuffer.get(0);
   debug="remove first line of buffer";
   data.lineBuffer.remove(0);
   if (meta.isLayoutPaged()) {
     debug="paged layout";
     if (!data.doneWithHeader && data.pageLinesRead == 0) {
       debug="paged layout : header line " + data.headerLinesRead;
-      logRowlevel("P-HEADER (" + data.headerLinesRead + ") : "+ line);
+      logRowlevel("P-HEADER (" + data.headerLinesRead + ") : "+ textLine.line);
       data.headerLinesRead++;
       if (data.headerLinesRead >= meta.getNrHeaderLines()) {
         data.doneWithHeader=true;
@@ -94,22 +95,22 @@
           for (int i=0; i < meta.getNrWraps(); i++) {
             String extra="";
             if (data.lineBuffer.size() > 0) {
-              extra=(String)data.lineBuffer.get(0);
+              extra=((TextFileLine)data.lineBuffer.get(0)).line;
               data.lineBuffer.remove(0);
             }
-            line+=extra;
+            textLine.line+=extra;
           }
         }
         debug="paged layout : data line";
-        logRowlevel("P-DATA: " + line);
+        logRowlevel("P-DATA: " + textLine.line);
         data.pageLinesRead++;
-        r=convertLineToRow(log,line,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1);
+        r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1,data.badLineHandler);
         if (r != null)         putrow=true;
       }
  else {
         debug="paged layout : footer line";
         if (meta.hasFooter() && data.footerLinesRead < meta.getNrFooterLines()) {
-          logRowlevel("P-FOOTER: " + line);
+          logRowlevel("P-FOOTER: " + textLine.line);
           data.footerLinesRead++;
         }
         if (!meta.hasFooter() || data.footerLinesRead >= meta.getNrFooterLines()) {
@@ -143,14 +144,14 @@
           for (int i=0; i < meta.getNrWraps(); i++) {
             String extra="";
             if (data.lineBuffer.size() > 0) {
-              extra=(String)data.lineBuffer.get(0);
+              extra=((TextFileLine)data.lineBuffer.get(0)).line;
               data.lineBuffer.remove(0);
             }
-            line+=extra;
+            textLine.line+=extra;
           }
         }
         debug="normal : data";
-        r=convertLineToRow(log,line,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1);
+        r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1,data.badLineHandler);
         if (r != null) {
           putrow=true;
         }
