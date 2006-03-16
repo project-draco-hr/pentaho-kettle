@@ -1,0 +1,86 @@
+{
+  if (!running) {
+    if (spoon.transMeta.hasChanged()) {
+      if (spoon.props.getAutoSave()) {
+        spoon.saveFile();
+      }
+ else {
+        MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"File has changed!",null,"You need to save your transformation before you can run it." + Const.CR + "Do you want to save the transformation now?"+ Const.CR,MessageDialog.QUESTION,new String[]{"Yes","No"},0,"Automatically save the transformation.",spoon.props.getAutoSave());
+        int answer=md.open();
+        if (answer == 0) {
+          spoon.saveFile();
+        }
+        spoon.props.setAutoSave(md.getToggleState());
+      }
+    }
+    if (((spoon.transMeta.getName() != null && spoon.rep != null) || (spoon.transMeta.getFilename() != null && spoon.rep == null)) && !spoon.transMeta.hasChanged()) {
+      if (trans == null || (trans != null && trans.isFinished())) {
+        try {
+          trans=new Trans(log,spoon.transMeta.getFilename(),spoon.transMeta.getName(),new String[]{spoon.transMeta.getFilename()});
+          trans.setReplayDate(replayDate);
+          trans.open(spoon.rep,spoon.transMeta.getName(),spoon.transMeta.getDirectory().getPath(),spoon.transMeta.getFilename());
+          trans.setMonitored(true);
+          log.logBasic(toString(),"Transformation opened.");
+        }
+ catch (        KettleException e) {
+          trans=null;
+          new ErrorDialog(shell,spoon.props,"Error opening transformation","Transformation failed to open: ",e);
+        }
+        readLog();
+        if (trans != null) {
+          Row arguments=getArguments(trans.getTransMeta());
+          if (arguments != null) {
+            String args[]=convertArguments(arguments);
+            log.logBasic(Spoon.APP_NAME,"Excecuting transformation [" + trans.getTransMeta().getName() + "]...");
+            trans.execute(args);
+            log.logBasic(Spoon.APP_NAME,"Started.");
+            running=!running;
+            wStart.setText(STOP_TEXT);
+            readLog();
+          }
+        }
+      }
+ else {
+        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        m.setText("Warning!");
+        m.setMessage("The transformation is running, don't start it twice!");
+        m.open();
+      }
+    }
+ else {
+      if (spoon.transMeta.hasChanged()) {
+        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        m.setText("File has changed!");
+        m.setMessage("Please save your transformation first!");
+        m.open();
+      }
+ else       if (spoon.rep != null && spoon.transMeta.getName() == null) {
+        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        m.setText("Transformation has no name!");
+        m.setMessage("Please give your transformation a name to identify it by!");
+        m.open();
+      }
+ else {
+        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        m.setText("No filename!");
+        m.setMessage("Before running, please save your transformation first!");
+        m.open();
+      }
+    }
+  }
+ else {
+    trans.stopAll();
+    try {
+      trans.endProcessing("stop");
+    }
+ catch (    KettleException e) {
+      new ErrorDialog(shell,spoon.props,"Error writing log record","Unable to write log record to the logging table",e);
+    }
+    wStart.setText(START_TEXT);
+    running=!running;
+    if (preview) {
+      preview=false;
+      showPreview();
+    }
+  }
+}
