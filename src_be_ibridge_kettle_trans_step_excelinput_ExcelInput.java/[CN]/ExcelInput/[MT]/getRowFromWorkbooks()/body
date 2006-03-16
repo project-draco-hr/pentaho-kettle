@@ -7,6 +7,7 @@
       debug="open workbook #" + data.filenr + " : "+ data.files[data.filenr];
       logDetailed("Opening workbook #" + data.filenr + " : "+ data.files[data.filenr]);
       data.workbook=Workbook.getWorkbook(new File(data.files[data.filenr]));
+      data.dataErrorHandler.handleFile(data.files[data.filenr]);
       data.sheetnr=0;
     }
     boolean nextsheet=false;
@@ -24,13 +25,14 @@
       data.colnr=meta.getStartColumn()[data.sheetnr];
       debug="startcol = " + data.colnr;
       try {
-        debug="Get line #" + data.rownr + " from sheet #"+ data.filenr+ "."+ data.sheetnr;
+        int rownr=data.rownr++;
+        debug="Get line #" + rownr + " from sheet #"+ data.filenr+ "."+ data.sheetnr;
         logRowlevel(debug);
-        Cell line[]=sheet.getRow(data.rownr);
+        Cell line[]=sheet.getRow(rownr);
         logRowlevel("Read line with " + line.length + " cells");
-        Row r=fillRow(data.row,sheet,line,data.colnr,data.rownr);
-        logRowlevel("Converted line to row #" + data.rownr + " : "+ r);
-        data.rownr++;
+        ExcelInputRow excelInputRow=new ExcelInputRow(sheet.getName(),rownr + 1,line);
+        Row r=fillRow(data.row,data.colnr,excelInputRow);
+        logRowlevel("Converted line to row #" + rownr + " : "+ r);
         if (line.length > 0 || !meta.ignoreEmptyRows()) {
           retval=r;
         }
@@ -51,17 +53,40 @@
       data.rownr=-1;
       data.previousRow=null;
       if (data.sheetnr >= meta.getSheetName().length) {
-        data.workbook.close();
-        data.workbook=null;
-        data.filenr++;
+        jumpToNextFile();
       }
     }
   }
- catch (  Exception e) {
+ catch (  ExcelInputRowValueException excelInputRowValueException) {
+    if (!meta.isErrorIgnored()) {
+      logError("Error processing row in [" + debug + "] from Excel file ["+ data.files[data.filenr]+ "] : "+ excelInputRowValueException.toString());
+      setErrors(1);
+      stopAll();
+      return null;
+    }
+    throw excelInputRowValueException;
+  }
+catch (  KettleException e) {
     logError("Error processing row in [" + debug + "] from Excel file ["+ data.files[data.filenr]+ "] : "+ e.toString());
     setErrors(1);
     stopAll();
     return null;
+  }
+catch (  BiffException e) {
+    if (!meta.isErrorIgnored()) {
+      logError("Error processing row in [" + debug + "] from Excel file ["+ data.files[data.filenr]+ "] : "+ e.toString());
+      setErrors(1);
+      stopAll();
+      return null;
+    }
+  }
+catch (  IOException e) {
+    if (!meta.isErrorIgnored()) {
+      logError("Error processing row in [" + debug + "] from Excel file ["+ data.files[data.filenr]+ "] : "+ e.toString());
+      setErrors(1);
+      stopAll();
+      return null;
+    }
   }
   return retval;
 }
