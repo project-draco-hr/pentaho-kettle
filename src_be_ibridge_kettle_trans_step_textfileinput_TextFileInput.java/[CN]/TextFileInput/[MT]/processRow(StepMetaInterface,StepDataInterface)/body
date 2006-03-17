@@ -55,8 +55,8 @@
               }
             }
           }
-          if (filterOK && data.textFilePlayer.isProcessingNeeded(lineNumberInFile)) {
-            data.lineBuffer.add(new TextFileLine(line,lineNumberInFile));
+          if (filterOK) {
+            data.lineBuffer.add(new TextFileLine(line,lineNumberInFile,data.file));
           }
         }
  else {
@@ -65,17 +65,14 @@
       }
     }
   }
-  if (data.lineBuffer.isEmpty()) {
-    if (data.doneReading) {
-      debug="empty buffer: open next file";
-      if (!openNextFile()) {
-        debug="empty buffer: close last file";
-        closeLastFile();
-        setOutputDone();
-        return false;
-      }
+  while (data.lineBuffer.size() == 0) {
+    debug="empty buffer: open next file";
+    if (!openNextFile()) {
+      debug="empty buffer: close last file";
+      closeLastFile();
+      setOutputDone();
+      return false;
     }
-    return true;
   }
   debug="take first line of buffer";
   TextFileLine textLine=(TextFileLine)data.lineBuffer.get(0);
@@ -154,10 +151,13 @@
           }
         }
         debug="normal : data";
-        r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1,data.dataErrorLineHandler);
-        if (r != null) {
-          putrow=true;
+        if (data.textFileReplayFactory.isProcessingNeeded(textLine)) {
+          r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1,data.dataErrorLineHandler);
+          if (r != null) {
+            putrow=true;
+          }
         }
+ else         putrow=false;
       }
     }
   }
