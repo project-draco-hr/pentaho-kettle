@@ -3,14 +3,14 @@
   for (int i=0; i < a.length; i++)   args.add(a[i]);
   Display display=new Display();
   Splash splash=new Splash(display);
-  String repname=Const.getCommandlineOption(args,"rep");
-  String username=Const.getCommandlineOption(args,"user");
-  String password=Const.getCommandlineOption(args,"pass");
-  String transname=Const.getCommandlineOption(args,"trans");
-  String filename=Const.getCommandlineOption(args,"file");
-  String dirname=Const.getCommandlineOption(args,"dir");
-  String logfile=Const.getCommandlineOption(args,"log");
-  String loglevel=Const.getCommandlineOption(args,"level");
+  String repname=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Repname"));
+  String username=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Username"));
+  String password=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Password"));
+  String transname=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Transname"));
+  String filename=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Filename"));
+  String dirname=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Dirname"));
+  String logfile=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Logfile"));
+  String loglevel=Const.getCommandlineOption(args,Messages.getString("CommandlineOption_Loglevel"));
   String kettleRepname=Const.getEnvironmentVariable("KETTLE_REPOSITORY",null);
   String kettleUsername=Const.getEnvironmentVariable("KETTLE_USER",null);
   String kettlePassword=Const.getEnvironmentVariable("KETTLE_PASSWORD",null);
@@ -19,7 +19,7 @@
   if (kettlePassword != null && kettlePassword.length() > 0)   password=kettlePassword;
   String version=Const.JAVA_VERSION;
   if ("1.4".compareToIgnoreCase(version) > 0) {
-    System.out.println("Spoon is running on Java version " + version);
+    System.out.println("The System is running on Java version " + version);
     System.out.println("Unfortunately, it needs version 1.4 or higher to run.");
     return;
   }
@@ -31,34 +31,34 @@
  else {
     log=LogWriter.getInstance(logfile,true,LogWriter.LOG_LEVEL_BASIC);
   }
-  if (log.getRealFilename() != null)   log.logBasic(APP_NAME,"Logging goes to " + log.getRealFilename());
+  if (log.getRealFilename() != null)   log.logBasic(APP_NAME,Messages.getString("Log.LoggingToFile") + log.getRealFilename());
   if (loglevel != null) {
     log.setLogLevel(loglevel);
-    log.logBasic(APP_NAME,"Logging is at level : " + log.getLogLevelDesc());
+    log.logBasic(APP_NAME,Messages.getString("Log.LoggingAtLevel") + log.getLogLevelDesc());
   }
   StepLoader stloader=StepLoader.getInstance();
   if (!stloader.read()) {
-    log.logError(APP_NAME,"Error loading steps & plugins... halting Spoon!");
+    log.logError(APP_NAME,Messages.getString("Log.ErrorLoadingAndHaltSystem"));
     return;
   }
   final Spoon win=new Spoon(log,display,null);
   win.setDestroy(true);
   win.setArguments((String[])args.toArray(new String[args.size()]));
-  log.logBasic(APP_NAME,"Main window is created.");
+  log.logBasic(APP_NAME,Messages.getString("Log.MainWindowCreated"));
   RepositoryMeta repinfo=null;
   UserInfo userinfo=null;
   if (repname == null && filename == null && win.props.showRepositoriesDialogAtStartup()) {
-    log.logBasic(APP_NAME,"Asking for repository");
+    log.logBasic(APP_NAME,Messages.getString("Log.AskingForRepository"));
     int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
     splash.hide();
-    RepositoriesDialog rd=new RepositoriesDialog(win.disp,SWT.NONE,perms,"Spoon");
+    RepositoriesDialog rd=new RepositoriesDialog(win.disp,SWT.NONE,perms,Messages.getString("System.Name"));
     if (rd.open()) {
       repinfo=rd.getRepository();
       userinfo=rd.getUser();
       if (!userinfo.useTransformations()) {
         MessageBox mb=new MessageBox(win.shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage("Sorry, this repository user can't work with transformations from the repository.");
-        mb.setText("Error!");
+        mb.setMessage(Messages.getString("Message.MessageBox.RepositoryUserCannotWork"));
+        mb.setText(Messages.getString("Message.MessageBox.Error"));
         mb.open();
         userinfo=null;
         repinfo=null;
@@ -80,42 +80,36 @@
           repinfo=repsinfo.findRepository(repname);
           if (repinfo != null) {
             win.rep=new Repository(log,repinfo,userinfo);
-            if (win.rep.connect("Spoon")) {
+            if (win.rep.connect(Messages.getString("System.Name"))) {
               if (dirname == null)               dirname=RepositoryDirectory.DIRECTORY_SEPARATOR;
-              try {
-                win.rep.userinfo=new UserInfo(win.rep,username,Const.NVL(password,""));
-                if (transname != null && dirname != null) {
-                  RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(dirname);
-                  if (repdir != null) {
-                    win.transMeta=new TransMeta(win.rep,transname,repdir);
-                    win.setFilename(repname);
-                    win.transMeta.clearChanged();
-                  }
+              win.rep.userinfo=new UserInfo(win.rep,username,password);
+              if (win.rep.userinfo.getID() > 0) {
+                RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(dirname);
+                if (repdir != null) {
+                  win.transMeta=new TransMeta(win.rep,transname,repdir);
+                  win.setFilename(repname);
+                  win.transMeta.clearChanged();
+                }
  else {
-                    log.logError(APP_NAME,"Can't find directory [" + dirname + "] in the repository.");
-                  }
+                  log.logError(APP_NAME,Messages.getString("Log.UnableFindDirectory",dirname));
                 }
               }
- catch (              KettleException e) {
-                log.logError(APP_NAME,"Can't verify username and password.");
+ else {
+                log.logError(APP_NAME,Messages.getString("Log.UnableVerifyUser"));
                 win.rep.disconnect();
                 win.rep=null;
-                MessageBox mb=new MessageBox(win.shell,SWT.OK | SWT.ICON_ERROR);
-                mb.setMessage("The supplied username or password is incorrect.");
-                mb.setText("Sorry...");
-                mb.open();
               }
             }
  else {
-              log.logError(APP_NAME,"Can't connect to the repository.");
+              log.logError(APP_NAME,Messages.getString("Log.UnableConnectToRepository"));
             }
           }
  else {
-            log.logError(APP_NAME,"No repository provided, can't load transformation.");
+            log.logError(APP_NAME,Messages.getString("Log.NoRepositoryRrovided"));
           }
         }
  else {
-          log.logError(APP_NAME,"No repositories defined on this system.");
+          log.logError(APP_NAME,Messages.getString("Log.NoRepositoriesDefined"));
         }
       }
  else       if (filename != null) {
@@ -127,12 +121,12 @@
  else {
       if (repinfo != null && userinfo != null) {
         win.rep=new Repository(log,repinfo,userinfo);
-        if (!win.rep.connect("Spoon")) {
+        if (!win.rep.connect(Messages.getString("System.Name"))) {
           win.rep=null;
         }
       }
       if (win.props.openLastFile()) {
-        log.logDetailed(APP_NAME,"Trying to open the last file used.");
+        log.logDetailed(APP_NAME,Messages.getString("Log.TryingOpenLastUsedFile"));
         String lastfiles[]=win.props.getLastFiles();
         String lastdirs[]=win.props.getLastDirs();
         boolean lasttypes[]=win.props.getLastTypes();
@@ -151,13 +145,12 @@
               if (win.rep.getName().equalsIgnoreCase(lastrepos[0])) {
                 RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(lastdirs[0]);
                 if (repdir != null) {
-                  log.logDetailed(APP_NAME,"Auto loading transformation [" + lastfiles[0] + "] from repository directory ["+ lastdirs[0]+ "]");
+                  log.logDetailed(APP_NAME,Messages.getString("Log.AutoLoadingTransformation",lastfiles[0],lastdirs[0]));
                   TransLoadProgressDialog tlpd=new TransLoadProgressDialog(win.shell,win.rep,lastfiles[0],repdir);
                   TransMeta transInfo=tlpd.open();
                   if (transInfo != null) {
                     win.transMeta=transInfo;
                     win.setFilename(lastfiles[0]);
-                    win.refreshHistory();
                   }
                 }
               }
@@ -165,7 +158,6 @@
  else {
               win.transMeta=new TransMeta(lastfiles[0]);
               win.setFilename(lastfiles[0]);
-              win.refreshHistory();
             }
           }
           win.transMeta.clearChanged();
@@ -174,7 +166,7 @@
     }
   }
  catch (  KettleException ke) {
-    log.logError(APP_NAME,"An error occurred: " + Const.CR + ke.getMessage());
+    log.logError(APP_NAME,Messages.getString("Log.ErrorOccurred") + Const.CR + ke.getMessage());
   }
   win.open();
   splash.dispose();
@@ -184,11 +176,11 @@
     }
   }
  catch (  Throwable e) {
-    log.logError(APP_NAME,"An unexpected error occurred in Spoon: probable cause: please close all windows before stopping Spoon! " + Const.CR + e.getMessage());
+    log.logError(APP_NAME,Messages.getString("Log.UnexpectedErrorOccurred") + Const.CR + e.getMessage());
     e.printStackTrace();
   }
   win.dispose();
-  log.logBasic(APP_NAME,APP_NAME + " has ended.");
+  log.logBasic(APP_NAME,APP_NAME + " " + Messages.getString("Log.AppHasEnded"));
   log.close();
   System.exit(0);
 }
