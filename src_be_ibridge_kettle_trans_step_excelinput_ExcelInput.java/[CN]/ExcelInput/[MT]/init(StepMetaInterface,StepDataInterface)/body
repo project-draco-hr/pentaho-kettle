@@ -3,22 +3,25 @@
   data=(ExcelInputData)sdi;
   if (super.init(smi,sdi)) {
     initErrorHandling();
-    data.files=meta.getFiles();
-    if (data.files != null && data.files.length > 0) {
-      data.row=meta.getEmptyFields();
-      if (data.row.size() > 0) {
-        data.maxfilelength=-1;
-        for (int i=0; i < data.files.length; i++)         if (data.files[i].length() > data.maxfilelength)         data.maxfilelength=data.files[i].length();
-        data.maxsheetlength=-1;
-        for (int i=0; i < meta.getSheetName().length; i++)         if (meta.getSheetName()[i].length() > data.maxsheetlength)         data.maxsheetlength=meta.getSheetName()[i].length();
-        return true;
+    data.files=meta.getFileList();
+    if (data.files.nrOfFiles() == 0 && !meta.isErrorIgnored()) {
+      logError("No file(s) specified! Stop processing.");
+      return false;
+    }
+    data.row=meta.getEmptyFields();
+    if (data.row.size() > 0) {
+      data.maxfilelength=-1;
+      for (Iterator iter=data.files.getFiles().iterator(); iter.hasNext(); ) {
+        File file=(File)iter.next();
+        String name=file.getName();
+        if (name.length() > data.maxfilelength)         data.maxfilelength=name.length();
       }
- else {
-        logError("No input fields defined!");
-      }
+      data.maxsheetlength=-1;
+      for (int i=0; i < meta.getSheetName().length; i++)       if (meta.getSheetName()[i].length() > data.maxsheetlength)       data.maxsheetlength=meta.getSheetName()[i].length();
+      return true;
     }
  else {
-      logError("No file specified! Stop processing.");
+      logError("No input fields defined!");
     }
   }
   return false;
