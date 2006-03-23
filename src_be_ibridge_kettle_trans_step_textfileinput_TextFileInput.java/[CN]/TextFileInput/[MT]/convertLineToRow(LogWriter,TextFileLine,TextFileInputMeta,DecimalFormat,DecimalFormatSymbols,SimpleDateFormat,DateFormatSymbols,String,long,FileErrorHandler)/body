@@ -1,0 +1,103 @@
+{
+  Row r=new Row();
+  if (textFileLine == null || textFileLine.line == null || textFileLine.line.length() == 0)   return r;
+  int fieldnr;
+  Value value;
+  Value errorCount=null;
+  if (info.isErrorIgnored() && info.getErrorCountField() != null && info.getErrorCountField().length() > 0) {
+    errorCount=new Value(info.getErrorCountField(),0L);
+  }
+  Value errorFields=null;
+  if (info.isErrorIgnored() && info.getErrorFieldsField() != null && info.getErrorFieldsField().length() > 0) {
+    errorFields=new Value(info.getErrorFieldsField(),"");
+  }
+  Value errorText=null;
+  if (info.isErrorIgnored() && info.getErrorTextField() != null && info.getErrorTextField().length() > 0) {
+    errorText=new Value(info.getErrorTextField(),"");
+  }
+  int nrfields=info.getInputFields().length;
+  try {
+    ArrayList strings=convertLineToStrings(log,textFileLine.line,info);
+    for (fieldnr=0; fieldnr < nrfields; fieldnr++) {
+      TextFileInputField f=info.getInputFields()[fieldnr];
+      String field=fieldnr < nrfields ? f.getName() : "empty" + fieldnr;
+      int type=fieldnr < nrfields ? f.getType() : Value.VALUE_TYPE_STRING;
+      String format=fieldnr < nrfields ? f.getFormat() : "";
+      int length=fieldnr < nrfields ? f.getLength() : -1;
+      int precision=fieldnr < nrfields ? f.getPrecision() : -1;
+      String group=fieldnr < nrfields ? f.getGroupSymbol() : "";
+      String decimal=fieldnr < nrfields ? f.getDecimalSymbol() : "";
+      String currency=fieldnr < nrfields ? f.getCurrencySymbol() : "";
+      String nullif=fieldnr < nrfields ? f.getNullString() : "";
+      int trim_type=fieldnr < nrfields ? f.getTrimType() : TextFileInputMeta.TYPE_TRIM_NONE;
+      if (fieldnr < strings.size()) {
+        String pol=(String)strings.get(fieldnr);
+        try {
+          value=convertValue(pol,field,type,format,length,precision,group,decimal,currency,nullif,trim_type,ldf,ldfs,ldaf,ldafs);
+        }
+ catch (        Exception e) {
+          if (info.isErrorIgnored()) {
+            String message="Couldn't parse field [" + field + "] with value ["+ pol+ "] : "+ e.getMessage();
+            log.logBasic(fname,"WARNING: " + message);
+            value=new Value(field,type);
+            value.setNull();
+            if (errorCount != null) {
+              errorCount.plus(1L);
+            }
+            if (errorFields != null) {
+              StringBuffer sb=new StringBuffer(errorFields.getString());
+              if (sb.length() > 0)               sb.append(", ");
+              sb.append(field);
+              errorFields.setValue(sb);
+            }
+            if (errorText != null) {
+              StringBuffer sb=new StringBuffer(errorText.getString());
+              if (sb.length() > 0)               sb.append(Const.CR);
+              sb.append(message);
+              errorText.setValue(sb);
+            }
+            if (errorHandler != null) {
+              errorHandler.handleLineError(textFileLine.lineNumber,AbstractFileErrorHandler.DUMMY_SOURCE);
+            }
+            if (info.isErrorLineSkipped())             r.setIgnore();
+          }
+ else {
+            throw new KettleException("Couldn't parse field [" + f.getName() + "] with value ["+ pol+ "]",e);
+          }
+        }
+      }
+ else {
+        value=new Value(field,type);
+        value.setNull();
+      }
+      r.addValue(value);
+    }
+    if (errorCount != null)     r.addValue(errorCount);
+    if (errorFields != null)     r.addValue(errorFields);
+    if (errorText != null)     r.addValue(errorText);
+    if (fieldnr < info.getInputFields().length) {
+      for (int i=fieldnr; i < info.getInputFields().length; i++) {
+        TextFileInputField f=info.getInputFields()[i];
+        value=new Value(f.getName(),f.getType());
+        value.setLength(f.getLength(),f.getPrecision());
+        value.setNull();
+        r.addValue(value);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException("Error converting line",e);
+  }
+  if (info.includeFilename()) {
+    Value inc=new Value(info.getFilenameField(),fname);
+    inc.setLength(100);
+    r.addValue(inc);
+  }
+  if (info.includeRowNumber()) {
+    Value inc=new Value(info.getRowNumberField(),Value.VALUE_TYPE_INTEGER);
+    inc.setValue(rowNr);
+    inc.setLength(9);
+    r.addValue(inc);
+  }
+  return r;
+}
