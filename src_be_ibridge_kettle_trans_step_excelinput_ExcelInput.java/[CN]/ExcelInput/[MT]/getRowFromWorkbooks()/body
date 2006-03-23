@@ -17,7 +17,8 @@
     boolean nextsheet=false;
     debug="Get sheet #" + data.filenr + "."+ data.sheetnr;
     logDetailed(debug);
-    Sheet sheet=data.workbook.getSheet(meta.getSheetName()[data.sheetnr]);
+    String sheetName=meta.getSheetName()[data.sheetnr];
+    Sheet sheet=data.workbook.getSheet(sheetName);
     if (sheet != null) {
       if (data.rownr < 0) {
         data.rownr=meta.getStartRow()[data.sheetnr];
@@ -30,18 +31,24 @@
       debug="startcol = " + data.colnr;
       try {
         int rownr=data.rownr++;
-        debug="Get line #" + rownr + " from sheet #"+ data.filenr+ "."+ data.sheetnr;
-        logRowlevel(debug);
-        Cell line[]=sheet.getRow(rownr);
-        logRowlevel("Read line with " + line.length + " cells");
-        ExcelInputRow excelInputRow=new ExcelInputRow(sheet.getName(),rownr + 1,line);
-        Row r=fillRow(data.row,data.colnr,excelInputRow);
-        logRowlevel("Converted line to row #" + rownr + " : "+ r);
-        if (line.length > 0 || !meta.ignoreEmptyRows()) {
-          retval=r;
-        }
-        if (line.length == 0 && meta.stopOnEmpty()) {
+        if (!data.filePlayList.isProcessingNeeded(data.file,rownr,sheetName)) {
+          retval.setIgnore();
           nextsheet=true;
+        }
+ else {
+          debug="Get line #" + rownr + " from sheet #"+ data.filenr+ "."+ data.sheetnr;
+          logRowlevel(debug);
+          Cell line[]=sheet.getRow(rownr);
+          logRowlevel("Read line with " + line.length + " cells");
+          ExcelInputRow excelInputRow=new ExcelInputRow(sheet.getName(),rownr + 1,line);
+          Row r=fillRow(data.row,data.colnr,excelInputRow);
+          logRowlevel("Converted line to row #" + rownr + " : "+ r);
+          if (line.length > 0 || !meta.ignoreEmptyRows()) {
+            retval=r;
+          }
+          if (line.length == 0 && meta.stopOnEmpty()) {
+            nextsheet=true;
+          }
         }
       }
  catch (      ArrayIndexOutOfBoundsException e) {
