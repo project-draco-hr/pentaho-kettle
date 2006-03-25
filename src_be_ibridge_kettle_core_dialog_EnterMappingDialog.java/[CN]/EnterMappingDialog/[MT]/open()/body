@@ -9,6 +9,7 @@
   shell.setLayout(formLayout);
   shell.setText("Enter the mapping");
   int margin=Const.MARGIN;
+  int buttonSpace=90;
   wlSource=new Label(shell,SWT.NONE);
   wlSource.setText("Source fields: ");
   props.setLook(wlSource);
@@ -23,8 +24,44 @@
   fdSource.left=new FormAttachment(0,0);
   fdSource.right=new FormAttachment(25,0);
   fdSource.top=new FormAttachment(wlSource,margin);
-  fdSource.bottom=new FormAttachment(100,-30);
+  fdSource.bottom=new FormAttachment(100,-buttonSpace);
   wSource.setLayoutData(fdSource);
+  wlSourceAuto=new Label(shell,SWT.NONE);
+  wlSourceAuto.setText("Auto target selection?");
+  props.setLook(wlSourceAuto);
+  fdlSourceAuto=new FormData();
+  fdlSourceAuto.left=new FormAttachment(0,0);
+  fdlSourceAuto.top=new FormAttachment(wSource,margin);
+  wlSourceAuto.setLayoutData(fdlSourceAuto);
+  wSourceAuto=new Button(shell,SWT.CHECK);
+  wSourceAuto.setSelection(true);
+  props.setLook(wSourceAuto);
+  fdSourceAuto=new FormData();
+  fdSourceAuto.left=new FormAttachment(wlSourceAuto,margin * 2);
+  fdSourceAuto.right=new FormAttachment(25,0);
+  fdSourceAuto.top=new FormAttachment(wSource,margin);
+  wSourceAuto.setLayoutData(fdSourceAuto);
+  wlSourceHide=new Label(shell,SWT.NONE);
+  wlSourceHide.setText("Hide used sources?");
+  props.setLook(wlSourceHide);
+  fdlSourceHide=new FormData();
+  fdlSourceHide.left=new FormAttachment(0,0);
+  fdlSourceHide.top=new FormAttachment(wSourceAuto,margin);
+  wlSourceHide.setLayoutData(fdlSourceHide);
+  wSourceHide=new Button(shell,SWT.CHECK);
+  wSourceHide.setSelection(true);
+  props.setLook(wSourceHide);
+  fdSourceHide=new FormData();
+  fdSourceHide.left=new FormAttachment(wlSourceHide,margin * 2);
+  fdSourceHide.right=new FormAttachment(25,0);
+  fdSourceHide.top=new FormAttachment(wSourceAuto,margin);
+  wSourceHide.setLayoutData(fdSourceHide);
+  wSourceHide.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      refreshMappings();
+    }
+  }
+);
   wlTarget=new Label(shell,SWT.NONE);
   wlTarget.setText("Target fields: ");
   props.setLook(wlTarget);
@@ -39,8 +76,44 @@
   fdTarget.left=new FormAttachment(wSource,margin * 2);
   fdTarget.right=new FormAttachment(50,0);
   fdTarget.top=new FormAttachment(wlTarget,margin);
-  fdTarget.bottom=new FormAttachment(100,-30);
+  fdTarget.bottom=new FormAttachment(100,-buttonSpace);
   wTarget.setLayoutData(fdTarget);
+  wlTargetAuto=new Label(shell,SWT.NONE);
+  wlTargetAuto.setText("Auto source selection?");
+  props.setLook(wlTargetAuto);
+  fdlTargetAuto=new FormData();
+  fdlTargetAuto.left=new FormAttachment(wSource,margin * 2);
+  fdlTargetAuto.top=new FormAttachment(wTarget,margin);
+  wlTargetAuto.setLayoutData(fdlTargetAuto);
+  wTargetAuto=new Button(shell,SWT.CHECK);
+  wTargetAuto.setSelection(false);
+  props.setLook(wTargetAuto);
+  fdTargetAuto=new FormData();
+  fdTargetAuto.left=new FormAttachment(wlTargetAuto,margin * 2);
+  fdTargetAuto.right=new FormAttachment(50,0);
+  fdTargetAuto.top=new FormAttachment(wTarget,margin);
+  wTargetAuto.setLayoutData(fdTargetAuto);
+  wlTargetHide=new Label(shell,SWT.NONE);
+  wlTargetHide.setText("Hide used targets?");
+  props.setLook(wlTargetHide);
+  fdlTargetHide=new FormData();
+  fdlTargetHide.left=new FormAttachment(wSource,margin * 2);
+  fdlTargetHide.top=new FormAttachment(wTargetAuto,margin);
+  wlTargetHide.setLayoutData(fdlTargetHide);
+  wTargetHide=new Button(shell,SWT.CHECK);
+  wTargetHide.setSelection(true);
+  props.setLook(wTargetHide);
+  fdTargetHide=new FormData();
+  fdTargetHide.left=new FormAttachment(wlTargetHide,margin * 2);
+  fdTargetHide.right=new FormAttachment(50,0);
+  fdTargetHide.top=new FormAttachment(wTargetAuto,margin);
+  wTargetHide.setLayoutData(fdTargetHide);
+  wTargetHide.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      refreshMappings();
+    }
+  }
+);
   wAdd=new Button(shell,SWT.PUSH);
   fdAdd=new FormData();
   wAdd.setText("  &Add  ");
@@ -84,11 +157,7 @@
   fdResult.bottom=new FormAttachment(100,-30);
   wResult.setLayoutData(fdResult);
   wOK=new Button(shell,SWT.PUSH);
-  fdOK=new FormData();
   wOK.setText("  &OK  ");
-  fdOK.left=new FormAttachment(33,0);
-  fdOK.bottom=new FormAttachment(100,0);
-  wOK.setLayoutData(fdOK);
   lsOK=new Listener(){
     public void handleEvent(    Event e){
       ok();
@@ -98,10 +167,6 @@
   wOK.addListener(SWT.Selection,lsOK);
   wCancel=new Button(shell,SWT.PUSH);
   wCancel.setText("  &Cancel  ");
-  fdCancel=new FormData();
-  fdCancel.left=new FormAttachment(66,0);
-  fdCancel.bottom=new FormAttachment(100,0);
-  wCancel.setLayoutData(fdCancel);
   lsCancel=new Listener(){
     public void handleEvent(    Event e){
       cancel();
@@ -109,9 +174,10 @@
   }
 ;
   wCancel.addListener(SWT.Selection,lsCancel);
+  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCancel},margin,null);
   wSource.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      findTarget();
+      if (wSourceAuto.getSelection())       findTarget();
     }
     public void widgetDefaultSelected(    SelectionEvent e){
       add();
@@ -120,7 +186,7 @@
 );
   wTarget.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      findSource();
+      if (wTargetAuto.getSelection())       findSource();
     }
     public void widgetDefaultSelected(    SelectionEvent e){
       add();
