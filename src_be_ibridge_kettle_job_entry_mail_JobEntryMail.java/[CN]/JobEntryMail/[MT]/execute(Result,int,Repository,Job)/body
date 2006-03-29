@@ -14,44 +14,60 @@
     msg.setRecipients(Message.RecipientType.TO,address);
     msg.setSubject(subject);
     msg.setSentDate(new Date());
-    String messageText="";
+    StringBuffer messageText=new StringBuffer();
     if (comment != null) {
-      messageText+=comment + Const.CR + Const.CR;
+      messageText.append(comment).append(Const.CR).append(Const.CR);
     }
-    messageText+="Job:" + Const.CR;
-    messageText+="-----" + Const.CR;
-    messageText+="Name       : " + parentJob.getJobinfo().getName() + Const.CR;
-    messageText+="Directory  : " + parentJob.getJobinfo().getDirectory() + Const.CR;
-    messageText+="JobEntry   : " + getName() + Const.CR;
-    messageText+=Const.CR;
+    messageText.append("Job:").append(Const.CR);
+    messageText.append("-----").append(Const.CR);
+    messageText.append("Name       : ").append(parentJob.getJobinfo().getName()).append(Const.CR);
+    messageText.append("Directory  : ").append(parentJob.getJobinfo().getDirectory()).append(Const.CR);
+    messageText.append("JobEntry   : ").append(getName()).append(Const.CR);
+    messageText.append(Const.CR);
     if (include_date) {
       Value date=new Value("date",new Date());
-      messageText+="Message date: " + date.toString() + Const.CR+ Const.CR;
+      messageText.append("Message date: ").append(date.toString()).append(Const.CR).append(Const.CR);
     }
     if (prev_result != null) {
-      messageText+="Previous result:" + Const.CR;
-      messageText+="-----------------" + Const.CR;
-      messageText+="Job entry nr         : " + prev_result.getEntryNr() + Const.CR;
-      messageText+="Errors               : " + prev_result.getNrErrors() + Const.CR;
-      messageText+="Lines read           : " + prev_result.getNrLinesRead() + Const.CR;
-      messageText+="Lines written        : " + prev_result.getNrLinesWritten() + Const.CR;
-      messageText+="Lines input          : " + prev_result.getNrLinesInput() + Const.CR;
-      messageText+="Lines output         : " + prev_result.getNrLinesOutput() + Const.CR;
-      messageText+="Lines updated        : " + prev_result.getNrLinesUpdated() + Const.CR;
-      messageText+="Script exit status   : " + prev_result.getExitStatus() + Const.CR;
-      messageText+="Result               : " + prev_result.getResult() + Const.CR;
-      messageText+=Const.CR;
+      messageText.append("Previous result:").append(Const.CR);
+      messageText.append("-----------------").append(Const.CR);
+      messageText.append("Job entry nr         : ").append(prev_result.getEntryNr()).append(Const.CR);
+      messageText.append("Errors               : ").append(prev_result.getNrErrors()).append(Const.CR);
+      messageText.append("Lines read           : ").append(prev_result.getNrLinesRead()).append(Const.CR);
+      messageText.append("Lines written        : ").append(prev_result.getNrLinesWritten()).append(Const.CR);
+      messageText.append("Lines input          : ").append(prev_result.getNrLinesInput()).append(Const.CR);
+      messageText.append("Lines output         : ").append(prev_result.getNrLinesOutput()).append(Const.CR);
+      messageText.append("Lines updated        : ").append(prev_result.getNrLinesUpdated()).append(Const.CR);
+      messageText.append("Script exit status   : ").append(prev_result.getExitStatus()).append(Const.CR);
+      messageText.append("Result               : ").append(prev_result.getResult()).append(Const.CR);
+      messageText.append(Const.CR);
     }
     ArrayList path=parentJob.getJobEntryResults();
     if (path != null) {
-      messageText+="Path to this job entry:" + Const.CR;
-      messageText+="------------------------" + Const.CR;
+      messageText.append("Path to this job entry:").append(Const.CR);
+      messageText.append("------------------------").append(Const.CR);
       for (int i=0; i < path.size(); i++) {
         JobEntryResult jer=(JobEntryResult)path.get(i);
-        messageText+="#" + i + " : "+ jer.getThisJobEntry().getName()+ Const.CR;
+        messageText.append("#" + i + " : "+ jer.getThisJobEntry().getName()).append(Const.CR);
       }
     }
-    msg.setText(messageText);
+    Multipart parts=new MimeMultipart();
+    MimeBodyPart part1=new MimeBodyPart();
+    part1.setText(messageText.toString());
+    parts.addBodyPart(part1);
+    if (includeFiles && prev_result != null && prev_result.interestingFiles.size() > 0) {
+      for (Iterator iter=prev_result.interestingFiles.iterator(); iter.hasNext(); ) {
+        File file=(File)iter.next();
+        if (file != null && file.exists()) {
+          MimeBodyPart files=new MimeBodyPart();
+          FileDataSource fds=new FileDataSource(file);
+          files.setDataHandler(new DataHandler(fds));
+          files.setFileName(fds.getName());
+          parts.addBodyPart(files);
+        }
+      }
+    }
+    msg.setContent(parts);
     Transport.send(msg);
   }
  catch (  MessagingException mex) {
