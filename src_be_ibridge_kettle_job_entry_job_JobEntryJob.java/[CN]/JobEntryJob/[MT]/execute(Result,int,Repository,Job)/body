@@ -11,24 +11,47 @@
     if (parentJob.getJobMeta().isBatchIdPassed()) {
       job.getJobMeta().setBatchId(parentJob.getJobMeta().getBatchId());
     }
-    JobEntryJobRunner runner=new JobEntryJobRunner(job,prev_result,nr);
-    new Thread(runner).start();
-    while (!runner.isFinished() && !parentJob.isStopped()) {
-      try {
-        Thread.sleep(100);
+    int runNr=0;
+    int nrRuns=1;
+    boolean forEvery=false;
+    if (prev_result.getRows() != null)     nrRuns=prev_result.getRows().size();
+    while (runNr < nrRuns && result.getResult()) {
+      Result pass;
+      if (forEvery) {
+        pass=(Result)prev_result.clone();
+        ArrayList passRows=new ArrayList();
+        passRows.add(prev_result.getRows().get(runNr));
+        pass.setRows(passRows);
       }
- catch (      InterruptedException e) {
-      }
-    }
-    if (parentJob.isStopped()) {
-      job.stopAll();
-      runner.waitUntilFinished();
-      job.endProcessing("stop");
-    }
  else {
-      job.endProcessing("end");
+        pass=prev_result;
+      }
+      JobEntryJobRunner runner=new JobEntryJobRunner(job,prev_result,nr);
+      new Thread(runner).start();
+      while (!runner.isFinished() && !parentJob.isStopped()) {
+        try {
+          Thread.sleep(100);
+        }
+ catch (        InterruptedException e) {
+        }
+      }
+      if (parentJob.isStopped()) {
+        job.stopAll();
+        runner.waitUntilFinished();
+        job.endProcessing("stop");
+      }
+ else {
+        job.endProcessing("end");
+      }
+      Result oneResult=runner.getResult();
+      if (runNr == 0) {
+        result=oneResult;
+      }
+ else {
+        result.add(oneResult);
+      }
+      runNr++;
     }
-    result=runner.getResult();
   }
  catch (  KettleException je) {
     log.logError(toString(),"Unable to open job entry job with name [" + getName() + "]");
