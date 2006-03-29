@@ -1,7 +1,7 @@
 {
   Result res=null;
   JobEntryResult jer=new JobEntryResult();
-  jer.setJobName(getJobinfo().getName());
+  jer.setJobName(getJobMeta().getName());
   if (stopped) {
     res=new Result(nr);
     res.stopped=true;
@@ -10,7 +10,7 @@
   log.logDetailed(toString(),"exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (startpoint != null ? startpoint.toString() : "null")+ ")");
   if (startpoint == null) {
     beginProcessing();
-    startpoint=jobinfo.findJobEntry(JobMeta.STRING_SPECIAL_START,0);
+    startpoint=jobMeta.findJobEntry(JobMeta.STRING_SPECIAL_START,0);
     if (startpoint == null) {
       log.logError(toString(),"Couldn't find starting point in this job.");
       return prev_result;
@@ -26,10 +26,10 @@
   Result result=jei.execute(prev_result,nr,rep,this);
   jer.setResult((Result)result.clone());
   jobEntryResults.add(jer.clone());
-  int nrNext=jobinfo.findNrNextChefGraphEntries(startpoint);
+  int nrNext=jobMeta.findNrNextChefGraphEntries(startpoint);
   for (int i=0; i < nrNext && !isStopped(); i++) {
-    JobEntryCopy nextEntry=jobinfo.findNextChefGraphEntry(startpoint,i);
-    JobHopMeta hi=jobinfo.findJobHop(startpoint,nextEntry);
+    JobEntryCopy nextEntry=jobMeta.findNextChefGraphEntry(startpoint,i);
+    JobHopMeta hi=jobMeta.findJobHop(startpoint,nextEntry);
     String nextComment=null;
     if (hi.isUnconditional()) {
       nextComment="Followed unconditional link";
@@ -39,9 +39,9 @@
  else       nextComment="Followed link after failure!";
     }
     if (hi.isUnconditional() || (startpoint.evaluates() && (!(hi.getEvaluation() ^ result.getResult())))) {
-      log.logBasic(jobinfo.toString(),"Starting entry [" + nextEntry.getName() + "]");
+      log.logBasic(jobMeta.toString(),"Starting entry [" + nextEntry.getName() + "]");
       res=execute(nr + 1,result,nextEntry,startpoint,nextComment);
-      log.logBasic(jobinfo.toString(),"Finished jobentry [" + nextEntry.getName() + "] (result="+ res.getResult()+ ")");
+      log.logBasic(jobMeta.toString(),"Finished jobentry [" + nextEntry.getName() + "] (result="+ res.getResult()+ ")");
     }
   }
   if (res == null) {

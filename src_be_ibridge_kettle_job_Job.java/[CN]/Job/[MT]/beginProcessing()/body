@@ -3,12 +3,12 @@
   logDate=new Date();
   startDate=Const.MIN_DATE;
   endDate=currentDate;
-  DatabaseMeta logcon=jobinfo.getLogConnection();
+  DatabaseMeta logcon=jobMeta.getLogConnection();
   if (logcon != null) {
     Database ldb=new Database(logcon);
     try {
       ldb.connect();
-      Row lastr=ldb.getLastLogDate(jobinfo.logTable,jobinfo.getName(),true,"end");
+      Row lastr=ldb.getLastLogDate(jobMeta.getLogTable(),jobMeta.getName(),true,"end");
       if (lastr != null && lastr.size() > 0) {
         Value last=lastr.getValue(0);
         if (last != null && !last.isNull()) {
@@ -16,11 +16,16 @@
         }
       }
       depDate=currentDate;
-      ldb.writeLogRecord(jobinfo.logTable,false,0,true,jobinfo.getName(),"start",0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,log.getString());
+      Value id_batch=new Value("ID_JOB",(long)1);
+      if (jobMeta.isBatchIdUsed()) {
+        ldb.getNextValue(null,jobMeta.getLogTable(),id_batch);
+        jobMeta.setBatchId(id_batch.getInteger());
+      }
+      ldb.writeLogRecord(jobMeta.getLogTable(),jobMeta.isBatchIdUsed(),jobMeta.getBatchId(),true,jobMeta.getName(),"start",0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,log.getString());
       ldb.disconnect();
     }
  catch (    KettleDatabaseException dbe) {
-      throw new KettleJobException("Unable to begin processing by logging start in logtable " + jobinfo.logTable,dbe);
+      throw new KettleJobException("Unable to begin processing by logging start in logtable " + jobMeta.getLogTable(),dbe);
     }
  finally {
       ldb.disconnect();
