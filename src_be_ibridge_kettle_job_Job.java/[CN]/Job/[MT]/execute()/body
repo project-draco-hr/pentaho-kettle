@@ -2,7 +2,19 @@
   JobEntryResult jerStart=new JobEntryResult(null,"Start of job execution","start",null);
   jobTracker.addJobTracker(new JobTracker(jobMeta,jerStart));
   active=true;
-  Result res=execute(0,null,null,null,"start");
+  JobEntryCopy startpoint;
+  beginProcessing();
+  startpoint=jobMeta.findJobEntry(JobMeta.STRING_SPECIAL_START,0);
+  if (startpoint == null) {
+    throw new KettleJobException("Couldn't find starting point in this job.");
+  }
+  JobEntrySpecial jes=(JobEntrySpecial)startpoint.getEntry();
+  Result res=null;
+  boolean isFirst=true;
+  while (jes.isRepeat() || isFirst && !isStopped()) {
+    isFirst=false;
+    res=execute(0,null,startpoint,null,"start");
+  }
   JobEntryResult jerEnd=new JobEntryResult(res,"Job execution ended","end",null);
   jobTracker.addJobTracker(new JobTracker(jobMeta,jerEnd));
   active=false;

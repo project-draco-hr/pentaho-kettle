@@ -1,0 +1,117 @@
+{
+  Shell parent=getParent();
+  display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE);
+  props.setLook(shell);
+  ModifyListener lsMod=new ModifyListener(){
+    public void modifyText(    ModifyEvent e){
+      scheduler.setChanged();
+    }
+  }
+;
+  backupChanged=scheduler.hasChanged();
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText("Job Scheduling");
+  int margin=Const.MARGIN;
+  wRepeat=new Button(shell,SWT.CHECK);
+  wRepeat.addSelectionListener(new SelectionListener(){
+    public void widgetSelected(    SelectionEvent arg0){
+      enableDisableControls();
+    }
+    public void widgetDefaultSelected(    SelectionEvent arg0){
+    }
+  }
+);
+  placeControl(shell,"Repeat: ",wRepeat,null,null);
+  wType=new CCombo(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wType.addModifyListener(lsMod);
+  wType.addSelectionListener(new SelectionListener(){
+    public void widgetSelected(    SelectionEvent arg0){
+      enableDisableControls();
+    }
+    public void widgetDefaultSelected(    SelectionEvent arg0){
+    }
+  }
+);
+  wType.add(NOSCHEDULING);
+  wType.add(INTERVAL);
+  wType.add(DAILY);
+  wType.add(WEEKLY);
+  wType.add(MONTHLY);
+  wType.setEditable(false);
+  wType.setVisibleItemCount(wType.getItemCount());
+  placeControl(shell,"Type: ",wType,null,wRepeat);
+  wInterval=new Spinner(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  placeControl(shell,"Interval in minutes: ",wInterval,null,wType);
+  Composite time=new Composite(shell,SWT.NONE);
+  time.setLayout(new FillLayout());
+  wHour=new Spinner(time,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wHour.setMinimum(0);
+  wHour.setMaximum(23);
+  wMinutes=new Spinner(time,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wMinutes.setMinimum(0);
+  wMinutes.setMaximum(59);
+  placeControl(shell,"Time: ",time,null,wInterval);
+  wDayOfWeek=new CCombo(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wDayOfWeek.addModifyListener(lsMod);
+  wDayOfWeek.add("Sunday");
+  wDayOfWeek.add("Monday");
+  wDayOfWeek.add("Tuesday");
+  wDayOfWeek.add("Wednesday");
+  wDayOfWeek.add("Thursday");
+  wDayOfWeek.add("Friday");
+  wDayOfWeek.add("Saturday");
+  wDayOfWeek.setEditable(false);
+  wDayOfWeek.setVisibleItemCount(wDayOfWeek.getItemCount());
+  placeControl(shell,"Day of Week: ",wDayOfWeek,null,time);
+  wDayOfMonth=new Spinner(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wDayOfMonth.addModifyListener(lsMod);
+  wDayOfMonth.setMinimum(1);
+  wDayOfMonth.setMaximum(30);
+  placeControl(shell,"Day of Month: ",wDayOfMonth,null,wDayOfWeek);
+  wOK=new Button(shell,SWT.PUSH);
+  wOK.setText("  &OK  ");
+  wCancel=new Button(shell,SWT.PUSH);
+  wCancel.setText("  &Cancel  ");
+  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCancel},margin,null);
+  lsCancel=new Listener(){
+    public void handleEvent(    Event e){
+      cancel();
+    }
+  }
+;
+  lsOK=new Listener(){
+    public void handleEvent(    Event e){
+      ok();
+    }
+  }
+;
+  wOK.addListener(SWT.Selection,lsOK);
+  wCancel.addListener(SWT.Selection,lsCancel);
+  lsDef=new SelectionAdapter(){
+    public void widgetDefaultSelected(    SelectionEvent e){
+      ok();
+    }
+  }
+;
+  wType.addSelectionListener(lsDef);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      cancel();
+    }
+  }
+);
+  getData();
+  enableDisableControls();
+  WindowProperty winprop=props.getScreen(shell.getText());
+  if (winprop != null)   winprop.setShell(shell);
+ else   shell.pack();
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return scheduler;
+}
