@@ -1,0 +1,45 @@
+{
+  meta=(ValueMapperMeta)smi;
+  data=(ValueMapperData)sdi;
+  Row r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.keynr=r.searchValueIndex(meta.getFieldToUse());
+    if (data.keynr < 0) {
+      String message=Messages.getString("ValueMapper.RuntimeError.FieldToUseNotFound.VALUEMAPPER0001",meta.getFieldToUse(),Const.CR,r.toString());
+      log.logError(toString(),message);
+      setErrors(1);
+      stopAll();
+      throw new KettleStepException(message);
+    }
+  }
+  Value value=r.getValue(data.keynr);
+  String source=value.getString();
+  String target=(String)data.hashtable.get(source);
+  if (target != null) {
+    if (meta.getTargetField() != null && meta.getTargetField().length() > 0) {
+      Value extraValue=new Value(meta.getTargetField(),target);
+      r.addValue(extraValue);
+    }
+ else {
+      int type=value.getType();
+      value.setValue(target);
+      if (type != value.getType()) {
+        value.setType(type);
+      }
+    }
+  }
+ else {
+    if (meta.getTargetField() != null && meta.getTargetField().length() > 0) {
+      Value emptyValue=new Value(meta.getTargetField(),Value.VALUE_TYPE_STRING);
+      emptyValue.setNull();
+      r.addValue(emptyValue);
+    }
+  }
+  putRow(r);
+  return true;
+}
