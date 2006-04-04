@@ -1,0 +1,26 @@
+{
+  StringBuffer xml=new StringBuffer();
+  if (monitor != null)   monitor.subTask("Exporting the transformations...");
+  long dirids[]=dirTree.getDirectoryIDs();
+  System.out.println("Going through " + dirids.length + " directories in directory ["+ dirTree.getPath()+ "]");
+  for (int d=0; d < dirids.length && (monitor == null || (monitor != null && !monitor.isCanceled())); d++) {
+    RepositoryDirectory repdir=dirTree.findDirectory(dirids[d]);
+    System.out.println("Directory ID #" + d + " : "+ dirids[d]+ " : "+ repdir);
+    String trans[]=getTransformationNames(dirids[d]);
+    for (int i=0; i < trans.length && (monitor == null || (monitor != null && !monitor.isCanceled())); i++) {
+      try {
+        TransMeta ti=new TransMeta(this,trans[i],repdir);
+        System.out.println("Loading/Exporting transformation [" + repdir.getPath() + " : "+ trans[i]+ "]");
+        if (monitor != null)         monitor.subTask("Exporting transformation [" + trans[i] + "]");
+        xml.append(ti.getXML() + Const.CR);
+      }
+ catch (      KettleException ke) {
+        log.logError(toString(),"An error occurred reading transformation [" + trans[i] + "] from directory ["+ repdir+ "] : "+ ke.getMessage());
+        log.logError(toString(),"Transformation [" + trans[i] + "] from directory ["+ repdir+ "] was not exported because of a loading error!");
+      }
+    }
+    if (repdir.getID() != dirTree.getID())     exportTransformations(null,repdir);
+  }
+  if (monitor != null)   monitor.worked(1);
+  return xml.toString();
+}

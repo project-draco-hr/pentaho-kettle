@@ -1,0 +1,24 @@
+{
+  StringBuffer xml=new StringBuffer();
+  long dirids[]=dirTree.getDirectoryIDs();
+  System.out.println("Going through " + dirids.length + " directories in directory ["+ dirTree.getPath()+ "]");
+  if (monitor != null)   monitor.subTask("Exporting the jobs...");
+  for (int d=0; d < dirids.length && (monitor == null || (monitor != null && !monitor.isCanceled())); d++) {
+    RepositoryDirectory repdir=dirTree.findDirectory(dirids[d]);
+    String jobs[]=getJobNames(dirids[d]);
+    for (int i=0; i < jobs.length && (monitor == null || (monitor != null && !monitor.isCanceled())); i++) {
+      try {
+        JobMeta ji=new JobMeta(log,this,jobs[i],repdir);
+        System.out.println("Loading/Exporting job [" + repdir.getPath() + " : "+ jobs[i]+ "]");
+        if (monitor != null)         monitor.subTask("Exporting job [" + jobs[i] + "]");
+        xml.append(ji.getXML() + Const.CR);
+      }
+ catch (      KettleException ke) {
+        log.logError(toString(),"An error occurred reading job [" + jobs[i] + "] from directory ["+ repdir+ "] : "+ ke.getMessage());
+        log.logError(toString(),"Job [" + jobs[i] + "] from directory ["+ repdir+ "] was not exported because of a loading error!");
+      }
+    }
+    if (repdir.getID() != dirTree.getID())     exportJobs(null,repdir);
+  }
+  return xml.toString();
+}
