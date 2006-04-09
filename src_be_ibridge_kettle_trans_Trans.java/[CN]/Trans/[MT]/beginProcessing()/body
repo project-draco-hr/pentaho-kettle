@@ -5,56 +5,56 @@
     startDate=Const.MIN_DATE;
     endDate=currentDate;
     SimpleDateFormat df=new SimpleDateFormat(REPLAY_DATE_FORMAT);
-    log.logBasic(toString(),"This transformation can be replayed with replay date: " + df.format(currentDate));
+    log.logBasic(toString(),Messages.getString("Trans.Log.TransformationCanBeReplayed") + df.format(currentDate));
     Database ldb=null;
     try {
       DatabaseMeta logcon=transMeta.getLogConnection();
       if (logcon != null) {
         ldb=new Database(logcon);
-        log.logDetailed(toString(),"Opening log connection [" + transMeta.getLogConnection() + "]");
+        log.logDetailed(toString(),Messages.getString("Trans.Log.OpeningLogConnection") + transMeta.getLogConnection() + "]");
         ldb.connect();
-        Row lastr=ldb.getLastLogDate(transMeta.getLogTable(),transMeta.getName(),false,"end");
+        Row lastr=ldb.getLastLogDate(transMeta.getLogTable(),transMeta.getName(),false,Messages.getString("Trans.Row.Status.End"));
         if (lastr != null && lastr.size() > 0) {
           Value last=lastr.getValue(0);
           if (last != null && !last.isNull()) {
             startDate=last.getDate();
-            log.logDetailed(toString(),"Start date found from previous log entry: " + startDate);
+            log.logDetailed(toString(),Messages.getString("Trans.Log.StartDateFound") + startDate);
           }
         }
         if (transMeta.getMaxDateConnection() != null && transMeta.getMaxDateTable() != null && transMeta.getMaxDateTable().length() > 0 && transMeta.getMaxDateField() != null && transMeta.getMaxDateField().length() > 0) {
-          log.logDetailed(toString(),"Looking for maxdate connection: [" + transMeta.getMaxDateConnection() + "]");
+          log.logDetailed(toString(),Messages.getString("Trans.Log.LookingForMaxdateConnection") + transMeta.getMaxDateConnection() + "]");
           DatabaseMeta maxcon=transMeta.getMaxDateConnection();
           if (maxcon != null) {
             Database maxdb=new Database(maxcon);
             try {
-              log.logDetailed(toString(),"Opening maximum date connection...");
+              log.logDetailed(toString(),Messages.getString("Trans.Log.OpeningMaximumDateConnection"));
               maxdb.connect();
               String sql="SELECT MAX(" + transMeta.getMaxDateField() + ") FROM "+ transMeta.getMaxDateTable();
               Row r1=maxdb.getOneRow(sql);
               if (r1 != null) {
                 Value maxvalue=r1.getValue(0);
                 if (maxvalue != null && !maxvalue.isNull() && maxvalue.getDate() != null) {
-                  log.logDetailed(toString(),"Last date found on the maxDate connection: " + r1);
+                  log.logDetailed(toString(),Messages.getString("Trans.Log.LastDateFoundOnTheMaxdateConnection") + r1);
                   endDate.setTime((long)(maxvalue.getDate().getTime() + (transMeta.getMaxDateOffset() * 1000)));
                 }
               }
  else {
-                log.logDetailed(toString(),"No last date found on the maxDate connection!");
+                log.logDetailed(toString(),Messages.getString("Trans.Log.NoLastDateFoundOnTheMaxdateConnection"));
               }
             }
  catch (            KettleException e) {
-              throw new KettleTransException("Error connecting to database [" + transMeta.getMaxDateConnection() + "]",e);
+              throw new KettleTransException(Messages.getString("Trans.Log.ErrorConnectingToDatabase") + transMeta.getMaxDateConnection() + "]",e);
             }
  finally {
               maxdb.disconnect();
             }
           }
  else {
-            throw new KettleTransException("Maximum date connection [" + transMeta.getMaxDateConnection() + "] couldn't be found!");
+            throw new KettleTransException(Messages.getString("Trans.Exception.MaximumDateConnectionCouldNotBeFound") + transMeta.getMaxDateConnection() + "] couldn't be found!");
           }
         }
         if (transMeta.nrDependencies() > 0) {
-          log.logDetailed(toString(),"Checking for max dependency date!");
+          log.logDetailed(toString(),Messages.getString("Trans.Log.CheckingForMaxDependencyDate"));
           depDate=Const.MIN_DATE;
           Date maxdepdate=Const.MIN_DATE;
           if (lastr != null && lastr.size() > 0) {
@@ -76,30 +76,30 @@
                 if (r1 != null) {
                   Value maxvalue=r1.getValue(0);
                   if (maxvalue != null && !maxvalue.isNull() && maxvalue.getDate() != null) {
-                    log.logDetailed(toString(),"found date from table " + td.getTablename() + "."+ td.getFieldname()+ " = "+ maxvalue.toString());
+                    log.logDetailed(toString(),Messages.getString("Trans.Log.FoundDateFromTable") + td.getTablename() + "."+ td.getFieldname()+ " = "+ maxvalue.toString());
                     if (maxvalue.getDate().getTime() > maxdepdate.getTime()) {
                       maxdepdate=maxvalue.getDate();
                     }
                   }
  else {
-                    throw new KettleTransException("Unable to get dependency info from [" + td.getDatabase().getName() + "."+ td.getTablename()+ "."+ td.getFieldname()+ "]");
+                    throw new KettleTransException(Messages.getString("Trans.Exception.UnableToGetDependencyInfoFromDB") + td.getDatabase().getName() + "."+ td.getTablename()+ "."+ td.getFieldname()+ "]");
                   }
                 }
  else {
-                  throw new KettleTransException("Unable to get dependency info from [" + td.getDatabase().getName() + "."+ td.getTablename()+ "."+ td.getFieldname()+ "]");
+                  throw new KettleTransException(Messages.getString("Trans.Exception.UnableToGetDependencyInfoFromDB2") + td.getDatabase().getName() + "."+ td.getTablename()+ "."+ td.getFieldname()+ "]");
                 }
               }
  catch (              KettleException e) {
-                throw new KettleTransException("Error in database [" + td.getDatabase() + "]",e);
+                throw new KettleTransException(Messages.getString("Trans.Exception.ErrorInDatabase") + td.getDatabase() + "]",e);
               }
  finally {
                 depdb.disconnect();
               }
             }
  else {
-              throw new KettleTransException("Connection [" + td.getDatabase() + "] couldn't be found!");
+              throw new KettleTransException(Messages.getString("Trans.Exception.ConnectionCouldNotBeFound") + td.getDatabase() + "] couldn't be found!");
             }
-            log.logDetailed(toString(),"maxdepdate = " + (new Value("maxdepdate",maxdepdate)).toString());
+            log.logDetailed(toString(),Messages.getString("Trans.Log.Maxdepdate") + (new Value("maxdepdate",maxdepdate)).toString());
           }
           if (maxdepdate.getTime() > depDate.getTime()) {
             depDate=maxdepdate;
@@ -120,17 +120,17 @@
         if (endDate.compareTo(maxdesired) > 0)         endDate=maxdesired;
       }
       if (logcon != null && transMeta.getLogTable() != null && transMeta.getName() != null) {
-        ldb.writeLogRecord(transMeta.getLogTable(),transMeta.isBatchIdUsed(),transMeta.getBatchId(),false,transMeta.getName(),"start",0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,null);
+        ldb.writeLogRecord(transMeta.getLogTable(),transMeta.isBatchIdUsed(),transMeta.getBatchId(),false,transMeta.getName(),Messages.getString("Trans.Dialog.Description.Start"),0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,null);
       }
     }
  catch (    KettleException e) {
-      throw new KettleTransException("Error writing log record to table [" + transMeta.getLogTable() + "]",e);
+      throw new KettleTransException(Messages.getString("Trans.Exception.ErrorWritingLogRecordToTable") + transMeta.getLogTable() + "]",e);
     }
  finally {
       if (ldb != null)       ldb.disconnect();
     }
   }
  catch (  KettleException e) {
-    throw new KettleTransException("Unable to begin processing transformation",e);
+    throw new KettleTransException(Messages.getString("Trans.Exception.UnableToBeginProcessingTransformation"),e);
   }
 }
