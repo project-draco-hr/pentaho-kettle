@@ -23,33 +23,84 @@
     if (cell.getType().equals(CellType.BOOLEAN)) {
       v.setValue(((BooleanCell)cell).getValue());
     }
- else     if (cell.getType().equals(CellType.DATE)) {
-      v.setValue(((DateCell)cell).getDate());
-    }
- else     if (cell.getType().equals(CellType.LABEL)) {
-      v.setValue(((LabelCell)cell).getString());
+ else {
+      if (cell.getType().equals(CellType.DATE)) {
+        Date date=((DateCell)cell).getDate();
+        long time=date.getTime();
+        int offset=TimeZone.getDefault().getOffset(time);
+        v.setValue(new Date(time - offset));
+      }
+ else {
+        if (cell.getType().equals(CellType.LABEL)) {
+          v.setValue(((LabelCell)cell).getString());
 switch (meta.getField()[rowcolumn].getTrimType()) {
 case ExcelInputMeta.TYPE_TRIM_LEFT:
-        v.ltrim();
-      break;
+            v.ltrim();
+          break;
 case ExcelInputMeta.TYPE_TRIM_RIGHT:
-    v.rtrim();
-  break;
+        v.rtrim();
+      break;
 case ExcelInputMeta.TYPE_TRIM_BOTH:
-v.trim();
-break;
+    v.trim();
+  break;
 default :
 break;
 }
 }
- else if (cell.getType().equals(CellType.NUMBER)) {
+ else {
+if (cell.getType().equals(CellType.NUMBER)) {
 v.setValue(((NumberCell)cell).getValue());
 }
  else {
 logDetailed("Unknown type : " + cell.getType().toString() + " : ["+ cell.getContents()+ "]");
 v.setNull();
 }
-v.setType(meta.getField()[rowcolumn].getType());
+}
+}
+}
+ExcelInputField field=meta.getField()[rowcolumn];
+if (v.getType() != field.getType()) {
+switch (v.getType()) {
+case Value.VALUE_TYPE_STRING:
+debug="Convert string to date/number";
+switch (field.getType()) {
+case Value.VALUE_TYPE_DATE:
+v.str2dat(field.getFormat());
+break;
+case Value.VALUE_TYPE_NUMBER:
+v.str2num(field.getFormat(),field.getDecimalSymbol(),field.getGroupSymbol(),field.getCurrencySymbol());
+break;
+default :
+v.setType(field.getType());
+break;
+}
+break;
+case Value.VALUE_TYPE_NUMBER:
+debug="Convert number to string";
+switch (field.getType()) {
+case Value.VALUE_TYPE_STRING:
+v.num2str(field.getFormat(),field.getDecimalSymbol(),field.getGroupSymbol(),field.getCurrencySymbol());
+break;
+default :
+v.setType(field.getType());
+break;
+}
+break;
+case Value.VALUE_TYPE_DATE:
+debug="Convert date to string";
+switch (field.getType()) {
+case Value.VALUE_TYPE_STRING:
+v.dat2str(field.getFormat());
+break;
+default :
+v.setType(field.getType());
+break;
+}
+break;
+default :
+v.setType(field.getType());
+}
+}
 v.setLength(meta.getField()[rowcolumn].getLength(),meta.getField()[rowcolumn].getPrecision());
 }
 debug="filename";
