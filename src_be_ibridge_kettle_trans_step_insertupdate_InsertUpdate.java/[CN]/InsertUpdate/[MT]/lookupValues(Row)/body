@@ -13,7 +13,9 @@
       }
     }
     data.dbins.prepareInsert(ins,meta.getTableName());
-    data.dbupd.prepareUpdate(meta.getTableName(),meta.getKeyLookup(),meta.getKeyCondition(),meta.getUpdateLookup());
+    if (!meta.isUpdateBypassed()) {
+      data.dbupd.prepareUpdate(meta.getTableName(),meta.getKeyLookup(),meta.getKeyCondition(),meta.getUpdateLookup());
+    }
     debug="first run, lookup values, field positions, etc.";
     logDetailed("Checking row: " + row.toString());
     data.keynrs=new int[meta.getKeyStream().length];
@@ -67,26 +69,32 @@
     linesOutput++;
   }
  else {
-    logRowlevel("Found row: !" + row.toString());
-    debug="compare for update";
-    boolean update=false;
-    for (int i=0; i < data.valuenrs.length; i++) {
-      Value rowvalue=row.getValue(data.valuenrs[i]);
-      lu.addValue(i,rowvalue);
-      Value retvalue=add.getValue(i);
-      if (!rowvalue.equals(retvalue)) {
-        update=true;
+    if (!meta.isUpdateBypassed()) {
+      logRowlevel("Found row for update: !" + row.toString());
+      debug="compare for update";
+      boolean update=false;
+      for (int i=0; i < data.valuenrs.length; i++) {
+        Value rowvalue=row.getValue(data.valuenrs[i]);
+        lu.addValue(i,rowvalue);
+        Value retvalue=add.getValue(i);
+        if (!rowvalue.equals(retvalue)) {
+          update=true;
+        }
+      }
+      if (update) {
+        logRowlevel("Update row with: !" + lu.toString());
+        debug="setValuesUpdate()";
+        data.dbupd.setValuesUpdate(lu);
+        debug="updateRow()";
+        data.dbupd.updateRow();
+        linesUpdated++;
+      }
+ else {
+        linesSkipped++;
       }
     }
-    if (update) {
-      logRowlevel("Update row with: !" + lu.toString());
-      debug="setValuesUpdate()";
-      data.dbupd.setValuesUpdate(lu);
-      debug="updateRow()";
-      data.dbupd.updateRow();
-      linesUpdated++;
-    }
  else {
+      logRowlevel("Update bypassed: !" + row.toString());
       linesSkipped++;
     }
   }
