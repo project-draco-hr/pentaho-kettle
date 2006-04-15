@@ -337,132 +337,158 @@
         return;
       }
       Point p=getRealPosition(canvas,event.x,event.y);
-      String tokens[]=getDropStrings((String)event.data,Const.CR);
-      if (tokens.length == 1) {
-        String step=tokens[0];
-        StepMeta stepMeta=spoon.getTransMeta().findStep(step);
+      String xml=(String)event.data;
+      try {
+        DragAndDropContainer container=new DragAndDropContainer(xml);
+        StepMeta stepMeta=null;
         boolean newstep=false;
-        if (step.startsWith("#BASE STEP#")) {
-          newstep=true;
-          String steptype=step.substring(11);
-          stepMeta=spoon.newStep(steptype,steptype,false,true);
-          if (stepMeta == null)           return;
-        }
- else         if (step.startsWith("#CONNECTION#")) {
-          newstep=true;
-          String connectionName=step.substring(12);
-          TableInputMeta tii=new TableInputMeta();
-          tii.setDatabaseMeta(spoon.getTransMeta().findDatabase(connectionName));
-          StepLoader steploader=StepLoader.getInstance();
-          String stepID=steploader.getStepPluginID(tii);
-          StepPlugin stepPlugin=steploader.findStepPluginWithID(stepID);
-          String stepName=spoon.getTransMeta().getAlternativeStepname(stepPlugin.getDescription());
-          stepMeta=new StepMeta(log,stepID,stepName,tii);
-          if (spoon.editStepInfo(stepMeta) != null) {
-            spoon.getTransMeta().addStep(stepMeta);
-            spoon.refreshTree(true);
-            spoon.refreshGraph();
-          }
-        }
- else         if (step.startsWith("#HOP#")) {
-          newHop();
-          return;
-        }
+switch (container.getType()) {
+case DragAndDropContainer.TYPE_STEP:
+{
+            stepMeta=spoon.getTransMeta().findStep(container.getData());
+            if (stepMeta != null) {
+              if (stepMeta.isDrawn() || spoon.getTransMeta().isStepUsedInTransHops(stepMeta)) {
+                MessageBox mb=new MessageBox(shell,SWT.OK);
+                mb.setMessage(Messages.getString("SpoonGraph.Dialog.StepIsAlreadyOnCanvas.Message"));
+                mb.setText(Messages.getString("SpoonGraph.Dialog.StepIsAlreadyOnCanvas.Title"));
+                mb.open();
+                return;
+              }
+            }
  else {
-          if (spoon.getTransMeta().findStep(step) == null) {
-            MessageBox mb=new MessageBox(shell,SWT.OK);
-            mb.setMessage(Messages.getString("SpoonGraph.Dialog.ItemCanNotBePlacedOnCanvas.Message"));
-            mb.setText(Messages.getString("SpoonGraph.Dialog.ItemCanNotBePlacedOnCanvas.Title"));
-            mb.open();
-            return;
+              return;
+            }
           }
-        }
-        if (stepMeta.isDrawn() || spoon.getTransMeta().isStepUsedInTransHops(stepMeta)) {
-          MessageBox mb=new MessageBox(shell,SWT.OK);
-          mb.setMessage(Messages.getString("SpoonGraph.Dialog.StepIsAlreadyOnCanvas.Message"));
-          mb.setText(Messages.getString("SpoonGraph.Dialog.StepIsAlreadyOnCanvas.Title"));
-          mb.open();
-          return;
-        }
-        spoon.getTransMeta().unselectAll();
-        StepMeta before=(StepMeta)stepMeta.clone();
-        stepMeta.drawStep();
-        stepMeta.setSelected(true);
-        stepMeta.setLocation(p.x,p.y);
-        if (newstep) {
-          spoon.addUndoNew(new StepMeta[]{stepMeta},new int[]{spoon.getTransMeta().indexOfStep(stepMeta)});
-        }
- else {
-          spoon.addUndoChange(new StepMeta[]{before},new StepMeta[]{(StepMeta)stepMeta.clone()},new int[]{spoon.getTransMeta().indexOfStep(stepMeta)});
-        }
-        canvas.forceFocus();
-        redraw();
-      }
-    }
-    public void dropAccept(    DropTargetEvent event){
-    }
-  }
-);
-  addKeyListener(new KeyAdapter(){
-    public void keyPressed(    KeyEvent e){
-      if ((int)e.character == 1) {
-        spoon.getTransMeta().selectAll();
-        redraw();
-      }
-      if ((int)e.character == 3) {
-        spoon.copySelected(spoon.getTransMeta().getSelectedSteps(),spoon.getTransMeta().getSelectedNotes());
-      }
-      if ((int)e.character == 22) {
-        String clipcontent=spoon.fromClipboard();
-        if (clipcontent != null) {
-          if (lastMove != null) {
-            spoon.pasteXML(clipcontent,lastMove);
-          }
-        }
-      }
-      if (e.keyCode == SWT.ESC) {
-        spoon.getTransMeta().unselectAll();
-        clearSettings();
-        redraw();
-      }
-      if (e.keyCode == SWT.DEL) {
-        StepMeta stepMeta[]=spoon.getTransMeta().getSelectedSteps();
-        if (stepMeta != null && stepMeta.length > 0) {
-          delSelected(null);
-        }
-      }
-      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.CONTROL) != 0) {
-        alligntop();
-      }
-      if (e.keyCode == SWT.ARROW_DOWN && (e.stateMask & SWT.CONTROL) != 0) {
-        allignbottom();
-      }
-      if (e.keyCode == SWT.ARROW_LEFT && (e.stateMask & SWT.CONTROL) != 0) {
-        allignleft();
-      }
-      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.CONTROL) != 0) {
-        allignright();
-      }
-      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.ALT) != 0) {
-        distributehorizontal();
-      }
-      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.ALT) != 0) {
-        distributevertical();
-      }
-      if (e.keyCode == SWT.HOME && (e.stateMask & SWT.ALT) != 0) {
-        snaptogrid(Const.GRID_SIZE);
-      }
-      if (e.character == ' ' && lastMove != null) {
-        Point real=screen2real(lastMove.x,lastMove.y);
-        setToolTipText(null);
-        StepMeta stepMeta=spoon.getTransMeta().getStep(real.x,real.y,iconsize);
+        break;
+case DragAndDropContainer.TYPE_BASE_STEP_TYPE:
+{
+        String steptype=container.getData();
+        stepMeta=spoon.newStep(steptype,steptype,false,true);
         if (stepMeta != null) {
-          inputOutputFields(stepMeta,false);
+          newstep=true;
+        }
+ else {
+          return;
         }
       }
+    break;
+case DragAndDropContainer.TYPE_DATABASE_CONNECTION:
+{
+    newstep=true;
+    String connectionName=container.getData();
+    TableInputMeta tii=new TableInputMeta();
+    tii.setDatabaseMeta(spoon.getTransMeta().findDatabase(connectionName));
+    StepLoader steploader=StepLoader.getInstance();
+    String stepID=steploader.getStepPluginID(tii);
+    StepPlugin stepPlugin=steploader.findStepPluginWithID(stepID);
+    String stepName=spoon.getTransMeta().getAlternativeStepname(stepPlugin.getDescription());
+    stepMeta=new StepMeta(log,stepID,stepName,tii);
+    if (spoon.editStepInfo(stepMeta) != null) {
+      spoon.getTransMeta().addStep(stepMeta);
+      spoon.refreshTree(true);
+      spoon.refreshGraph();
+    }
+ else {
+      return;
     }
   }
+break;
+case DragAndDropContainer.TYPE_TRANS_HOP:
+{
+newHop();
+return;
+}
+default :
+{
+MessageBox mb=new MessageBox(shell,SWT.OK);
+mb.setMessage(Messages.getString("SpoonGraph.Dialog.ItemCanNotBePlacedOnCanvas.Message"));
+mb.setText(Messages.getString("SpoonGraph.Dialog.ItemCanNotBePlacedOnCanvas.Title"));
+mb.open();
+return;
+}
+}
+spoon.getTransMeta().unselectAll();
+StepMeta before=(StepMeta)stepMeta.clone();
+stepMeta.drawStep();
+stepMeta.setSelected(true);
+stepMeta.setLocation(p.x,p.y);
+if (newstep) {
+spoon.addUndoNew(new StepMeta[]{stepMeta},new int[]{spoon.getTransMeta().indexOfStep(stepMeta)});
+}
+ else {
+spoon.addUndoChange(new StepMeta[]{before},new StepMeta[]{(StepMeta)stepMeta.clone()},new int[]{spoon.getTransMeta().indexOfStep(stepMeta)});
+}
+canvas.forceFocus();
+redraw();
+}
+ catch (Exception e) {
+new ErrorDialog(shell,spoon.props,Messages.getString("SpoonGraph.Dialog.ErrorDroppingObject.Message"),Messages.getString("SpoonGraph.Dialog.ErrorDroppingObject.Title"),e);
+}
+}
+public void dropAccept(DropTargetEvent event){
+}
+}
 );
-  addKeyListener(spoon.defKeys);
-  setBackground(GUIResource.getInstance().getColorBackground());
+addKeyListener(new KeyAdapter(){
+public void keyPressed(KeyEvent e){
+if ((int)e.character == 1) {
+spoon.getTransMeta().selectAll();
+redraw();
+}
+if ((int)e.character == 3) {
+spoon.copySelected(spoon.getTransMeta().getSelectedSteps(),spoon.getTransMeta().getSelectedNotes());
+}
+if ((int)e.character == 22) {
+String clipcontent=spoon.fromClipboard();
+if (clipcontent != null) {
+if (lastMove != null) {
+spoon.pasteXML(clipcontent,lastMove);
+}
+}
+}
+if (e.keyCode == SWT.ESC) {
+spoon.getTransMeta().unselectAll();
+clearSettings();
+redraw();
+}
+if (e.keyCode == SWT.DEL) {
+StepMeta stepMeta[]=spoon.getTransMeta().getSelectedSteps();
+if (stepMeta != null && stepMeta.length > 0) {
+delSelected(null);
+}
+}
+if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.CONTROL) != 0) {
+alligntop();
+}
+if (e.keyCode == SWT.ARROW_DOWN && (e.stateMask & SWT.CONTROL) != 0) {
+allignbottom();
+}
+if (e.keyCode == SWT.ARROW_LEFT && (e.stateMask & SWT.CONTROL) != 0) {
+allignleft();
+}
+if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.CONTROL) != 0) {
+allignright();
+}
+if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.ALT) != 0) {
+distributehorizontal();
+}
+if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.ALT) != 0) {
+distributevertical();
+}
+if (e.keyCode == SWT.HOME && (e.stateMask & SWT.ALT) != 0) {
+snaptogrid(Const.GRID_SIZE);
+}
+if (e.character == ' ' && lastMove != null) {
+Point real=screen2real(lastMove.x,lastMove.y);
+setToolTipText(null);
+StepMeta stepMeta=spoon.getTransMeta().getStep(real.x,real.y,iconsize);
+if (stepMeta != null) {
+inputOutputFields(stepMeta,false);
+}
+}
+}
+}
+);
+addKeyListener(spoon.defKeys);
+setBackground(GUIResource.getInstance().getColorBackground());
 }
