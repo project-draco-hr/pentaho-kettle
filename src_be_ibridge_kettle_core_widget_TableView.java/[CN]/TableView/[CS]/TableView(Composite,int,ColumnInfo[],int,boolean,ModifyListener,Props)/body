@@ -9,11 +9,9 @@
   clipboard=null;
   sortfield=0;
   sort_desc=false;
-  from_selection=-1;
+  selectionStart=-1;
   previous_shift=false;
-  last_carret_position=-1;
   condition=null;
-  prev_rownr=-1;
   lsMod=lsm;
   clearUndo();
   lsUndo=new ModifyListener(){
@@ -63,12 +61,9 @@
     table.setItemCount(1);
   }
   setRowNums();
-  cursor=new TableCursor(table,SWT.NONE);
-  cursor.setVisible(true);
-  props.setLook(cursor,Props.WIDGET_STYLE_TABLE);
-  cursor.layout();
-  cursor.pack();
-  editor=new ControlEditor(table);
+  editor=new TableEditor(table);
+  editor.grabHorizontal=true;
+  editor.grabVertical=true;
   mRow=new Menu(table);
   MenuItem miRowInsBef=new MenuItem(mRow,SWT.NONE);
   miRowInsBef.setText("Insert before this row");
@@ -150,13 +145,13 @@
 ;
   lsRowUp=new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      moveRowUp(false);
+      moveRowUp();
     }
   }
 ;
   lsRowDown=new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      moveRowDown(false);
+      moveRowDown();
     }
   }
 ;
@@ -251,16 +246,14 @@
   miEditUndo.addSelectionListener(lsEditUndo);
   miEditRedo.addSelectionListener(lsEditRedo);
   table.setMenu(mRow);
-  cursor.setMenu(mRow);
   lsFocusText=new FocusAdapter(){
     public void focusLost(    FocusEvent e){
-      TableItem row=cursor.getRow();
+      TableItem row=activeTableItem;
       if (row == null)       return;
-      int colnr=cursor.getColumn();
+      int colnr=activeTableColumn;
       int rownr=table.indexOf(row);
       row.setText(colnr,text.getText());
       text.dispose();
-      cursor.redraw();
       String after_edit[]=getItemText(row);
       checkChanged(new String[][]{before_edit},new String[][]{after_edit},new int[]{rownr});
     }
@@ -268,9 +261,9 @@
 ;
   lsFocusCombo=new FocusAdapter(){
     public void focusLost(    FocusEvent e){
-      TableItem row=cursor.getRow();
+      TableItem row=activeTableItem;
       if (row == null)       return;
-      int colnr=cursor.getColumn();
+      int colnr=activeTableColumn;
       int rownr=table.indexOf(row);
       if (colnr > 0) {
         try {
@@ -282,15 +275,14 @@
         checkChanged(new String[][]{before_edit},new String[][]{after_edit},new int[]{rownr});
       }
       combo.dispose();
-      cursor.redraw();
     }
   }
 ;
   lsModCombo=new ModifyListener(){
     public void modifyText(    ModifyEvent e){
-      TableItem row=cursor.getRow();
+      TableItem row=activeTableItem;
       if (row == null)       return;
-      int colnr=cursor.getColumn();
+      int colnr=activeTableColumn;
       int rownr=table.indexOf(row);
       row.setText(colnr,combo.getText());
       String after_edit[]=getItemText(row);
@@ -303,52 +295,48 @@
       boolean right=false;
       boolean left=false;
       if (e.character == SWT.CR || e.keyCode == SWT.ARROW_DOWN || e.keyCode == SWT.ARROW_UP || e.keyCode == SWT.TAB || left || right) {
-        TableItem row=cursor.getRow();
-        if (row == null)         return;
-        int rownr=table.indexOf(row);
-        int colnr=cursor.getColumn();
-        applyTextChange(row,rownr,colnr);
+        if (activeTableItem == null)         return;
+        applyTextChange(activeTableItem,activeTableRow,activeTableColumn);
         int maxcols=table.getColumnCount();
         int maxrows=table.getItemCount();
-        boolean sel=false;
-        if (e.keyCode == SWT.ARROW_DOWN && rownr < maxrows - 1) {
-          rownr++;
-          sel=true;
+        boolean editNextCell=false;
+        if (e.keyCode == SWT.ARROW_DOWN && activeTableRow < maxrows - 1) {
+          activeTableRow++;
+          editNextCell=true;
         }
-        if (e.keyCode == SWT.ARROW_UP && rownr > 0) {
-          rownr--;
-          sel=true;
+        if (e.keyCode == SWT.ARROW_UP && activeTableRow > 0) {
+          activeTableRow--;
+          editNextCell=true;
         }
         if ((e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) == 0)) || right) {
-          colnr++;
-          sel=true;
+          activeTableColumn++;
+          editNextCell=true;
         }
         if ((e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) != 0)) || left) {
-          colnr--;
-          sel=true;
+          activeTableColumn--;
+          editNextCell=true;
         }
-        if (colnr < 1) {
-          colnr=maxcols - 1;
-          if (rownr > 0)           rownr--;
+        if (activeTableColumn < 1) {
+          activeTableColumn=maxcols - 1;
+          if (activeTableRow > 0)           activeTableRow--;
         }
-        if (colnr >= maxcols) {
-          colnr=1;
-          rownr++;
+        if (activeTableColumn >= maxcols) {
+          activeTableColumn=1;
+          activeTableRow++;
         }
-        if (rownr >= maxrows) {
-          TableItem item=new TableItem(table,SWT.NONE,rownr);
+        if (activeTableRow >= maxrows) {
+          TableItem item=new TableItem(table,SWT.NONE,activeTableRow);
           item.setText(1,"field" + (table.getItemCount() - 1));
           setRowNums();
         }
-        if (sel) {
-          row=table.getItem(rownr);
-          edit(rownr,colnr);
+        activeTableItem=table.getItem(activeTableRow);
+        if (editNextCell) {
+          edit(activeTableRow,activeTableColumn);
         }
       }
  else       if (e.keyCode == SWT.ESC) {
         text.dispose();
       }
-      last_carret_position=text.isDisposed() ? -1 : text.getCaretPosition();
     }
   }
 ;
@@ -356,243 +344,285 @@
     public void keyPressed(    KeyEvent e){
       boolean right=false;
       boolean left=false;
-      left=e.keyCode == SWT.ARROW_LEFT && last_carret_position == 0;
-      if (combo != null && !combo.isDisposed())       right=e.keyCode == SWT.ARROW_RIGHT && last_carret_position == combo.getText().length();
       if (e.character == SWT.CR || e.keyCode == SWT.TAB || left || right) {
-        TableItem row=cursor.getRow();
-        if (row == null)         return;
-        int colnr=cursor.getColumn();
-        int rownr=table.indexOf(row);
-        if (combo != null && !combo.isDisposed()) {
-          row.setText(colnr,combo.getText());
-        }
-        String after_edit[]=getItemText(row);
-        checkChanged(new String[][]{before_edit},new String[][]{after_edit},new int[]{rownr});
+        if (activeTableItem == null)         return;
+        applyComboChange(activeTableItem,activeTableRow,activeTableColumn);
+        String after_edit[]=getItemText(activeTableItem);
+        checkChanged(new String[][]{before_edit},new String[][]{after_edit},new int[]{activeTableRow});
         int maxcols=table.getColumnCount();
         int maxrows=table.getItemCount();
         boolean sel=false;
         if ((e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) == 0)) || right) {
-          colnr++;
+          activeTableColumn++;
           sel=true;
         }
         if ((e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) != 0)) || right) {
-          colnr--;
+          activeTableColumn--;
           sel=true;
         }
-        if (colnr < 1) {
-          colnr=maxcols - 1;
-          if (rownr > 0)           rownr--;
+        if (activeTableColumn < 1) {
+          activeTableColumn=maxcols - 1;
+          if (activeTableRow > 0)           activeTableRow--;
         }
-        if (colnr >= maxcols) {
-          colnr=1;
-          rownr++;
+        if (activeTableColumn >= maxcols) {
+          activeTableColumn=1;
+          activeTableRow++;
         }
-        if (rownr >= maxrows) {
-          TableItem item=new TableItem(table,SWT.NONE,rownr);
+        if (activeTableRow >= maxrows) {
+          TableItem item=new TableItem(table,SWT.NONE,activeTableRow);
           item.setText(1,"field" + (table.getItemCount() - 1));
           setRowNums();
         }
         if (sel) {
-          edit(rownr,colnr);
+          edit(activeTableRow,activeTableColumn);
         }
       }
  else       if (e.keyCode == SWT.ESC) {
         combo.dispose();
       }
-      last_carret_position=combo.isDisposed() ? -1 : 0;
     }
   }
 ;
-  KeyListener lsKeyCursor=new KeyAdapter(){
+  KeyListener lsKeyTable=new KeyAdapter(){
     public void keyPressed(    KeyEvent e){
-      int colnr, rownr;
-      colnr=cursor.getColumn();
-      TableItem row=cursor.getRow();
-      if (row == null)       return;
-      rownr=table.indexOf(row);
+      if (activeTableItem == null)       return;
       int maxcols=table.getColumnCount();
       int maxrows=table.getItemCount();
       boolean shift=(e.stateMask & SWT.SHIFT) != 0;
-      if (!previous_shift && shift) {
-        from_selection=prev_rownr;
+      if (!previous_shift && shift || selectionStart < 0) {
+        selectionStart=activeTableRow;
+        System.out.println("reset selection start to " + activeTableRow);
       }
       previous_shift=shift;
       if (!readonly && e.keyCode == SWT.ARROW_DOWN && ((e.stateMask & SWT.CTRL) != 0)) {
-        moveRowDown(true);
+        moveRowDown();
+        return;
       }
- else       if (!readonly && e.keyCode == SWT.ARROW_UP && ((e.stateMask & SWT.CTRL) != 0)) {
-        moveRowUp(false);
+      if (!readonly && e.keyCode == SWT.ARROW_UP && ((e.stateMask & SWT.CTRL) != 0)) {
+        moveRowUp();
+        return;
       }
- else       if (e.keyCode == SWT.ARROW_DOWN && shift) {
-        selectRows(from_selection,rownr);
-        table.showItem(row);
+      if (e.keyCode == SWT.ARROW_DOWN && shift) {
+        activeTableRow++;
+        if (activeTableRow >= maxrows)         activeTableRow=maxrows - 1;
+        selectRows(selectionStart,activeTableRow);
+        table.showItem(activeTableItem);
+        return;
       }
- else       if (e.keyCode == SWT.ARROW_UP && shift) {
-        selectRows(rownr,from_selection);
-        table.showItem(row);
+      if (e.keyCode == SWT.ARROW_UP && shift) {
+        activeTableRow--;
+        if (activeTableRow < 0)         activeTableRow=0;
+        selectRows(activeTableRow,selectionStart);
+        System.out.println("Selected items [" + activeTableRow + "-"+ selectionStart+ "]");
+        table.showItem(activeTableItem);
+        return;
       }
- else       if (e.keyCode == SWT.HOME && shift) {
-        if (prev_rownr >= 0)         selectRows(rownr,prev_rownr);
-        table.showItem(row);
+      if (e.keyCode == SWT.HOME && shift) {
+        activeTableRow=0;
+        selectRows(selectionStart,activeTableRow);
+        table.showItem(activeTableItem);
+        return;
       }
- else       if (e.keyCode == SWT.END && shift) {
-        if (prev_rownr >= 0)         selectRows(prev_rownr,rownr);
-        table.showItem(row);
+      if (e.keyCode == SWT.END && shift) {
+        activeTableRow=maxrows;
+        selectRows(selectionStart,activeTableRow);
+        table.showItem(activeTableItem);
+        return;
       }
       if ((e.keyCode == SWT.ARROW_DOWN && !shift) || (e.keyCode == SWT.ARROW_UP && !shift) || (e.keyCode == SWT.HOME && !shift)|| (e.keyCode == SWT.END && !shift)) {
-        selectRows(rownr,rownr);
-      }
- else       if ((int)e.character == 1) {
-        selectAll();
-      }
- else       if (e.keyCode == SWT.ESC) {
-        unselectAll();
-        selectRows(rownr,rownr);
-      }
- else       if ((int)e.character == 3) {
-        clipSelected();
-      }
- else       if (!readonly && (int)e.character == 11) {
-        keepSelected();
-      }
- else       if (!readonly && (int)e.character == 24) {
-        cutSelected();
-      }
-      if (!readonly && (int)e.character == 22) {
-        pasteSelected();
-      }
- else       if (e.keyCode == SWT.F3) {
-        optWidth(true);
-      }
- else       if (!readonly && e.keyCode == SWT.DEL) {
-        delSelected();
-      }
- else       if (e.keyCode == SWT.F4) {
-        optWidth(false);
-      }
- else       if ((int)e.character == 25) {
-        redoAction();
-      }
- else       if ((int)e.character == 26) {
-        undoAction();
-      }
-      if (colnr > 0) {
-        boolean text_char=(e.character >= 'a' && e.character <= 'z') || (e.character >= 'A' && e.character <= 'Z') || (e.character >= '0' && e.character <= '9')|| (e.character == ' ')|| (e.character == '_')|| (e.character == ',')|| (e.character == '.')|| (e.character == '+')|| (e.character == '-')|| (e.character == '*')|| (e.character == '/')|| (e.character == ';');
-        if (e.character == SWT.CR || e.keyCode == SWT.F2 || text_char) {
-          boolean select_text=true;
-          char extra_char=0;
-          if (text_char) {
-            extra_char=e.character;
-            select_text=false;
-          }
-          edit(rownr,colnr,select_text,extra_char);
-        }
-        if (e.character == SWT.TAB) {
-          if (e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) == 0)) {
-            colnr++;
-          }
-          if (e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) != 0)) {
-            colnr--;
-          }
-          if (colnr < 1) {
-            colnr=maxcols - 1;
-            if (rownr > 0)             rownr--;
-          }
-          if (colnr >= maxcols) {
-            colnr=1;
-            rownr++;
-          }
-          if (rownr >= maxrows) {
-            TableItem item=new TableItem(table,SWT.NONE,rownr);
-            item.setText(1,"field" + (table.getItemCount() - 1));
-            setRowNums();
-          }
-          edit(rownr,colnr);
-        }
-      }
-      setFocus();
-      table.setFocus();
-      prev_rownr=rownr;
-    }
-  }
+switch (e.keyCode) {
+case SWT.ARROW_DOWN:
+          activeTableRow++;
+        if (activeTableRow >= maxrows)         activeTableRow=maxrows - 1;
+      break;
+case SWT.ARROW_UP:
+    activeTableRow--;
+  if (activeTableRow < 0)   activeTableRow=0;
+break;
+case SWT.HOME:
+activeTableRow=0;
+break;
+case SWT.END:
+activeTableRow=maxrows - 1;
+break;
+default :
+break;
+}
+table.deselectAll();
+table.select(activeTableRow);
+return;
+}
+if ((int)e.character == 1) {
+selectAll();
+return;
+}
+if (e.keyCode == SWT.ESC) {
+unselectAll();
+selectRows(activeTableRow,activeTableRow);
+return;
+}
+if ((int)e.character == 3) {
+clipSelected();
+return;
+}
+if (!readonly && (int)e.character == 11) {
+keepSelected();
+return;
+}
+if (!readonly && (int)e.character == 24) {
+cutSelected();
+return;
+}
+if (!readonly && (int)e.character == 22) {
+pasteSelected();
+return;
+}
+if (e.keyCode == SWT.F3) {
+optWidth(true);
+return;
+}
+if (!readonly && e.keyCode == SWT.DEL) {
+delSelected();
+return;
+}
+if (e.keyCode == SWT.F4) {
+optWidth(false);
+return;
+}
+if ((int)e.character == 25) {
+redoAction();
+return;
+}
+if ((int)e.character == 26) {
+undoAction();
+return;
+}
+if (e.keyCode == SWT.CR || e.keyCode == SWT.ARROW_RIGHT || e.keyCode == SWT.TAB) {
+activeTableColumn=1;
+edit(activeTableRow,activeTableColumn);
+return;
+}
+if (activeTableColumn > 0) {
+boolean text_char=(e.character >= 'a' && e.character <= 'z') || (e.character >= 'A' && e.character <= 'Z') || (e.character >= '0' && e.character <= '9')|| (e.character == ' ')|| (e.character == '_')|| (e.character == ',')|| (e.character == '.')|| (e.character == '+')|| (e.character == '-')|| (e.character == '*')|| (e.character == '/')|| (e.character == ';');
+if (e.character == SWT.CR || e.keyCode == SWT.F2 || text_char) {
+boolean select_text=true;
+char extra_char=0;
+if (text_char) {
+extra_char=e.character;
+select_text=false;
+}
+edit(activeTableRow,activeTableColumn,select_text,extra_char);
+}
+if (e.character == SWT.TAB) {
+if (e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) == 0)) {
+activeTableColumn++;
+}
+if (e.keyCode == SWT.TAB && ((e.stateMask & SWT.SHIFT) != 0)) {
+activeTableColumn--;
+}
+if (activeTableColumn < 1) {
+activeTableColumn=maxcols - 1;
+if (activeTableRow > 0) activeTableRow--;
+}
+if (activeTableColumn >= maxcols) {
+activeTableColumn=1;
+activeTableRow++;
+}
+if (activeTableRow >= maxrows) {
+TableItem item=new TableItem(table,SWT.NONE,activeTableRow);
+item.setText(1,"field" + (table.getItemCount() - 1));
+setRowNums();
+}
+edit(activeTableRow,activeTableColumn);
+}
+}
+setFocus();
+table.setFocus();
+}
+}
 ;
-  cursor.addKeyListener(lsKeyCursor);
-  MouseAdapter lsMouseT=new MouseAdapter(){
-    public void mouseDown(    MouseEvent e){
-      if (e.button == 1) {
-        boolean shift=(e.stateMask & SWT.SHIFT) != 0;
-        boolean control=(e.stateMask & SWT.CONTROL) != 0;
-        if (!shift && !control) {
-          editSelected();
-        }
-      }
-    }
-  }
+table.addKeyListener(lsKeyTable);
+MouseAdapter lsMouseT=new MouseAdapter(){
+public void mouseDown(MouseEvent event){
+if (event.button == 1) {
+boolean shift=(event.stateMask & SWT.SHIFT) != 0;
+boolean control=(event.stateMask & SWT.CONTROL) != 0;
+if (!shift && !control) {
+Rectangle clientArea=table.getClientArea();
+Point pt=new Point(event.x,event.y);
+int index=table.getTopIndex();
+while (index < table.getItemCount()) {
+boolean visible=false;
+final TableItem item=table.getItem(index);
+for (int i=0; i < table.getColumnCount(); i++) {
+Rectangle rect=item.getBounds(i);
+if (rect.contains(pt)) {
+activeTableItem=item;
+activeTableColumn=i;
+activeTableRow=index;
+editSelected();
+return;
+}
+if (!visible && rect.intersects(clientArea)) {
+visible=true;
+}
+}
+if (!visible) return;
+index++;
+}
+}
+}
+}
+}
 ;
-  MouseAdapter lsMouseC=new MouseAdapter(){
-    public void mouseDown(    MouseEvent e){
-      if (e.button == 1) {
-        editSelected();
-      }
-    }
-  }
+table.addMouseListener(lsMouseT);
+final int nrcols=tablecolumn.length;
+for (int i=0; i < nrcols; i++) {
+final int colnr=i;
+Listener lsSort=new Listener(){
+public void handleEvent(Event e){
+clearUndo();
+sortTable(colnr);
+}
+}
 ;
-  table.addMouseListener(lsMouseT);
-  cursor.addMouseListener(lsMouseC);
-  cursor.addSelectionListener(new SelectionAdapter(){
-    public void widgetDefaultSelected(    SelectionEvent e){
-      editSelected();
-    }
-  }
+tablecolumn[i].addListener(SWT.Selection,lsSort);
+}
+lsTraverse=new TraverseListener(){
+public void keyTraversed(TraverseEvent e){
+e.doit=false;
+}
+}
+;
+table.addTraverseListener(lsTraverse);
+addDisposeListener(new DisposeListener(){
+public void widgetDisposed(DisposeEvent e){
+if (clipboard != null) {
+clipboard.dispose();
+clipboard=null;
+}
+dummy_gc.dispose();
+dummy_image.dispose();
+gridFont.dispose();
+}
+}
 );
-  final int nrcols=tablecolumn.length;
-  for (int i=0; i < nrcols; i++) {
-    final int colnr=i;
-    Listener lsSort=new Listener(){
-      public void handleEvent(      Event e){
-        clearUndo();
-        sortTable(colnr);
-      }
-    }
-;
-    tablecolumn[i].addListener(SWT.Selection,lsSort);
-  }
-  lsTraverse=new TraverseListener(){
-    public void keyTraversed(    TraverseEvent e){
-      e.doit=false;
-    }
-  }
-;
-  table.addTraverseListener(lsTraverse);
-  cursor.addTraverseListener(lsTraverse);
-  addDisposeListener(new DisposeListener(){
-    public void widgetDisposed(    DisposeEvent e){
-      if (clipboard != null) {
-        clipboard.dispose();
-        clipboard=null;
-      }
-      dummy_gc.dispose();
-      dummy_image.dispose();
-      gridFont.dispose();
-    }
-  }
+Transfer[] ttypes=new Transfer[]{TextTransfer.getInstance()};
+DragSource ddSource=new DragSource(table,DND.DROP_MOVE | DND.DROP_COPY);
+ddSource.setTransfer(ttypes);
+ddSource.addDragListener(new DragSourceListener(){
+public void dragStart(DragSourceEvent event){
+}
+public void dragSetData(DragSourceEvent event){
+event.data="TableView" + Const.CR + getSelectedText();
+}
+public void dragFinished(DragSourceEvent event){
+}
+}
 );
-  Transfer[] ttypes=new Transfer[]{TextTransfer.getInstance()};
-  DragSource ddSource=new DragSource(table,DND.DROP_MOVE | DND.DROP_COPY);
-  ddSource.setTransfer(ttypes);
-  ddSource.addDragListener(new DragSourceListener(){
-    public void dragStart(    DragSourceEvent event){
-    }
-    public void dragSetData(    DragSourceEvent event){
-      event.data="TableView" + Const.CR + getSelectedText();
-    }
-    public void dragFinished(    DragSourceEvent event){
-    }
-  }
-);
-  table.layout();
-  table.pack();
-  optWidth(true);
-  layout();
-  pack();
+table.layout();
+table.pack();
+optWidth(true);
+layout();
+pack();
 }
