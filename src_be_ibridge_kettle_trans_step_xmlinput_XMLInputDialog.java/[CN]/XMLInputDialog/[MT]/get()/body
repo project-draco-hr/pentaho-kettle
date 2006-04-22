@@ -1,10 +1,14 @@
 {
+  boolean finished=false;
+  EnterNumberDialog dialog=new EnterNumberDialog(shell,props,1000,"Number of elements to scan","Enter the number of elements to scan (0=all)");
+  int maxElements=dialog.open();
+  int elementsFound=0;
   try {
     XMLInputMeta meta=new XMLInputMeta();
     getInfo(meta);
     Row row=new Row();
     ArrayList path=new ArrayList();
-    for (int f=0; f < meta.getFiles().length; f++) {
+    for (int f=0; f < meta.getFiles().length && !finished; f++) {
       Node rootNode=XMLHandler.loadXMLFile(meta.getFiles()[f]);
       for (int p=0; rootNode != null && p < meta.getInputPosition().length - 1; p++) {
         rootNode=XMLHandler.getSubNode(rootNode,meta.getInputPosition()[p]);
@@ -14,9 +18,13 @@
       }
       String itemElement=meta.getInputPosition()[meta.getInputPosition().length - 1];
       int nrItems=XMLHandler.countNodes(rootNode,itemElement);
-      for (int i=0; i < nrItems; i++) {
+      for (int i=0; i < nrItems && !finished; i++) {
         Node itemNode=XMLHandler.getSubNodeByNr(rootNode,itemElement,i);
         getValues(itemNode,row,path);
+        elementsFound++;
+        if (elementsFound >= maxElements && maxElements > 0) {
+          finished=true;
+        }
       }
     }
     for (int i=0; i < row.size(); i++) {
