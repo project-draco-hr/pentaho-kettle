@@ -2,21 +2,25 @@
   DatabaseMeta db=jobMeta.findDatabase(name);
   int pos=jobMeta.indexOfDatabase(db);
   if (db != null) {
-    addUndoDelete(new DatabaseMeta[]{(DatabaseMeta)db.clone()},new int[]{pos});
-    jobMeta.removeDatabase(pos);
+    boolean worked=false;
     if (rep != null) {
       if (!rep.getUserInfo().isReadonly()) {
         try {
           long id_database=rep.getDatabaseID(db.getName());
           rep.delDatabase(id_database);
+          worked=true;
         }
  catch (        KettleDatabaseException dbe) {
-          new ErrorDialog(shell,props,"Can't delete","Error deleting connection [" + db + "] from repository :"+ dbe.getMessage());
+          new ErrorDialog(shell,props,"ERROR","Error deleting connection [" + db + "] from repository!",dbe);
         }
       }
  else {
-        new ErrorDialog(shell,props,"Can't delete","Error deleting connection [" + db + "] from repository: user is read-only!");
+        new ErrorDialog(shell,props,"This user is read-only!","Error deleting connection [" + db + "] from repository!");
       }
+    }
+    if (rep == null || worked) {
+      addUndoDelete(new DatabaseMeta[]{(DatabaseMeta)db.clone()},new int[]{pos});
+      jobMeta.removeDatabase(pos);
     }
     refreshTree();
   }
