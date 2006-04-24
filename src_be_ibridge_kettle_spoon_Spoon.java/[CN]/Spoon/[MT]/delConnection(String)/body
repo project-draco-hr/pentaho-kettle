@@ -2,13 +2,13 @@
   DatabaseMeta db=transMeta.findDatabase(name);
   int pos=transMeta.indexOfDatabase(db);
   if (db != null) {
-    addUndoDelete(new DatabaseMeta[]{(DatabaseMeta)db.clone()},new int[]{pos});
-    transMeta.removeDatabase(pos);
+    boolean worked=false;
     if (rep != null) {
       if (!rep.getUserInfo().isReadonly()) {
         try {
           long id_database=rep.getDatabaseID(db.getName());
           rep.delDatabase(id_database);
+          worked=true;
         }
  catch (        KettleDatabaseException dbe) {
           new ErrorDialog(shell,props,Messages.getString("Spoon.Dialog.ErrorDeletingConnection.Title"),Messages.getString("Spoon.Dialog.ErrorDeletingConnection.Message",name),dbe);
@@ -17,6 +17,10 @@
  else {
         new ErrorDialog(shell,props,Messages.getString("Spoon.Dialog.ErrorDeletingConnection.Title"),Messages.getString("Spoon.Dialog.ErrorDeletingConnection.Message",name),new KettleException(Messages.getString("Spoon.Dialog.Exception.ReadOnlyUser")));
       }
+    }
+    if (rep == null || worked) {
+      addUndoDelete(new DatabaseMeta[]{(DatabaseMeta)db.clone()},new int[]{pos});
+      transMeta.removeDatabase(pos);
     }
     refreshTree();
   }
