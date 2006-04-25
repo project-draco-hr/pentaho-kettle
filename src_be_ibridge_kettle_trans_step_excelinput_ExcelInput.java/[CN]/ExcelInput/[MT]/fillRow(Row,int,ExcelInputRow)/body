@@ -59,6 +59,7 @@ v.setNull();
 }
 }
 ExcelInputField field=meta.getField()[rowcolumn];
+try {
 if (v.getType() != field.getType()) {
 switch (v.getType()) {
 case Value.VALUE_TYPE_STRING:
@@ -76,10 +77,14 @@ break;
 }
 break;
 case Value.VALUE_TYPE_NUMBER:
+case Value.VALUE_TYPE_INTEGER:
 debug="Convert number to string";
 switch (field.getType()) {
 case Value.VALUE_TYPE_STRING:
 v.num2str(field.getFormat(),field.getDecimalSymbol(),field.getGroupSymbol(),field.getCurrencySymbol());
+break;
+case Value.VALUE_TYPE_DATE:
+v.num2str("#").str2dat(field.getFormat());
 break;
 default :
 v.setType(field.getType());
@@ -99,6 +104,16 @@ break;
 break;
 default :
 v.setType(field.getType());
+}
+}
+}
+ catch (KettleException ex) {
+if (!meta.isErrorIgnored()) throw ex;
+logBasic("Warning processing [" + debug + "] from Excel file ["+ data.filename+ "] : "+ ex.toString());
+data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
+if (meta.isErrorLineSkipped()) {
+r.setIgnore();
+return r;
 }
 }
 v.setLength(meta.getField()[rowcolumn].getLength(),meta.getField()[rowcolumn].getPrecision());
