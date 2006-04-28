@@ -1,80 +1,114 @@
 {
   LogWriter log=LogWriter.getInstance();
-  Result result=prev_result;
-  result.setEntryNr(nr);
-  LogWriter logwriter=log;
-  if (setLogfile)   logwriter=LogWriter.getInstance(getLogFilename(),true,loglevel);
   try {
-    JobMeta jobMeta=null;
-    if (rep != null && jobname != null && jobname.length() > 0 && directory != null) {
-      log.logDetailed(toString(),"Loading job from repository : [" + directory + " : "+ jobname+ "]");
-      jobMeta=new JobMeta(logwriter,rep,jobname,directory);
-    }
- else     if (filename != null) {
-      log.logDetailed(toString(),"Loading job from XML file : [" + filename + "]");
-      jobMeta=new JobMeta(logwriter,filename);
-    }
-    if (jobMeta == null) {
-      throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
-    }
-    Job job=new Job(logwriter,StepLoader.getInstance(),rep,jobMeta);
-    parentJob.getJobTracker().addJobTracker(job.getJobTracker());
-    job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
-    if (parentJob.getJobMeta().isBatchIdPassed()) {
-      job.getJobMeta().setBatchId(parentJob.getJobMeta().getBatchId());
-    }
-    int runNr=0;
-    int nrRuns=1;
-    boolean forEvery=false;
-    if (prev_result.getRows() != null)     nrRuns=prev_result.getRows().size();
-    while (runNr < nrRuns && result.getResult()) {
-      Result pass;
-      if (forEvery) {
-        pass=(Result)prev_result.clone();
-        ArrayList passRows=new ArrayList();
-        passRows.add(prev_result.getRows().get(runNr));
-        pass.setRows(passRows);
+    Result result=prev_result;
+    result.setEntryNr(nr);
+    LogWriter logwriter=log;
+    if (setLogfile)     logwriter=LogWriter.getInstance(getLogFilename(),true,loglevel);
+    int iteration=0;
+    String args[]=arguments;
+    Row resultRow=null;
+    boolean first=true;
+    List rows=prev_result.getRows();
+    while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
+      first=false;
+      if (rows != null)       resultRow=(Row)rows.get(iteration);
+      JobMeta jobMeta=null;
+      if (rep != null && jobname != null && jobname.length() > 0 && directory != null) {
+        log.logDetailed(toString(),"Loading job from repository : [" + directory + " : "+ jobname+ "]");
+        jobMeta=new JobMeta(logwriter,rep,jobname,directory);
+      }
+ else       if (filename != null) {
+        log.logDetailed(toString(),"Loading job from XML file : [" + filename + "]");
+        jobMeta=new JobMeta(logwriter,filename);
+      }
+      if (jobMeta == null) {
+        throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
+      }
+      Job job=new Job(logwriter,StepLoader.getInstance(),rep,jobMeta);
+      parentJob.getJobTracker().addJobTracker(job.getJobTracker());
+      job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
+      if (parentJob.getJobMeta().isBatchIdPassed()) {
+        job.getJobMeta().setBatchId(parentJob.getJobMeta().getBatchId());
+      }
+      if (execPerRow) {
+        if (argFromPrevious) {
+          args=null;
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getValue(i).toString();
+            }
+          }
+        }
+ else {
+          ArrayList newList=new ArrayList();
+          newList.add(resultRow);
+          job.setSourceRows(newList);
+        }
       }
  else {
-        pass=prev_result;
+        if (argFromPrevious) {
+          args=null;
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getValue(i).toString();
+            }
+          }
+        }
+ else {
+          job.setSourceRows(prev_result.rows);
+        }
       }
+      job.getJobMeta().setArguments(args);
       JobEntryJobRunner runner=new JobEntryJobRunner(job,prev_result,nr);
       new Thread(runner).start();
-      while (!runner.isFinished() && !parentJob.isStopped()) {
-        try {
-          Thread.sleep(100);
+      try {
+        while (!runner.isFinished() && !parentJob.isStopped()) {
+          try {
+            Thread.sleep(100);
+          }
+ catch (          InterruptedException e) {
+          }
         }
- catch (        InterruptedException e) {
+        if (parentJob.isStopped()) {
+          job.stopAll();
+          runner.waitUntilFinished();
+          job.endProcessing("stop");
         }
-      }
-      if (parentJob.isStopped()) {
-        job.stopAll();
-        runner.waitUntilFinished();
-        job.endProcessing("stop");
-      }
  else {
-        job.endProcessing("end");
+          job.endProcessing("end");
+        }
+      }
+ catch (      KettleException je) {
+        log.logError(toString(),"Unable to open job entry job with name [" + getName() + "] : "+ Const.CR+ je.toString());
+        result.setNrErrors(1);
       }
       Result oneResult=runner.getResult();
-      if (runNr == 0) {
+      if (iteration == 0) {
         result=oneResult;
       }
  else {
         result.add(oneResult);
       }
-      runNr++;
+      iteration++;
     }
-  }
- catch (  KettleException je) {
-    log.logError(toString(),"Unable to open job entry job with name [" + getName() + "] : "+ Const.CR+ je.toString());
-    result.setNrErrors(1);
-  }
-  if (setLogfile)   logwriter.close();
-  if (result.getNrErrors() > 0) {
-    result.setResult(false);
-  }
+    if (setLogfile)     logwriter.close();
+    if (result.getNrErrors() > 0) {
+      result.setResult(false);
+    }
  else {
-    result.setResult(true);
+      result.setResult(true);
+    }
+    return result;
   }
-  return result;
+ catch (  KettleException ke) {
+    log.logError(toString(),"Error running job entry 'job' : " + ke.toString());
+    log.logError(toString(),Const.getStackTracker(ke));
+    Result result=new Result();
+    result.setResult(false);
+    result.setNrErrors(1L);
+    return result;
+  }
 }
