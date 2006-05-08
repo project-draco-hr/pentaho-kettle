@@ -2,6 +2,7 @@
   Value val_hash=null;
   Value val_key=null;
   if (first) {
+    debug="First: lookup keys etc";
     first=false;
     data.keynrs=new int[meta.getKeyField().length];
     for (int i=0; i < meta.getKeyField().length; i++) {
@@ -32,12 +33,15 @@
         }
       }
     }
+    debug="First: setCombiLookup";
     data.db.setCombiLookup(meta.getTablename(),meta.getKeyLookup(),meta.getTechnicalKeyField(),meta.useHash(),meta.getHashField());
   }
+  debug="Create lookup row lu";
   Row lu=new Row();
   for (int i=0; i < meta.getKeyField().length; i++) {
     lu.addValue(row.getValue(data.keynrs[i]));
   }
+  debug="Use hashcode?";
   if (meta.useHash()) {
     val_hash=new Value(meta.getHashField(),(long)lu.hashCode());
     lu.clear();
@@ -46,17 +50,22 @@
  else {
     lu.clear();
   }
+  debug="Add values to lookup row lu";
   for (int i=0; i < meta.getKeyField().length; i++) {
     Value parval=row.getValue(data.keynrs[i]);
     lu.addValue(parval);
     lu.addValue(parval);
   }
+  debug="Check the cache";
   val_key=lookupInCache(lu);
   if (val_key == null) {
+    debug="Set lookup values";
     data.db.setValuesLookup(lu);
+    debug="Get the row back";
     Row add=data.db.getLookup();
     linesInput++;
     if (add == null) {
+      debug="New entry: calc autoinc/sequence/...";
       boolean autoinc=false;
       if (meta.getDatabase().supportsAutoinc() && meta.isUseAutoinc()) {
         autoinc=true;
@@ -70,20 +79,29 @@
         val_key=new Value(meta.getTechnicalKeyField(),0.0);
         data.db.getNextValue(getTransMeta().getCounters(),meta.getTablename(),val_key);
       }
-      data.db.combiInsert(row,meta.getTablename(),meta.getSequenceFrom() == null ? null : meta.getTechnicalKeyField(),autoinc,val_key,meta.getKeyLookup(),data.keynrs,meta.useHash(),meta.getHashField(),val_hash);
+      debug="New entry: calc tkFieldName";
+      String tkFieldName=meta.getTechnicalKeyField();
+      if (autoinc)       tkFieldName=null;
+      if (meta.getSequenceFrom() != null && meta.getSequenceFrom().length() > 0)       tkFieldName=null;
+      debug="New entry: combiInsert";
+      data.db.combiInsert(row,meta.getTablename(),tkFieldName,autoinc,val_key,meta.getKeyLookup(),data.keynrs,meta.useHash(),meta.getHashField(),val_hash);
       linesOutput++;
       log.logRowlevel(toString(),Messages.getString("CombinationLookup.Log.AddedDimensionEntry") + val_key);
+      debug="New entry: Store in cache ";
       storeInCache(lu,val_key);
     }
  else {
+      debug="Found: store in cache";
       val_key=add.getValue(0);
       storeInCache(lu,val_key);
     }
   }
+  debug="Replace fields?";
   if (meta.replaceFields()) {
     for (int i=0; i < data.keynrs.length; i++) {
       row.removeValue(data.keynrs[i]);
     }
   }
+  debug="add TK";
   row.addValue(val_key);
 }

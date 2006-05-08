@@ -1,82 +1,95 @@
 {
-  int i;
-  boolean comma;
-  if (prepStatementInsert == null) {
-    String sql="INSERT INTO " + databaseMeta.quoteField(table) + "( ";
-    comma=false;
-    if (!autoinc) {
-      sql+=databaseMeta.quoteField(keyfield);
-      comma=true;
-    }
- else     if (databaseMeta.needsPlaceHolder()) {
-      sql+="0";
-      comma=true;
-    }
-    if (crc) {
-      if (comma)       sql+=", ";
-      sql+=databaseMeta.quoteField(crcfield);
-      comma=true;
-    }
-    for (i=0; i < keylookup.length; i++) {
-      if (comma)       sql+=", ";
-      sql+=databaseMeta.quoteField(keylookup[i]);
-      comma=true;
-    }
-    sql+=") VALUES (";
-    comma=false;
-    if (keyfield != null) {
-      sql+="?";
-      comma=true;
-    }
-    if (crc) {
-      if (comma)       sql+=",";
-      sql+="?";
-      comma=true;
-    }
-    for (i=0; i < keylookup.length; i++) {
-      if (comma)       sql+=",";
- else       comma=true;
-      sql+="?";
-    }
-    sql+=" )";
-    try {
-      if (keyfield == null) {
-        log.logDetailed(toString(),"SQL with return keys: " + sql);
-        prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql),Statement.RETURN_GENERATED_KEYS);
+  String debug="Combination insert";
+  try {
+    boolean comma;
+    if (prepStatementInsert == null) {
+      debug="First: construct prepared statement";
+      String sql="INSERT INTO " + databaseMeta.quoteField(table) + "( ";
+      comma=false;
+      if (!autoinc) {
+        sql+=databaseMeta.quoteField(keyfield);
+        comma=true;
       }
+ else       if (databaseMeta.needsPlaceHolder()) {
+        sql+="0";
+        comma=true;
+      }
+      if (crc) {
+        if (comma)         sql+=", ";
+        sql+=databaseMeta.quoteField(crcfield);
+        comma=true;
+      }
+      for (int i=0; i < keylookup.length; i++) {
+        if (comma)         sql+=", ";
+        sql+=databaseMeta.quoteField(keylookup[i]);
+        comma=true;
+      }
+      sql+=") VALUES (";
+      comma=false;
+      if (keyfield != null) {
+        sql+="?";
+        comma=true;
+      }
+      if (crc) {
+        if (comma)         sql+=",";
+        sql+="?";
+        comma=true;
+      }
+      for (int i=0; i < keylookup.length; i++) {
+        if (comma)         sql+=",";
+ else         comma=true;
+        sql+="?";
+      }
+      sql+=" )";
+      try {
+        debug="First: prepare statement";
+        if (keyfield == null) {
+          log.logDetailed(toString(),"SQL with return keys: " + sql);
+          prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql),Statement.RETURN_GENERATED_KEYS);
+        }
  else {
-        log.logDetailed(toString(),"SQL without return keys: " + sql);
-        prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql));
+          log.logDetailed(toString(),"SQL without return keys: " + sql);
+          prepStatementInsert=connection.prepareStatement(databaseMeta.stripCR(sql));
+        }
+      }
+ catch (      SQLException ex) {
+        throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sql,ex);
+      }
+catch (      Exception ex) {
+        throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sql,ex);
       }
     }
- catch (    SQLException ex) {
-      throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sql,ex);
+    debug="Create new insert row rins";
+    Row rins=new Row();
+    if (!autoinc)     rins.addValue(val_key);
+    if (crc) {
+      rins.addValue(val_crc);
     }
-catch (    Exception ex) {
-      throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sql,ex);
+    for (int i=0; i < keynrs.length; i++) {
+      rins.addValue(row.getValue(keynrs[i]));
     }
-  }
-  Row rins=new Row();
-  if (!autoinc)   rins.addValue(val_key);
-  if (crc) {
-    rins.addValue(val_crc);
-  }
-  for (i=0; i < keynrs.length; i++) {
-    rins.addValue(row.getValue(keynrs[i]));
-  }
-  setValues(rins,prepStatementInsert);
-  insertRow(prepStatementInsert);
-  if (keyfield == null) {
-    try {
-      ResultSet keys=pstmt.getGeneratedKeys();
-      if (keys.next())       val_key.setValue(keys.getDouble(1));
+    if (log.isRowLevel())     log.logRowlevel(toString(),"rins=" + rins.toString());
+    debug="Set values on insert";
+    setValues(rins,prepStatementInsert);
+    debug="Insert row";
+    insertRow(prepStatementInsert);
+    debug="Retrieve key";
+    if (keyfield == null) {
+      try {
+        ResultSet keys=prepStatementInsert.getGeneratedKeys();
+        if (keys.next())         val_key.setValue(keys.getDouble(1));
  else {
-        throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + keyfield + ", no fields in resultset");
+          throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + keyfield + ", no fields in resultset");
+        }
+        keys.close();
       }
-      keys.close();
+ catch (      SQLException ex) {
+        throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + keyfield,ex);
+      }
     }
- catch (    SQLException ex) {
-      throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + keyfield,ex);
-    }
+  }
+ catch (  Exception e) {
+    log.logError(toString(),Const.getStackTracker(e));
+    throw new KettleDatabaseException("Unexpected error in combination insert in part [" + debug + "] : "+ e.toString(),e);
   }
 }
