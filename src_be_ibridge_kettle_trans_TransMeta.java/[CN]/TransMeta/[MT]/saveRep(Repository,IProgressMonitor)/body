@@ -1,5 +1,6 @@
 {
   try {
+    if (monitor != null)     monitor.subTask(Messages.getString("TransMeta.Monitor.LockingRepository"));
     rep.lockRepository();
     rep.clearNextIDCounters();
     if (directory.getID() < 0) {
@@ -8,6 +9,7 @@
     int nrWorks=2 + nrDatabases() + nrNotes()+ nrSteps()+ nrTransHops();
     if (monitor != null)     monitor.beginTask(Messages.getString("TransMeta.Monitor.SavingTransformationTask.Title") + getPathAndName(),nrWorks);
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingOfTransformationStarted"));
+    if (monitor.isCanceled())     throw new KettleDatabaseException();
     if (monitor != null)     monitor.subTask(Messages.getString("TransMeta.Monitor.HandlingOldVersionTransformationTask.Title"));
     setID(rep.getTransformationID(getName(),directory.getID()));
     if (getID() <= 0) {
@@ -22,6 +24,7 @@
     if (monitor != null)     monitor.worked(1);
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingNotes"));
     for (int i=0; i < nrNotes(); i++) {
+      if (monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.SavingNoteTask.Title") + (i + 1) + "/"+ nrNotes());
       NotePadMeta ni=getNote(i);
       ni.saveRep(rep,getID());
@@ -30,6 +33,7 @@
     }
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingDatabaseConnections"));
     for (int i=0; i < nrDatabases(); i++) {
+      if (monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.SavingDatabaseTask.Title") + (i + 1) + "/"+ nrDatabases());
       DatabaseMeta ci=getDatabase(i);
       ci.saveRep(rep);
@@ -39,6 +43,7 @@
     rep.updateStepTypes();
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingSteps"));
     for (int i=0; i < nrSteps(); i++) {
+      if (monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.SavingStepTask.Title") + (i + 1) + "/"+ nrSteps());
       StepMeta stepMeta=getStep(i);
       stepMeta.saveRep(rep,getID());
@@ -47,6 +52,7 @@
     rep.closeStepAttributeInsertPreparedStatement();
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingHops"));
     for (int i=0; i < nrTransHops(); i++) {
+      if (monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.SavingHopTask.Title") + (i + 1) + "/"+ nrTransHops());
       TransHopMeta hi=getTransHop(i);
       hi.saveRep(rep,getID());
@@ -57,10 +63,13 @@
     saveRepTrans(rep);
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingDependencies"));
     for (int i=0; i < nrDependencies(); i++) {
+      if (monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
       TransDependency td=getDependency(i);
       td.saveRep(rep,getID());
     }
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingFinished"));
+    if (monitor != null)     monitor.subTask(Messages.getString("TransMeta.Monitor.UnlockingRepository"));
+    rep.unlockRepository();
     rep.commit();
     clearChanged();
     if (monitor != null)     monitor.worked(1);
