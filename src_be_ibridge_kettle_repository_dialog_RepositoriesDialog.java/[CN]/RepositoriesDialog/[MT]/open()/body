@@ -8,6 +8,31 @@
   shell.setImage(GUIResource.getInstance().getImageSpoon());
   int middle=props.getMiddlePct();
   int margin=Const.MARGIN;
+  final Image logo=new Image(display,getClass().getResourceAsStream(Const.IMAGE_DIRECTORY + Const.FILE_SEPARATOR + "PentahoLogo.png"));
+  final Rectangle bounds=logo.getBounds();
+  shell.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent arg0){
+      logo.dispose();
+    }
+  }
+);
+  logo.setBackground(display.getSystemColor(SWT.COLOR_WHITE));
+  logo.getImageData().setAlpha(0,0,0);
+  wCanvas=new Canvas(shell,SWT.NO_BACKGROUND);
+  fdCanvas=new FormData();
+  fdCanvas.left=new FormAttachment(0,0);
+  fdCanvas.right=new FormAttachment(0,bounds.width);
+  fdCanvas.top=new FormAttachment(0,0);
+  fdCanvas.bottom=new FormAttachment(0,bounds.height);
+  wCanvas.setLayoutData(fdCanvas);
+  wCanvas.addPaintListener(new PaintListener(){
+    public void paintControl(    PaintEvent pe){
+      pe.gc.setBackground(display.getSystemColor(SWT.COLOR_WHITE));
+      pe.gc.fillRectangle(0,0,bounds.width,bounds.height);
+      pe.gc.drawImage(logo,0,0);
+    }
+  }
+);
   wlKettle=new Label(shell,SWT.CENTER);
   wlKettle.setText(Messages.getString("RepositoriesDialog.Label.Welcome") + toolName);
   props.setLook(wlKettle);
@@ -22,7 +47,7 @@
   fdlKettle=new FormData();
   fdlKettle.left=new FormAttachment(0,0);
   fdlKettle.right=new FormAttachment(100,0);
-  fdlKettle.top=new FormAttachment(0,margin);
+  fdlKettle.top=new FormAttachment(wCanvas,margin);
   wlKettle.setLayoutData(fdlKettle);
   wlRepository=new Label(shell,SWT.RIGHT);
   wlRepository.setText(Messages.getString("RepositoriesDialog.Label.Repository"));
@@ -126,13 +151,21 @@
   fdPassword.right=new FormAttachment(100,0);
   fdPassword.top=new FormAttachment(wUsername,margin);
   wPassword.setLayoutData(fdPassword);
-  wOK=new Button(shell,SWT.PUSH);
+  Composite compButtons=new Composite(shell,SWT.NONE);
+  compButtons.setLayout(new FillLayout());
+  wOK=new Button(compButtons,SWT.PUSH);
   wOK.setText(Messages.getString("System.Button.OK"));
-  wNorep=new Button(shell,SWT.PUSH);
+  wNorep=new Button(compButtons,SWT.PUSH);
   wNorep.setText(Messages.getString("RepositoriesDialog.Button.NoRepository"));
-  wCancel=new Button(shell,SWT.PUSH);
+  wCancel=new Button(compButtons,SWT.PUSH);
   wCancel.setText(Messages.getString("System.Button.Cancel"));
-  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wNorep,wCancel},margin,wPassword);
+  compButtons.layout();
+  compButtons.pack();
+  FormData fdComp=new FormData();
+  int left=(shell.getBounds().width - compButtons.getBounds().width) / 2;
+  fdComp.left=new FormAttachment(0,left);
+  fdComp.top=new FormAttachment(wPassword,margin * 3);
+  compButtons.setLayoutData(fdComp);
   lsOK=new Listener(){
     public void handleEvent(    Event e){
       ok();
@@ -188,13 +221,7 @@
   wUsername.addKeyListener(lsJmp);
   wPassword.addSelectionListener(lsDef);
   getData();
-  WindowProperty winprop=props.getScreen(shell.getText());
-  if (winprop != null) {
-    winprop.setShell(shell);
-  }
- else {
-    shell.pack();
-  }
+  shell.pack();
   shell.open();
   while (!shell.isDisposed()) {
     if (!display.readAndDispatch())     display.sleep();
