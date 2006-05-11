@@ -5,7 +5,7 @@
   Display display=new Display();
   Splash splash=new Splash(display);
   StringBuffer optionRepname, optionUsername, optionPassword, optionJobname, optionFilename, optionDirname, optionLogfile;
-  CommandLineOption options[]=new CommandLineOption[]{new CommandLineOption("rep","Repository name",optionRepname=new StringBuffer()),new CommandLineOption("user","Repository username",optionUsername=new StringBuffer()),new CommandLineOption("pass","Repository password",optionPassword=new StringBuffer()),new CommandLineOption("job","The name of the job to load",optionJobname=new StringBuffer()),new CommandLineOption("dir","The directory (don't forget the leading /)",optionDirname=new StringBuffer()),new CommandLineOption("file","The filename (Transformation in XML) to launch",optionFilename=new StringBuffer()),new CommandLineOption("logfile","The logging file to write to",optionLogfile=new StringBuffer()),new CommandLineOption("log","The logging file to write to (deprecated)",optionLogfile=new StringBuffer(),false,true)};
+  CommandLineOption options[]=new CommandLineOption[]{new CommandLineOption("rep",Messages.getString("Chef.CommandLine.RepositoryName.Description"),optionRepname=new StringBuffer()),new CommandLineOption("user",Messages.getString("Chef.CommandLine.Username.Description"),optionUsername=new StringBuffer()),new CommandLineOption("pass",Messages.getString("Chef.CommandLine.Password.Description"),optionPassword=new StringBuffer()),new CommandLineOption("job",Messages.getString("Chef.CommandLine.JobName.Description"),optionJobname=new StringBuffer()),new CommandLineOption("dir",Messages.getString("Chef.CommandLine.RepositoryDirectory.Description"),optionDirname=new StringBuffer()),new CommandLineOption("file",Messages.getString("Chef.CommandLine.Filename.Description"),optionFilename=new StringBuffer()),new CommandLineOption("logfile",Messages.getString("Chef.CommandLine.LogFile.Description"),optionLogfile=new StringBuffer()),new CommandLineOption("log",Messages.getString("Chef.CommandLine.LogFileDeprecated.Description"),optionLogfile=new StringBuffer(),false,true)};
   CommandLineOption.parseArguments(args,options);
   String kettleRepname=Const.getEnvironmentVariable("KETTLE_REPOSITORY",null);
   String kettleUsername=Const.getEnvironmentVariable("KETTLE_USER",null);
@@ -21,15 +21,15 @@
  else {
     log=LogWriter.getInstance(optionLogfile.toString(),true,LogWriter.LOG_LEVEL_BASIC);
   }
-  if (log.getRealFilename() != null)   log.logBasic(APP_NAME,"Logging goes to " + log.getRealFilename());
+  if (log.getRealFilename() != null)   log.logBasic(APP_NAME,Messages.getString("Chef.Log.LoggingGoesTo") + log.getRealFilename());
   StepLoader stloader=StepLoader.getInstance();
   if (!stloader.read()) {
-    log.logError(APP_NAME,"Error loading steps... halting Chef!");
+    log.logError(APP_NAME,Messages.getString("Chef.Log.Error.LoadingSteps"));
     return;
   }
   JobEntryLoader jeloader=JobEntryLoader.getInstance();
   if (!jeloader.read()) {
-    log.logError(APP_NAME,"Error loading job entries & plugins... halting Chef!");
+    log.logError(APP_NAME,Messages.getString("Chef.Log.Error.LoadingJobEntries"));
     return;
   }
   final Chef win=new Chef(log,display,null);
@@ -41,14 +41,14 @@
     log.logDetailed(APP_NAME,"Asking for repository");
     int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_JOB};
     splash.hide();
-    RepositoriesDialog rd=new RepositoriesDialog(win.disp,SWT.NONE,perms,"Chef");
+    RepositoriesDialog rd=new RepositoriesDialog(win.disp,SWT.NONE,perms,Messages.getString("Chef.Application.Name"));
     if (rd.open()) {
       repinfo=rd.getRepository();
       userinfo=rd.getUser();
       if (!userinfo.useJobs()) {
         MessageBox mb=new MessageBox(win.shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage("Sorry, this repository user can't work with jobs from the repository.");
-        mb.setText("Error!");
+        mb.setMessage(Messages.getString("Chef.Message.UserHasNoRightsToWorkWithJobs.Message"));
+        mb.setText(Messages.getString("Chef.Message.UserHasNoRightsToWorkWithJobs.Title"));
         mb.open();
         userinfo=null;
         repinfo=null;
@@ -70,7 +70,7 @@
           repinfo=repsinfo.findRepository(optionRepname.toString());
           if (repinfo != null) {
             win.rep=new Repository(log,repinfo,userinfo);
-            if (win.rep.connect("Chef")) {
+            if (win.rep.connect(Messages.getString("Chef.Application.Name"))) {
               if (Const.isEmpty(optionDirname))               optionDirname=new StringBuffer(RepositoryDirectory.DIRECTORY_SEPARATOR);
               win.rep.userinfo=new UserInfo(win.rep,optionUsername.toString(),optionPassword.toString());
               if (win.rep.getUserInfo().getID() > 0) {
@@ -80,20 +80,20 @@
                 win.jobMeta.clearChanged();
               }
  else {
-                log.logError(APP_NAME,"Can't verify username and password.");
+                log.logError(APP_NAME,Messages.getString("Chef.Log.Error.VerifyingUsernamePassword"));
                 win.rep=null;
               }
             }
  else {
-              log.logError(APP_NAME,"Can't connect to the repository.");
+              log.logError(APP_NAME,Messages.getString("Chef.Log.Error.ConnectingToRepository"));
             }
           }
  else {
-            log.logError(APP_NAME,"No repository provided, can't load the job.");
+            log.logError(APP_NAME,Messages.getString("Chef.Log.Error.NoRepositoryProvidedCanNotLoadJob"));
           }
         }
  else {
-          log.logError(APP_NAME,"No repositories defined on this system.");
+          log.logError(APP_NAME,Messages.getString("Chef.Log.Error.NoRepositoriesOnThisSystem"));
         }
       }
  else       if (!Const.isEmpty(optionFilename)) {
@@ -104,7 +104,7 @@
  else {
       if (repinfo != null && userinfo != null) {
         win.rep=new Repository(log,repinfo,userinfo);
-        if (!win.rep.connect("Spoon")) {
+        if (!win.rep.connect(Messages.getString("Chef.Application.Name"))) {
           win.rep=null;
         }
       }
@@ -120,7 +120,7 @@
               if (win.rep.getName().equalsIgnoreCase(lastrepos[0])) {
                 RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(lastdirs[0]);
                 if (repdir != null) {
-                  log.logDetailed(APP_NAME,"Auto loading job [" + lastfiles[0] + "] from repository directory ["+ repdir.getPath()+ "]");
+                  log.logDetailed(APP_NAME,Messages.getString("Chef.Log.AutoLoading") + lastfiles[0] + Messages.getString("Chef.Log.AutoLoading2")+ repdir.getPath()+ "]");
                   JobLoadProgressDialog jlpd=new JobLoadProgressDialog(log,win.props,win.shell,win.rep,lastfiles[0],repdir);
                   JobMeta jobInfo=jlpd.open();
                   if (jobInfo != null) {
@@ -141,7 +141,7 @@
     }
   }
  catch (  KettleException ke) {
-    log.logError(APP_NAME,"Error loading job: " + ke.getMessage());
+    log.logError(APP_NAME,Messages.getString("Chef.Log.Error.ErrorLoadingJob") + ke.getMessage());
   }
   win.open();
   splash.dispose();
@@ -149,7 +149,7 @@
     if (!win.readAndDispatch())     win.sleep();
   }
   win.dispose();
-  log.logBasic(APP_NAME,APP_NAME + " has ended.");
+  log.logBasic(APP_NAME,APP_NAME + Messages.getString("Chef.Log.ApplicationHasEnded"));
   log.close();
   System.exit(0);
 }
