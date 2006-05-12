@@ -1,6 +1,7 @@
 {
   debug="fillRow start";
   Row r=new Row(baserow);
+  boolean errorHandled=false;
   for (int i=startcolumn; i < excelInputRow.cells.length && i - startcolumn < r.size(); i++) {
     debug="get cell #" + i;
     Cell cell=excelInputRow.cells[i];
@@ -8,15 +9,16 @@
     debug="Rowcolumn = " + rowcolumn;
     Value v=r.getValue(rowcolumn);
     debug="Value v = " + v;
-    boolean typeIsOK=false;
     try {
       checkType(cell,v);
-      typeIsOK=true;
     }
  catch (    KettleException ex) {
       if (!meta.isErrorIgnored())       throw ex;
-      logBasic("Warning processing [" + debug + "] from Excel file ["+ data.filename+ "] : "+ ex.toString());
-      data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
+      logBasic("Warning processing [" + debug + "] from Excel file ["+ data.filename+ "] : "+ ex.getMessage());
+      if (!errorHandled) {
+        data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
+        errorHandled=true;
+      }
       if (meta.isErrorLineSkipped()) {
         r.setIgnore();
         return r;
@@ -112,12 +114,13 @@ v.setType(field.getType());
  catch (KettleException ex) {
 if (!meta.isErrorIgnored()) throw ex;
 logBasic("Warning processing [" + debug + "] from Excel file ["+ data.filename+ "] : "+ ex.toString());
-if (meta.isStrictTypes() && typeIsOK) {
+if (!errorHandled) {
 data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
+errorHandled=true;
+}
 if (meta.isErrorLineSkipped()) {
 r.setIgnore();
 return r;
-}
 }
  else {
 v.setNull();
