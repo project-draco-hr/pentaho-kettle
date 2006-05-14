@@ -1,36 +1,67 @@
 {
   SQLStatement retval=new SQLStatement(stepMeta.getName(),database,null);
+  int i;
   if (database != null) {
     if (prev != null && prev.size() > 0) {
       if (tablename != null && tablename.length() > 0) {
         Database db=new Database(database);
         try {
+          boolean doHash=false;
+          String cr_table=null;
           db.connect();
           Row fields=new Row();
           Value vkeyfield=new Value(technicalKeyField,Value.VALUE_TYPE_INTEGER);
           vkeyfield.setLength(10,0);
-          fields.addValue(vkeyfield);
+          Value vhashfield=null;
           if (useHash && hashField != null && hashField.length() > 0) {
-            Value vhashfield=new Value(hashField,Value.VALUE_TYPE_INTEGER);
+            vhashfield=new Value(hashField,Value.VALUE_TYPE_INTEGER);
             vhashfield.setLength(15,0);
-            fields.addValue(vhashfield);
+            doHash=true;
           }
-          for (int i=0; i < keyLookup.length; i++) {
-            String error_fields="";
-            Value vkey=prev.searchValue(keyLookup[i]);
-            if (vkey != null) {
-              fields.addValue(vkey);
+          if (!db.checkTableExists(tablename)) {
+            fields.addValue(vkeyfield);
+            int cnt=prev.size();
+            for (i=0; i < cnt; i++) {
+              String error_field="";
+              Value v=prev.getValue(i);
+              String name=v.getName();
+              if (name.equals(vkeyfield.getName()) || (doHash == true && name.equals(vhashfield.getName()))) {
+                error_field+=name;
+              }
+              if (error_field.length() > 0) {
+                retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NameCollision",error_field));
+              }
+              fields.addValue(v);
             }
+            if (doHash == true) {
+              fields.addValue(vhashfield);
+            }
+          }
  else {
-              if (error_fields.length() > 0)               error_fields+=", ";
-              error_fields+=keyLookup[i];
+            Row tabFields=db.getTableFields(tablename);
+            database.quoteReservedWords(tabFields);
+            if (tabFields.searchValue(vkeyfield.getName()) == null) {
+              fields.addValue(vkeyfield);
             }
-            if (error_fields.length() > 0) {
-              retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.CannotFindFields") + error_fields);
+            int cnt=tabFields.size();
+            for (i=0; i < cnt; i++) {
+              Value v=tabFields.getValue(i);
+              fields.addValue(v);
+            }
+            cnt=prev.size();
+            for (i=0; i < cnt; i++) {
+              Value v=prev.getValue(i);
+              if (tabFields.searchValue(v.getName()) == null) {
+                fields.addValue(v);
+              }
+            }
+            if (doHash == true && tabFields.searchValue(vhashfield.getName()) == null) {
+              fields.addValue(vhashfield);
             }
           }
-          String cr_table=db.getDDL(tablename,fields,(sequenceFrom != null && sequenceFrom.length() == 0) ? technicalKeyField : null,useAutoinc,null,true);
+          cr_table=db.getDDL(tablename,fields,(CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && sequenceFrom != null && sequenceFrom.length() == 0) ? technicalKeyField : null,CREATION_METHOD_AUTOINC.equals(getTechKeyCreation()),null,true);
           String cr_index="";
+          String cr_uniq_index="";
           String idx_fields[]=null;
           if (useHash) {
             if (hashField != null && hashField.length() > 0) {
@@ -47,10 +78,18 @@
                 nrfields=32;
               }
               idx_fields=new String[nrfields];
-              for (int i=0; i < nrfields; i++)               idx_fields[i]=keyLookup[i];
+              for (i=0; i < nrfields; i++)               idx_fields[i]=keyLookup[i];
             }
  else {
               retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NotFieldsSpecified"));
+            }
+          }
+          if (technicalKeyField != null) {
+            String techKeyArr[]=new String[]{technicalKeyField};
+            if (!db.checkIndexExists(tablename,techKeyArr)) {
+              String indexname="idx_" + tablename + "_pk";
+              cr_uniq_index=db.getCreateIndexStatement(tablename,indexname,techKeyArr,true,true,false,true);
+              cr_uniq_index+=Const.CR;
             }
           }
           if (idx_fields != null && idx_fields.length > 0 && !db.checkIndexExists(tablename,idx_fields)) {
@@ -59,13 +98,13 @@
             cr_index+=Const.CR;
           }
           String cr_seq="";
-          if ((database.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) && sequenceFrom != null && sequenceFrom.length() > 0) {
+          if ((database.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) && CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && sequenceFrom != null && sequenceFrom.length() > 0) {
             if (!db.checkSequenceExists(sequenceFrom)) {
               cr_seq+=db.getCreateSequenceStatement(sequenceFrom,1L,1L,-1L,true);
               cr_seq+=Const.CR;
             }
           }
-          retval.setSQL(cr_table + cr_index + cr_seq);
+          retval.setSQL(cr_table + cr_uniq_index + cr_index+ cr_seq);
         }
  catch (        KettleException e) {
           retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.ErrorOccurred") + Const.CR + e.getMessage());
