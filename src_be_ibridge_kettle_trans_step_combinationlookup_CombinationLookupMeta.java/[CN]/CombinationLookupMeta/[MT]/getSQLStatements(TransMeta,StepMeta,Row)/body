@@ -20,18 +20,23 @@
           }
           if (!db.checkTableExists(tablename)) {
             fields.addValue(vkeyfield);
-            int cnt=prev.size();
-            for (i=0; i < cnt; i++) {
-              String error_field="";
-              Value v=prev.getValue(i);
-              String name=v.getName();
-              if (name.equals(vkeyfield.getName()) || (doHash == true && name.equals(vhashfield.getName()))) {
-                error_field+=name;
+            String keyLookup[]=getKeyLookup();
+            if (keyLookup != null) {
+              int cnt=prev.size();
+              for (i=0; i < cnt; i++) {
+                String error_field="";
+                Value v=prev.getValue(i);
+                Value newValue=(Value)v.clone();
+                String name=keyLookup[i];
+                newValue.setName(name);
+                if (name.equals(vkeyfield.getName()) || (doHash == true && name.equals(vhashfield.getName()))) {
+                  error_field+=name;
+                }
+                if (error_field.length() > 0) {
+                  retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NameCollision",error_field));
+                }
+                fields.addValue(newValue);
               }
-              if (error_field.length() > 0) {
-                retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NameCollision",error_field));
-              }
-              fields.addValue(v);
             }
             if (doHash == true) {
               fields.addValue(vhashfield);
@@ -48,11 +53,17 @@
               Value v=tabFields.getValue(i);
               fields.addValue(v);
             }
-            cnt=prev.size();
-            for (i=0; i < cnt; i++) {
-              Value v=prev.getValue(i);
-              if (tabFields.searchValue(v.getName()) == null) {
-                fields.addValue(v);
+            String keyLookup[]=getKeyLookup();
+            if (keyLookup != null) {
+              cnt=prev.size();
+              for (i=0; i < cnt; i++) {
+                Value v=prev.getValue(i);
+                Value newValue=(Value)v.clone();
+                String name=keyLookup[i];
+                newValue.setName(name);
+                if (tabFields.searchValue(newValue.getName()) == null) {
+                  fields.addValue(newValue);
+                }
               }
             }
             if (doHash == true && tabFields.searchValue(vhashfield.getName()) == null) {
