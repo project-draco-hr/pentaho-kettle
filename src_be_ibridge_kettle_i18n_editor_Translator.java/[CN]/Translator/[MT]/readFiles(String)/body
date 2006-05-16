@@ -1,0 +1,49 @@
+{
+  log.logBasic(toString(),"Scanning directory: " + directory);
+  try {
+    File file=new File(directory);
+    File[] entries=file.listFiles();
+    for (int i=0; i < entries.length; i++) {
+      File entry=entries[i];
+      if (entry.isDirectory()) {
+        if (!entry.getName().startsWith(".svn")) {
+          readFiles(directory + "/" + entry.getName());
+        }
+      }
+ else {
+        if (entry.isFile()) {
+          if (entry.getName().endsWith(".properties")) {
+            String filename=directory + "/" + entry.getName();
+            log.logBasic(toString(),"Reading properties file: " + filename + "  ("+ entry.getAbsolutePath()+ ")");
+            Properties properties=new Properties();
+            properties.load(new FileInputStream(entry));
+            files.put(filename,properties);
+          }
+        }
+      }
+    }
+    directories=new Hashtable(files.size());
+    locales=new Hashtable(10);
+    Enumeration fileEntries=files.keys();
+    while (fileEntries.hasMoreElements()) {
+      String entry=(String)fileEntries.nextElement();
+      String path=getPath(entry);
+      Integer num=(Integer)directories.get(path);
+      if (num != null) {
+        num=new Integer(num.intValue() + 1);
+      }
+ else {
+        num=new Integer(1);
+      }
+      directories.put(path,num);
+      String locale=getLocale(entry);
+      locales.put(locale,new Boolean(true));
+      if (locale.charAt(2) != '_') {
+        log.logError(toString(),"This i18n locale file is not conform the Kettle standard: " + entry);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleFileException("Unable to get all files from directory [" + ROOT + "]",e);
+  }
+}
