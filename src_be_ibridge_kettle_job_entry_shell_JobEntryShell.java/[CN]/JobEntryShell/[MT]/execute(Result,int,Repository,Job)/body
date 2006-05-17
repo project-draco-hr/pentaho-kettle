@@ -2,61 +2,97 @@
   LogWriter log=LogWriter.getInstance();
   Result result=prev_result;
   result.setEntryNr(nr);
-  try {
-    String cmd[]=null;
-    String base[]=null;
-    if (System.getProperty("os.name").startsWith("Windows")) {
-      base=new String[]{getFileName()};
-    }
+  int iteration=0;
+  String args[]=arguments;
+  Row resultRow=null;
+  boolean first=true;
+  List rows=prev_result.getRows();
+  System.out.println("Found " + rows.size() + " previous result rows");
+  while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
+    first=false;
+    if (rows != null)     resultRow=(Row)rows.get(iteration);
+    ArrayList cmdRows=null;
+    try {
+      if (execPerRow) {
+        if (argFromPrevious) {
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getValue(i).toString();
+            }
+          }
+        }
  else {
-      base=new String[]{getFileName()};
-    }
-    if (argFromPrevious && prev_result.rows != null) {
-      ArrayList cmds=new ArrayList();
-      for (int i=0; i < base.length; i++)       cmds.add(base[i]);
-      for (int i=0; i < prev_result.rows.size(); i++) {
-        Row r=(Row)prev_result.rows.get(i);
-        for (int j=0; j < r.size(); j++) {
-          cmds.add(r.getValue(j).toString());
+          ArrayList newList=new ArrayList();
+          newList.add(resultRow);
+          cmdRows=newList;
         }
       }
-      cmd=(String[])cmds.toArray(new String[cmds.size()]);
-    }
- else     if (arguments != null) {
-      ArrayList cmds=new ArrayList();
-      for (int i=0; i < base.length; i++)       cmds.add(base[i]);
-      for (int i=0; i < arguments.length; i++) {
-        cmds.add(arguments[i]);
+ else {
+        if (argFromPrevious) {
+          args=null;
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getValue(i).toString();
+            }
+          }
+        }
+ else {
+          cmdRows=prev_result.rows;
+        }
       }
-      cmd=(String[])cmds.toArray(new String[cmds.size()]);
+      String cmd[]=null;
+      String base[]=null;
+      base=new String[]{getFileName()};
+      if (argFromPrevious && cmdRows != null) {
+        ArrayList cmds=new ArrayList();
+        for (int i=0; i < base.length; i++)         cmds.add(base[i]);
+        for (int i=0; i < prev_result.rows.size(); i++) {
+          Row r=(Row)prev_result.rows.get(i);
+          for (int j=0; j < r.size(); j++) {
+            cmds.add(r.getValue(j).toString());
+          }
+        }
+        cmd=(String[])cmds.toArray(new String[cmds.size()]);
+      }
+ else       if (args != null) {
+        ArrayList cmds=new ArrayList();
+        for (int i=0; i < base.length; i++)         cmds.add(base[i]);
+        for (int i=0; i < args.length; i++) {
+          cmds.add(args[i]);
+        }
+        cmd=(String[])cmds.toArray(new String[cmds.size()]);
+      }
+      log.logDetailed(toString(),"Passing " + (cmd.length - 1) + " arguments to command : ["+ cmd[0]+ "]");
+      Process proc=java.lang.Runtime.getRuntime().exec(cmd);
+      proc.waitFor();
+      log.logDetailed(toString(),"command [" + cmd[0] + "] has finished");
+      result.exitStatus=proc.exitValue();
+      if (result.exitStatus != 0) {
+        log.logDetailed(toString(),"Exit status of shell [" + getFileName() + "] was "+ result.exitStatus);
+        result.setNrErrors(1);
+      }
     }
-    log.logDetailed(toString(),"Passing " + (cmd.length - 1) + " arguments to command : ["+ cmd[0]+ "]");
-    Process proc=java.lang.Runtime.getRuntime().exec(cmd);
-    proc.waitFor();
-    log.logDetailed(toString(),"command [" + cmd[0] + "] has finished");
-    result.exitStatus=proc.exitValue();
-    if (result.exitStatus != 0) {
-      log.logDetailed(toString(),"Exit status of shell [" + getFileName() + "] was "+ result.exitStatus);
+ catch (    IOException ioe) {
+      log.logError(toString(),"Error running shell [" + getFileName() + "] : "+ ioe.toString());
       result.setNrErrors(1);
     }
-  }
- catch (  IOException ioe) {
-    log.logError(toString(),"Error running shell [" + getFileName() + "] : "+ ioe.toString());
-    result.setNrErrors(1);
-  }
-catch (  InterruptedException ie) {
-    log.logError(toString(),"Shell [" + getFileName() + "] was interupted : "+ ie.toString());
-    result.setNrErrors(1);
-  }
-catch (  Exception e) {
-    log.logError(toString(),"Unexpected error running shell [" + getFileName() + "] : "+ e.toString());
-    result.setNrErrors(1);
-  }
-  if (result.getNrErrors() > 0) {
-    result.setResult(false);
-  }
+catch (    InterruptedException ie) {
+      log.logError(toString(),"Shell [" + getFileName() + "] was interupted : "+ ie.toString());
+      result.setNrErrors(1);
+    }
+catch (    Exception e) {
+      log.logError(toString(),"Unexpected error running shell [" + getFileName() + "] : "+ e.toString());
+      result.setNrErrors(1);
+    }
+    if (result.getNrErrors() > 0) {
+      result.setResult(false);
+    }
  else {
-    result.setResult(true);
+      result.setResult(true);
+    }
+    iteration++;
   }
   return result;
 }
