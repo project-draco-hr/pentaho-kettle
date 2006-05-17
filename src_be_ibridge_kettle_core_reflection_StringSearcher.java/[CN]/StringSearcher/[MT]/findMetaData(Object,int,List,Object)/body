@@ -1,0 +1,73 @@
+{
+  if (level > 5)   return;
+  Class baseClass=object.getClass();
+  Field[] fields=baseClass.getDeclaredFields();
+  for (int i=0; i < fields.length; i++) {
+    Field field=fields[i];
+    boolean processThisOne=true;
+    if ((field.getModifiers() & Modifier.FINAL) > 0)     processThisOne=false;
+    if ((field.getModifiers() & Modifier.STATIC) > 0)     processThisOne=false;
+    if (field.toString().indexOf("be.ibridge.kettle") < 0)     processThisOne=false;
+    if (processThisOne) {
+      try {
+        Object obj=field.get(object);
+        if (obj != null) {
+          if (obj instanceof String) {
+            stringList.add(new StringSearchResult((String)obj,parentObject,field.getName()));
+          }
+ else           if (obj instanceof String[]) {
+            String[] array=(String[])obj;
+            for (int x=0; x < array.length; x++) {
+              if (array[x] != null) {
+                stringList.add(new StringSearchResult(array[x],parentObject,field.getName() + " #" + (x + 1)));
+              }
+            }
+          }
+ else           if (obj instanceof Boolean) {
+            stringList.add(new StringSearchResult(((Boolean)obj).toString(),parentObject,field.getName() + " (Boolean)"));
+          }
+ else           if (obj instanceof Object) {
+            findMetaData(obj,level + 1,stringList,parentObject);
+          }
+ else           if (obj instanceof Object[]) {
+            for (int j=0; j < ((Object[])obj).length; j++)             findMetaData(((Object[])obj)[j],level + 1,stringList,parentObject);
+          }
+        }
+      }
+ catch (      IllegalAccessException e) {
+        Method method=findMethod(baseClass,field.getName());
+        if (method != null) {
+          String fullMethod=baseClass.getName() + "." + method.getName()+ "()";
+          try {
+            Object string=method.invoke(object,null);
+            if (string != null) {
+              if (string instanceof String) {
+                stringList.add(new StringSearchResult((String)string,parentObject,field.getName()));
+              }
+ else               if (string instanceof String[]) {
+                String[] array=(String[])string;
+                for (int x=0; x < array.length; x++) {
+                  if (array[x] != null) {
+                    stringList.add(new StringSearchResult(array[x],parentObject,field.getName() + " #" + (x + 1)));
+                  }
+                }
+              }
+ else               if (string instanceof Boolean) {
+                stringList.add(new StringSearchResult(((Boolean)string).toString(),parentObject,field.getName() + " (Boolean)"));
+              }
+ else               if (string instanceof Object[]) {
+                for (int j=0; j < ((Object[])string).length; j++)                 findMetaData(((Object[])string)[j],level + 1,stringList,parentObject);
+              }
+ else               if (string instanceof Object) {
+                findMetaData(string,level + 1,stringList,parentObject);
+              }
+            }
+          }
+ catch (          Exception ex) {
+            System.out.println(Const.rightPad(" ",level) + "    Unable to get access to method " + fullMethod+ " : "+ e.toString());
+          }
+        }
+      }
+    }
+  }
+}
