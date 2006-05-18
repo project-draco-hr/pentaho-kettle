@@ -1,7 +1,6 @@
 {
   LogWriter log=LogWriter.getInstance();
   try {
-    Result result=prev_result;
     result.setEntryNr(nr);
     LogWriter logwriter=log;
     if (setLogfile)     logwriter=LogWriter.getInstance(getLogFilename(),true,loglevel);
@@ -9,7 +8,7 @@
     String args[]=arguments;
     Row resultRow=null;
     boolean first=true;
-    List rows=prev_result.getRows();
+    List rows=result.getRows();
     while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
       first=false;
       if (rows != null)       resultRow=(Row)rows.get(iteration);
@@ -58,11 +57,11 @@
           }
         }
  else {
-          job.setSourceRows(prev_result.rows);
+          job.setSourceRows(result.rows);
         }
       }
       job.getJobMeta().setArguments(args);
-      JobEntryJobRunner runner=new JobEntryJobRunner(job,prev_result,nr);
+      JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr);
       new Thread(runner).start();
       try {
         while (!runner.isFinished() && !parentJob.isStopped()) {
@@ -87,11 +86,9 @@
       }
       Result oneResult=runner.getResult();
       if (iteration == 0) {
-        result=oneResult;
+        result.clear();
       }
- else {
-        result.add(oneResult);
-      }
+      result.add(oneResult);
       iteration++;
     }
     if (setLogfile)     logwriter.close();
@@ -106,7 +103,6 @@
  catch (  KettleException ke) {
     log.logError(toString(),"Error running job entry 'job' : " + ke.toString());
     log.logError(toString(),Const.getStackTracker(ke));
-    Result result=new Result();
     result.setResult(false);
     result.setNrErrors(1L);
     return result;

@@ -1,18 +1,29 @@
 {
   LogWriter log=LogWriter.getInstance();
-  Result result=prev_result;
   result.setEntryNr(nr);
   LogWriter logwriter=log;
-  String logFilename=getLogFilename();
+  Log4jFileAppender appender=null;
+  int backupLogLevel=log.getLogLevel();
   if (setLogfile) {
-    logwriter=LogWriter.getInstance(logFilename,true,loglevel);
+    try {
+      appender=LogWriter.createFileAppender(getLogFilename(),true);
+    }
+ catch (    KettleException e) {
+      log.logError(toString(),"Unable to open file appender for file [" + getLogFilename() + "] : "+ e.toString());
+      log.logError(toString(),Const.getStackTracker(e));
+      result.setNrErrors(1);
+      result.setResult(false);
+      return result;
+    }
+    log.addAppender(appender);
+    log.setLogLevel(loglevel);
   }
   log.logBasic(toString(),"Opening transformation: [" + getTransname() + "] in directory ["+ directory.getPath()+ "]");
   int iteration=0;
   String args[]=arguments;
   Row resultRow=null;
   boolean first=true;
-  List rows=prev_result.getRows();
+  List rows=result.getRows();
   while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
     first=false;
     if (rows != null)     resultRow=(Row)rows.get(iteration);
@@ -23,7 +34,7 @@
         transMeta.setJobBatchId(parentJob.getJobMeta().getBatchId());
       }
       Trans trans=new Trans(logwriter,transMeta);
-      trans.getTransMeta().setSourceRows(prev_result.rows);
+      trans.getTransMeta().setSourceRows(result.rows);
       if (execPerRow) {
         if (argFromPrevious) {
           args=null;
@@ -51,10 +62,11 @@
           }
         }
  else {
-          trans.setSourceRows(prev_result.rows);
+          trans.setSourceRows(result.rows);
         }
       }
       if (!trans.execute(args)) {
+        log.logError(toString(),"Unable to prepare for execution of the transformation");
         result.setNrErrors(1);
       }
  else {
@@ -69,14 +81,18 @@
           trans.stopAll();
           trans.waitUntilFinished();
           trans.endProcessing("stop");
+          result.setNrErrors(1);
         }
  else {
           trans.endProcessing("end");
         }
-        result=trans.getResult();
-        result.setEntryNr(nr);
+        Result newResult=trans.getResult();
+        result.clear();
+        result.add(newResult);
+        result.setRows(newResult.getRows());
+        result.interestingFiles=newResult.interestingFiles;
         if (setLogfile) {
-          result.interestingFiles.add(new File(logFilename));
+          result.interestingFiles.add(new File(getLogFilename()));
         }
       }
     }
@@ -86,7 +102,13 @@
     }
     iteration++;
   }
-  if (setLogfile)   logwriter.close();
+  if (setLogfile) {
+    if (appender != null) {
+      log.removeAppender(appender);
+      appender.close();
+    }
+    log.setLogLevel(backupLogLevel);
+  }
   if (result.getNrErrors() == 0) {
     result.setResult(true);
   }
