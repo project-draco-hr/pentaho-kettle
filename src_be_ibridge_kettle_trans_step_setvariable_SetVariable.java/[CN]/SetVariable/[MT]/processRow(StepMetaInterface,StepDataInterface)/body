@@ -12,11 +12,61 @@
     logBasic("Setting environment variables...");
     for (int i=0; i < meta.getFieldName().length; i++) {
       String value=r.getString(meta.getFieldName()[i],"");
-      System.setProperty(meta.getVariableName()[i],value);
-      logBasic("Set variable " + meta.getVariableName()[i] + " to value ["+ value+ "]");
+      String varname=meta.getVariableName()[i];
+switch (meta.getVariableType()[i]) {
+case SetVariableMeta.VARIABLE_TYPE_JVM:
+        System.setProperty(varname,value);
+      break;
+case SetVariableMeta.VARIABLE_TYPE_PARENT_JOB:
+{
+      Job parentJob=getTrans().getParentJob();
+      if (parentJob != null) {
+        KettleVariables kettleVariables=parentJob.getKettleVariables();
+        kettleVariables.setVariable(varname,value);
+      }
+ else {
+        throw new KettleStepException("Can't set variable [" + varname + "] on parent job: the parent job is not available");
+      }
     }
-    putRow(r);
-    return true;
+  break;
+case SetVariableMeta.VARIABLE_TYPE_GRAND_PARENT_JOB:
+{
+  Job parentJob=getTrans().getParentJob();
+  if (parentJob != null) {
+    Job gpJob=parentJob.getParentJob();
+    if (gpJob != null) {
+      gpJob.getKettleVariables().setVariable(varname,value);
+    }
+ else {
+      throw new KettleStepException("Can't set variable [" + varname + "] on grand parent job: the grand parent job is not available");
+    }
   }
-  throw new KettleStepException(Messages.getString("SetVariable.RuntimeError.MoreThanOneRowReceived.SETVARIABLE0007"));
+ else {
+    throw new KettleStepException("Can't set variable [" + varname + "] on grand parent job: the parent job is not available");
+  }
+}
+break;
+case SetVariableMeta.VARIABLE_TYPE_ROOT_JOB:
+{
+Job parentJob=getTrans().getParentJob();
+Job rootJob=parentJob;
+while (parentJob != null) {
+rootJob=parentJob;
+parentJob=parentJob.getParentJob();
+}
+if (rootJob != null) {
+rootJob.getKettleVariables().setVariable(varname,value);
+}
+ else {
+throw new KettleStepException("Can't set variable [" + varname + "] on root job: the root job is not available (meaning: not even the parent job)");
+}
+}
+break;
+}
+logBasic("Set variable " + meta.getVariableName()[i] + " to value ["+ value+ "]");
+}
+putRow(r);
+return true;
+}
+throw new KettleStepException(Messages.getString("SetVariable.RuntimeError.MoreThanOneRowReceived.SETVARIABLE0007"));
 }
