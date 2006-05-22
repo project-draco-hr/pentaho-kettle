@@ -17,15 +17,17 @@ switch (meta.getVariableType()[i]) {
 case SetVariableMeta.VARIABLE_TYPE_JVM:
         System.setProperty(varname,value);
       break;
-case SetVariableMeta.VARIABLE_TYPE_PARENT_JOB:
+case SetVariableMeta.VARIABLE_TYPE_ROOT_JOB:
 {
       Job parentJob=getTrans().getParentJob();
-      if (parentJob != null) {
-        KettleVariables kettleVariables=parentJob.getKettleVariables();
-        kettleVariables.setVariable(varname,value);
+      Job rootJob=parentJob;
+      while (parentJob != null) {
+        parentJob.getKettleVariables().setVariable(varname,value);
+        rootJob=parentJob;
+        parentJob=parentJob.getParentJob();
       }
- else {
-        throw new KettleStepException("Can't set variable [" + varname + "] on parent job: the parent job is not available");
+      if (rootJob == null) {
+        throw new KettleStepException("Can't set variable [" + varname + "] on root job: the root job is not available (meaning: not even the parent job)");
       }
     }
   break;
@@ -33,6 +35,7 @@ case SetVariableMeta.VARIABLE_TYPE_GRAND_PARENT_JOB:
 {
   Job parentJob=getTrans().getParentJob();
   if (parentJob != null) {
+    parentJob.getKettleVariables().setVariable(varname,value);
     Job gpJob=parentJob.getParentJob();
     if (gpJob != null) {
       gpJob.getKettleVariables().setVariable(varname,value);
@@ -46,22 +49,17 @@ case SetVariableMeta.VARIABLE_TYPE_GRAND_PARENT_JOB:
   }
 }
 break;
-case SetVariableMeta.VARIABLE_TYPE_ROOT_JOB:
+case SetVariableMeta.VARIABLE_TYPE_PARENT_JOB:
 {
 Job parentJob=getTrans().getParentJob();
-Job rootJob=parentJob;
-while (parentJob != null) {
-rootJob=parentJob;
-parentJob=parentJob.getParentJob();
-}
-if (rootJob != null) {
-rootJob.getKettleVariables().setVariable(varname,value);
+if (parentJob != null) {
+KettleVariables kettleVariables=parentJob.getKettleVariables();
+kettleVariables.setVariable(varname,value);
 }
  else {
-throw new KettleStepException("Can't set variable [" + varname + "] on root job: the root job is not available (meaning: not even the parent job)");
+throw new KettleStepException("Can't set variable [" + varname + "] on parent job: the parent job is not available");
 }
 }
-break;
 }
 logBasic("Set variable " + meta.getVariableName()[i] + " to value ["+ value+ "]");
 }
