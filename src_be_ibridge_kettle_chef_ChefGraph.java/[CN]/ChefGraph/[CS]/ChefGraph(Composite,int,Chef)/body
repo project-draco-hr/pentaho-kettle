@@ -297,12 +297,25 @@
         return;
       }
       Point p=getRealPosition(canvas,event.x,event.y);
-      StringTokenizer strtok=new StringTokenizer((String)event.data,Const.CR);
-      if (strtok.countTokens() == 1) {
-        String entry=strtok.nextToken();
+      String xml=(String)event.data;
+      try {
+        DragAndDropContainer container=new DragAndDropContainer(xml);
+        String entry=container.getData();
+switch (container.getType()) {
+case DragAndDropContainer.TYPE_BASE_JOB_ENTRY:
+{
+            JobEntryCopy jge=chef.newChefGraphEntry(entry,false);
+            if (jge != null) {
+              jge.setLocation(p.x,p.y);
+              jge.setDrawn();
+              redraw();
+            }
+          }
+        break;
+case DragAndDropContainer.TYPE_JOB_ENTRY:
+{
         JobEntryCopy jge=chef.jobMeta.findJobEntry(entry,0,true);
         if (jge != null) {
-          log.logDebug(toString(),"DROP " + jge.toString() + ", type="+ JobEntryCopy.getTypeDesc(jge.getType())+ ", start="+ jge.isStart()+ ", drawn="+ jge.isDrawn());
           if (jge.isStart() && jge.isDrawn()) {
             MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_ERROR);
             mb.setMessage(Messages.getString("ChefGraph.Dialog.OnlyUseStartOnce.Message"));
@@ -339,66 +352,68 @@
           log.logBasic("DropTargetEvent","DROP " + newjge.toString() + "!, type="+ JobEntryCopy.getTypeDesc(newjge.getType()));
         }
  else {
-          log.logDebug(toString(),"New entry of type [" + entry + "]");
-          jge=chef.newChefGraphEntry(entry,false);
-          if (jge != null) {
-            jge.setLocation(p.x,p.y);
-            jge.setDrawn();
-            redraw();
-          }
+          log.logError(toString(),"Unknown job entry dropped onto the canvas.");
         }
       }
-    }
-    public void dropAccept(    DropTargetEvent event){
-      drop_candidate=null;
-    }
-  }
+    break;
+default :
+  break;
+}
+}
+ catch (Exception e) {
+new ErrorDialog(shell,chef.props,Messages.getString("ChefGraph.Dialog.ErrorDroppingObject.Message"),Messages.getString("Chefraph.Dialog.ErrorDroppingObject.Title"),e);
+}
+}
+public void dropAccept(DropTargetEvent event){
+drop_candidate=null;
+}
+}
 );
-  addKeyListener(new KeyAdapter(){
-    public void keyPressed(    KeyEvent e){
-      if ((int)e.character == 1) {
-        chef.jobMeta.selectAll();
-        redraw();
-      }
-      if ((int)e.character == 3) {
-        chef.copyJobEntries(chef.jobMeta.getSelectedEntries());
-      }
-      if ((int)e.character == 22) {
-        String clipcontent=chef.fromClipboard();
-        if (clipcontent != null) {
-          if (lastMove != null) {
-            chef.pasteXML(clipcontent,lastMove);
-          }
-        }
-      }
-      if (e.keyCode == SWT.ESC) {
-        chef.jobMeta.unselectAll();
-        redraw();
-      }
-      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.CONTROL) != 0) {
-        alligntop();
-      }
-      if (e.keyCode == SWT.ARROW_DOWN && (e.stateMask & SWT.CONTROL) != 0) {
-        allignbottom();
-      }
-      if (e.keyCode == SWT.ARROW_LEFT && (e.stateMask & SWT.CONTROL) != 0) {
-        allignleft();
-      }
-      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.CONTROL) != 0) {
-        allignright();
-      }
-      if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.ALT) != 0) {
-        distributehorizontal();
-      }
-      if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.ALT) != 0) {
-        distributevertical();
-      }
-      if (e.keyCode == SWT.HOME && (e.stateMask & SWT.ALT) != 0) {
-        snaptogrid(Const.GRID_SIZE);
-      }
-    }
-  }
+addKeyListener(new KeyAdapter(){
+public void keyPressed(KeyEvent e){
+if ((int)e.character == 1) {
+chef.jobMeta.selectAll();
+redraw();
+}
+if ((int)e.character == 3) {
+chef.copyJobEntries(chef.jobMeta.getSelectedEntries());
+}
+if ((int)e.character == 22) {
+String clipcontent=chef.fromClipboard();
+if (clipcontent != null) {
+if (lastMove != null) {
+  chef.pasteXML(clipcontent,lastMove);
+}
+}
+}
+if (e.keyCode == SWT.ESC) {
+chef.jobMeta.unselectAll();
+redraw();
+}
+if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.CONTROL) != 0) {
+alligntop();
+}
+if (e.keyCode == SWT.ARROW_DOWN && (e.stateMask & SWT.CONTROL) != 0) {
+allignbottom();
+}
+if (e.keyCode == SWT.ARROW_LEFT && (e.stateMask & SWT.CONTROL) != 0) {
+allignleft();
+}
+if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.CONTROL) != 0) {
+allignright();
+}
+if (e.keyCode == SWT.ARROW_RIGHT && (e.stateMask & SWT.ALT) != 0) {
+distributehorizontal();
+}
+if (e.keyCode == SWT.ARROW_UP && (e.stateMask & SWT.ALT) != 0) {
+distributevertical();
+}
+if (e.keyCode == SWT.HOME && (e.stateMask & SWT.ALT) != 0) {
+snaptogrid(Const.GRID_SIZE);
+}
+}
+}
 );
-  addKeyListener(chef.defKeys);
-  setBackground(GUIResource.getInstance().getColorBackground());
+addKeyListener(chef.defKeys);
+setBackground(GUIResource.getInstance().getColorBackground());
 }
