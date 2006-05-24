@@ -26,16 +26,21 @@
   List rows=result.getRows();
   while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
     first=false;
-    if (rows != null)     resultRow=(Row)rows.get(iteration);
+    if (rows != null && execPerRow) {
+      resultRow=(Row)rows.get(iteration);
+    }
+ else {
+      resultRow=null;
+    }
     try {
       log.logDetailed(toString(),"Starting transformation...(file=" + getFileName() + ", name="+ getName()+ "), repinfo="+ getDescription());
       TransMeta transMeta=getTransMeta(rep);
-      if (sendFiles)       transMeta.setInputFiles(result.interestingFiles);
       if (parentJob.getJobMeta().isBatchIdPassed()) {
         transMeta.setJobBatchId(parentJob.getJobMeta().getBatchId());
       }
       Trans trans=new Trans(logwriter,transMeta);
-      trans.getTransMeta().setSourceRows(result.rows);
+      trans.getTransMeta().setSourceRows(result.getRows());
+      trans.getTransMeta().setPreviousResult((Result)result.clone());
       trans.setParentJob(parentJob);
       LocalVariables localVariables=LocalVariables.getInstance();
       localVariables.createKettleVariables(Thread.currentThread(),parentJob,false);
@@ -66,7 +71,7 @@
           }
         }
  else {
-          trans.setSourceRows(result.rows);
+          trans.setSourceRows(result.getRows());
         }
       }
       if (!trans.execute(args)) {
@@ -94,9 +99,9 @@
         result.clear();
         result.add(newResult);
         result.setRows(newResult.getRows());
-        result.interestingFiles=newResult.interestingFiles;
         if (setLogfile) {
-          result.interestingFiles.add(new File(getLogFilename()));
+          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,new File(getLogFilename()),parentJob.getName(),toString());
+          result.getResultFiles().add(resultFile);
         }
       }
     }
