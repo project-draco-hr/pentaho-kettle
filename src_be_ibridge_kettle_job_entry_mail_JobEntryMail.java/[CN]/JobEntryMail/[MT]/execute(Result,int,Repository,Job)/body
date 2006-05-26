@@ -1,6 +1,6 @@
 {
   LogWriter log=LogWriter.getInstance();
-  Result result=prev_result;
+  File masterZipfile=null;
   Properties props=new Properties();
   props.put("mail.smtp.host",server);
   boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
@@ -28,18 +28,25 @@
       Value date=new Value("date",new Date());
       messageText.append("Message date: ").append(date.toString()).append(Const.CR).append(Const.CR);
     }
-    if (prev_result != null) {
+    if (result != null) {
       messageText.append("Previous result:").append(Const.CR);
       messageText.append("-----------------").append(Const.CR);
-      messageText.append("Job entry nr         : ").append(prev_result.getEntryNr()).append(Const.CR);
-      messageText.append("Errors               : ").append(prev_result.getNrErrors()).append(Const.CR);
-      messageText.append("Lines read           : ").append(prev_result.getNrLinesRead()).append(Const.CR);
-      messageText.append("Lines written        : ").append(prev_result.getNrLinesWritten()).append(Const.CR);
-      messageText.append("Lines input          : ").append(prev_result.getNrLinesInput()).append(Const.CR);
-      messageText.append("Lines output         : ").append(prev_result.getNrLinesOutput()).append(Const.CR);
-      messageText.append("Lines updated        : ").append(prev_result.getNrLinesUpdated()).append(Const.CR);
-      messageText.append("Script exit status   : ").append(prev_result.getExitStatus()).append(Const.CR);
-      messageText.append("Result               : ").append(prev_result.getResult()).append(Const.CR);
+      messageText.append("Job entry nr         : ").append(result.getEntryNr()).append(Const.CR);
+      messageText.append("Errors               : ").append(result.getNrErrors()).append(Const.CR);
+      messageText.append("Lines read           : ").append(result.getNrLinesRead()).append(Const.CR);
+      messageText.append("Lines written        : ").append(result.getNrLinesWritten()).append(Const.CR);
+      messageText.append("Lines input          : ").append(result.getNrLinesInput()).append(Const.CR);
+      messageText.append("Lines output         : ").append(result.getNrLinesOutput()).append(Const.CR);
+      messageText.append("Lines updated        : ").append(result.getNrLinesUpdated()).append(Const.CR);
+      messageText.append("Script exit status   : ").append(result.getExitStatus()).append(Const.CR);
+      messageText.append("Result               : ").append(result.getResult()).append(Const.CR);
+      messageText.append(Const.CR);
+    }
+    if (!Const.isEmpty(contact_person) || !Const.isEmpty(contact_phone)) {
+      messageText.append("Contact information :").append(Const.CR);
+      messageText.append("---------------------").append(Const.CR);
+      messageText.append("Person to contact : ").append(contact_person).append(Const.CR);
+      messageText.append("Telephone number  : ").append(contact_phone).append(Const.CR);
       messageText.append(Const.CR);
     }
     JobTracker jobTracker=parentJob.getJobTracker();
@@ -52,15 +59,62 @@
     MimeBodyPart part1=new MimeBodyPart();
     part1.setText(messageText.toString());
     parts.addBodyPart(part1);
-    if (includeFiles && prev_result != null) {
-      List resultFiles=prev_result.getResultFiles();
+    if (includeFiles && result != null) {
+      List resultFiles=result.getResultFiles();
       if (resultFiles != null && resultFiles.size() > 0) {
-        for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
-          ResultFile resultFile=(ResultFile)iter.next();
-          File file=resultFile.getFile();
-          if (file != null && file.exists()) {
+        if (!zipFiles) {
+          for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
+            ResultFile resultFile=(ResultFile)iter.next();
+            File file=resultFile.getFile();
+            if (file != null && file.exists()) {
+              MimeBodyPart files=new MimeBodyPart();
+              FileDataSource fds=new FileDataSource(file);
+              files.setDataHandler(new DataHandler(fds));
+              files.setFileName(fds.getName());
+              parts.addBodyPart(files);
+            }
+          }
+        }
+ else {
+          masterZipfile=new File(System.getProperty("java.io.tmpdir") + Const.FILE_SEPARATOR + zipFilename);
+          ZipOutputStream zipOutputStream=null;
+          try {
+            zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
+            for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
+              ResultFile resultFile=(ResultFile)iter.next();
+              File file=resultFile.getFile();
+              ZipEntry zipEntry=new ZipEntry(file.getPath());
+              zipOutputStream.putNextEntry(zipEntry);
+              BufferedInputStream inputStream=new BufferedInputStream(new FileInputStream(file));
+              int c;
+              while ((c=inputStream.read()) >= 0) {
+                zipOutputStream.write(c);
+              }
+              inputStream.close();
+              zipOutputStream.closeEntry();
+            }
+          }
+ catch (          Exception e) {
+            log.logError(toString(),"Error zipping attachement files into file [" + masterZipfile.getPath() + "] : "+ e.toString());
+            log.logError(toString(),Const.getStackTracker(e));
+            result.setNrErrors(1);
+          }
+ finally {
+            if (zipOutputStream != null) {
+              try {
+                zipOutputStream.finish();
+                zipOutputStream.close();
+              }
+ catch (              IOException e) {
+                log.logError(toString(),"Unable to close attachement zip file archive : " + e.toString());
+                log.logError(toString(),Const.getStackTracker(e));
+                result.setNrErrors(1);
+              }
+            }
+          }
+          if (result.getNrErrors() == 0) {
             MimeBodyPart files=new MimeBodyPart();
-            FileDataSource fds=new FileDataSource(file);
+            FileDataSource fds=new FileDataSource(masterZipfile);
             files.setDataHandler(new DataHandler(fds));
             files.setFileName(fds.getName());
             parts.addBodyPart(files);
