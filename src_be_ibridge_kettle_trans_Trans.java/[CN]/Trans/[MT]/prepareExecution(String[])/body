@@ -138,16 +138,36 @@ rt.previewBuffer=new ArrayList();
 }
 }
 }
-boolean ok=true;
+log.logBasic(toString(),Messages.getString("Trans.Log.InitialisingSteps",String.valueOf(steps.size())));
+StepInitThread initThreads[]=new StepInitThread[steps.size()];
 for (int i=0; i < steps.size(); i++) {
-StepMetaDataCombi sid=(StepMetaDataCombi)steps.get(i);
-if (sid.step.init(sid.meta,sid.data)) {
-sid.data.setStatus(StepDataInterface.STATUS_IDLE);
+final StepMetaDataCombi sid=(StepMetaDataCombi)steps.get(i);
+initThreads[i]=new StepInitThread(sid,log);
+new Thread(initThreads[i]).start();
+}
+boolean finished=false;
+while (!finished) {
+finished=true;
+for (int i=0; i < initThreads.length && finished; i++) {
+if (!initThreads[i].isFinished()) finished=false;
+}
+if (!finished) {
+try {
+Thread.sleep(10);
+}
+ catch (InterruptedException e) {
+}
+}
+}
+boolean ok=true;
+for (int i=0; i < initThreads.length && ok; i++) {
+StepMetaDataCombi combi=initThreads[i].getCombi();
+if (!initThreads[i].isOk()) {
+log.logError(toString(),Messages.getString("Trans.Log.StepFailedToInit",combi.stepname + "." + combi.copy));
+ok=false;
 }
  else {
-sid.step.setErrors(1);
-log.logError(toString(),Messages.getString("Trans.Log.ErrorInitializingStep",sid.step.getStepname()));
-ok=false;
+log.logDetailed(toString(),Messages.getString("Trans.Log.StepInitialized",combi.stepname + "." + combi.copy));
 }
 }
 if (!ok) {
