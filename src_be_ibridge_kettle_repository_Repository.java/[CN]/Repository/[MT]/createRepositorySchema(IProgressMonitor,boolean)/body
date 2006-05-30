@@ -9,6 +9,39 @@
   log.logBasic(toString(),"Starting to create or modify the repository tables...");
   if (monitor != null)   monitor.beginTask((upgrade ? "Upgrading " : "Creating") + " the Kettle repository...",31);
   setAutoCommit(true);
+  table=new Row();
+  tablename="R_VERSION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValue(new Value("ID_VERSION",Value.VALUE_TYPE_INTEGER,KEY,0));
+  table.addValue(new Value("MAJOR_VERSION",Value.VALUE_TYPE_INTEGER,3,0));
+  table.addValue(new Value("MINOR_VERSION",Value.VALUE_TYPE_INTEGER,3,0));
+  table.addValue(new Value("UPGRADE_DATE",Value.VALUE_TYPE_DATE,0,0));
+  table.addValue(new Value("IS_UPGRADE",Value.VALUE_TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_VERSION",false);
+  if (sql != null && sql.length() > 0) {
+    try {
+      log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+      database.execStatements(sql);
+      log.logDetailed(toString(),"Created/altered table " + tablename);
+    }
+ catch (    KettleDatabaseException dbe) {
+      throw new KettleDatabaseException("Unable to create or modify table " + tablename,dbe);
+    }
+  }
+ else {
+    log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  try {
+    table.getValue(0).setValue(getNextID(tablename,"ID_VERSION"));
+    table.getValue(1).setValue(REQUIRED_MAJOR_VERSION);
+    table.getValue(2).setValue(REQUIRED_MINOR_VERSION);
+    table.getValue(3).setValue(new Date());
+    table.getValue(4).setValue(upgrade);
+    database.execStatement("INSERT INTO R_VERSION VALUES(?, ?, ?, ?, ?)",table);
+  }
+ catch (  KettleDatabaseException e) {
+    throw new KettleDatabaseException("Unable to insert new version log record into " + tablename,e);
+  }
   boolean ok_database_type=true;
   table=new Row();
   tablename="R_DATABASE_TYPE";

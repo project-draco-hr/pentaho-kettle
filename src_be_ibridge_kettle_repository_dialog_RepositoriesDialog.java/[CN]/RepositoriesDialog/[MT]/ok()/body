@@ -4,29 +4,30 @@
     if (idx >= 0) {
       repinfo=input.getRepository(idx);
       Repository rep=new Repository(log,repinfo,userinfo);
-      if (rep.connect(getClass().getName())) {
-        try {
-          userinfo=new UserInfo(rep,wUsername.getText(),wPassword.getText());
-          props.setLastRepository(repinfo.getName());
-          props.setLastRepositoryLogin(wUsername.getText());
-        }
- catch (        KettleException e) {
-          userinfo=null;
-          repinfo=null;
-          if (!(e instanceof KettleDatabaseException)) {
-            new ErrorDialog(shell,props,Messages.getString("RepositoriesDialog.Dialog.UnexpectedError.Title"),Messages.getString("RepositoriesDialog.Dialog.UnexpectedError.Message"),e);
-          }
-        }
- finally {
-          rep.disconnect();
-        }
+      try {
+        rep.connect(getClass().getName());
       }
- else {
+ catch (      KettleException ke) {
         MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage(Messages.getString("RepositoriesDialog.Dialog.RepositoryUnableToConnect.Message1") + Const.CR + Messages.getString("RepositoriesDialog.Dialog.RepositoryUnableToConnect.Message2"));
+        mb.setMessage(Messages.getString("RepositoriesDialog.Dialog.RepositoryUnableToConnect.Message1") + Const.CR + ke.getSuperMessage());
         mb.setText(Messages.getString("RepositoriesDialog.Dialog.RepositoryUnableToConnect.Title"));
         mb.open();
         return;
+      }
+      try {
+        userinfo=new UserInfo(rep,wUsername.getText(),wPassword.getText());
+        props.setLastRepository(repinfo.getName());
+        props.setLastRepositoryLogin(wUsername.getText());
+      }
+ catch (      KettleException e) {
+        userinfo=null;
+        repinfo=null;
+        if (!(e instanceof KettleDatabaseException)) {
+          new ErrorDialog(shell,props,Messages.getString("RepositoriesDialog.Dialog.UnexpectedError.Title"),Messages.getString("RepositoriesDialog.Dialog.UnexpectedError.Message"),e);
+        }
+      }
+ finally {
+        rep.disconnect();
       }
     }
  else {

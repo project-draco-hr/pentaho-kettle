@@ -1,0 +1,40 @@
+{
+  if (repinfo.isLocked()) {
+    log.logError(toString(),"Repository is locked by class " + locksource);
+    return false;
+  }
+  boolean retval=true;
+  try {
+    database.connect();
+    if (!ignoreVersion)     verifyVersion();
+    setAutoCommit(false);
+    repinfo.setLock(true);
+    this.locksource=locksource;
+    if (!no_lookup) {
+      try {
+        setLookupStepAttribute();
+        setLookupJobEntryAttribute();
+      }
+ catch (      KettleDatabaseException dbe) {
+        log.logError(toString(),"Error setting lookup prep.statements: " + dbe.getMessage());
+      }
+    }
+    if (readDirectory) {
+      try {
+        refreshRepositoryDirectoryTree();
+      }
+ catch (      KettleException e) {
+        log.logError(toString(),e.toString());
+      }
+    }
+ else {
+      directoryTree=new RepositoryDirectory();
+    }
+  }
+ catch (  KettleException e) {
+    retval=false;
+    log.logError(toString(),"Error connecting to the repository!" + e.getMessage());
+    throw new KettleException(e);
+  }
+  return retval;
+}
