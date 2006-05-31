@@ -15,7 +15,20 @@ catch (  Exception e) {
     String url=StringUtil.environmentSubstitute(databaseMeta.getURL());
     String userName=StringUtil.environmentSubstitute(databaseMeta.getUsername());
     String password=StringUtil.environmentSubstitute(databaseMeta.getPassword());
-    connection=DriverManager.getConnection(url,userName,password);
+    if (databaseMeta.supportsOptionsInURL()) {
+      if (!Const.isEmpty(userName)) {
+        connection=DriverManager.getConnection(url,userName,password);
+      }
+ else {
+        connection=DriverManager.getConnection(url);
+      }
+    }
+ else {
+      Properties properties=databaseMeta.getConnectionProperties();
+      if (!Const.isEmpty(userName))       properties.put("user",userName);
+      if (!Const.isEmpty(password))       properties.put("password",userName);
+      connection=DriverManager.getConnection(url,properties);
+    }
   }
  catch (  SQLException e) {
     throw new KettleDatabaseException("Error connecting to database: (using class " + classname + ")",e);
