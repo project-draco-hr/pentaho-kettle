@@ -28,13 +28,10 @@
       if (jobMeta == null) {
         throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
       }
-      Job job=Job.createJobWithNewClassLoader();
-      job.open(logwriter,StepLoader.getInstance(),rep,jobMeta);
+      Job job=new Job(logwriter,StepLoader.getInstance(),rep,jobMeta);
       parentJob.getJobTracker().addJobTracker(job.getJobTracker());
       job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
       job.setParentJob(parentJob);
-      LocalVariables localVariables=LocalVariables.getInstance();
-      localVariables.createKettleVariables(job,parentJob,false);
       if (parentJob.getJobMeta().isBatchIdPassed()) {
         job.getJobMeta().setBatchId(parentJob.getJobMeta().getBatchId());
       }
@@ -70,7 +67,9 @@
       }
       job.getJobMeta().setArguments(args);
       JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr);
-      new Thread(runner).start();
+      Thread jobRunnerThread=new Thread(runner);
+      jobRunnerThread.setName(Const.NVL(job.getJobMeta().getName(),job.getJobMeta().getFilename()));
+      jobRunnerThread.start();
       try {
         while (!runner.isFinished() && !parentJob.isStopped()) {
           try {
