@@ -42,26 +42,34 @@
     if (monitor != null)     monitor.subTask("Getting schema information");
     if (dbInfo.supportsSchemas() && dbmd.supportsSchemasInTableDefinitions()) {
       ArrayList schemaList=new ArrayList();
-      ResultSet schemas=dbmd.getSchemas();
-      while (schemas.next()) {
-        ArrayList schemaItems=new ArrayList();
-        String schemaName=schemas.getString(1);
-        try {
-          ResultSet tables=dbmd.getTables(null,schemaName,null,null);
-          while (tables.next()) {
-            String table_name=tables.getString(3);
-            if (!db.isSystemTable(table_name)) {
-              schemaItems.add(table_name);
+      ResultSet schemas=null;
+      try {
+        schemas=dbmd.getSchemas();
+        while (schemas.next()) {
+          ArrayList schemaItems=new ArrayList();
+          String schemaName=schemas.getString(1);
+          ResultSet tables=null;
+          try {
+            tables=dbmd.getTables(null,schemaName,null,null);
+            while (tables.next()) {
+              String table_name=tables.getString(3);
+              if (!db.isSystemTable(table_name)) {
+                schemaItems.add(table_name);
+              }
             }
           }
-          tables.close();
+ catch (          Exception e) {
+          }
+ finally {
+            if (tables != null)             tables.close();
+          }
+          Schema schema=new Schema(schemaName,(String[])schemaItems.toArray(new String[schemaItems.size()]));
+          schemaList.add(schema);
         }
- catch (        Exception e) {
-        }
-        Schema schema=new Schema(schemaName,(String[])schemaItems.toArray(new String[schemaItems.size()]));
-        schemaList.add(schema);
       }
-      schemas.close();
+  finally {
+        if (schemas != null)         schemas.close();
+      }
       setSchemas((Schema[])schemaList.toArray(new Schema[schemaList.size()]));
     }
     if (monitor != null)     monitor.worked(1);
