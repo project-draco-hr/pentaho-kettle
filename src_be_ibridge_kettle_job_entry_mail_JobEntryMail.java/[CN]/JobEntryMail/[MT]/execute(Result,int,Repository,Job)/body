@@ -5,11 +5,20 @@
   props.put("mail.smtp.host",server);
   boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
   if (debug)   props.put("mail.debug","true");
-  Session session=Session.getInstance(props,null);
+  Authenticator authenticator=null;
+  if (usingAuthentication) {
+    authenticator=new Authenticator(){
+      protected PasswordAuthentication getPasswordAuthentication(){
+        return new PasswordAuthentication(Const.NVL(authenticationUser,""),Const.NVL(authenticationPassword,""));
+      }
+    }
+;
+  }
+  Session session=Session.getInstance(props,authenticator);
   session.setDebug(debug);
   try {
     Message msg=new MimeMessage(session);
-    msg.setFrom(new InternetAddress(replyto));
+    msg.setFrom(new InternetAddress(replyAddress));
     String destinations[]=destination.split(" ");
     InternetAddress[] address=new InternetAddress[destinations.length];
     for (int i=0; i < destinations.length; i++)     address[i]=new InternetAddress(destinations[i]);
@@ -26,7 +35,7 @@
     messageText.append("Directory  : ").append(parentJob.getJobMeta().getDirectory()).append(Const.CR);
     messageText.append("JobEntry   : ").append(getName()).append(Const.CR);
     messageText.append(Const.CR);
-    if (include_date) {
+    if (includeDate) {
       Value date=new Value("date",new Date());
       messageText.append("Message date: ").append(date.toString()).append(Const.CR).append(Const.CR);
     }
@@ -44,11 +53,11 @@
       messageText.append("Result               : ").append(result.getResult()).append(Const.CR);
       messageText.append(Const.CR);
     }
-    if (!Const.isEmpty(contact_person) || !Const.isEmpty(contact_phone)) {
+    if (!Const.isEmpty(contactPerson) || !Const.isEmpty(contactPhone)) {
       messageText.append("Contact information :").append(Const.CR);
       messageText.append("---------------------").append(Const.CR);
-      messageText.append("Person to contact : ").append(contact_person).append(Const.CR);
-      messageText.append("Telephone number  : ").append(contact_phone).append(Const.CR);
+      messageText.append("Person to contact : ").append(contactPerson).append(Const.CR);
+      messageText.append("Telephone number  : ").append(contactPhone).append(Const.CR);
       messageText.append(Const.CR);
     }
     JobTracker jobTracker=parentJob.getJobTracker();
@@ -61,7 +70,7 @@
     MimeBodyPart part1=new MimeBodyPart();
     part1.setText(messageText.toString());
     parts.addBodyPart(part1);
-    if (includeFiles && result != null) {
+    if (includingFiles && result != null) {
       List resultFiles=result.getResultFiles();
       if (resultFiles != null && resultFiles.size() > 0) {
         if (!zipFiles) {
