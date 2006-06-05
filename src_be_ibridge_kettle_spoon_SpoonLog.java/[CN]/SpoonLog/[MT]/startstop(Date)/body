@@ -39,17 +39,16 @@
           getVariables(trans.getTransMeta());
           log.logMinimal(Spoon.APP_NAME,Messages.getString("SpoonLog.Log.LaunchingTransformation") + trans.getTransMeta().getName() + "]...");
           trans.setSafeModeEnabled(wSafeMode.getSelection());
+          final Thread parentThread=Thread.currentThread();
           log.logMinimal(Spoon.APP_NAME,"----> Async exec of prepare and run threads...");
           display.asyncExec(new Runnable(){
             public void run(){
-              trans.prepareExecution(args);
-              trans.startThreads();
+              prepareAndStartTrans(parentThread,args);
             }
           }
 );
           log.logMinimal(Spoon.APP_NAME,"----> Async exec of prepare and run threads started!!!");
           log.logMinimal(Spoon.APP_NAME,Messages.getString("SpoonLog.Log.StartedExecutionOfTransformation"));
-          running=!running;
           wStart.setText(STOP_TEXT);
           readLog();
         }
@@ -92,7 +91,8 @@
       new ErrorDialog(shell,spoon.props,Messages.getString("SpoonLog.Dialog.ErrorWritingLogRecord.Title"),Messages.getString("SpoonLog.Dialog.ErrorWritingLogRecord.Message"),e);
     }
     wStart.setText(START_TEXT);
-    running=!running;
+    running=false;
+    initialized=false;
     if (preview) {
       preview=false;
       showPreview();
