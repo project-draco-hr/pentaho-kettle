@@ -2,14 +2,14 @@
   LogWriter log=LogWriter.getInstance();
   File masterZipfile=null;
   Properties props=new Properties();
-  props.put("mail.smtp.host",server);
+  props.put("mail.smtp.host",StringUtil.environmentSubstitute(server));
   boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
   if (debug)   props.put("mail.debug","true");
   Authenticator authenticator=null;
   if (usingAuthentication) {
     authenticator=new Authenticator(){
       protected PasswordAuthentication getPasswordAuthentication(){
-        return new PasswordAuthentication(Const.NVL(authenticationUser,""),Const.NVL(authenticationPassword,""));
+        return new PasswordAuthentication(StringUtil.environmentSubstitute(Const.NVL(authenticationUser,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationPassword,"")));
       }
     }
 ;
@@ -18,16 +18,16 @@
   session.setDebug(debug);
   try {
     Message msg=new MimeMessage(session);
-    msg.setFrom(new InternetAddress(replyAddress));
-    String destinations[]=destination.split(" ");
+    msg.setFrom(new InternetAddress(StringUtil.environmentSubstitute(replyAddress)));
+    String destinations[]=StringUtil.environmentSubstitute(destination).split(" ");
     InternetAddress[] address=new InternetAddress[destinations.length];
     for (int i=0; i < destinations.length; i++)     address[i]=new InternetAddress(destinations[i]);
     msg.setRecipients(Message.RecipientType.TO,address);
-    msg.setSubject(subject);
+    msg.setSubject(StringUtil.environmentSubstitute(subject));
     msg.setSentDate(new Date());
     StringBuffer messageText=new StringBuffer();
     if (comment != null) {
-      messageText.append(comment).append(Const.CR).append(Const.CR);
+      messageText.append(StringUtil.environmentSubstitute(comment)).append(Const.CR).append(Const.CR);
     }
     messageText.append("Job:").append(Const.CR);
     messageText.append("-----").append(Const.CR);
@@ -53,11 +53,11 @@
       messageText.append("Result               : ").append(result.getResult()).append(Const.CR);
       messageText.append(Const.CR);
     }
-    if (!Const.isEmpty(contactPerson) || !Const.isEmpty(contactPhone)) {
+    if (!Const.isEmpty(StringUtil.environmentSubstitute(contactPerson)) || !Const.isEmpty(StringUtil.environmentSubstitute(contactPhone))) {
       messageText.append("Contact information :").append(Const.CR);
       messageText.append("---------------------").append(Const.CR);
-      messageText.append("Person to contact : ").append(contactPerson).append(Const.CR);
-      messageText.append("Telephone number  : ").append(contactPhone).append(Const.CR);
+      messageText.append("Person to contact : ").append(StringUtil.environmentSubstitute(contactPerson)).append(Const.CR);
+      messageText.append("Telephone number  : ").append(StringUtil.environmentSubstitute(contactPhone)).append(Const.CR);
       messageText.append(Const.CR);
     }
     JobTracker jobTracker=parentJob.getJobTracker();
@@ -87,7 +87,7 @@
           }
         }
  else {
-          masterZipfile=new File(System.getProperty("java.io.tmpdir") + Const.FILE_SEPARATOR + zipFilename);
+          masterZipfile=new File(System.getProperty("java.io.tmpdir") + Const.FILE_SEPARATOR + StringUtil.environmentSubstitute(zipFilename));
           ZipOutputStream zipOutputStream=null;
           try {
             zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
