@@ -14,7 +14,13 @@
     }
     data.db.prepareInsert(ins,meta.getTableName());
     if (!meta.isUpdateBypassed()) {
-      data.db.prepareUpdate(meta.getTableName(),meta.getKeyLookup(),meta.getKeyCondition(),meta.getUpdateLookup());
+      List updateColumns=new ArrayList();
+      for (int i=0; i < meta.getUpdate().length; i++) {
+        if (meta.getUpdate()[i].booleanValue()) {
+          updateColumns.add(meta.getUpdateLookup()[i]);
+        }
+      }
+      data.db.prepareUpdate(meta.getTableName(),meta.getKeyLookup(),meta.getKeyCondition(),(String[])updateColumns.toArray(new String[]{}));
     }
     debug=Messages.getString("InsertUpdate.Debug.FirstRunLookupValues");
     if (log.isDetailed())     logDetailed(Messages.getString("InsertUpdate.Log.CheckingRow") + row.toString());
@@ -73,12 +79,15 @@
       if (log.isRowLevel())       logRowlevel(Messages.getString("InsertUpdate.Log.FoundRowForUpdate") + row.toString());
       debug=Messages.getString("InsertUpdate.Debug.CompareForUpdate");
       boolean update=false;
+      int j=0;
       for (int i=0; i < data.valuenrs.length; i++) {
-        Value rowvalue=row.getValue(data.valuenrs[i]);
-        lu.addValue(i,rowvalue);
-        Value retvalue=add.getValue(i);
-        if (!retvalue.equals(rowvalue)) {
-          update=true;
+        if (meta.getUpdate()[i].booleanValue()) {
+          Value rowvalue=row.getValue(data.valuenrs[i]);
+          lu.addValue(j++,rowvalue);
+          Value retvalue=add.getValue(i);
+          if (!retvalue.equals(rowvalue)) {
+            update=true;
+          }
         }
       }
       if (update) {
