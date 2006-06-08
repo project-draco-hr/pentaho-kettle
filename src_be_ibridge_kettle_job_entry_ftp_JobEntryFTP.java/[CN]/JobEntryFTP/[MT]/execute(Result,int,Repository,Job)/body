@@ -46,14 +46,17 @@
         getIt=matcher.matches();
       }
       if (getIt) {
-        String translatedTargetDirectory=StringUtil.environmentSubstitute(targetDirectory);
-        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ translatedTargetDirectory+ "]");
-        String targetFilename=translatedTargetDirectory + Const.FILE_SEPARATOR + filelist[i];
-        ftpclient.get(targetFilename,filelist[i]);
-        filesRetrieved++;
-        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,new File(targetFilename),parentJob.getJobname(),toString());
-        result.getResultFiles().add(resultFile);
-        log.logDetailed(toString(),"Got file [" + filelist[i] + "]");
+        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ StringUtil.environmentSubstitute(targetDirectory)+ "]");
+        String targetFilename=getTargetFilename(filelist[i]);
+        File targetFile=new File(targetFilename);
+        if (onlyGettingNewFiles && needsDownload(filelist[i])) {
+          ftpclient.get(targetFilename,filelist[i]);
+          filesRetrieved++;
+          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,targetFile,parentJob.getJobname(),toString());
+          resultFile.setComment("Downloaded from ftp server " + serverName);
+          result.getResultFiles().add(resultFile);
+          log.logDetailed(toString(),"Got file [" + filelist[i] + "]");
+        }
         if (remove) {
           ftpclient.delete(filelist[i]);
           log.logDetailed(toString(),"deleted file [" + filelist[i] + "]");
