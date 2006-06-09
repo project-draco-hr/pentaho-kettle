@@ -1,25 +1,54 @@
 {
   meta=(XBaseInputMeta)smi;
   data=(XBaseInputData)sdi;
-  debug="Get row from DBF file";
-  Row row=data.xbi.getRow(data.fields);
-  if (row == null) {
-    debug="No more rows.";
-    if (data.xbi.hasError()) {
-      logError(Messages.getString("XBaseInput.Log.Error.UnexpectedErrorCanNotContinue"));
-      setErrors(1);
-      stopAll();
+  Row row=null;
+  if (first) {
+    first=false;
+    if (meta.isAcceptingFilenames()) {
+      data.files.getFiles().clear();
+      int idx=-1;
+      Row fileRow=getRowFrom(meta.getAcceptingStepName());
+      while (fileRow != null) {
+        if (idx < 0) {
+          idx=fileRow.searchValueIndex(meta.getAcceptingField());
+          if (idx < 0) {
+            logError(Messages.getString("XBaseInput.Log.Error.UnableToFindFilenameField",meta.getAcceptingField()));
+            setErrors(1);
+            stopAll();
+            return false;
+          }
+        }
+        Value fileValue=fileRow.getValue(idx);
+        data.files.addFile(new File(fileValue.getString()));
+        fileRow=getRowFrom(meta.getAcceptingStepName());
+      }
+      if (data.files.nrOfFiles() == 0) {
+        logBasic(Messages.getString("XBaseInput.Log.Error.NoFilesSpecified"));
+        return false;
+      }
     }
+    openNextFile();
+  }
+  row=data.xbi.getRow(data.fields);
+  while (row == null && data.fileNr < data.files.nrOfFiles()) {
+    openNextFile();
+    row=data.xbi.getRow(data.fields);
+  }
+  if (row == null) {
     setOutputDone();
     return false;
   }
   linesInput++;
-  debug="Do we need to add a rownr?";
-  if (meta.isRowNrAdded() && meta.getRowNrField() != null && meta.getRowNrField().length() > 0) {
-    Value rownr=new Value(meta.getRowNrField(),Value.VALUE_TYPE_INTEGER);
-    rownr.setLength(9,0);
-    rownr.setValue(linesInput);
-    row.addValue(rownr);
+  if (meta.includeFilename()) {
+    Value inc=new Value(meta.getFilenameField(),data.file_dbf.getPath());
+    inc.setLength(100);
+    row.addValue(inc);
+  }
+  if (meta.isRowNrAdded()) {
+    Value inc=new Value(meta.getRowNrField(),Value.VALUE_TYPE_INTEGER);
+    inc.setValue(linesInput);
+    inc.setLength(9);
+    row.addValue(inc);
   }
   debug="Send the row to the next step.";
   putRow(row);
