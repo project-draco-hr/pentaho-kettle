@@ -7,7 +7,7 @@
       pstmt=connection.prepareStatement(databaseMeta.stripCR(sql),ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
       debug="P Set values";
       setValues(params);
-      if (databaseMeta.isFetchSizeSupported() && (pstmt.getMaxRows() > 0 || databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_POSTGRES || databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL)) {
+      if (canWeSetFetchSize(pstmt)) {
         debug="P Set fetchsize";
         int fs=Const.FETCH_SIZE <= pstmt.getMaxRows() ? pstmt.getMaxRows() : Const.FETCH_SIZE;
         if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL) {
@@ -27,7 +27,7 @@
  else {
       debug="create statement";
       sel_stmt=connection.createStatement();
-      if (databaseMeta.isFetchSizeSupported() && sel_stmt.getMaxRows() > 0) {
+      if (canWeSetFetchSize(sel_stmt)) {
         debug="Set fetchsize";
         int fs=Const.FETCH_SIZE <= sel_stmt.getMaxRows() ? sel_stmt.getMaxRows() : Const.FETCH_SIZE;
         if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL) {
@@ -37,17 +37,15 @@
           sel_stmt.setFetchSize(fs);
         }
         debug="Set fetch direction";
-        sel_stmt.setFetchDirection(ResultSet.FETCH_FORWARD);
+        sel_stmt.setFetchDirection(fetch_mode);
       }
       debug="Set max rows";
       if (rowlimit > 0)       sel_stmt.setMaxRows(rowlimit);
       debug="exec query";
       res=sel_stmt.executeQuery(databaseMeta.stripCR(sql));
     }
-    debug="openQuery : get metadata";
-    rsmd=res.getMetaData();
     debug="openQuery : get rowinfo";
-    rowinfo=getRowInfo();
+    rowinfo=getRowInfo(res.getMetaData(),databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL);
   }
  catch (  SQLException ex) {
     log.logError(toString(),"ERROR executing [" + sql + "]");
