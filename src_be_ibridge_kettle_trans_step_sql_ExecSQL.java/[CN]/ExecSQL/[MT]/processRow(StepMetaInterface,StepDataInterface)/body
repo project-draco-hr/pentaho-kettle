@@ -1,10 +1,10 @@
 {
   meta=(ExecSQLMeta)smi;
   data=(ExecSQLData)sdi;
-  debug=Messages.getString("ExecSQL.Debug.ExecuteSQLStart");
+  debug="execute SQL start";
   Row row=null;
   if (!meta.isExecutedEachInputRow()) {
-    debug=Messages.getString("ExecSQL.Debug.ExecuteOnce");
+    debug="exec once: return result";
     row=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
     putRow(row);
     setOutputDone();
@@ -18,7 +18,7 @@
   StringBuffer sql=new StringBuffer(meta.getSql());
   if (first) {
     first=false;
-    debug=Messages.getString("ExecSQL.Debug.FindIndexsOfArguments");
+    debug="Find the indexes of the arguments";
     data.argumentIndexes=new int[meta.getArguments().length];
     for (int i=0; i < meta.getArguments().length; i++) {
       data.argumentIndexes[i]=row.searchValueIndex(meta.getArguments()[i]);
@@ -27,7 +27,7 @@
         throw new KettleStepException(Messages.getString("ExecSQL.Exception.CouldNotFindField",meta.getArguments()[i]));
       }
     }
-    debug=Messages.getString("ExecSQL.Debug.FindLocationsOfQuestionMarks");
+    debug="Find the locations of the question marks in the String...";
     data.markerPositions=new ArrayList();
     int len=sql.length();
     int pos=len - 1;
@@ -36,16 +36,16 @@
       pos--;
     }
   }
-  debug=Messages.getString("ExecSQL.Debug.ReplaceValuesInSQLString");
+  debug="Replace the values in the SQL string...";
   for (int i=0; i < data.markerPositions.size(); i++) {
     Value value=row.getValue(data.argumentIndexes[data.markerPositions.size() - i - 1]);
     int pos=((Integer)data.markerPositions.get(i)).intValue();
     sql.replace(pos,pos + 1,value.getString());
   }
-  debug=Messages.getString("ExecSQL.Debug.ExecuteSQL") + sql;
+  if (log.isDebug())   debug="Execute sql: " + sql;
   if (log.isRowLevel())   logRowlevel(Messages.getString("ExecSQL.Log.ExecutingSQLScript") + Const.CR + sql);
   data.result=data.db.execStatements(sql.toString());
-  debug=Messages.getString("ExecSQL.Debug.GetResult");
+  debug="Get result";
   Row add=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
   row.addRow(add);
   if (!data.db.isAutoCommit())   data.db.commit();
