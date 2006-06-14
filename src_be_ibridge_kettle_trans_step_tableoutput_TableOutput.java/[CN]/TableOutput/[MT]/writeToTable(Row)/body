@@ -1,5 +1,4 @@
 {
-  debug="start";
   if (r == null) {
     if (log.isDetailed())     logDetailed("Last line inserted: stop");
     return false;
@@ -49,26 +48,19 @@
   }
   insertStatement=(PreparedStatement)data.preparedStatements.get(tableName);
   if (insertStatement == null) {
-    if (log.isDebug())     debug="prepareInsert for table [" + tableName + "]";
     String sql=data.db.getInsertStatement(tableName,r);
     if (log.isDetailed())     logDetailed("Prepared statement : " + sql);
     insertStatement=data.db.prepareSQL(sql,meta.isReturningGeneratedKeys());
     data.preparedStatements.put(tableName,insertStatement);
   }
   try {
-    debug="setValuesInsert";
     data.db.setValues(r,insertStatement);
-    debug="insertRow";
     data.db.insertRow(insertStatement,data.batchMode);
     linesOutput++;
     if (meta.isReturningGeneratedKeys()) {
-      debug="getGeneratedKeys";
       Row extra=data.db.getGeneratedKeys(insertStatement);
-      debug="get first value";
       Value keyVal=extra.getValue(0);
-      debug="set key field to name [" + meta.getGeneratedKeyField() + "]";
       keyVal.setName(meta.getGeneratedKeyField());
-      debug="add value to row";
       r.addValue(keyVal);
     }
   }
@@ -78,7 +70,6 @@
     throw new KettleException("Error batch inserting rows into table [" + tableName + "]",be);
   }
 catch (  KettleDatabaseException dbe) {
-    debug="Normal exception";
     if (meta.ignoreErrors()) {
       if (data.warnings < 20) {
         logBasic("WARNING: Coudln't insert row into table: " + r + Const.CR+ dbe.getMessage());
@@ -95,9 +86,7 @@ catch (  KettleDatabaseException dbe) {
     }
   }
   if (meta.isTableNameInField() && !meta.isTableNameInTable()) {
-    debug="add value of table name field";
     r.addValue(data.indexOfTableNameField,removedValue);
   }
-  debug="end";
   return true;
 }

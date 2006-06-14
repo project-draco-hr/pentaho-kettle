@@ -2,7 +2,6 @@
   Row r=null;
   boolean retval=true;
   boolean putrow=false;
-  debug="start of readRowOfData";
   if (first) {
     if (meta.isAcceptingFilenames()) {
       data.files.getFiles().clear();
@@ -28,14 +27,12 @@
       }
     }
     handleMissingFiles();
-    debug="first";
     first=false;
     if (!openNextFile()) {
       closeLastFile();
       setOutputDone();
       return false;
     }
-    debug="first repeat fields";
     for (int i=0; i < meta.getInputFields().length; i++) {
       if (meta.getInputFields()[i].isRepeated())       data.nr_repeats++;
     }
@@ -45,7 +42,6 @@
       int repeats=1;
       if (meta.isLineWrapped())       repeats=meta.getNrWraps() > 0 ? meta.getNrWraps() : repeats;
       for (int i=0; i < repeats && !data.doneReading; i++) {
-        debug="get a new line of data";
         String line=getLine(log,data.isr,meta.getFileFormat());
         if (line != null) {
           linesInput++;
@@ -69,22 +65,16 @@
     }
   }
   while (data.lineBuffer.size() == 0) {
-    debug="empty buffer: open next file";
     if (!openNextFile()) {
-      debug="empty buffer: close last file";
       closeLastFile();
       setOutputDone();
       return false;
     }
   }
-  debug="take first line of buffer";
   TextFileLine textLine=(TextFileLine)data.lineBuffer.get(0);
-  debug="remove first line of buffer";
   data.lineBuffer.remove(0);
   if (meta.isLayoutPaged()) {
-    debug="paged layout";
     if (!data.doneWithHeader && data.pageLinesRead == 0) {
-      debug="paged layout : header line " + data.headerLinesRead;
       if (log.isRowLevel())       logRowlevel("P-HEADER (" + data.headerLinesRead + ") : "+ textLine.line);
       data.headerLinesRead++;
       if (data.headerLinesRead >= meta.getNrHeaderLines()) {
@@ -92,7 +82,6 @@
       }
     }
  else {
-      debug="paged layout : data or footer";
       if (data.pageLinesRead < meta.getNrLinesPerPage()) {
         if (meta.isLineWrapped()) {
           for (int i=0; i < meta.getNrWraps(); i++) {
@@ -104,20 +93,17 @@
             textLine.line+=extra;
           }
         }
-        debug="paged layout : data line";
         if (log.isRowLevel())         logRowlevel("P-DATA: " + textLine.line);
         data.pageLinesRead++;
         r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1,data.dataErrorLineHandler);
         if (r != null)         putrow=true;
       }
  else {
-        debug="paged layout : footer line";
         if (meta.hasFooter() && data.footerLinesRead < meta.getNrFooterLines()) {
           if (log.isRowLevel())           logRowlevel("P-FOOTER: " + textLine.line);
           data.footerLinesRead++;
         }
         if (!meta.hasFooter() || data.footerLinesRead >= meta.getNrFooterLines()) {
-          debug="paged layout : end of page: restart";
           data.doneWithHeader=false;
           data.headerLinesRead=0;
           data.pageLinesRead=0;
@@ -128,18 +114,14 @@
     }
   }
  else {
-    debug="normal";
     if (!data.doneWithHeader) {
-      debug="normal : header line";
       data.headerLinesRead++;
       if (data.headerLinesRead >= meta.getNrHeaderLines()) {
         data.doneWithHeader=true;
       }
     }
  else {
-      debug="normal : data and footer";
       if (data.doneReading && meta.hasFooter() && data.lineBuffer.size() < meta.getNrFooterLines()) {
-        debug="normal : footer";
         data.lineBuffer.clear();
       }
  else {
@@ -153,7 +135,6 @@
             textLine.line+=extra;
           }
         }
-        debug="normal : data";
         if (data.filePlayList.isProcessingNeeded(textLine.file,textLine.lineNumber,AbstractFileErrorHandler.NO_PARTS)) {
           r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,linesWritten + 1,data.dataErrorLineHandler);
           if (r != null) {
@@ -166,9 +147,7 @@
   }
   if (putrow && r != null && !r.isIgnored()) {
     if (data.nr_repeats > 0) {
-      debug="repeats";
       if (data.previous_row == null) {
-        debug="init repeats";
         data.previous_row=new Row();
         for (int i=0; i < meta.getInputFields().length; i++) {
           if (meta.getInputFields()[i].isRepeated()) {
@@ -178,7 +157,6 @@
         }
       }
  else {
-        debug="check repeats";
         int repnr=0;
         for (int i=0; i < meta.getInputFields().length; i++) {
           if (meta.getInputFields()[i].isRepeated()) {
@@ -201,6 +179,5 @@
     putRow(r);
   }
   if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
-  debug="end of readRowOfData";
   return retval;
 }

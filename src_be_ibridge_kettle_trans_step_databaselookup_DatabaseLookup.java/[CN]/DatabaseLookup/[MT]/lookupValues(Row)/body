@@ -2,12 +2,9 @@
   Row lu;
   Row add;
   boolean cache_now=false;
-  debug="Start of lookupValues()";
   if (first) {
     first=false;
-    debug="first row: start";
     if (meta.isCached()) {
-      debug="first row: cache allocate";
       if (meta.getCacheSize() > 0) {
         data.look=new Hashtable((int)(meta.getCacheSize() * 1.5));
       }
@@ -15,12 +12,10 @@
         data.look=new Hashtable();
       }
     }
-    debug="first row: set lookup statement";
     data.db.setLookup(meta.getTablename(),meta.getTableKeyField(),meta.getKeyCondition(),meta.getReturnValueField(),meta.getReturnValueNewName(),meta.getOrderByClause(),meta.isFailingOnMultipleResults());
     if (log.isDetailed())     logDetailed(Messages.getString("DatabaseLookup.Log.CheckingRow") + row.toString());
     data.keynrs=new int[meta.getStreamKeyField1().length];
     data.keynrs2=new int[meta.getStreamKeyField1().length];
-    debug="first row: get key fieldnrs";
     for (int i=0; i < meta.getStreamKeyField1().length; i++) {
       data.keynrs[i]=row.searchValueIndex(meta.getStreamKeyField1()[i]);
       if (data.keynrs[i] < 0 && !"IS NULL".equalsIgnoreCase(meta.getKeyCondition()[i]) && !"IS NOT NULL".equalsIgnoreCase(meta.getKeyCondition()[i])) {
@@ -33,7 +28,6 @@
       if (log.isDebug())       logDebug(Messages.getString("DatabaseLookup.Log.FieldHasIndex1") + meta.getStreamKeyField1()[i] + Messages.getString("DatabaseLookup.Log.FieldHasIndex2")+ data.keynrs[i]);
     }
     data.nullif=new Value[meta.getReturnValueField().length];
-    debug="first row: get value fieldnrs";
     for (int i=0; i < meta.getReturnValueField().length; i++) {
       data.nullif[i]=new Value(meta.getReturnValueNewName()[i],meta.getReturnValueDefaultType()[i]);
       if (meta.getReturnValueDefault()[i] != null && meta.getReturnValueDefault()[i].length() > 0) {
@@ -62,7 +56,6 @@
     }
   }
   lu=new Row();
-  debug="Adding values to lookup row";
   for (int i=0; i < meta.getStreamKeyField1().length; i++) {
     if (data.keynrs[i] >= 0) {
       Value value=row.getValue(data.keynrs[i]);
@@ -79,13 +72,10 @@
  else   add=null;
   if (add == null) {
     if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseLookup.Log.AddedValuesToLookupRow1") + meta.getStreamKeyField1().length + Messages.getString("DatabaseLookup.Log.AddedValuesToLookupRow2")+ lu);
-    debug="setValuesLookup()";
     data.db.setValuesLookup(lu);
-    debug="getLookup()";
     add=data.db.getLookup(meta.isFailingOnMultipleResults());
     cache_now=true;
   }
-  debug="add null values to result";
   if (add == null) {
     if (meta.isEatingRowOnLookupFailure()) {
       return false;
@@ -106,7 +96,6 @@
  else {
     if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseLookup.Log.FoundResultsAfterLookup") + add);
   }
-  debug="Store result in cache";
   if (meta.isCached() && cache_now) {
     add.setLogdate();
     data.look.put(lu,add);
@@ -125,10 +114,8 @@
       if (smallest != null)       data.look.remove(smallest);
     }
   }
-  debug="Add values to resulting row...";
   for (int i=0; i < add.size(); i++) {
     row.addValue(add.getValue(i));
   }
-  debug="end of lookupValues()";
   return true;
 }

@@ -1,20 +1,16 @@
 {
-  debug="fillRow start";
   Row r=new Row(baserow);
   boolean errorHandled=false;
   for (int i=startcolumn; i < excelInputRow.cells.length && i - startcolumn < r.size(); i++) {
-    debug="get cell #" + i;
     Cell cell=excelInputRow.cells[i];
     int rowcolumn=i - startcolumn;
-    debug="Rowcolumn = " + rowcolumn;
     Value v=r.getValue(rowcolumn);
-    debug="Value v = " + v;
     try {
       checkType(cell,v);
     }
  catch (    KettleException ex) {
       if (!meta.isErrorIgnored())       throw ex;
-      logBasic("Warning processing [" + debug + "] from Excel file ["+ data.filename+ "] : "+ ex.getMessage());
+      logBasic("Warning processing [" + v + "] from Excel file ["+ data.filename+ "] : "+ ex.getMessage());
       if (!errorHandled) {
         data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
         errorHandled=true;
@@ -68,7 +64,6 @@ try {
 if (v.getType() != field.getType()) {
 switch (v.getType()) {
 case Value.VALUE_TYPE_STRING:
-debug="Convert string to date/number";
 switch (field.getType()) {
 case Value.VALUE_TYPE_DATE:
 v.str2dat(field.getFormat());
@@ -83,7 +78,6 @@ break;
 break;
 case Value.VALUE_TYPE_NUMBER:
 case Value.VALUE_TYPE_INTEGER:
-debug="Convert number to string";
 switch (field.getType()) {
 case Value.VALUE_TYPE_STRING:
 v.num2str(field.getFormat(),field.getDecimalSymbol(),field.getGroupSymbol(),field.getCurrencySymbol());
@@ -97,7 +91,6 @@ break;
 }
 break;
 case Value.VALUE_TYPE_DATE:
-debug="Convert date to string";
 switch (field.getType()) {
 case Value.VALUE_TYPE_STRING:
 v.dat2str(field.getFormat());
@@ -114,7 +107,7 @@ v.setType(field.getType());
 }
  catch (KettleException ex) {
 if (!meta.isErrorIgnored()) throw ex;
-logBasic("Warning processing [" + debug + "] from Excel file ["+ data.filename+ "] : "+ ex.toString());
+logBasic("Warning processing [" + v + "] from Excel file ["+ data.filename+ "] : "+ ex.toString());
 if (!errorHandled) {
 data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
 errorHandled=true;
@@ -129,23 +122,19 @@ v.setNull();
 }
 v.setLength(meta.getField()[rowcolumn].getLength(),meta.getField()[rowcolumn].getPrecision());
 }
-debug="filename";
 if (meta.getFileField() != null && meta.getFileField().length() > 0) {
 Value value=new Value(meta.getFileField(),data.filename);
 value.setLength(data.maxfilelength);
 r.addValue(value);
 }
-debug="sheetname";
 if (meta.getSheetField() != null && meta.getSheetField().length() > 0) {
 Value value=new Value(meta.getSheetField(),excelInputRow.sheetName);
 value.setLength(data.maxsheetlength);
 r.addValue(value);
 }
-debug="rownumber";
 if (meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
 Value value=new Value(meta.getRowNumberField(),linesWritten + 1);
 r.addValue(value);
 }
-debug="end of fillRow";
 return r;
 }
