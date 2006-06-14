@@ -22,7 +22,7 @@
         throw new KettleStepException(Messages.getString("DimensionLookup.Exception.KeyFieldNotFound",meta.getKeyStream()[i]));
       }
     }
-    debug=Messages.getString("DimensionLookup.Debug.FirstLookupValues");
+    debug="first: lookup value nrs";
     if (meta.isUpdate()) {
       data.fieldnrs=new int[meta.getFieldStream().length];
       for (int i=0; meta.getFieldStream() != null && i < meta.getFieldStream().length; i++) {
@@ -35,7 +35,7 @@
  else {
       data.datefieldnr=-1;
     }
-    debug=Messages.getString("DimensionLookup.Debug.FirstFieldNotFound");
+    debug="first: notfound field";
     meta.setNotFound(new Value(meta.getKeyField(),(double)meta.getDatabaseMeta().getNotFoundTK(meta.isAutoIncrement())));
     if (meta.getKeyRename() != null && meta.getKeyRename().length() > 0)     meta.getNotFound().setName(meta.getKeyRename());
     if (meta.getDateField() != null && data.datefieldnr >= 0) {
@@ -45,7 +45,7 @@
       Calendar cal=Calendar.getInstance();
       data.val_datnow=new Value("MIN",new Date(cal.getTimeInMillis()));
     }
-    debug=Messages.getString("DimensionLookup.Debug.FirstEnd");
+    debug="first: end";
   }
   if (meta.getDateField() != null && data.datefieldnr >= 0) {
     data.val_datnow=row.getValue(data.datefieldnr);
@@ -66,16 +66,16 @@
   debug="getLookup()";
   add=data.db.getLookup();
   if (!meta.isUpdate()) {
-    debug=Messages.getString("DimensionLookup.Debug.Lookup");
+    debug="lookup";
     if (add == null) {
-      debug=Messages.getString("DimensionLookup.Debug.NothingFound");
+      debug="lookup: nothing found";
       add=new Row();
       add.addValue(meta.getNotFound());
       Value v;
       for (int i=0; i < meta.getFieldStream().length; i++) {
-        debug=Messages.getString("DimensionLookup.Debug.LookupFieldstream") + i;
+        if (log.isDebug())         debug="lookup: fieldstream #" + i;
         if (meta.getFieldStream()[i] != null) {
-          debug=Messages.getString("DimensionLookup.Debug.LookupNewvalue") + i;
+          debug="lookup: new value #" + i;
           if (meta.getFieldStream()[i] != null)           v=new Value(meta.getFieldStream()[i],meta.getFieldUpdate()[i]);
  else           v=new Value(meta.getFieldLookup()[i],meta.getFieldUpdate()[i]);
           v.setNull();
@@ -90,7 +90,7 @@
   }
  else {
     if (add == null) {
-      debug=Messages.getString("DimensionLookup.Debug.Insert");
+      debug="insert";
       if (log.isRowLevel())       logRowlevel(Messages.getString("DimensionLookup.Log.NoDimensionEntryFound") + lu + ")");
       val_datfrom=new Value("MIN",meta.getMinDate());
       val_datto=new Value("MAX",meta.getMaxDate());
@@ -111,7 +111,7 @@ technicalKey=data.db.getNextSequenceValue(meta.getSequenceName(),meta.getKeyFiel
 if (technicalKey != null && log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.FoundNextSequence") + technicalKey.toString());
 break;
 }
-debug=Messages.getString("DimensionLookup.Debug.InsertRow");
+debug="insert row";
 data.db.dimInsert(row,meta.getTableName(),true,autoinc ? null : meta.getKeyField(),autoinc,technicalKey,meta.getVersionField(),val_version,meta.getDateFrom(),val_datfrom,meta.getDateTo(),val_datto,meta.getFieldLookup(),data.fieldnrs,meta.getKeyStream(),meta.getKeyLookup(),data.keynrs);
 linesOutput++;
 add=new Row();
@@ -121,7 +121,7 @@ if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.AddedD
 }
  else {
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.DimensionEntryFound") + add);
-debug=Messages.getString("DimensionLookup.Debug.Update");
+debug="update";
 technicalKey=add.getValue(0);
 val_version=add.getValue(1);
 val_datfrom=new Value("MIN",meta.getMinDate());
@@ -147,7 +147,7 @@ logRowlevel(Messages.getString("DimensionLookup.Log.ComparingValues","" + v1,"" 
 if (!insert) {
 if (!identical) {
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.UpdateRowWithValues") + row);
-debug=Messages.getString("DimensionLookup.Debug.UpdateRow");
+debug="update row";
 data.db.dimUpdate(row,meta.getTableName(),meta.getFieldLookup(),data.fieldnrs,meta.getKeyField(),technicalKey);
 linesUpdated++;
 }
@@ -186,18 +186,18 @@ add.addValue(technicalKey);
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.TechnicalKey") + technicalKey);
 }
 }
-debug=Messages.getString("DimensionLookup.Debug.AddValuesToRow");
+debug="add values to row";
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.AddValuesToRow") + add);
 for (int i=0; i < add.size(); i++) {
 row.addValue(add.getValue(i));
 }
-debug=Messages.getString("DimensionLookup.Debug.GetDateFromDateField") + data.datefieldnr;
+if (log.isDebug()) debug="get date from date field, datefieldnr=" + data.datefieldnr;
 Value date;
 if (data.datefieldnr >= 0) date=row.getValue(data.datefieldnr);
  else date=new Value("date",new Date());
 debug="check min date (min_date==null? " + (data.min_date == null) + ", date==null? "+ (date == null)+ "), datefieldnr="+ data.datefieldnr;
 if (data.min_date.compare(date) > 0) data.min_date.setValue(date.getDate());
-debug=Messages.getString("DimensionLookup.Debug.CheckMaxDate");
+debug="check max date";
 if (data.max_date.compare(date) < 0) data.max_date.setValue(date.getDate());
 debug="end of lookupValues()";
 }
