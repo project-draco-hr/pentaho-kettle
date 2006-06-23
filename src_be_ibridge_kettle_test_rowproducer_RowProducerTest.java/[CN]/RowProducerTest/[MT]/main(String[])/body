@@ -1,18 +1,35 @@
 {
+  EnvUtil.environmentInit();
   LogWriter log=LogWriter.getInstance();
   StepLoader stepLoader=StepLoader.getInstance();
   if (!stepLoader.read()) {
     throw new RuntimeException("Unable to load steps and plugins");
   }
-  DummyTransMeta meta=new DummyTransMeta();
-  TransMeta transMeta=TransPreviewFactory.generatePreviewTransformation(meta,STEPNAME_STARTPOINT);
+  Row row=createRow();
+  InjectorMeta startMeta=new InjectorMeta();
+  startMeta.allocate(row.size());
+  for (int i=0; i < row.size(); i++) {
+    Value v=row.getValue(i);
+    startMeta.getName()[i]=v.getName();
+    startMeta.getType()[i]=v.getType();
+    startMeta.getLength()[i]=v.getLength();
+    startMeta.getPrecision()[i]=v.getPrecision();
+  }
+  TransMeta transMeta=TransPreviewFactory.generatePreviewTransformation(startMeta,STEPNAME_STARTPOINT);
   Trans trans=new Trans(log,transMeta);
   trans.prepareExecution(null);
-  RowProducer rp=trans.addRowProducer(STEPNAME_STARTPOINT,0);
+  final RowProducer rp=trans.addRowProducer(STEPNAME_STARTPOINT,0);
   trans.startThreads();
-  for (int i=0; i < 3; i++) {
-    rp.putRow(createRow());
+  Runnable runnable=new Runnable(){
+    public void run(){
+      for (int i=0; i < NR_ROWS; i++) {
+        rp.putRow(createRow());
+      }
+      rp.finished();
+    }
   }
-  rp.finished();
+;
+  Thread thread=new Thread(runnable);
+  thread.start();
   trans.waitUntilFinished();
 }
