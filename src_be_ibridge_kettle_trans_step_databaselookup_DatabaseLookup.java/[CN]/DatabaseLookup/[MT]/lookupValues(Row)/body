@@ -31,10 +31,11 @@
     for (int i=0; i < meta.getReturnValueField().length; i++) {
       data.nullif[i]=new Value(meta.getReturnValueNewName()[i],meta.getReturnValueDefaultType()[i]);
       if (meta.getReturnValueDefault()[i] != null && meta.getReturnValueDefault()[i].length() > 0) {
-        data.nullif[i].setValue(meta.getReturnValueDefault()[i]);
         data.nullif[i].setType(meta.getReturnValueDefaultType()[i]);
+        data.nullif[i].setValue(meta.getReturnValueDefault()[i]);
       }
  else {
+        data.nullif[i].setType(meta.getReturnValueDefaultType()[i]);
         data.nullif[i].setNull();
       }
     }
@@ -59,13 +60,15 @@
   for (int i=0; i < meta.getStreamKeyField1().length; i++) {
     if (data.keynrs[i] >= 0) {
       Value value=row.getValue(data.keynrs[i]);
-      if (value.getType() != data.keytypes[i])       value.setType(data.keytypes[i]);
-      lu.addValue(value);
+      Value clonedValue=value.Clone();
+      if (clonedValue.getType() != data.keytypes[i])       clonedValue.setType(data.keytypes[i]);
+      lu.addValue(clonedValue);
     }
     if (data.keynrs2[i] >= 0) {
       Value value=row.getValue(data.keynrs2[i]);
-      if (value.getType() != data.keytypes[i])       value.setType(data.keytypes[i]);
-      lu.addValue(value);
+      Value clonedValue=value.Clone();
+      if (clonedValue.getType() != data.keytypes[i])       clonedValue.setType(data.keytypes[i]);
+      lu.addValue(clonedValue);
     }
   }
   if (meta.isCached())   add=(Row)data.look.get(lu);
@@ -95,6 +98,13 @@
   }
  else {
     if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseLookup.Log.FoundResultsAfterLookup") + add);
+    int types[]=meta.getReturnValueDefaultType();
+    for (int i=0; i < types.length; i++) {
+      Value value=add.getValue(i);
+      if (value != null && types[i] > 0 && types[i] != value.getType()) {
+        value.setType(types[i]);
+      }
+    }
   }
   if (meta.isCached() && cache_now) {
     add.setLogdate();
