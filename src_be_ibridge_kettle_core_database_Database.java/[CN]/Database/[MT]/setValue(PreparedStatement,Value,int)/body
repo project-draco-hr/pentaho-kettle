@@ -2,44 +2,35 @@
   String debug="";
   try {
 switch (v.getType()) {
-case Value.VALUE_TYPE_BIGNUMBER:
-      debug="BigNumber";
+case Value.VALUE_TYPE_NUMBER:
+      debug="Number";
     if (!v.isNull()) {
-      ps.setBigDecimal(pos,v.getBigNumber());
+      debug="Number, not null, getting number from value";
+      double num=v.getNumber();
+      if (databaseMeta.supportsFloatRoundingOnUpdate() && v.getPrecision() >= 0) {
+        debug="Number, rounding to precision [" + v.getPrecision() + "]";
+        num=Const.round(num,v.getPrecision());
+      }
+      debug="Number, setting [" + num + "] on position #"+ pos+ " of the prepared statement";
+      ps.setDouble(pos,num);
     }
  else {
-      ps.setNull(pos,java.sql.Types.DECIMAL);
+      ps.setNull(pos,java.sql.Types.DOUBLE);
     }
   break;
-case Value.VALUE_TYPE_NUMBER:
-debug="Number";
-if (!v.isNull()) {
-debug="Number, not null, getting number from value";
-double num=v.getNumber();
-if (databaseMeta.supportsFloatRoundingOnUpdate() && v.getPrecision() >= 0) {
-  debug="Number, rounding to precision [" + v.getPrecision() + "]";
-  num=Const.round(num,v.getPrecision());
-}
-debug="Number, setting [" + num + "] on position #"+ pos+ " of the prepared statement";
-ps.setDouble(pos,num);
-}
- else {
-ps.setNull(pos,java.sql.Types.DOUBLE);
-}
-break;
 case Value.VALUE_TYPE_INTEGER:
 debug="Integer";
 if (!v.isNull()) {
 if (databaseMeta.supportsSetLong()) {
-ps.setLong(pos,v.getInteger());
+  ps.setLong(pos,v.getInteger());
 }
  else {
-if (databaseMeta.supportsFloatRoundingOnUpdate() && v.getPrecision() >= 0) {
-ps.setDouble(pos,v.getNumber());
-}
+  if (databaseMeta.supportsFloatRoundingOnUpdate() && v.getPrecision() >= 0) {
+    ps.setDouble(pos,v.getNumber());
+  }
  else {
-ps.setDouble(pos,Const.round(v.getNumber(),v.getPrecision()));
-}
+    ps.setDouble(pos,Const.round(v.getNumber(),v.getPrecision()));
+  }
 }
 }
  else {
@@ -115,6 +106,24 @@ ps.setString(pos,v.getBoolean() ? "Y" : "N");
  else {
 ps.setNull(pos,java.sql.Types.CHAR);
 }
+}
+break;
+case Value.VALUE_TYPE_BIGNUMBER:
+debug="BigNumber";
+if (!v.isNull()) {
+ps.setBigDecimal(pos,v.getBigNumber());
+}
+ else {
+ps.setNull(pos,java.sql.Types.DECIMAL);
+}
+break;
+case Value.VALUE_TYPE_BINARY:
+debug="Binary";
+if (!v.isNull()) {
+ps.setBytes(pos,v.getBytes());
+}
+ else {
+ps.setNull(pos,java.sql.Types.BINARY);
 }
 break;
 default :
