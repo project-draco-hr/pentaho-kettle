@@ -2,7 +2,29 @@
   String retval="";
   TextFileField field=null;
   if (idx >= 0)   field=meta.getOutputFields()[idx];
-  if (v.isBigNumber()) {
+  if (v.isString()) {
+    if (v.isNull() || v.getString() == null) {
+      if (idx >= 0 && field != null && field.getNullString() != null) {
+        if (meta.isEnclosureForced() && meta.getEnclosure() != null) {
+          retval=meta.getEnclosure() + field.getNullString() + meta.getEnclosure();
+        }
+ else {
+          retval=field.getNullString();
+        }
+      }
+    }
+ else {
+      if (meta.isEnclosureForced() && meta.getEnclosure() != null) {
+        retval=meta.getEnclosure() + v.toString() + meta.getEnclosure();
+      }
+ else {
+        int seppos=v.toString().indexOf(meta.getSeparator());
+        if (seppos < 0)         retval=v.toString();
+ else         retval=meta.getEnclosure() + v.toString() + meta.getEnclosure();
+      }
+    }
+  }
+ else   if (v.isBigNumber()) {
     if (idx >= 0 && field != null && field.getFormat() != null) {
       if (v.isNull()) {
         if (field.getNullString() != null)         retval=field.getNullString();
@@ -71,25 +93,17 @@
       }
     }
   }
- else   if (v.isString()) {
-    if (v.isNull() || v.getString() == null) {
-      if (idx >= 0 && field != null && field.getNullString() != null) {
-        if (meta.isEnclosureForced() && meta.getEnclosure() != null) {
-          retval=meta.getEnclosure() + field.getNullString() + meta.getEnclosure();
-        }
- else {
-          retval=field.getNullString();
-        }
-      }
+ else   if (v.isBinary()) {
+    if (v.isNull()) {
+      if (field.getNullString() != null)       retval=field.getNullString();
+ else       retval=Const.NULL_BINARY;
     }
  else {
-      if (meta.isEnclosureForced() && meta.getEnclosure() != null) {
-        retval=meta.getEnclosure() + v.toString() + meta.getEnclosure();
+      try {
+        retval=new String(v.getBytes(),"US-ASCII");
       }
- else {
-        int seppos=v.toString().indexOf(meta.getSeparator());
-        if (seppos < 0)         retval=v.toString();
- else         retval=meta.getEnclosure() + v.toString() + meta.getEnclosure();
+ catch (      UnsupportedEncodingException e) {
+        retval=Const.NULL_BINARY;
       }
     }
   }
