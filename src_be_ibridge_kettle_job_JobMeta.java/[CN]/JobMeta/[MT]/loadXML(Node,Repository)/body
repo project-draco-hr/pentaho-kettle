@@ -1,12 +1,39 @@
 {
+  Props props=null;
+  if (Props.isInitialized())   props=Props.getInstance();
   try {
     clear();
     name=XMLHandler.getTagValue(jobnode,"name");
+    if (rep != null) {
+      readDatabases(rep);
+      clearChanged();
+    }
     int nr=XMLHandler.countNodes(jobnode,"connection");
     for (int i=0; i < nr; i++) {
       Node dbnode=XMLHandler.getSubNodeByNr(jobnode,"connection",i);
-      DatabaseMeta dbinf=new DatabaseMeta(dbnode);
-      addDatabase(dbinf);
+      DatabaseMeta dbcon=new DatabaseMeta(dbnode);
+      DatabaseMeta exist=findDatabase(dbcon.getName());
+      if (exist == null) {
+        addDatabase(dbcon);
+      }
+ else {
+        boolean askOverwrite=Props.isInitialized() ? props.askAboutReplacingDatabaseConnections() : false;
+        boolean overwrite=Props.isInitialized() ? props.replaceExistingDatabaseConnections() : true;
+        if (askOverwrite) {
+          if (props.getDisplay() != null) {
+            Shell shell=props.getDisplay().getActiveShell();
+            MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Warning",null,"Connection [" + dbcon.getName() + "] already exists, do you want to overwrite this database connection?",MessageDialog.WARNING,new String[]{"Yes","No"},1,"Please, don't show this warning anymore.",!props.askAboutReplacingDatabaseConnections());
+            int idx=md.open();
+            props.setAskAboutReplacingDatabaseConnections(!md.getToggleState());
+            overwrite=(idx == 0);
+          }
+        }
+        if (overwrite) {
+          int idx=indexOfDatabase(exist);
+          removeDatabase(idx);
+          addDatabase(idx,dbcon);
+        }
+      }
     }
     String logcon=XMLHandler.getTagValue(jobnode,"logconnection");
     logconnection=findDatabase(logcon);
