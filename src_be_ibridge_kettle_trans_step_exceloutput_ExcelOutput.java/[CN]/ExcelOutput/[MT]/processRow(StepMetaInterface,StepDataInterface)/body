@@ -1,0 +1,36 @@
+{
+  meta=(ExcelOutputMeta)smi;
+  data=(ExcelOutputData)sdi;
+  Row r;
+  boolean result=true;
+  r=getRow();
+  if ((r == null && data.headerrow != null && meta.isFooterEnabled()) || (r != null && linesOutput > 0 && meta.getSplitEvery() > 0 && ((linesOutput + 1) % meta.getSplitEvery()) == 0)) {
+    if (data.headerrow != null) {
+      if (meta.isFooterEnabled()) {
+        writeHeader();
+      }
+    }
+    closeFile();
+    if (r != null) {
+      if (!openNewFile()) {
+        logError("Unable to open new file (split #" + data.splitnr + "...");
+        setErrors(1);
+        return false;
+      }
+      if (meta.isHeaderEnabled() && data.headerrow != null)       if (writeHeader())       linesOutput++;
+    }
+  }
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  result=writeRowToFile(r);
+  if (!result) {
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+  putRow(r);
+  if ((linesOutput > 0) && (linesOutput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesOutput);
+  return result;
+}

@@ -1,0 +1,48 @@
+{
+  Value v;
+  try {
+    if (first) {
+      first=false;
+      if (meta.isHeaderEnabled() || meta.isFooterEnabled()) {
+        data.headerrow=new Row(r);
+        if (meta.isHeaderEnabled() && data.headerrow != null) {
+          if (writeHeader()) {
+            return false;
+          }
+        }
+      }
+      data.fieldnrs=new int[meta.getOutputFields().length];
+      for (int i=0; i < meta.getOutputFields().length; i++) {
+        data.fieldnrs[i]=r.searchValueIndex(meta.getOutputFields()[i].getName());
+        if (data.fieldnrs[i] < 0) {
+          logError("Field [" + meta.getOutputFields()[i].getName() + "] couldn't be found in the input stream!");
+          setErrors(1);
+          stopAll();
+          return false;
+        }
+      }
+    }
+    if (meta.getOutputFields() == null || meta.getOutputFields().length == 0) {
+      for (int i=0; i < r.size(); i++) {
+        v=r.getValue(i);
+        if (!writeField(v,null))         return false;
+      }
+      data.positionX=0;
+      data.positionY++;
+    }
+ else {
+      for (int i=0; i < meta.getOutputFields().length; i++) {
+        v=r.getValue(data.fieldnrs[i]);
+        if (!writeField(v,meta.getOutputFields()[i]))         return false;
+      }
+      data.positionX=0;
+      data.positionY++;
+    }
+  }
+ catch (  Exception e) {
+    logError("Error writing line :" + e.toString());
+    return false;
+  }
+  linesOutput++;
+  return true;
+}
