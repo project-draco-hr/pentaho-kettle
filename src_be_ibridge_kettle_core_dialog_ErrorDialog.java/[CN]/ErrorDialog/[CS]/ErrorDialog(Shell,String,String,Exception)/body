@@ -1,0 +1,105 @@
+{
+  super(parent,SWT.NONE);
+  this.props=Props.getInstance();
+  Display display=parent.getDisplay();
+  final Color gray=GUIResource.getInstance().getColorLightGray();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX| SWT.MIN| SWT.APPLICATION_MODAL);
+  props.setLook(shell);
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText(title);
+  int margin=Const.MARGIN;
+  wlDesc=new Label(shell,SWT.NONE);
+  wlDesc.setText(message);
+  props.setLook(wlDesc);
+  fdlDesc=new FormData();
+  fdlDesc.left=new FormAttachment(0,0);
+  fdlDesc.top=new FormAttachment(0,margin);
+  wlDesc.setLayoutData(fdlDesc);
+  wDesc=new Text(shell,SWT.MULTI | SWT.LEFT | SWT.BORDER| SWT.H_SCROLL| SWT.V_SCROLL);
+  if (exception != null) {
+    String text="";
+    if (exception instanceof KettleException) {
+      KettleException ke=(KettleException)exception;
+      text=ke.getMessage();
+      text+=Const.CR;
+      text+=Const.CR;
+    }
+ else     if (exception instanceof InvocationTargetException) {
+      Throwable cause=exception.getCause();
+      if (cause instanceof KettleException) {
+        KettleException ke=(KettleException)cause;
+        text=ke.getMessage();
+        text+=Const.CR;
+        text+=Const.CR;
+      }
+ else {
+        text=Const.NVL(cause.getMessage(),cause.toString());
+        while (text == null && cause != null) {
+          cause=cause.getCause();
+          if (cause != null) {
+            text=Const.NVL(cause.getMessage(),cause.toString());
+          }
+        }
+        text+=Const.CR;
+        text+=Const.CR;
+      }
+    }
+ else     if (exception instanceof Throwable) {
+      text=exception.getMessage();
+      text+=Const.CR;
+      text+=Const.CR;
+    }
+    StringWriter sw=new StringWriter();
+    PrintWriter pw=new PrintWriter(sw);
+    exception.printStackTrace(pw);
+    text+=sw.getBuffer().toString();
+    wDesc.setText(text);
+  }
+  wDesc.setBackground(gray);
+  fdDesc=new FormData();
+  fdDesc.left=new FormAttachment(0,0);
+  fdDesc.top=new FormAttachment(wlDesc,margin);
+  fdDesc.right=new FormAttachment(100,0);
+  fdDesc.bottom=new FormAttachment(100,-50);
+  wDesc.setLayoutData(fdDesc);
+  wDesc.setEditable(false);
+  wOK=new Button(shell,SWT.PUSH);
+  wOK.setText("  &Close  ");
+  fdOK=new FormData();
+  fdOK.left=new FormAttachment(50,0);
+  fdOK.bottom=new FormAttachment(100,0);
+  wOK.setLayoutData(fdOK);
+  lsOK=new Listener(){
+    public void handleEvent(    Event e){
+      ok();
+    }
+  }
+;
+  wOK.addListener(SWT.Selection,lsOK);
+  lsDef=new SelectionAdapter(){
+    public void widgetDefaultSelected(    SelectionEvent e){
+      ok();
+    }
+  }
+;
+  wDesc.addSelectionListener(lsDef);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      ok();
+    }
+  }
+);
+  shell.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent arg0){
+    }
+  }
+);
+  BaseStepDialog.setSize(shell);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+}
