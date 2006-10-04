@@ -1,51 +1,57 @@
 {
-  if (mappingTransMeta != null) {
-    StepMeta inputStepMeta=mappingTransMeta.getMappingInputStep();
-    if (inputStepMeta != null) {
-      MappingInputMeta mappingInputMeta=(MappingInputMeta)inputStepMeta.getStepMetaInterface();
-      String[] source=mappingInputMeta.getFieldName();
-      Row prev=null;
-      try {
-        prev=transMeta.getPrevStepFields(stepname);
-      }
- catch (      KettleException e) {
-        new ErrorDialog(shell,Messages.getString("MappingDialog.ErrorGettingPreviousFields.DialogTitle"),Messages.getString("MappingDialog.ErrorGettingPreviousFields.DialogMessage"),e);
-      }
-      if (prev != null) {
-        String[] target=prev.getFieldNames();
-        EnterMappingDialog dialog=new EnterMappingDialog(shell,source,target);
-        List mappings=dialog.open();
-        if (mappings != null) {
-          for (int i=0; i < mappings.size(); i++) {
-            TableItem item=new TableItem(wInputFields.table,SWT.NONE);
-            SourceToTargetMapping mapping=(SourceToTargetMapping)mappings.get(i);
-            item.setText(2,mapping.getSourceString(source));
-            item.setText(1,mapping.getTargetString(target));
+  try {
+    loadTransformation();
+    if (mappingTransMeta != null) {
+      StepMeta inputStepMeta=mappingTransMeta.getMappingInputStep();
+      if (inputStepMeta != null) {
+        MappingInputMeta mappingInputMeta=(MappingInputMeta)inputStepMeta.getStepMetaInterface();
+        String[] source=mappingInputMeta.getFieldName();
+        Row prev=null;
+        try {
+          prev=transMeta.getPrevStepFields(stepname);
+        }
+ catch (        KettleException e) {
+          new ErrorDialog(shell,Messages.getString("MappingDialog.ErrorGettingPreviousFields.DialogTitle"),Messages.getString("MappingDialog.ErrorGettingPreviousFields.DialogMessage"),e);
+        }
+        if (prev != null) {
+          String[] target=prev.getFieldNames();
+          EnterMappingDialog dialog=new EnterMappingDialog(shell,source,target);
+          List mappings=dialog.open();
+          if (mappings != null) {
+            for (int i=0; i < mappings.size(); i++) {
+              TableItem item=new TableItem(wInputFields.table,SWT.NONE);
+              SourceToTargetMapping mapping=(SourceToTargetMapping)mappings.get(i);
+              item.setText(2,mapping.getSourceString(source));
+              item.setText(1,mapping.getTargetString(target));
+            }
           }
         }
+ else {
+          log.logDetailed(stepname,Messages.getString("MappingDialog.Log.GettingInputFields") + source.length + ")");
+          for (int i=0; i < source.length; i++) {
+            TableItem item=new TableItem(wInputFields.table,SWT.NONE);
+            item.setText(2,source[i]);
+          }
+        }
+        wInputFields.removeEmptyRows();
+        wInputFields.setRowNums();
+        wInputFields.optWidth(true);
       }
  else {
-        log.logDetailed(stepname,Messages.getString("MappingDialog.Log.GettingInputFields") + source.length + ")");
-        for (int i=0; i < source.length; i++) {
-          TableItem item=new TableItem(wInputFields.table,SWT.NONE);
-          item.setText(2,source[i]);
-        }
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage(Messages.getString("MappingDialog.MappingInputStepNeeded.DialogMessage"));
+        mb.setText(Messages.getString("MappingDialog.MappingInputStepNeeded.DialogTitle"));
+        mb.open();
       }
-      wInputFields.removeEmptyRows();
-      wInputFields.setRowNums();
-      wInputFields.optWidth(true);
     }
  else {
       MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-      mb.setMessage(Messages.getString("MappingDialog.MappingInputStepNeeded.DialogMessage"));
-      mb.setText(Messages.getString("MappingDialog.MappingInputStepNeeded.DialogTitle"));
+      mb.setMessage(Messages.getString("MappingDialog.NoMappingSpecified.DialogMessage"));
+      mb.setText(Messages.getString("MappingDialog.NoMappingSpecified.DialogTitle"));
       mb.open();
     }
   }
- else {
-    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage(Messages.getString("MappingDialog.NoMappingSpecified.DialogMessage"));
-    mb.setText(Messages.getString("MappingDialog.NoMappingSpecified.DialogTitle"));
-    mb.open();
+ catch (  Exception e) {
+    new ErrorDialog(shell,Messages.getString("MappingDialog.ErrorLoadingSpecifiedTransformation.Title"),Messages.getString("MappingDialog.ErrorLoadingSpecifiedTransformation.Message"),e);
   }
 }
