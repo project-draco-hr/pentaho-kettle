@@ -1,0 +1,291 @@
+{
+  Shell parent=getParent();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX| SWT.MIN);
+  props.setLook(shell);
+  shell.setText("Field selection screen");
+  shell.setLayout(new FormLayout());
+  int middle=schema.props.getMiddlePct();
+  int margin=Const.MARGIN;
+  wlCube=new Label(shell,SWT.NONE);
+  wlCube.setText("Cube filename");
+  props.setLook(wlCube);
+  FormData fdlCube=new FormData();
+  fdlCube.left=new FormAttachment(0,0);
+  fdlCube.right=new FormAttachment(middle,0);
+  fdlCube.top=new FormAttachment(0,0);
+  wlCube.setLayoutData(fdlCube);
+  wbCube=new Button(shell,SWT.PUSH);
+  wbCube.setText("File...");
+  props.setLook(wbCube);
+  FormData fdbCube=new FormData();
+  fdbCube.right=new FormAttachment(100,0);
+  fdbCube.top=new FormAttachment(0,0);
+  wbCube.setLayoutData(fdbCube);
+  wCube=new Text(shell,SWT.SINGLE | SWT.BORDER);
+  props.setLook(wCube);
+  FormData fdCube=new FormData();
+  fdCube.left=new FormAttachment(middle,margin);
+  fdCube.top=new FormAttachment(0,0);
+  fdCube.right=new FormAttachment(wbCube,0);
+  wCube.setLayoutData(fdCube);
+  wbCube.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent arg0){
+      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+      dialog.setFilterPath("C:\\Projects\\kettle\\source\\");
+      dialog.setFilterExtensions(STRING_FILTER_EXT);
+      dialog.setFilterNames(STRING_FILTER_NAMES);
+      String fname=dialog.open();
+      if (fname != null) {
+        wCube.setText(fname);
+      }
+    }
+  }
+);
+  SashForm sashform=new SashForm(shell,SWT.HORIZONTAL);
+  sashform.setLayout(new FillLayout());
+  props.setLook(sashform);
+  Composite leftsplit=new Composite(sashform,SWT.NONE);
+  props.setLook(leftsplit);
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=margin;
+  formLayout.marginHeight=margin;
+  leftsplit.setLayout(formLayout);
+  wTree=new Tree(leftsplit,SWT.MULTI | SWT.BORDER);
+  props.setLook(wTree);
+  TreeItem tiFld=new TreeItem(wTree,SWT.NONE);
+  tiFld.setText(STRING_FIELDS);
+  TreeItem tiCon=new TreeItem(wTree,SWT.NONE);
+  tiCon.setText(STRING_CONDITIONS);
+  FormData fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(wCube,margin);
+  fdSash.right=new FormAttachment(100,0);
+  fdSash.bottom=new FormAttachment(100,0);
+  sashform.setLayoutData(fdSash);
+  for (int i=0; i < schema.nrTables(); i++) {
+    TableMeta table=schema.getTable(i);
+    String tablename=table.getName();
+    TreeItem newTab=new TreeItem(tiFld,SWT.NONE);
+    newTab.setText(tablename);
+    for (int j=0; j < table.nrFields(); j++) {
+      TableField f=table.getField(j);
+      if (!f.isHidden()) {
+        String fieldname=f.getName();
+        TreeItem ti=new TreeItem(newTab,SWT.NONE);
+        ti.setText(fieldname);
+      }
+    }
+  }
+  for (int i=0; i < schema.nrTables(); i++) {
+    TableMeta table=schema.getTable(i);
+    String tablename=table.getName();
+    TreeItem newCon=new TreeItem(tiCon,SWT.NONE);
+    newCon.setText(tablename);
+    for (int j=0; j < table.nrConditions(); j++) {
+      WhereCondition c=table.getCondition(j);
+      String name=c.getName();
+      TreeItem ti=new TreeItem(newCon,SWT.NONE);
+      ti.setText(name);
+    }
+  }
+  tiFld.setExpanded(true);
+  tiCon.setExpanded(true);
+  wOK=new Button(leftsplit,SWT.PUSH);
+  wOK.setText("  &OK  ");
+  wCancel=new Button(leftsplit,SWT.PUSH);
+  wCancel.setText("  &Cancel  ");
+  FormData fdTree=new FormData();
+  FormData fdOK=new FormData();
+  FormData fdCancel=new FormData();
+  fdTree.left=new FormAttachment(0,0);
+  fdTree.top=new FormAttachment(0,0);
+  fdTree.right=new FormAttachment(100,0);
+  fdTree.bottom=new FormAttachment(100,-50);
+  wTree.setLayoutData(fdTree);
+  fdOK.left=new FormAttachment(wTree,30,SWT.CENTER);
+  fdOK.bottom=new FormAttachment(100,0);
+  wOK.setLayoutData(fdOK);
+  fdCancel.left=new FormAttachment(wOK,10);
+  fdCancel.bottom=new FormAttachment(100,0);
+  wCancel.setLayoutData(fdCancel);
+  wCancel.addListener(SWT.Selection,new Listener(){
+    public void handleEvent(    Event e){
+      log.logDebug(this.getClass().getName(),"CANCEL SelectFieldsDialog");
+      dispose();
+    }
+  }
+);
+  wOK.addListener(SWT.Selection,new Listener(){
+    public void handleEvent(    Event e){
+      handleOK();
+    }
+  }
+);
+  Composite compmiddle=new Composite(sashform,SWT.NONE);
+  props.setLook(compmiddle);
+  FormLayout middleLayout=new FormLayout();
+  middleLayout.marginWidth=margin;
+  middleLayout.marginHeight=margin;
+  compmiddle.setLayout(middleLayout);
+  Button wAdd=new Button(compmiddle,SWT.PUSH);
+  wAdd.setText(" > ");
+  Button wRemove=new Button(compmiddle,SWT.PUSH);
+  wRemove.setText(" < ");
+  FormData fdAdd=new FormData();
+  fdAdd.left=new FormAttachment(0,0);
+  fdAdd.top=new FormAttachment(40,0);
+  fdAdd.right=new FormAttachment(100,0);
+  wAdd.setLayoutData(fdAdd);
+  FormData fdRemove=new FormData();
+  fdRemove.left=new FormAttachment(0,0);
+  fdRemove.top=new FormAttachment(wAdd,margin * 2);
+  fdRemove.right=new FormAttachment(100,0);
+  wRemove.setLayoutData(fdRemove);
+  Composite rightsplit=new Composite(sashform,SWT.NONE);
+  props.setLook(rightsplit);
+  FormLayout rightLayout=new FormLayout();
+  rightLayout.marginWidth=margin;
+  rightLayout.marginHeight=margin;
+  rightsplit.setLayout(rightLayout);
+  wlList=new Label(rightsplit,SWT.LEFT);
+  wlList.setText("Selected fields: ");
+  props.setLook(wlList);
+  wList=new List(rightsplit,SWT.BORDER | SWT.MULTI | SWT.V_SCROLL| SWT.H_SCROLL);
+  props.setLook(wList);
+  wlCondition=new Label(rightsplit,SWT.LEFT);
+  wlCondition.setText("Selected conditions: ");
+  props.setLook(wlCondition);
+  wCondition=new List(rightsplit,SWT.BORDER | SWT.MULTI | SWT.V_SCROLL| SWT.H_SCROLL);
+  props.setLook(wCondition);
+  FormData fdlList=new FormData();
+  fdlList.left=new FormAttachment(0,0);
+  fdlList.top=new FormAttachment(0,margin);
+  wlList.setLayoutData(fdlList);
+  FormData fdList=new FormData();
+  fdList.left=new FormAttachment(0,0);
+  fdList.top=new FormAttachment(wlList,0);
+  fdList.right=new FormAttachment(100,0);
+  fdList.bottom=new FormAttachment(75,0);
+  wList.setLayoutData(fdList);
+  FormData fdlCondition=new FormData();
+  fdlCondition.left=new FormAttachment(0,0);
+  fdlCondition.top=new FormAttachment(wList,margin * 2);
+  wlCondition.setLayoutData(fdlCondition);
+  FormData fdCondition=new FormData();
+  fdCondition.left=new FormAttachment(0,0);
+  fdCondition.top=new FormAttachment(wlCondition,0);
+  fdCondition.right=new FormAttachment(100,0);
+  fdCondition.bottom=new FormAttachment(100,0);
+  wCondition.setLayoutData(fdCondition);
+  sashform.setWeights(new int[]{46,8,46});
+  Transfer[] ttypes=new Transfer[]{TextTransfer.getInstance()};
+  DragSource ddSource=new DragSource(wTree,DND.DROP_MOVE | DND.DROP_COPY);
+  ddSource.setTransfer(ttypes);
+  ddSource.addDragListener(new DragSourceListener(){
+    public void dragStart(    DragSourceEvent event){
+    }
+    public void dragSetData(    DragSourceEvent event){
+      TreeItem ti[]=wTree.getSelection();
+      String data=new String();
+      for (int i=0; i < ti.length; i++) {
+        String itemname=ti[i].getText();
+        TreeItem parent=ti[i].getParentItem();
+        if (parent != null) {
+          String parentname=parent.getText();
+          TreeItem grandparent=parent.getParentItem();
+          if (grandparent != null) {
+            String grandparentname=grandparent.getText();
+            System.out.println("Grandparent = " + grandparentname + ", parent="+ parentname+ ", item="+ itemname);
+            if (grandparentname.equalsIgnoreCase(STRING_FIELDS) || grandparentname.equalsIgnoreCase(STRING_CONDITIONS)) {
+              data+=STRING_FIELDS + "\t" + parentname+ "\t"+ itemname+ Const.CR;
+            }
+          }
+        }
+      }
+      event.data=data;
+    }
+    public void dragFinished(    DragSourceEvent event){
+    }
+  }
+);
+  DropTarget ddTarget=new DropTarget(wList,DND.DROP_MOVE | DND.DROP_COPY);
+  ddTarget.setTransfer(ttypes);
+  ddTarget.addDropListener(new DropTargetListener(){
+    public void dragEnter(    DropTargetEvent event){
+    }
+    public void dragLeave(    DropTargetEvent event){
+    }
+    public void dragOperationChanged(    DropTargetEvent event){
+    }
+    public void dragOver(    DropTargetEvent event){
+    }
+    public void drop(    DropTargetEvent event){
+      if (event.data == null) {
+        event.detail=DND.DROP_NONE;
+        return;
+      }
+      StringTokenizer strtok=new StringTokenizer((String)event.data,Const.CR);
+      while (strtok.hasMoreTokens()) {
+        String source=strtok.nextToken();
+        int idx=source.indexOf("\t");
+        int idx2=source.indexOf("\t",idx + 1);
+        if (idx >= 0) {
+          String fieldtype=source.substring(0,idx);
+          String tablename=source.substring(idx + 1,idx2);
+          String fieldname=source.substring(idx2 + 1);
+          if (fieldtype.equalsIgnoreCase(STRING_FIELDS)) {
+            addToFieldsList(tablename,fieldname);
+          }
+        }
+      }
+    }
+    public void dropAccept(    DropTargetEvent event){
+    }
+  }
+);
+  wTree.addSelectionListener(new SelectionAdapter(){
+    public void widgetDefaultSelected(    SelectionEvent e){
+      addSelectedToList();
+    }
+  }
+);
+  wAdd.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      addSelectedToList();
+    }
+  }
+);
+  wList.addKeyListener(new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      if (e.character == SWT.DEL) {
+        delSelectedFields();
+      }
+    }
+  }
+);
+  wCondition.addKeyListener(new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      if (e.character == SWT.DEL) {
+        delSelectedConditions();
+      }
+    }
+  }
+);
+  wRemove.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      delSelectedFields();
+      delSelectedConditions();
+    }
+  }
+);
+  getData();
+  WindowProperty winprop=schema.props.getScreen(shell.getText());
+  if (winprop != null)   winprop.setShell(shell);
+ else   shell.pack();
+  shell.open();
+  Display display=parent.getDisplay();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return retval;
+}

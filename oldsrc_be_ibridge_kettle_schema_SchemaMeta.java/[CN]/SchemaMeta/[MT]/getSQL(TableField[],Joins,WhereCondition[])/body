@@ -1,0 +1,56 @@
+{
+  String sql=null;
+  TableMeta tabs[]=joins.getUsedTables();
+  if (tabs.length > 0) {
+    sql="SELECT ";
+    boolean group=hasFactsInIt(fields);
+    if (!group)     sql+="DISTINCT ";
+    sql+=Const.CR;
+    for (int i=0; i < fields.length; i++) {
+      TableField f=fields[i];
+      DatabaseMeta dbinfo=f.getTable().getDatabase();
+      if (i > 0)       sql+="         ,";
+ else       sql+="          ";
+      sql+=fields[i].getSelectField(dbinfo,i);
+      sql+=Const.CR;
+    }
+    sql+="FROM " + Const.CR;
+    for (int i=0; i < tabs.length; i++) {
+      TableMeta table=tabs[i];
+      if (i > 0)       sql+="         ,";
+ else       sql+="          ";
+      sql+=table.getDBName() + " " + table.getName();
+      sql+=Const.CR;
+    }
+    sql+="WHERE " + Const.CR;
+    int nr=0;
+    for (int i=0; i < joins.size(); i++, nr++) {
+      RelationshipMeta relation=joins.getRelationship(i);
+      if (nr > 0)       sql+="      AND ";
+ else       sql+="          ";
+      sql+=relation.getJoin();
+      sql+=Const.CR;
+    }
+    for (int i=0; i < c.length; i++, nr++) {
+      if (nr > 0)       sql+="      AND ";
+ else       sql+="          ";
+      sql+=c[i].getWhereClause();
+      sql+=Const.CR;
+    }
+    if (group) {
+      sql+="GROUP BY " + Const.CR;
+      boolean first=true;
+      for (int i=0; i < fields.length; i++) {
+        TableField f=fields[i];
+        if (!f.hasAggregate()) {
+          if (!first)           sql+="         ,";
+ else           sql+="          ";
+          first=false;
+          sql+=fields[i].getAliasField();
+          sql+=Const.CR;
+        }
+      }
+    }
+  }
+  return sql;
+}

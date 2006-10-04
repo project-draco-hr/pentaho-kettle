@@ -1,0 +1,226 @@
+{
+  Props props=Props.getInstance();
+  Shell parent=getParent();
+  Display display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE);
+  shell.setBackground(GUIResource.getInstance().getColorBackground());
+  lsMod=new ModifyListener(){
+    public void modifyText(    ModifyEvent e){
+      input.setChanged();
+    }
+  }
+;
+  changed=input.hasChanged();
+  backupComplex=input.isComplex();
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText("Hop: From --> To");
+  int middle=schema.props.getMiddlePct();
+  int length=Const.LENGTH;
+  int margin=Const.MARGIN;
+  int width=Const.RIGHT;
+  wlFrom=new Label(shell,SWT.RIGHT);
+  wlFrom.setText("From table / field: ");
+  props.setLook(wlFrom);
+  fdlFrom=new FormData();
+  fdlFrom.left=new FormAttachment(0,0);
+  fdlFrom.right=new FormAttachment(middle,-margin);
+  fdlFrom.top=new FormAttachment(0,margin);
+  wlFrom.setLayoutData(fdlFrom);
+  wFrom=new CCombo(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wFrom.setText("Select the source table");
+  props.setLook(wFrom);
+  for (int i=0; i < schema.nrTables(); i++) {
+    TableMeta ti=schema.getTable(i);
+    wFrom.add(ti.getName());
+  }
+  wFrom.addModifyListener(lsMod);
+  wFrom.addModifyListener(new ModifyListener(){
+    public void modifyText(    ModifyEvent e){
+      fromtable=schema.findTable(wFrom.getText());
+      refreshFromFields();
+    }
+  }
+);
+  fdFrom=new FormData();
+  fdFrom.left=new FormAttachment(middle,0);
+  fdFrom.top=new FormAttachment(0,margin);
+  fdFrom.right=new FormAttachment(60,0);
+  wFrom.setLayoutData(fdFrom);
+  wFromField=new CCombo(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wFromField.setText("");
+  props.setLook(wFromField);
+  refreshFromFields();
+  wFromField.addModifyListener(lsMod);
+  fdFromField=new FormData();
+  fdFromField.left=new FormAttachment(wFrom,margin * 2);
+  fdFromField.top=new FormAttachment(0,margin);
+  fdFromField.right=new FormAttachment(100,0);
+  wFromField.setLayoutData(fdFromField);
+  wlTo=new Label(shell,SWT.RIGHT);
+  wlTo.setText("To table / field: ");
+  props.setLook(wlTo);
+  fdlTo=new FormData();
+  fdlTo.left=new FormAttachment(0,0);
+  fdlTo.right=new FormAttachment(middle,-margin);
+  fdlTo.top=new FormAttachment(wFrom,margin);
+  wlTo.setLayoutData(fdlTo);
+  wTo=new CCombo(shell,SWT.BORDER | SWT.READ_ONLY);
+  wTo.setText("Select the destination table");
+  props.setLook(wTo);
+  for (int i=0; i < schema.nrTables(); i++) {
+    TableMeta ti=schema.getTable(i);
+    wTo.add(ti.getName());
+  }
+  wTo.addModifyListener(lsMod);
+  wTo.addModifyListener(new ModifyListener(){
+    public void modifyText(    ModifyEvent e){
+      totable=schema.findTable(wTo.getText());
+      refreshToFields();
+    }
+  }
+);
+  fdTo=new FormData();
+  fdTo.left=new FormAttachment(middle,0);
+  fdTo.top=new FormAttachment(wFrom,margin);
+  fdTo.right=new FormAttachment(60,0);
+  wTo.setLayoutData(fdTo);
+  wToField=new CCombo(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wToField.setText("Select the field");
+  props.setLook(wToField);
+  refreshToFields();
+  wToField.addModifyListener(lsMod);
+  fdToField=new FormData();
+  fdToField.left=new FormAttachment(wTo,margin * 2);
+  fdToField.top=new FormAttachment(wFromField,margin);
+  fdToField.right=new FormAttachment(100,0);
+  wToField.setLayoutData(fdToField);
+  wGuess=new Button(shell,SWT.PUSH);
+  wGuess.setText("  &Guess matching fields  ");
+  lsGuess=new Listener(){
+    public void handleEvent(    Event e){
+      guess();
+    }
+  }
+;
+  wGuess.addListener(SWT.Selection,lsGuess);
+  fdGuess=new FormData();
+  fdGuess.left=new FormAttachment(wTo,margin * 2);
+  fdGuess.top=new FormAttachment(wToField,margin);
+  wGuess.setLayoutData(fdGuess);
+  wlRelation=new Label(shell,SWT.RIGHT);
+  wlRelation.setText("Relationship : ");
+  props.setLook(wlRelation);
+  fdlRelation=new FormData();
+  fdlRelation.left=new FormAttachment(0,0);
+  fdlRelation.right=new FormAttachment(middle,-margin);
+  fdlRelation.top=new FormAttachment(wGuess,margin * 2);
+  wlRelation.setLayoutData(fdlRelation);
+  wRelation=new CCombo(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wRelation);
+  for (int i=0; i < RelationshipMeta.typeRelationshipDesc.length; i++) {
+    wRelation.add(RelationshipMeta.typeRelationshipDesc[i]);
+  }
+  wRelation.addModifyListener(lsMod);
+  fdRelation=new FormData();
+  fdRelation.left=new FormAttachment(middle,0);
+  fdRelation.top=new FormAttachment(wGuess,margin * 2);
+  fdRelation.right=new FormAttachment(60,0);
+  wRelation.setLayoutData(fdRelation);
+  wGuessRel=new Button(shell,SWT.PUSH);
+  wGuessRel.setText("  &Guess relationship  ");
+  lsGuessRel=new Listener(){
+    public void handleEvent(    Event e){
+      guessRelationship();
+    }
+  }
+;
+  wGuessRel.addListener(SWT.Selection,lsGuessRel);
+  fdGuessRel=new FormData();
+  fdGuessRel.left=new FormAttachment(wRelation,margin * 2);
+  fdGuessRel.top=new FormAttachment(wGuess,margin * 2);
+  wGuessRel.setLayoutData(fdGuessRel);
+  wlComplex=new Label(shell,SWT.RIGHT);
+  wlComplex.setText("Complex join? ");
+  props.setLook(wlComplex);
+  fdlComplex=new FormData();
+  fdlComplex.left=new FormAttachment(0,0);
+  fdlComplex.right=new FormAttachment(middle,-margin);
+  fdlComplex.top=new FormAttachment(wGuessRel,margin);
+  wlComplex.setLayoutData(fdlComplex);
+  wComplex=new Button(shell,SWT.CHECK);
+  props.setLook(wComplex);
+  fdComplex=new FormData();
+  fdComplex.left=new FormAttachment(middle,0);
+  fdComplex.right=new FormAttachment(0,middle + length);
+  fdComplex.top=new FormAttachment(wGuessRel,margin);
+  wComplex.setLayoutData(fdComplex);
+  wComplex.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      input.flipComplex();
+      input.setChanged();
+      setComplex();
+    }
+  }
+);
+  wlComplexJoin=new Label(shell,SWT.RIGHT);
+  wlComplexJoin.setText("Complex join expression: ");
+  props.setLook(wlComplexJoin);
+  fdlComplexJoin=new FormData();
+  fdlComplexJoin.left=new FormAttachment(0,0);
+  fdlComplexJoin.right=new FormAttachment(middle,-margin);
+  fdlComplexJoin.top=new FormAttachment(wComplex,margin);
+  wlComplexJoin.setLayoutData(fdlComplexJoin);
+  wComplexJoin=new Text(shell,SWT.MULTI | SWT.LEFT | SWT.BORDER| SWT.V_SCROLL| SWT.H_SCROLL);
+  wComplexJoin.setText("");
+  props.setLook(wComplexJoin);
+  wComplexJoin.addModifyListener(lsMod);
+  fdComplexJoin=new FormData();
+  fdComplexJoin.left=new FormAttachment(0,0);
+  fdComplexJoin.right=new FormAttachment(100,0);
+  fdComplexJoin.top=new FormAttachment(wlComplexJoin,margin);
+  fdComplexJoin.bottom=new FormAttachment(100,-50);
+  wComplexJoin.setLayoutData(fdComplexJoin);
+  wOK=new Button(shell,SWT.PUSH);
+  wOK.setText("  &OK  ");
+  wCancel=new Button(shell,SWT.PUSH);
+  wCancel.setText("  &Cancel  ");
+  fdOK=new FormData();
+  fdOK.left=new FormAttachment(33,0);
+  fdOK.bottom=new FormAttachment(100,0);
+  wOK.setLayoutData(fdOK);
+  fdCancel=new FormData();
+  fdCancel.left=new FormAttachment(66,0);
+  fdCancel.bottom=new FormAttachment(100,0);
+  wCancel.setLayoutData(fdCancel);
+  lsCancel=new Listener(){
+    public void handleEvent(    Event e){
+      cancel();
+    }
+  }
+;
+  lsOK=new Listener(){
+    public void handleEvent(    Event e){
+      ok();
+    }
+  }
+;
+  wOK.addListener(SWT.Selection,lsOK);
+  wCancel.addListener(SWT.Selection,lsCancel);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      cancel();
+    }
+  }
+);
+  shell.setSize(middle + width + 50,350);
+  getData();
+  input.setChanged(changed);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return input;
+}
