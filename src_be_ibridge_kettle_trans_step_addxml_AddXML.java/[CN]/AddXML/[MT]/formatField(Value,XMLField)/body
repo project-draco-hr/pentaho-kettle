@@ -1,0 +1,90 @@
+{
+  String retval="";
+  if (field == null)   return "";
+  if (v == null || v.isNull()) {
+    String defaultNullValue=field.getNullString();
+    return defaultNullValue != null ? defaultNullValue : "";
+  }
+  if (v.isBigNumber() || v.isNumber() || v.isInteger()) {
+    if (field.getFormat() == null) {
+      return v.toString();
+    }
+    if (!Const.isEmpty(field.getFormat())) {
+      data.df.applyPattern(field.getFormat());
+    }
+ else {
+      data.df.applyPattern(data.defaultDecimalFormat.toLocalizedPattern());
+    }
+    if (!Const.isEmpty(field.getDecimalSymbol())) {
+      data.dfs.setDecimalSeparator(field.getDecimalSymbol().charAt(0));
+    }
+ else {
+      data.dfs.setDecimalSeparator(data.defaultDecimalFormatSymbols.getDecimalSeparator());
+    }
+    if (!Const.isEmpty(field.getGroupingSymbol())) {
+      data.dfs.setGroupingSeparator(field.getGroupingSymbol().charAt(0));
+    }
+ else {
+      data.dfs.setGroupingSeparator(data.defaultDecimalFormatSymbols.getGroupingSeparator());
+    }
+    if (!Const.isEmpty(field.getCurrencySymbol())) {
+      data.dfs.setCurrencySymbol(field.getCurrencySymbol());
+    }
+ else {
+      data.dfs.setCurrencySymbol(data.defaultDecimalFormatSymbols.getCurrencySymbol());
+    }
+    data.df.setDecimalFormatSymbols(data.dfs);
+    if (v.isBigNumber()) {
+      retval=data.df.format(v.getBigNumber());
+    }
+ else     if (v.isNumber()) {
+      retval=data.df.format(v.getNumber());
+    }
+ else {
+      retval=data.df.format(v.getInteger());
+    }
+  }
+ else   if (v.isDate()) {
+    if (field != null && field.getFormat() != null && v.getDate() != null) {
+      if (!Const.isEmpty(field.getFormat())) {
+        data.daf.applyPattern(field.getFormat());
+      }
+ else {
+        data.daf.applyPattern(data.defaultDateFormat.toLocalizedPattern());
+      }
+      data.daf.setDateFormatSymbols(data.dafs);
+      retval=data.daf.format(v.getDate());
+    }
+ else {
+      if (v.isNull() || v.getDate() == null) {
+        if (field != null && field.getNullString() != null) {
+          retval=field.getNullString();
+        }
+      }
+ else {
+        retval=v.toString();
+      }
+    }
+  }
+ else   if (v.isString()) {
+    retval=v.toString();
+  }
+ else   if (v.isBinary()) {
+    if (v.isNull()) {
+      if (field.getNullString() != null)       retval=field.getNullString();
+ else       retval=Const.NULL_BINARY;
+    }
+ else {
+      try {
+        retval=new String(v.getBytes(),"US-ASCII");
+      }
+ catch (      UnsupportedEncodingException e) {
+        retval=Const.NULL_BINARY;
+      }
+    }
+  }
+ else {
+    retval=v.toString();
+  }
+  return retval;
+}

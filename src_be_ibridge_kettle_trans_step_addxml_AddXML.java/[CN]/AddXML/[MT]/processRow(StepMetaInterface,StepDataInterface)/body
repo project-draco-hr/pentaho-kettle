@@ -1,0 +1,43 @@
+{
+  meta=(AddXMLMeta)smi;
+  data=(AddXMLData)sdi;
+  Row r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  Document xmldoc=getDomImplentation().createDocument(null,meta.getRootNode(),null);
+  Element root=xmldoc.getDocumentElement();
+  for (int i=0; i < meta.getOutputFields().length; i++) {
+    XMLField outputField=meta.getOutputFields()[i];
+    String fieldname=outputField.getFieldName();
+    Value v=r.searchValue(fieldname);
+    String value=formatField(v,outputField);
+    String element=outputField.getElementName();
+    if (element == null || element.length() == 0)     element=fieldname;
+    if (element == null || element.length() == 0) {
+      throw new KettleException("XML does not allow empty strings for element names.");
+    }
+    if (outputField.isAttribute()) {
+      root.setAttribute(element,value);
+    }
+ else {
+      Element e=xmldoc.createElement(element);
+      Node n=xmldoc.createTextNode(value);
+      e.appendChild(n);
+      root.appendChild(e);
+    }
+  }
+  StringWriter sw=new StringWriter();
+  DOMSource domSource=new DOMSource(xmldoc);
+  try {
+    this.getSerializer().transform(domSource,new StreamResult(sw));
+  }
+ catch (  TransformerException e) {
+    throw new KettleException(e);
+  }
+  Value v=new Value(meta.getValueName(),sw.toString());
+  r.addValue(v);
+  putRow(r);
+  return true;
+}
