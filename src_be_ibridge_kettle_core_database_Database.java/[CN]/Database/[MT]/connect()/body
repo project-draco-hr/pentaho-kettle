@@ -1,6 +1,17 @@
 {
+  if (databaseMeta == null) {
+    throw new KettleDatabaseException("No valid database connection defined!");
+  }
   try {
-    if (databaseMeta != null) {
+    if (databaseMeta.isUsingConnectionPool()) {
+      try {
+        this.connection=ConnectionPoolUtil.getConnection(databaseMeta);
+      }
+ catch (      Exception e) {
+        throw new KettleDatabaseException("Error occured while trying to connect to the database",e);
+      }
+    }
+ else {
       connect(databaseMeta.getDriverClass());
       log.logDetailed(toString(),"Connected to database.");
       String sql=StringUtil.environmentSubstitute(databaseMeta.getConnectSQL());
@@ -8,9 +19,6 @@
         execStatements(sql);
         log.logDetailed(toString(),"Executed connect time SQL statements:" + Const.CR + sql);
       }
-    }
- else {
-      throw new KettleDatabaseException("No valid database connection defined!");
     }
   }
  catch (  Exception e) {
