@@ -19,6 +19,26 @@
     logwriter=LogWriter.getInstance(StringUtil.environmentSubstitute(getLogFilename()),true,loglevel);
   }
   try {
+    JobMeta jobMeta=null;
+    boolean fromRepository=rep != null && !Const.isEmpty(jobname) && directory != null;
+    boolean fromXMLFile=!Const.isEmpty(filename);
+    if (fromRepository) {
+      log.logDetailed(toString(),"Loading job from repository : [" + directory + " : "+ StringUtil.environmentSubstitute(jobname)+ "]");
+      jobMeta=new JobMeta(logwriter,rep,StringUtil.environmentSubstitute(jobname),directory);
+    }
+ else     if (fromXMLFile) {
+      log.logDetailed(toString(),"Loading job from XML file : [" + StringUtil.environmentSubstitute(filename) + "]");
+      jobMeta=new JobMeta(logwriter,StringUtil.environmentSubstitute(filename),rep);
+    }
+    if (jobMeta == null) {
+      throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
+    }
+    if (fromRepository) {
+      log.logBasic(toString(),"Starting job, loaded from repository : [" + directory + " : "+ StringUtil.environmentSubstitute(jobname)+ "]");
+    }
+ else     if (fromXMLFile) {
+      log.logDetailed(toString(),"Starting job, loaded from XML file : [" + StringUtil.environmentSubstitute(filename) + "]");
+    }
     int iteration=0;
     String args[]=arguments;
     Row resultRow=null;
@@ -32,28 +52,8 @@
  else {
         resultRow=null;
       }
-      JobMeta jobMeta=null;
-      boolean fromRepository=rep != null && !Const.isEmpty(jobname) && directory != null;
-      boolean fromXMLFile=!Const.isEmpty(filename);
-      if (fromRepository) {
-        log.logDetailed(toString(),"Loading job from repository : [" + directory + " : "+ StringUtil.environmentSubstitute(jobname)+ "]");
-        jobMeta=new JobMeta(logwriter,rep,StringUtil.environmentSubstitute(jobname),directory);
-      }
- else       if (fromXMLFile) {
-        log.logDetailed(toString(),"Loading job from XML file : [" + StringUtil.environmentSubstitute(filename) + "]");
-        jobMeta=new JobMeta(logwriter,StringUtil.environmentSubstitute(filename),rep);
-      }
-      if (jobMeta == null) {
-        throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
-      }
       Job job=new Job(logwriter,StepLoader.getInstance(),rep,jobMeta);
       job.beginProcessing();
-      if (fromRepository) {
-        log.logBasic(toString(),"Starting job, loaded from repository : [" + directory + " : "+ StringUtil.environmentSubstitute(jobname)+ "]");
-      }
- else       if (fromXMLFile) {
-        log.logDetailed(toString(),"Starting job, loaded from XML file : [" + StringUtil.environmentSubstitute(filename) + "]");
-      }
       parentJob.getJobTracker().addJobTracker(job.getJobTracker());
       job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
       job.setParentJob(parentJob);
