@@ -1,19 +1,15 @@
 {
-  Row row=new Row();
-  List columns=table.getColumns();
-  for (int i=0; i < columns.size(); i++) {
-    Column column=(Column)columns.get(i);
-    int valtype=Value.VALUE_TYPE_STRING;
-    int length=-1;
-    int precision=-1;
-    int type=column.getType().getSQLType();
+  int length=-1;
+  int precision=-1;
+  int valtype=Value.VALUE_TYPE_NONE;
+  int type=rm.getColumnType(i);
 switch (type) {
 case java.sql.Types.CHAR:
 case java.sql.Types.VARCHAR:
 case java.sql.Types.LONGVARCHAR:
-      valtype=Value.VALUE_TYPE_STRING;
-    length=column.getLength();
-  break;
+    valtype=Value.VALUE_TYPE_STRING;
+  if (!ignoreLength)   length=rm.getColumnDisplaySize(i);
+break;
 case java.sql.Types.CLOB:
 valtype=Value.VALUE_TYPE_STRING;
 length=DatabaseMeta.CLOB_LENGTH;
@@ -44,13 +40,17 @@ case java.sql.Types.FLOAT:
 case java.sql.Types.REAL:
 case java.sql.Types.NUMERIC:
 valtype=Value.VALUE_TYPE_NUMBER;
-length=column.getLength();
-precision=column.getPrecision();
+length=rm.getPrecision(i);
+precision=rm.getScale(i);
 if (length >= 126) length=-1;
 if (precision >= 126) precision=-1;
 if (type == java.sql.Types.DOUBLE || type == java.sql.Types.FLOAT || type == java.sql.Types.REAL) {
 if (precision == 0) {
 precision=-1;
+}
+if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_POSTGRES && type == java.sql.Types.DOUBLE && precision == 16 && length == 16) {
+precision=-1;
+length=-1;
 }
 }
  else {
@@ -59,6 +59,13 @@ valtype=Value.VALUE_TYPE_INTEGER;
 }
 }
 if (length > 18 || precision > 18) valtype=Value.VALUE_TYPE_BIGNUMBER;
+if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) {
+if (precision <= 0 && length <= 0) {
+valtype=Value.VALUE_TYPE_BIGNUMBER;
+length=-1;
+precision=-1;
+}
+}
 break;
 case java.sql.Types.DATE:
 case java.sql.Types.TIME:
@@ -74,15 +81,24 @@ case java.sql.Types.BLOB:
 case java.sql.Types.VARBINARY:
 case java.sql.Types.LONGVARBINARY:
 valtype=Value.VALUE_TYPE_BINARY;
+if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_DB2 && (2 * rm.getPrecision(i)) == rm.getColumnDisplaySize(i)) {
+length=rm.getPrecision(i);
+}
+ else if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE && (type == java.sql.Types.VARBINARY || type == java.sql.Types.LONGVARBINARY)) {
+valtype=Value.VALUE_TYPE_STRING;
+length=rm.getColumnDisplaySize(i);
+}
+ else {
+length=-1;
+}
+precision=-1;
 break;
 default :
 valtype=Value.VALUE_TYPE_STRING;
-length=column.getLength();
+precision=rm.getScale(i);
 break;
 }
-Value v=new Value(column.getName(),valtype);
+Value v=new Value(name,valtype);
 v.setLength(length,precision);
-row.addValue(v);
-}
-return row;
+return v;
 }
