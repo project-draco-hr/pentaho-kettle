@@ -1,0 +1,45 @@
+{
+  String baseUrl;
+  if (isClustered() && !Const.isEmpty(partitionId)) {
+    PartitionDatabaseMeta partition=getPartitionMeta(partitionId);
+    String hostname=partition.getHostname();
+    String port=partition.getPort();
+    String databaseName=partition.getDatabaseName();
+    baseUrl=databaseInterface.getURL(hostname,port,databaseName);
+  }
+ else {
+    baseUrl=databaseInterface.getURL(getHostname(),getDatabasePortNumberString(),getDatabaseName());
+  }
+  StringBuffer url=new StringBuffer(baseUrl);
+  if (databaseInterface.supportsOptionsInURL()) {
+    String optionIndicator=getExtraOptionIndicator();
+    String optionSeparator=getExtraOptionSeparator();
+    String valueSeparator=getExtraOptionValueSeparator();
+    Map map=getExtraOptions();
+    if (map.size() > 0) {
+      Iterator iterator=map.keySet().iterator();
+      boolean first=true;
+      while (iterator.hasNext()) {
+        String typedParameter=(String)iterator.next();
+        int dotIndex=typedParameter.indexOf('.');
+        if (dotIndex >= 0) {
+          String typeCode=typedParameter.substring(0,dotIndex);
+          String parameter=typedParameter.substring(dotIndex + 1);
+          String value=(String)map.get(typedParameter);
+          if (databaseInterface.getDatabaseTypeDesc().equals(typeCode)) {
+            if (first)             url.append(optionIndicator);
+ else             url.append(optionSeparator);
+            url.append(parameter);
+            if (!Const.isEmpty(value) && !value.equals(EMPTY_OPTIONS_STRING)) {
+              url.append(valueSeparator).append(value);
+            }
+            first=false;
+          }
+        }
+      }
+    }
+  }
+ else {
+  }
+  return url.toString();
+}

@@ -1,0 +1,49 @@
+{
+  if (databaseMeta.getAccessType() == DatabaseMeta.TYPE_ACCESS_JNDI) {
+    initWithJNDI(databaseMeta.getDatabaseName());
+    return;
+  }
+  try {
+    Class.forName(classname);
+  }
+ catch (  NoClassDefFoundError e) {
+    throw new KettleDatabaseException("Exception while loading class",e);
+  }
+catch (  ClassNotFoundException e) {
+    throw new KettleDatabaseException("Exception while loading class",e);
+  }
+catch (  Exception e) {
+    throw new KettleDatabaseException("Exception while loading class",e);
+  }
+  try {
+    String url;
+    if (databaseMeta.isClustered() && !Const.isEmpty(partitionId)) {
+      url=StringUtil.environmentSubstitute(databaseMeta.getURL(partitionId));
+    }
+ else {
+      url=StringUtil.environmentSubstitute(databaseMeta.getURL());
+    }
+    String userName=StringUtil.environmentSubstitute(databaseMeta.getUsername());
+    String password=StringUtil.environmentSubstitute(databaseMeta.getPassword());
+    if (databaseMeta.supportsOptionsInURL()) {
+      if (!Const.isEmpty(userName)) {
+        connection=DriverManager.getConnection(url,userName,password);
+      }
+ else {
+        connection=DriverManager.getConnection(url);
+      }
+    }
+ else {
+      Properties properties=databaseMeta.getConnectionProperties();
+      if (!Const.isEmpty(userName))       properties.put("user",userName);
+      if (!Const.isEmpty(password))       properties.put("password",password);
+      connection=DriverManager.getConnection(url,properties);
+    }
+  }
+ catch (  SQLException e) {
+    throw new KettleDatabaseException("Error connecting to database: (using class " + classname + ")",e);
+  }
+catch (  Throwable e) {
+    throw new KettleDatabaseException("Error connecting to database: (using class " + classname + ")",e);
+  }
+}

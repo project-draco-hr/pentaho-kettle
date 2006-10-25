@@ -1,43 +1,27 @@
 {
-  if (databaseMeta.getAccessType() == DatabaseMeta.TYPE_ACCESS_JNDI) {
-    initWithJNDI(databaseMeta.getDatabaseName());
-    return;
+  if (databaseMeta == null) {
+    throw new KettleDatabaseException("No valid database connection defined!");
   }
   try {
-    Class.forName(classname);
-  }
- catch (  NoClassDefFoundError e) {
-    throw new KettleDatabaseException("Exception while loading class",e);
-  }
-catch (  ClassNotFoundException e) {
-    throw new KettleDatabaseException("Exception while loading class",e);
-  }
-catch (  Exception e) {
-    throw new KettleDatabaseException("Exception while loading class",e);
-  }
-  try {
-    String url=StringUtil.environmentSubstitute(databaseMeta.getURL());
-    String userName=StringUtil.environmentSubstitute(databaseMeta.getUsername());
-    String password=StringUtil.environmentSubstitute(databaseMeta.getPassword());
-    if (databaseMeta.supportsOptionsInURL()) {
-      if (!Const.isEmpty(userName)) {
-        connection=DriverManager.getConnection(url,userName,password);
+    if (databaseMeta.isUsingConnectionPool() && databaseMeta.getAccessType() != DatabaseMeta.TYPE_ACCESS_JNDI) {
+      try {
+        this.connection=ConnectionPoolUtil.getConnection(databaseMeta,partitionId);
       }
- else {
-        connection=DriverManager.getConnection(url);
+ catch (      Exception e) {
+        throw new KettleDatabaseException("Error occured while trying to connect to the database",e);
       }
     }
  else {
-      Properties properties=databaseMeta.getConnectionProperties();
-      if (!Const.isEmpty(userName))       properties.put("user",userName);
-      if (!Const.isEmpty(password))       properties.put("password",password);
-      connection=DriverManager.getConnection(url,properties);
+      connectUsingClass(databaseMeta.getDriverClass(),partitionId);
+      log.logDetailed(toString(),"Connected to database.");
+      String sql=StringUtil.environmentSubstitute(databaseMeta.getConnectSQL());
+      if (!Const.isEmpty(sql) && !Const.onlySpaces(sql)) {
+        execStatements(sql);
+        log.logDetailed(toString(),"Executed connect time SQL statements:" + Const.CR + sql);
+      }
     }
   }
- catch (  SQLException e) {
-    throw new KettleDatabaseException("Error connecting to database: (using class " + classname + ")",e);
-  }
-catch (  Throwable e) {
-    throw new KettleDatabaseException("Error connecting to database: (using class " + classname + ")",e);
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Error occured while trying to connect to the database",e);
   }
 }

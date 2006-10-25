@@ -1,0 +1,37 @@
+{
+  GenericObjectPool gpool=new GenericObjectPool();
+  gpool.setMaxIdle(-1);
+  gpool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
+  gpool.setMaxActive(maximumSize);
+  String clazz=databaseMeta.getDriverClass();
+  try {
+    Class.forName(clazz).newInstance();
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Unable to load driver for connect [" + databaseMeta.getName() + "], class ["+ clazz+ "]",e);
+  }
+  String url;
+  String userName;
+  String password;
+  try {
+    url=StringUtil.environmentSubstitute(databaseMeta.getURL(partitionId));
+    userName=StringUtil.environmentSubstitute(databaseMeta.getUsername());
+    password=StringUtil.environmentSubstitute(databaseMeta.getPassword());
+  }
+ catch (  RuntimeException e) {
+    url=databaseMeta.getURL(partitionId);
+    userName=databaseMeta.getUsername();
+    password=databaseMeta.getPassword();
+  }
+  ConnectionFactory cf=new DriverManagerConnectionFactory(url,userName,password);
+  new PoolableConnectionFactory(cf,gpool,null,null,false,false);
+  for (int i=0; i < initialSize; i++) {
+    try {
+      gpool.addObject();
+    }
+ catch (    Exception e) {
+      throw new KettleDatabaseException("Unable to pre-load connection to the connection pool",e);
+    }
+  }
+  pd.registerPool(databaseMeta.getName(),gpool);
+}
