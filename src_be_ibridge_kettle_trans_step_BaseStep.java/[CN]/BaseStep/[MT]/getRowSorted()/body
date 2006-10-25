@@ -1,0 +1,54 @@
+{
+  int smallestId=0;
+  Row smallestRow=null;
+  for (int i=0; i < inputRowSets.size(); i++) {
+    RowSet rowSet=(RowSet)inputRowSets.get(i);
+    int sleeptime=transMeta.getSleepTimeEmpty();
+    while (rowSet.isEmpty() && !stopped) {
+      try {
+        if (sleeptime > 0)         sleep(0,sleeptime);
+ else         super.notifyAll();
+      }
+ catch (      Exception e) {
+        logError(Messages.getString("BaseStep.Log.SleepInterupted") + e.toString());
+        setErrors(1);
+        stopAll();
+        return null;
+      }
+      if (sleeptime < 100)       sleeptime=((int)(sleeptime * 1.2)) + 1;
+ else       sleeptime=100;
+      nrGetSleeps+=sleeptime;
+    }
+    if (stopped)     return null;
+    Row row=rowSet.lookAtFirst();
+    if (smallestRow == null) {
+      smallestRow=row;
+      smallestId=i;
+    }
+ else {
+      if (partitionColumnIndex < 0) {
+        StepMeta prevSteps[]=transMeta.getPrevSteps(stepMeta);
+        String fieldName=prevSteps[0].getStepPartitioningMeta().getFieldName();
+        partitionColumnIndex=row.searchValueIndex(fieldName);
+        if (partitionColumnIndex < 0) {
+          throw new KettleStepException("Partition merge: unable to find partitioning fieldname [" + fieldName + "] in row : "+ row);
+        }
+      }
+      Value smallestValue=smallestRow.getValue(partitionColumnIndex);
+      Value compareValue=row.getValue(partitionColumnIndex);
+      if (compareValue.compare(smallestValue) < 0) {
+        smallestRow=row;
+        smallestId=i;
+      }
+    }
+  }
+  Row row=((RowSet)inputRowSets.get(smallestId)).getRow();
+  for (int i=0; i < rowListeners.size(); i++) {
+    RowListener rowListener=(RowListener)rowListeners.get(i);
+    rowListener.rowReadEvent(row);
+  }
+  if (safeModeEnabled) {
+    safeModeChecking(row);
+  }
+  return row;
+}
