@@ -1,70 +1,67 @@
 {
-  int i, c;
-  RowSet rs;
-  int nrinput, nroutput;
-  int nrcopies, prevcopies, nextcopies;
-  int disptype;
   if (transMeta == null) {
     return;
   }
   StepMeta stepMeta=transMeta.findStep(stepname);
   if (log.isDetailed())   logDetailed(Messages.getString("BaseStep.Log.StartingBuffersAllocation"));
-  nrinput=transMeta.findNrPrevSteps(stepMeta,true);
-  nroutput=transMeta.findNrNextSteps(stepMeta);
+  int nrInput=transMeta.findNrPrevSteps(stepMeta,true);
+  int nrOutput=transMeta.findNrNextSteps(stepMeta);
   inputRowSets=new ArrayList();
   outputRowSets=new ArrayList();
-  prev=new StepMeta[nrinput];
-  next=new StepMeta[nroutput];
+  prevSteps=new StepMeta[nrInput];
+  nextSteps=new StepMeta[nrOutput];
   in_handling=0;
-  logDetailed(Messages.getString("BaseStep.Log.StepInfo",String.valueOf(nrinput),String.valueOf(nroutput)));
-  for (i=0; i < nrinput; i++) {
-    prev[i]=transMeta.findPrevStep(stepMeta,i,true);
-    logDetailed(Messages.getString("BaseStep.Log.GotPreviousStep",stepname,String.valueOf(i),prev[i].getName()));
-    prevcopies=prev[i].getCopies();
-    nextcopies=stepMeta.getCopies();
-    logDetailed(Messages.getString("BaseStep.Log.InputRowInfo",String.valueOf(prevcopies),String.valueOf(nextcopies)));
-    if (prevcopies == 1 && nextcopies == 1) {
-      disptype=Trans.TYPE_DISP_1_1;
-      nrcopies=1;
+  logDetailed(Messages.getString("BaseStep.Log.StepInfo",String.valueOf(nrInput),String.valueOf(nrOutput)));
+  for (int i=0; i < nrInput; i++) {
+    prevSteps[i]=transMeta.findPrevStep(stepMeta,i,true);
+    logDetailed(Messages.getString("BaseStep.Log.GotPreviousStep",stepname,String.valueOf(i),prevSteps[i].getName()));
+    int prevCopies=prevSteps[i].getCopies();
+    int nextCopies=stepMeta.getCopies();
+    logDetailed(Messages.getString("BaseStep.Log.InputRowInfo",String.valueOf(prevCopies),String.valueOf(nextCopies)));
+    int nrCopies;
+    int dispatchType;
+    if (prevCopies == 1 && nextCopies == 1) {
+      dispatchType=Trans.TYPE_DISP_1_1;
+      nrCopies=1;
     }
- else     if (prevcopies == 1 && nextcopies > 1) {
-      disptype=Trans.TYPE_DISP_1_N;
-      nrcopies=1;
+ else     if (prevCopies == 1 && nextCopies > 1) {
+      dispatchType=Trans.TYPE_DISP_1_N;
+      nrCopies=1;
     }
- else     if (prevcopies > 1 && nextcopies == 1) {
-      disptype=Trans.TYPE_DISP_N_1;
-      nrcopies=prevcopies;
+ else     if (prevCopies > 1 && nextCopies == 1) {
+      dispatchType=Trans.TYPE_DISP_N_1;
+      nrCopies=prevCopies;
     }
- else     if (prevcopies == nextcopies) {
-      disptype=Trans.TYPE_DISP_N_N;
-      nrcopies=1;
+ else     if (prevCopies == nextCopies) {
+      dispatchType=Trans.TYPE_DISP_N_N;
+      nrCopies=1;
     }
  else {
-      log.logError(toString(),Messages.getString("BaseStep.Log.AllowedRelationships"));
-      log.logError(toString(),Messages.getString("BaseStep.Log.XYRelationshipsNotAllowed"));
-      setErrors(1);
-      stopAll();
-      return;
+      dispatchType=Trans.TYPE_DISP_N_M;
+      nrCopies=prevCopies;
     }
-    for (c=0; c < nrcopies; c++) {
-      rs=null;
-switch (disptype) {
+    for (int c=0; c < nrCopies; c++) {
+      RowSet rowSet=null;
+switch (dispatchType) {
 case Trans.TYPE_DISP_1_1:
-        rs=trans.findRowSet(prev[i].getName(),0,stepname,0);
+        rowSet=trans.findRowSet(prevSteps[i].getName(),0,stepname,0);
       break;
 case Trans.TYPE_DISP_1_N:
-    rs=trans.findRowSet(prev[i].getName(),0,stepname,getCopy());
+    rowSet=trans.findRowSet(prevSteps[i].getName(),0,stepname,getCopy());
   break;
 case Trans.TYPE_DISP_N_1:
-rs=trans.findRowSet(prev[i].getName(),c,stepname,0);
+rowSet=trans.findRowSet(prevSteps[i].getName(),c,stepname,0);
 break;
 case Trans.TYPE_DISP_N_N:
-rs=trans.findRowSet(prev[i].getName(),getCopy(),stepname,getCopy());
+rowSet=trans.findRowSet(prevSteps[i].getName(),getCopy(),stepname,getCopy());
+break;
+case Trans.TYPE_DISP_N_M:
+rowSet=trans.findRowSet(prevSteps[i].getName(),c,stepname,getCopy());
 break;
 }
-if (rs != null) {
-inputRowSets.add(rs);
-logDetailed(Messages.getString("BaseStep.Log.FoundInputRowset",rs.getName()));
+if (rowSet != null) {
+inputRowSets.add(rowSet);
+logDetailed(Messages.getString("BaseStep.Log.FoundInputRowset",rowSet.getName()));
 }
  else {
 logError(Messages.getString("BaseStep.Log.UnableToFindInputRowset"));
@@ -74,53 +71,55 @@ return;
 }
 }
 }
-for (i=0; i < nroutput; i++) {
-next[i]=transMeta.findNextStep(stepMeta,i);
-prevcopies=stepMeta.getCopies();
-nextcopies=next[i].getCopies();
-logDetailed(Messages.getString("BaseStep.Log.OutputRowInfo",String.valueOf(prevcopies),String.valueOf(nextcopies)));
-if (prevcopies == 1 && nextcopies == 1) {
-disptype=Trans.TYPE_DISP_1_1;
-nrcopies=1;
+for (int i=0; i < nrOutput; i++) {
+nextSteps[i]=transMeta.findNextStep(stepMeta,i);
+int prevCopies=stepMeta.getCopies();
+int nextCopies=nextSteps[i].getCopies();
+logDetailed(Messages.getString("BaseStep.Log.OutputRowInfo",String.valueOf(prevCopies),String.valueOf(nextCopies)));
+int nrCopies;
+int dispatchType;
+if (prevCopies == 1 && nextCopies == 1) {
+dispatchType=Trans.TYPE_DISP_1_1;
+nrCopies=1;
 }
- else if (prevcopies == 1 && nextcopies > 1) {
-disptype=Trans.TYPE_DISP_1_N;
-nrcopies=nextcopies;
+ else if (prevCopies == 1 && nextCopies > 1) {
+dispatchType=Trans.TYPE_DISP_1_N;
+nrCopies=nextCopies;
 }
- else if (prevcopies > 1 && nextcopies == 1) {
-disptype=Trans.TYPE_DISP_N_1;
-nrcopies=1;
+ else if (prevCopies > 1 && nextCopies == 1) {
+dispatchType=Trans.TYPE_DISP_N_1;
+nrCopies=1;
 }
- else if (prevcopies == nextcopies) {
-disptype=Trans.TYPE_DISP_N_N;
-nrcopies=1;
+ else if (prevCopies == nextCopies) {
+dispatchType=Trans.TYPE_DISP_N_N;
+nrCopies=1;
 }
  else {
-log.logError(toString(),Messages.getString("BaseStep.Log.AllowedRelationships"));
-log.logError(toString(),Messages.getString("BaseStep.Log.XYRelationshipsNotAllowed"));
-setErrors(1);
-stopAll();
-return;
+dispatchType=Trans.TYPE_DISP_N_M;
+nrCopies=nextCopies;
 }
-for (c=0; c < nrcopies; c++) {
-rs=null;
-switch (disptype) {
+for (int c=0; c < nrCopies; c++) {
+RowSet rowSet=null;
+switch (dispatchType) {
 case Trans.TYPE_DISP_1_1:
-rs=trans.findRowSet(stepname,0,next[i].getName(),0);
+rowSet=trans.findRowSet(stepname,0,nextSteps[i].getName(),0);
 break;
 case Trans.TYPE_DISP_1_N:
-rs=trans.findRowSet(stepname,0,next[i].getName(),c);
+rowSet=trans.findRowSet(stepname,0,nextSteps[i].getName(),c);
 break;
 case Trans.TYPE_DISP_N_1:
-rs=trans.findRowSet(stepname,getCopy(),next[i].getName(),0);
+rowSet=trans.findRowSet(stepname,getCopy(),nextSteps[i].getName(),0);
 break;
 case Trans.TYPE_DISP_N_N:
-rs=trans.findRowSet(stepname,getCopy(),next[i].getName(),getCopy());
+rowSet=trans.findRowSet(stepname,getCopy(),nextSteps[i].getName(),getCopy());
+break;
+case Trans.TYPE_DISP_N_M:
+rowSet=trans.findRowSet(stepname,getCopy(),nextSteps[i].getName(),c);
 break;
 }
-if (rs != null) {
-outputRowSets.add(rs);
-logDetailed(Messages.getString("BaseStep.Log.FoundOutputRowset",rs.getName()));
+if (rowSet != null) {
+outputRowSets.add(rowSet);
+logDetailed(Messages.getString("BaseStep.Log.FoundOutputRowset",rowSet.getName()));
 }
  else {
 logError(Messages.getString("BaseStep.Log.UnableToFindOutputRowset"));
