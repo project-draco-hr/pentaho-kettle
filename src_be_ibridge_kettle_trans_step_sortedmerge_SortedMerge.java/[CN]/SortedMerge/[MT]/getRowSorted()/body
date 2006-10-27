@@ -1,0 +1,68 @@
+{
+  int smallestId=0;
+  Row smallestRow=null;
+  if (inputRowSets.size() == 0)   return null;
+  for (int i=0; i < inputRowSets.size(); i++) {
+    RowSet rowSet=(RowSet)inputRowSets.get(i);
+    while (rowSet != null && rowSet.isEmpty() && rowSet.isDone()) {
+      inputRowSets.remove(i);
+      if (inputRowSets.size() == 0) {
+        return null;
+      }
+      if (i < inputRowSets.size()) {
+        rowSet=(RowSet)inputRowSets.get(i);
+      }
+ else {
+        rowSet=null;
+      }
+    }
+    if (rowSet != null) {
+      int sleeptime=getTransMeta().getSleepTimeEmpty();
+      while (rowSet.isEmpty() && !stopped) {
+        try {
+          if (sleeptime > 0)           sleep(0,sleeptime);
+ else           super.notifyAll();
+        }
+ catch (        Exception e) {
+          logError(Messages.getString("BaseStep.Log.SleepInterupted") + e.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+        if (sleeptime < 100)         sleeptime=((int)(sleeptime * 1.2)) + 1;
+ else         sleeptime=100;
+        setNrGetSleeps(getNrGetSleeps() + sleeptime);
+      }
+      if (stopped)       return null;
+      Row row=rowSet.lookAtFirst();
+      if (smallestRow == null) {
+        smallestRow=row;
+        smallestId=i;
+      }
+ else {
+        if (data.fieldIndices == null) {
+          data.fieldIndices=new int[meta.getFieldName().length];
+          for (int f=0; f < data.fieldIndices.length; f++) {
+            data.fieldIndices[f]=row.searchValueIndex(meta.getFieldName()[f]);
+            if (data.fieldIndices[f] < 0) {
+              throw new KettleStepException("Unable to find fieldname [" + meta.getFieldName()[f] + "] in row : "+ row);
+            }
+          }
+        }
+        if (row.compare(smallestRow,data.fieldIndices,meta.getAscending()) < 0) {
+          smallestRow=row;
+          smallestId=i;
+        }
+      }
+    }
+  }
+  Row row=((RowSet)inputRowSets.get(smallestId)).getRow();
+  for (int i=0; i < getRowListeners().size(); i++) {
+    RowListener rowListener=(RowListener)getRowListeners().get(i);
+    rowListener.rowReadEvent(row);
+  }
+  if (isSafeModeEnabled()) {
+    safeModeChecking(row);
+  }
+  return row;
+}
