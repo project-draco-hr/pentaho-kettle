@@ -114,7 +114,7 @@ StepDataInterface data=combi.meta.getStepData();
 combi.data=data;
 StepInterface step=combi.meta.getStep(stepMeta,data,c,transMeta,this);
 if (stepMeta.isPartitioned()) {
-String[] partitionIDs=stepMeta.getStepMetaInterface().getPartitionIDs();
+String[] partitionIDs=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
 if (partitionIDs != null && partitionIDs.length > 0) {
 step.setPartitionID(partitionIDs[c]);
 }
@@ -152,14 +152,28 @@ StepMetaDataCombi sid=(StepMetaDataCombi)steps.get(i);
 StepMeta stepMeta=sid.stepMeta;
 BaseStep baseStep=(BaseStep)sid.step;
 baseStep.setPartitioned(stepMeta.isPartitioned());
+PartitionSchema thisSchema=stepMeta.getStepPartitioningMeta().getPartitionSchema();
+String thisFieldName=stepMeta.getStepPartitioningMeta().getFieldName();
 boolean nextPartitioned=true;
+boolean samePartitioned=thisSchema != null;
+boolean sameFieldName=thisFieldName != null;
 int nrNext=transMeta.findNrNextSteps(stepMeta);
 for (int p=0; p < nrNext; p++) {
 StepMeta nextStep=transMeta.findNextStep(stepMeta,p);
-if (!nextStep.isPartitioned()) nextPartitioned=false;
+if (!nextStep.isPartitioned()) {
+nextPartitioned=false;
+}
+ else {
+if (thisSchema != null && !thisSchema.equals(nextStep.getStepPartitioningMeta().getPartitionSchema())) {
+samePartitioned=false;
+}
+if (thisFieldName != null && !thisFieldName.equalsIgnoreCase(nextStep.getStepPartitioningMeta().getFieldName())) {
+sameFieldName=false;
+}
+}
 }
 baseStep.setRepartitioning(false);
-if (!stepMeta.isPartitioned() && nextPartitioned) {
+if ((!stepMeta.isPartitioned() && nextPartitioned) || (stepMeta.isPartitioned() && nextPartitioned && !samePartitioned) || (stepMeta.isPartitioned() && nextPartitioned && !sameFieldName)) {
 baseStep.setRepartitioning(true);
 }
 boolean prevPartitioned=true;
@@ -173,7 +187,7 @@ if (prevPartitioned && !stepMeta.isPartitioned()) {
 baseStep.setPartitionMerging(true);
 }
 if (stepMeta.isPartitioned()) {
-String[] partitionIDs=stepMeta.getStepMetaInterface().getPartitionIDs();
+String[] partitionIDs=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
 if (partitionIDs != null && partitionIDs.length > 0) {
 baseStep.setPartitionID(partitionIDs[sid.copy]);
 }
