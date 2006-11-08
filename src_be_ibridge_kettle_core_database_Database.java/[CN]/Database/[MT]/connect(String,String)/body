@@ -1,0 +1,33 @@
+{
+  if (databaseMeta == null) {
+    throw new KettleDatabaseException("No valid database connection defined!");
+  }
+  try {
+    if (!Const.isEmpty(group)) {
+      String groupHash=group;
+      if (!Const.isEmpty(partitionId)) {
+        groupHash+="-" + partitionId;
+      }
+    }
+    if (databaseMeta.isUsingConnectionPool() && databaseMeta.getAccessType() != DatabaseMeta.TYPE_ACCESS_JNDI) {
+      try {
+        this.connection=ConnectionPoolUtil.getConnection(databaseMeta,partitionId);
+      }
+ catch (      Exception e) {
+        throw new KettleDatabaseException("Error occured while trying to connect to the database",e);
+      }
+    }
+ else {
+      connectUsingClass(databaseMeta.getDriverClass(),partitionId);
+      log.logDetailed(toString(),"Connected to database.");
+      String sql=StringUtil.environmentSubstitute(databaseMeta.getConnectSQL());
+      if (!Const.isEmpty(sql) && !Const.onlySpaces(sql)) {
+        execStatements(sql);
+        log.logDetailed(toString(),"Executed connect time SQL statements:" + Const.CR + sql);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Error occured while trying to connect to the database",e);
+  }
+}
