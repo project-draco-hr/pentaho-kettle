@@ -6,9 +6,6 @@
     if (connection.isClosed()) {
       return;
     }
-    if (!isAutoCommit()) {
-      commit();
-    }
     if (pstmt != null) {
       pstmt.close();
       pstmt=null;
@@ -28,6 +25,22 @@
     if (pstmt_seq != null) {
       pstmt_seq.close();
       pstmt_seq=null;
+    }
+    if (!Const.isEmpty(connectionGroup)) {
+      DatabaseConnectionMap map=DatabaseConnectionMap.getInstance();
+      Database lookup=map.getDatabase(connectionGroup,partitionId,this);
+      if (lookup != null) {
+        lookup.opened--;
+        if (lookup.opened > 0) {
+          return;
+        }
+ else {
+          map.removeConnection(connectionGroup,partitionId,this);
+        }
+      }
+    }
+    if (!isAutoCommit()) {
+      commit();
     }
     if (connection != null) {
       connection.close();
