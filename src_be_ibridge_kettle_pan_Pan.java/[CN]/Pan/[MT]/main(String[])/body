@@ -10,8 +10,8 @@
   UserInfo userinfo=null;
   Trans trans=null;
   StringBuffer optionRepname, optionUsername, optionPassword, optionTransname, optionDirname, optionFilename, optionLoglevel;
-  StringBuffer optionLogfile, optionListdir, optionListtrans, optionListrep, optionExprep, optionNorep, optionSafemode, optionVersion;
-  CommandLineOption options[]=new CommandLineOption[]{new CommandLineOption("rep","Repository name",optionRepname=new StringBuffer()),new CommandLineOption("user","Repository username",optionUsername=new StringBuffer()),new CommandLineOption("pass","Repository password",optionPassword=new StringBuffer()),new CommandLineOption("trans","The name of the transformation to launch",optionTransname=new StringBuffer()),new CommandLineOption("dir","The directory (don't forget the leading /)",optionDirname=new StringBuffer()),new CommandLineOption("file","The filename (Transformation in XML) to launch",optionFilename=new StringBuffer()),new CommandLineOption("level","The logging level (Basic, Detailed, Debug, Rowlevel, Error, Nothing)",optionLoglevel=new StringBuffer()),new CommandLineOption("logfile","The logging file to write to",optionLogfile=new StringBuffer()),new CommandLineOption("log","The logging file to write to (deprecated)",optionLogfile=new StringBuffer(),false,true),new CommandLineOption("listdir","List the directories in the repository",optionListdir=new StringBuffer(),true,false),new CommandLineOption("listtrans","List the transformations in the specified directory",optionListtrans=new StringBuffer(),true,false),new CommandLineOption("listrep","List the available repositories",optionListrep=new StringBuffer(),true,false),new CommandLineOption("exprep","Export all repository objects to one XML file",optionExprep=new StringBuffer(),true,false),new CommandLineOption("norep","Do not log into the repository",optionNorep=new StringBuffer(),true,false),new CommandLineOption("safemode","Run in safe mode: with extra checking enabled",optionSafemode=new StringBuffer(),true,false),new CommandLineOption("version","show the version, revision and build date",optionVersion=new StringBuffer(),true,false)};
+  StringBuffer optionLogfile, optionListdir, optionListtrans, optionListrep, optionExprep, optionNorep, optionSafemode, optionVersion, optionJarFilename;
+  CommandLineOption options[]=new CommandLineOption[]{new CommandLineOption("rep","Repository name",optionRepname=new StringBuffer()),new CommandLineOption("user","Repository username",optionUsername=new StringBuffer()),new CommandLineOption("pass","Repository password",optionPassword=new StringBuffer()),new CommandLineOption("trans","The name of the transformation to launch",optionTransname=new StringBuffer()),new CommandLineOption("dir","The directory (don't forget the leading /)",optionDirname=new StringBuffer()),new CommandLineOption("file","The filename (Transformation in XML) to launch",optionFilename=new StringBuffer()),new CommandLineOption("level","The logging level (Basic, Detailed, Debug, Rowlevel, Error, Nothing)",optionLoglevel=new StringBuffer()),new CommandLineOption("logfile","The logging file to write to",optionLogfile=new StringBuffer()),new CommandLineOption("log","The logging file to write to (deprecated)",optionLogfile=new StringBuffer(),false,true),new CommandLineOption("listdir","List the directories in the repository",optionListdir=new StringBuffer(),true,false),new CommandLineOption("listtrans","List the transformations in the specified directory",optionListtrans=new StringBuffer(),true,false),new CommandLineOption("listrep","List the available repositories",optionListrep=new StringBuffer(),true,false),new CommandLineOption("exprep","Export all repository objects to one XML file",optionExprep=new StringBuffer(),true,false),new CommandLineOption("norep","Do not log into the repository",optionNorep=new StringBuffer(),true,false),new CommandLineOption("safemode","Run in safe mode: with extra checking enabled",optionSafemode=new StringBuffer(),true,false),new CommandLineOption("version","show the version, revision and build date",optionVersion=new StringBuffer(),true,false),new CommandLineOption("jarfile","specifies the jar filename",optionJarFilename=new StringBuffer(),true,true)};
   if (args.size() == 0) {
     CommandLineOption.printUsage(options);
     System.exit(9);
@@ -43,7 +43,7 @@
   if (log.isDebug()) {
     System.out.println("Arguments:");
     for (int i=0; i < options.length; i++) {
-      if (!options[i].isHiddenOption())       System.out.println(Const.rightPad(options[i].getOption(),12) + " : " + options[i].getArgument());
+      System.out.println(Const.rightPad(options[i].getOption(),12) + " : " + options[i].getArgument());
     }
     System.out.println("");
   }
@@ -62,7 +62,7 @@
   TransMeta transMeta=new TransMeta();
   try {
     log.logDebug("Pan","Starting to look at options...");
-    if (!Const.isEmpty(optionRepname) || !Const.isEmpty(optionFilename)) {
+    if (!Const.isEmpty(optionRepname) || !Const.isEmpty(optionFilename) || !Const.isEmpty(optionJarFilename)) {
       log.logDebug("Pan","Parsing command line options.");
       if (!Const.isEmpty(optionRepname) && !"Y".equalsIgnoreCase(optionNorep.toString())) {
         log.logDebug("Pan","Loading available repositories.");
@@ -140,6 +140,24 @@
         transMeta=new TransMeta(optionFilename.toString());
         trans=new Trans(log,transMeta);
       }
+      if (trans == null && !Const.isEmpty(optionJarFilename)) {
+        try {
+          log.logDetailed("Pan","Loading transformation from jar file [" + optionJarFilename + "]");
+          InputStream inputStream=Pan.class.getResourceAsStream(optionJarFilename.toString());
+          StringBuffer xml=new StringBuffer();
+          int c;
+          while ((c=inputStream.read()) != -1)           xml.append((char)c);
+          inputStream.close();
+          Document document=XMLHandler.loadXMLString(xml.toString());
+          transMeta=new TransMeta(XMLHandler.getSubNode(document,"transformation"));
+          trans=new Trans(log,transMeta);
+        }
+ catch (        Exception e) {
+          System.out.println("Error reading jarfile: " + e.toString());
+          System.out.println(Const.getStackTracker(e));
+          throw e;
+        }
+      }
     }
     if ("Y".equalsIgnoreCase(optionListrep.toString())) {
       log.logDebug("Pan","Getting the list of repositories...");
@@ -156,7 +174,7 @@
       }
     }
   }
- catch (  KettleException e) {
+ catch (  Exception e) {
     trans=null;
     transMeta=null;
     System.out.println("Processing has stopped because of an error: " + e.getMessage());
