@@ -4,6 +4,7 @@
   FileInputList textFileList=meta.getTextFileList();
   FileInputStream fileInputStream=null;
   ZipInputStream zipInputStream=null;
+  GZIPInputStream gzipInputStream=null;
   InputStream inputStream=null;
   String fileFormat=wFormat.getText();
   if (textFileList.nrOfFiles() > 0) {
@@ -21,10 +22,14 @@
       }
       fileInputStream=new FileInputStream(textFileList.getFile(0));
       Table table=wFields.table;
-      if (meta.isZipped()) {
+      if (meta.getFileCompression().equals("Zip")) {
         zipInputStream=new ZipInputStream(fileInputStream);
         zipInputStream.getNextEntry();
         inputStream=zipInputStream;
+      }
+ else       if (meta.getFileCompression().equals("GZip")) {
+        gzipInputStream=new GZIPInputStream(fileInputStream);
+        inputStream=gzipInputStream;
       }
  else {
         inputStream=fileInputStream;
@@ -93,9 +98,12 @@ catch (    KettleException e) {
     }
  finally {
       try {
-        if (meta.isZipped() && zipInputStream != null) {
+        if (meta.getFileCompression().equals("Zip") && zipInputStream != null) {
           zipInputStream.closeEntry();
           zipInputStream.close();
+        }
+ else         if (meta.getFileCompression().equals("GZip") && gzipInputStream != null) {
+          gzipInputStream.close();
         }
         inputStream.close();
       }
