@@ -1,0 +1,34 @@
+{
+  if (!isStarted())   return;
+  if (log.isDebug())   log.logDebug(toString(),"Addition of transformation requested");
+  response.setContentType("text/html");
+  OutputStream os=response.getOutputStream();
+  InputStream is=response.getInputStream();
+  PrintStream out=new PrintStream(os);
+  out.println("<HTML>");
+  out.println("<HEAD><TITLE>Add transformation</TITLE></HEAD>");
+  out.println("<BODY>");
+  try {
+    int c;
+    StringBuffer xml=new StringBuffer();
+    while ((c=is.read()) != -1)     xml.append((char)c);
+    Document doc=XMLHandler.loadXMLString(xml.toString());
+    Node transNode=XMLHandler.getSubNode(doc,"transformation");
+    TransMeta transMeta=new TransMeta(transNode);
+    Trans trans=new Trans(log,transMeta);
+    transformationMap.addTransformation(transMeta.getName(),trans);
+    out.println("<H1>Transformation '" + trans.getName() + "' was added to the list.</H1>");
+    out.println("<a href=\"/kettle/transStatus?name=" + trans.getName() + "\">Go to the transformation status page</a><p>");
+  }
+ catch (  Exception ex) {
+    out.println("<p>");
+    out.println("<pre>");
+    ex.printStackTrace(out);
+    out.println("</pre>");
+  }
+  out.println("<p>");
+  out.println("</BODY>");
+  out.println("</HTML>");
+  out.flush();
+  request.setHandled(true);
+}
