@@ -2,45 +2,75 @@
   boolean retval=false;
   data.writer=null;
   try {
-    String filename=buildFilename(true);
-    File file=new File(filename);
-    ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file,getTransMeta().getName(),getStepname());
-    resultFile.setComment("This file was created with a text file output step");
-    addResultFile(resultFile);
-    OutputStream outputStream;
-    log.logBasic(toString(),"Compression is |" + meta.getFileCompression() + "|");
-    if (meta.getFileCompression().equals("Zip")) {
-      log.logBasic(toString(),"Opening output stream in zipped mode");
-      FileOutputStream fos=new FileOutputStream(file,meta.isFileAppended());
-      data.zip=new ZipOutputStream(fos);
-      File entry=new File(buildFilename(false));
-      ZipEntry zipentry=new ZipEntry(entry.getName());
-      zipentry.setComment("Compressed by Kettle");
-      data.zip.putNextEntry(zipentry);
-      outputStream=data.zip;
-    }
- else     if (meta.getFileCompression().equals("GZip")) {
-      log.logBasic(toString(),"Opening output stream in gzipped mode");
-      FileOutputStream fos=new FileOutputStream(file,meta.isFileAppended());
-      data.gzip=new GZIPOutputStream(fos);
-      outputStream=data.gzip;
+    if (meta.isFileAsCommand()) {
+      logDebug("Spawning external process");
+      if (data.cmdProc != null) {
+        logError("Previous command not correctly terminated");
+        setErrors(1);
+      }
+      String cmdstr=StringUtil.environmentSubstitute(meta.getFileName());
+      if (Const.getOS().equals("Windows 95")) {
+        cmdstr="command.com /C " + cmdstr;
+      }
+ else {
+        if (Const.getOS().startsWith("Windows")) {
+          cmdstr="cmd.exe /C " + cmdstr;
+        }
+      }
+      logDetailed("Starting: " + cmdstr);
+      Runtime r=Runtime.getRuntime();
+      data.cmdProc=r.exec(cmdstr,EnvUtil.getEnvironmentVariablesForRuntimeExec());
+      data.writer=new OutputStreamWriter(data.cmdProc.getOutputStream());
+      StreamLogger stdoutLogger=new StreamLogger(data.cmdProc.getInputStream(),"(stdout)");
+      StreamLogger stderrLogger=new StreamLogger(data.cmdProc.getErrorStream(),"(stderr)");
+      new Thread(stdoutLogger).start();
+      new Thread(stderrLogger).start();
+      retval=true;
     }
  else {
-      log.logBasic(toString(),"Compression is " + meta.getFileCompression());
-      log.logBasic(toString(),"Opening output stream in nocompress mode");
-      FileOutputStream fos=new FileOutputStream(file,meta.isFileAppended());
-      outputStream=fos;
-    }
-    if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
-      log.logBasic(toString(),"Opening output stream in encoding: " + meta.getEncoding());
-      data.writer=new OutputStreamWriter(new BufferedOutputStream(outputStream,100000),meta.getEncoding());
-    }
+      String filename=buildFilename(true);
+      File file=new File(filename);
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file,getTransMeta().getName(),getStepname());
+      resultFile.setComment("This file was created with a text file output step");
+      addResultFile(resultFile);
+      OutputStream outputStream;
+      if (!Const.isEmpty(meta.getFileCompression())) {
+        if (meta.getFileCompression().equals("Zip")) {
+          log.logDetailed(toString(),"Opening output stream in zipped mode");
+          FileOutputStream fos=new FileOutputStream(file,meta.isFileAppended());
+          data.zip=new ZipOutputStream(fos);
+          File entry=new File(buildFilename(false));
+          ZipEntry zipentry=new ZipEntry(entry.getName());
+          zipentry.setComment("Compressed by Kettle");
+          data.zip.putNextEntry(zipentry);
+          outputStream=data.zip;
+        }
+ else         if (meta.getFileCompression().equals("GZip")) {
+          log.logDetailed(toString(),"Opening output stream in gzipped mode");
+          FileOutputStream fos=new FileOutputStream(file,meta.isFileAppended());
+          data.gzip=new GZIPOutputStream(fos);
+          outputStream=data.gzip;
+        }
  else {
-      log.logBasic(toString(),"Opening output stream in default encoding");
-      data.writer=new OutputStreamWriter(outputStream);
+          throw new KettleFileException("No compression method specified!");
+        }
+      }
+ else {
+        log.logDetailed(toString(),"Opening output stream in nocompress mode");
+        FileOutputStream fos=new FileOutputStream(file,meta.isFileAppended());
+        outputStream=fos;
+      }
+      if (!Const.isEmpty(meta.getEncoding())) {
+        log.logBasic(toString(),"Opening output stream in encoding: " + meta.getEncoding());
+        data.writer=new OutputStreamWriter(outputStream,meta.getEncoding());
+      }
+ else {
+        log.logBasic(toString(),"Opening output stream in default encoding");
+        data.writer=new OutputStreamWriter(outputStream);
+      }
+      logDetailed("Opened new file with name [" + filename + "]");
+      retval=true;
     }
-    logDetailed("Opened new file with name [" + filename + "]");
-    retval=true;
   }
  catch (  Exception e) {
     logError("Error opening new file : " + e.toString());
