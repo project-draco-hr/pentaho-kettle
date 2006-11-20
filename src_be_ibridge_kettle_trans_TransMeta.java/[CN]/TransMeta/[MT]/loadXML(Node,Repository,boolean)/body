@@ -10,6 +10,7 @@
       readDatabases(rep);
       clearChanged();
     }
+    readSharedObjects();
     int n=XMLHandler.countNodes(transnode,"connection");
     log.logDebug(toString(),Messages.getString("TransMeta.Log.WeHaveConnections",String.valueOf(n)));
     for (int i=0; i < n; i++) {
@@ -21,21 +22,23 @@
         addDatabase(dbcon);
       }
  else {
-        boolean askOverwrite=Props.isInitialized() ? props.askAboutReplacingDatabaseConnections() : false;
-        boolean overwrite=Props.isInitialized() ? props.replaceExistingDatabaseConnections() : true;
-        if (askOverwrite) {
-          if (props.getDisplay() != null) {
-            Shell shell=props.getDisplay().getActiveShell();
-            MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Warning",null,"Connection [" + dbcon.getName() + "] already exists, do you want to overwrite this database connection?",MessageDialog.WARNING,new String[]{"Yes","No"},1,"Please, don't show this warning anymore.",!props.askAboutReplacingDatabaseConnections());
-            int idx=md.open();
-            props.setAskAboutReplacingDatabaseConnections(!md.getToggleState());
-            overwrite=(idx == 0);
+        if (!exist.isShared()) {
+          boolean askOverwrite=Props.isInitialized() ? props.askAboutReplacingDatabaseConnections() : false;
+          boolean overwrite=Props.isInitialized() ? props.replaceExistingDatabaseConnections() : true;
+          if (askOverwrite) {
+            if (props.getDisplay() != null) {
+              Shell shell=props.getDisplay().getActiveShell();
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Warning",null,"Connection [" + dbcon.getName() + "] already exists, do you want to overwrite this database connection?",MessageDialog.WARNING,new String[]{"Yes","No"},1,"Please, don't show this warning anymore.",!props.askAboutReplacingDatabaseConnections());
+              int idx=md.open();
+              props.setAskAboutReplacingDatabaseConnections(!md.getToggleState());
+              overwrite=(idx == 0);
+            }
           }
-        }
-        if (overwrite) {
-          int idx=indexOfDatabase(exist);
-          removeDatabase(idx);
-          addDatabase(idx,dbcon);
+          if (overwrite) {
+            int idx=indexOfDatabase(exist);
+            removeDatabase(idx);
+            addDatabase(idx,dbcon);
+          }
         }
       }
     }
@@ -51,8 +54,20 @@
     for (int i=0; i < s; i++) {
       Node stepnode=XMLHandler.getSubNodeByNr(transnode,"step",i);
       log.logDebug(toString(),Messages.getString("TransMeta.Log.LookingAtStep") + i);
-      StepMeta inf=new StepMeta(log,stepnode,databases,counters);
-      addStep(inf);
+      StepMeta stepMeta=new StepMeta(stepnode,databases,counters);
+      StepMeta check=findStep(stepMeta.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplaceStep(stepMeta);
+        }
+ else {
+          check.setDraw(stepMeta.isDrawn());
+          check.setLocation(stepMeta.getLocation());
+        }
+      }
+ else {
+        addStep(stepMeta);
+      }
     }
     for (int i=0; i < nrSteps(); i++) {
       StepMeta stepMeta=getStep(i);
@@ -102,7 +117,15 @@
     for (int i=0; i < nrPartSchemas; i++) {
       Node partSchemaNode=XMLHandler.getSubNodeByNr(partSchemasNode,PartitionSchema.XML_TAG,i);
       PartitionSchema partitionSchema=new PartitionSchema(partSchemaNode);
-      partitionSchemas.add(partitionSchema);
+      PartitionSchema check=findPartitionSchema(partitionSchema.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplacePartitionSchema(partitionSchema);
+        }
+      }
+ else {
+        partitionSchemas.add(partitionSchema);
+      }
     }
     for (int i=0; i < nrSteps(); i++) {
       StepPartitioningMeta stepPartitioningMeta=getStep(i).getStepPartitioningMeta();
@@ -115,7 +138,15 @@
     for (int i=0; i < nrClusterSchemas; i++) {
       Node clusterSchemaNode=XMLHandler.getSubNodeByNr(clusterSchemasNode,ClusterSchema.XML_TAG,i);
       ClusterSchema clusterSchema=new ClusterSchema(clusterSchemaNode);
-      clusterSchemas.add(clusterSchema);
+      ClusterSchema check=findClusterSchema(clusterSchema.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplaceClusterSchema(clusterSchema);
+        }
+      }
+ else {
+        clusterSchemas.add(clusterSchema);
+      }
     }
     String srowset=XMLHandler.getTagValue(infonode,"size_rowset");
     sizeRowset=Const.toInt(srowset,Const.ROWS_IN_ROWSET);
