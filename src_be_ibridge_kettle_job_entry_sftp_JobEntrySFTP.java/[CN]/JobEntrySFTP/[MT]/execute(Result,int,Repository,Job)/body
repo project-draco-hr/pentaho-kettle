@@ -5,20 +5,27 @@
   long filesRetrieved=0;
   log.logDetailed(toString(),"Start of SFTP job entry");
   SFTPClient sftpclient=null;
+  String realServerName=StringUtil.environmentSubstitute(serverName);
+  String realServerPort=StringUtil.environmentSubstitute(serverPort);
+  String realUsername=StringUtil.environmentSubstitute(userName);
+  String realPassword=StringUtil.environmentSubstitute(password);
+  String realSftpDirString=StringUtil.environmentSubstitute(sftpDirectory);
+  String realWildcard=StringUtil.environmentSubstitute(wildcard);
+  String realTargetDirectory=StringUtil.environmentSubstitute(targetDirectory);
   try {
-    sftpclient=new SFTPClient(InetAddress.getByName(serverName),serverPort,userName);
-    log.logDetailed(toString(),"Opened SFTP connection to server [" + serverName + "] on port ["+ serverPort+ "] with username ["+ userName+ "]");
-    sftpclient.login(password);
-    log.logDetailed(toString(),"logged in using password " + password);
-    if (sftpDirectory != null && sftpDirectory.length() > 0) {
-      sftpclient.chdir(sftpDirectory);
-      log.logDetailed(toString(),"Changed to directory [" + sftpDirectory + "]");
+    sftpclient=new SFTPClient(InetAddress.getByName(realServerName),Const.toInt(realServerPort,22),realUsername);
+    log.logDetailed(toString(),"Opened SFTP connection to server [" + realServerName + "] on port ["+ realServerPort+ "] with username ["+ realUsername+ "]");
+    sftpclient.login(realPassword);
+    log.logDetailed(toString(),"logged in using password " + realPassword);
+    if (!Const.isEmpty(realSftpDirString)) {
+      sftpclient.chdir(realSftpDirString);
+      log.logDetailed(toString(),"Changed to directory [" + realSftpDirString + "]");
     }
     String[] filelist=sftpclient.dir();
     log.logDetailed(toString(),"Found " + filelist.length + " files in the remote scp directory");
     Pattern pattern=null;
-    if (wildcard != null && wildcard.length() > 0) {
-      pattern=Pattern.compile(wildcard);
+    if (!Const.isEmpty(realWildcard)) {
+      pattern=Pattern.compile(realWildcard);
     }
     for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
       boolean getIt=true;
@@ -27,8 +34,8 @@
         getIt=matcher.matches();
       }
       if (getIt) {
-        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ targetDirectory+ "]");
-        String targetFilename=targetDirectory + Const.FILE_SEPARATOR + filelist[i];
+        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ realTargetDirectory+ "]");
+        String targetFilename=realTargetDirectory + Const.FILE_SEPARATOR + filelist[i];
         sftpclient.get(targetFilename,filelist[i]);
         filesRetrieved++;
         ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,new File(targetFilename),parentJob.getJobname(),toString());
