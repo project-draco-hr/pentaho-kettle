@@ -10,18 +10,27 @@
     File fil;
     FileOutputStream fos;
     DataOutputStream dos;
+    GZIPOutputStream gzos;
     int p;
     try {
       fil=File.createTempFile(meta.getPrefix(),".tmp",new File(StringUtil.environmentSubstitute(meta.getDirectory())));
       fil.deleteOnExit();
       data.files.add(fil);
       fos=new FileOutputStream(fil);
-      dos=new DataOutputStream(fos);
+      if (meta.getCompress()) {
+        gzos=new GZIPOutputStream(fos);
+        dos=new DataOutputStream(gzos);
+      }
+ else {
+        dos=new DataOutputStream(fos);
+        gzos=null;
+      }
       dos.writeInt(data.buffer.size());
       for (p=0; p < data.buffer.size(); p++) {
         ((Row)data.buffer.get(p)).write(dos);
       }
       dos.close();
+      if (gzos != null)       gzos.close();
       fos.close();
     }
  catch (    Exception e) {
