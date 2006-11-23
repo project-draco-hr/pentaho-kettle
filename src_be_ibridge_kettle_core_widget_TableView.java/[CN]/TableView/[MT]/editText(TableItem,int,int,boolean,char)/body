@@ -15,20 +15,52 @@
   }
   String content=row.getText(colnr) + (extra != 0 ? "" + extra : "");
   String tooltip=columns[colnr - 1].getToolTip();
+  final boolean useVariables=columns[colnr - 1].isUsingVariables();
   ModifyListener modifyListener=new ModifyListener(){
     public void modifyText(    ModifyEvent me){
       String str=getTextWidgetValue(colnr);
-      int strmax=dummy_gc.textExtent(str,SWT.DRAW_TAB | SWT.DRAW_DELIMITER).x + 5;
+      int strmax=dummy_gc.textExtent(str,SWT.DRAW_TAB | SWT.DRAW_DELIMITER).x + 20;
       int colmax=tablecolumn[colnr].getWidth();
       if (strmax > colmax) {
-        tablecolumn[colnr].setWidth(strmax + 40);
+        tablecolumn[colnr].setWidth(strmax + 50);
+        if (useVariables) {
+          TextVar widget=(TextVar)text;
+          int idx=widget.getTextWidget().getCaretPosition();
+          widget.selectAll();
+          widget.showSelection();
+          widget.getTextWidget().setSelection(idx);
+        }
+ else {
+          Text widget=(Text)text;
+          int idx=widget.getCaretPosition();
+          widget.selectAll();
+          widget.showSelection();
+          widget.setSelection(idx);
+        }
       }
     }
   }
 ;
-  boolean useVariables=columns[colnr - 1].isUsingVariables();
   if (useVariables) {
-    TextVar textWidget=new TextVar(table,SWT.NONE);
+    GetCaretPositionInterface getCaretPositionInterface=new GetCaretPositionInterface(){
+      public int getCaretPosition(){
+        return ((TextVar)text).getTextWidget().getCaretPosition();
+      }
+    }
+;
+    InsertTextInterface insertTextInterface=new InsertTextInterface(){
+      public void insertText(      String string,      int position){
+        StringBuffer buffer=new StringBuffer(table.getItem(rownr).getText(colnr));
+        buffer.insert(position,string);
+        table.getItem(rownr).setText(colnr,buffer.toString());
+        int newPosition=position + string.length();
+        edit(rownr,colnr);
+        ((TextVar)text).setSelection(newPosition);
+        ((TextVar)text).showSelection();
+      }
+    }
+;
+    TextVar textWidget=new TextVar(table,SWT.NONE,getCaretPositionInterface,insertTextInterface);
     text=textWidget;
     textWidget.setText(content);
     if (lsMod != null)     textWidget.addModifyListener(lsMod);
@@ -39,6 +71,8 @@
     if (select_text)     textWidget.selectAll();
     if (tooltip != null)     textWidget.setToolTipText(tooltip);
  else     textWidget.setToolTipText("");
+    textWidget.addTraverseListener(lsTraverse);
+    textWidget.addFocusListener(lsFocusText);
   }
  else {
     Text textWidget=new Text(table,SWT.NONE);
@@ -54,8 +88,6 @@
  else     textWidget.setToolTipText("");
   }
   props.setLook(text,Props.WIDGET_STYLE_TABLE);
-  text.addTraverseListener(lsTraverse);
-  text.addFocusListener(lsFocusText);
   int width=tablecolumn[colnr].getWidth();
   int height=30;
   editor.horizontalAlignment=SWT.LEFT;
