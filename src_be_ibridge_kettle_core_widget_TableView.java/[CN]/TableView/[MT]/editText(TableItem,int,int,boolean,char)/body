@@ -13,36 +13,53 @@
     columns[colnr - 1].getSelectionAdapter().widgetSelected(new SelectionEvent(e));
     return;
   }
-  text=new Text(table,SWT.NONE);
-  props.setLook(text,Props.WIDGET_STYLE_TABLE);
-  text.addTraverseListener(lsTraverse);
-  text.addFocusListener(lsFocusText);
   String content=row.getText(colnr) + (extra != 0 ? "" + extra : "");
-  text.setText(content);
-  if (lsMod != null)   text.addModifyListener(lsMod);
-  text.addModifyListener(lsUndo);
   String tooltip=columns[colnr - 1].getToolTip();
-  if (tooltip != null)   text.setToolTipText(tooltip);
- else   text.setToolTipText("");
-  text.setSelection(content.length());
-  text.addKeyListener(lsKeyText);
-  final int column_number=colnr;
-  text.addModifyListener(new ModifyListener(){
+  ModifyListener modifyListener=new ModifyListener(){
     public void modifyText(    ModifyEvent me){
-      String str=text.getText();
+      String str=getTextWidgetValue(colnr);
       int strmax=dummy_gc.textExtent(str,SWT.DRAW_TAB | SWT.DRAW_DELIMITER).x + 5;
-      int colmax=tablecolumn[column_number].getWidth();
+      int colmax=tablecolumn[colnr].getWidth();
       if (strmax > colmax) {
-        tablecolumn[column_number].setWidth(strmax + 40);
+        tablecolumn[colnr].setWidth(strmax + 40);
       }
     }
   }
-);
+;
+  boolean useVariables=columns[colnr - 1].isUsingVariables();
+  if (useVariables) {
+    TextVar textWidget=new TextVar(table,SWT.NONE);
+    text=textWidget;
+    textWidget.setText(content);
+    if (lsMod != null)     textWidget.addModifyListener(lsMod);
+    textWidget.addModifyListener(lsUndo);
+    textWidget.setSelection(content.length());
+    textWidget.addKeyListener(lsKeyText);
+    textWidget.addModifyListener(modifyListener);
+    if (select_text)     textWidget.selectAll();
+    if (tooltip != null)     textWidget.setToolTipText(tooltip);
+ else     textWidget.setToolTipText("");
+  }
+ else {
+    Text textWidget=new Text(table,SWT.NONE);
+    text=textWidget;
+    textWidget.setText(content);
+    if (lsMod != null)     textWidget.addModifyListener(lsMod);
+    textWidget.addModifyListener(lsUndo);
+    textWidget.setSelection(content.length());
+    textWidget.addKeyListener(lsKeyText);
+    textWidget.addModifyListener(modifyListener);
+    if (select_text)     textWidget.selectAll();
+    if (tooltip != null)     textWidget.setToolTipText(tooltip);
+ else     textWidget.setToolTipText("");
+  }
+  props.setLook(text,Props.WIDGET_STYLE_TABLE);
+  text.addTraverseListener(lsTraverse);
+  text.addFocusListener(lsFocusText);
   int width=tablecolumn[colnr].getWidth();
   int height=30;
   editor.horizontalAlignment=SWT.LEFT;
   editor.grabHorizontal=true;
-  if (select_text)   text.selectAll();
   editor.setEditor(text,row,colnr);
   text.setFocus();
   text.setSize(width,height);
