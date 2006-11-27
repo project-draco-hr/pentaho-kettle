@@ -18,7 +18,7 @@
       if (monitor != null)       monitor.beginTask(Messages.getString("TransMeta.Monitor.LoadingTransformationTask.Title") + pathAndName,nrWork);
       log.logDetailed(toString(),Messages.getString("TransMeta.Log.LoadingTransformation",getName()));
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingTheAvailableDatabaseTask.Title"));
-      readDatabases(rep);
+      readDatabases(rep,true);
       if (monitor != null)       monitor.worked(1);
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingNoteTask.Title"));
       for (int i=0; i < noteids.length; i++) {
@@ -32,19 +32,7 @@
         log.logDetailed(toString(),Messages.getString("TransMeta.Log.LoadingStepWithID") + stepids[i]);
         if (monitor != null)         monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingStepTask.Title") + (i + 1) + "/"+ (stepids.length));
         StepMeta stepMeta=new StepMeta(rep,stepids[i],databases,counters,partitionSchemas);
-        StepMeta check=findStep(stepMeta.getName());
-        if (check == null) {
-          addStep(stepMeta);
-        }
- else {
-          if (check.isShared()) {
-            check.setDraw(stepMeta.isDrawn());
-            check.setLocation(stepMeta.getLocation());
-          }
- else {
-            addOrReplaceStep(stepMeta);
-          }
-        }
+        addOrReplaceStep(stepMeta);
         if (monitor != null)         monitor.worked(1);
       }
       if (monitor != null)       monitor.worked(1);
@@ -62,12 +50,21 @@
       long[] partitionSchemaIDs=rep.getPartitionSchemaIDs(getID());
       for (int i=0; i < partitionSchemaIDs.length; i++) {
         PartitionSchema partitionSchema=new PartitionSchema(rep,partitionSchemaIDs[i]);
-        partitionSchemas.add(partitionSchema);
+        addOrReplacePartitionSchema(partitionSchema);
+      }
+      for (int i=0; i < nrSteps(); i++) {
+        StepPartitioningMeta stepPartitioningMeta=getStep(i).getStepPartitioningMeta();
+        if (stepPartitioningMeta != null) {
+          stepPartitioningMeta.setPartitionSchemaAfterLoading(partitionSchemas);
+        }
       }
       long[] clusterSchemaIDs=rep.getClusterSchemaIDs(getID());
       for (int i=0; i < clusterSchemaIDs.length; i++) {
         ClusterSchema clusterSchema=new ClusterSchema(rep,clusterSchemaIDs[i]);
-        clusterSchemas.add(clusterSchema);
+        addOrReplaceClusterSchema(clusterSchema);
+      }
+      for (int i=0; i < nrSteps(); i++) {
+        getStep(i).setClusterSchemaAfterLoading(clusterSchemas);
       }
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.LoadingTransformationDetailsTask.Title"));
       loadRepTrans(rep);
