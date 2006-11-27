@@ -1,0 +1,41 @@
+{
+  meta=(SocketReaderMeta)smi;
+  data=(SocketReaderData)sdi;
+  try {
+    Row r;
+    if (first) {
+      try {
+        int port=Integer.parseInt(StringUtil.environmentSubstitute(meta.getPort()));
+        data.socket=new Socket(StringUtil.environmentSubstitute(meta.getHostname()),port);
+        data.outputStream=new DataOutputStream(new GZIPOutputStream(data.socket.getOutputStream()));
+        data.inputStream=new DataInputStream(new GZIPInputStream(data.socket.getInputStream()));
+      }
+ catch (      Exception e) {
+        logError("Error initialising step: " + e.toString());
+        logError(Const.getStackTracker(e));
+        throw new KettleException("Unable to open socket to server",e);
+      }
+      data.row=new Row(data.inputStream);
+      first=false;
+    }
+    r=new Row(data.inputStream,data.row.size(),data.row);
+    linesInput++;
+    if (checkFeedback(linesInput))     logBasic(Messages.getString("SocketReader.Log.LineNumber") + linesInput);
+    putRow(r);
+  }
+ catch (  KettleEOFException e) {
+    try {
+      data.outputStream.writeUTF(STRING_FINISHED + Const.CR);
+    }
+ catch (    IOException ioe) {
+      logError("Unable to send 'finished' message back to server: " + ioe.toString());
+      setErrors(1);
+    }
+    setOutputDone();
+    return false;
+  }
+catch (  Exception e) {
+    throw new KettleException(e);
+  }
+  return true;
+}

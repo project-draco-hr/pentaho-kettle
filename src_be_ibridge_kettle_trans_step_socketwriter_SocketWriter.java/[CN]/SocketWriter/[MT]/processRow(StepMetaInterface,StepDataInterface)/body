@@ -1,0 +1,30 @@
+{
+  meta=(SocketWriterMeta)smi;
+  data=(SocketWriterData)sdi;
+  Row r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  try {
+    if (first) {
+      data.clientSocket=data.serverSocket.accept();
+      data.outputStream=new DataOutputStream(new GZIPOutputStream(data.clientSocket.getOutputStream()));
+      data.inputStream=new DataInputStream(new GZIPInputStream(data.clientSocket.getInputStream()));
+      r.write(data.outputStream);
+      first=false;
+    }
+    r.writeData(data.outputStream);
+  }
+ catch (  Exception e) {
+    logError("Error writing to socket : " + e.toString());
+    logError("Failing row : " + r);
+    logError("Stack trace: " + Const.CR + Const.getStackTracker(e));
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  if (checkFeedback(linesRead))   logBasic(Messages.getString("SocketWriter.Log.LineNumber") + linesRead);
+  return true;
+}
