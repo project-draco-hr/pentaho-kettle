@@ -1,0 +1,60 @@
+{
+  meta=(MergeJoinMeta)smi;
+  data=(MergeJoinData)sdi;
+  if (first) {
+    first=false;
+    data.one=getRowFrom(meta.getStepName1());
+    data.two=getRowFrom(meta.getStepName2());
+    if (!isInputLayoutValid(data.one,data.two)) {
+      throw new KettleException(Messages.getString("MergeJoin.Exception.InvalidLayoutDetected"));
+    }
+    if (data.one != null) {
+      data.keyNrs1=new int[meta.getKeyFields1().length];
+      for (int i=0; i < data.keyNrs1.length; i++) {
+        data.keyNrs1[i]=data.one.searchValueIndex(meta.getKeyFields1()[i]);
+        if (data.keyNrs1[i] < 0) {
+          String message=Messages.getString("MergeJoin.Exception.UnableToFindFieldInReferenceStream",meta.getKeyFields1()[i]);
+          logError(message);
+          throw new KettleStepException(message);
+        }
+      }
+    }
+    if (data.two != null) {
+      data.keyNrs2=new int[meta.getKeyFields2().length];
+      for (int i=0; i < data.keyNrs2.length; i++) {
+        data.keyNrs2[i]=data.two.searchValueIndex(meta.getKeyFields2()[i]);
+        if (data.keyNrs2[i] < 0) {
+          String message=Messages.getString("MergeJoin.Exception.UnableToFindFieldInReferenceStream",meta.getKeyFields2()[i]);
+          logError(message);
+          throw new KettleStepException(message);
+        }
+      }
+    }
+  }
+  if (log.isRowLevel())   logRowlevel(Messages.getString("MergeJoin.Log.DataInfo",data.one + "") + data.two);
+  if (data.one == null || data.two == null) {
+    setOutputDone();
+    return false;
+  }
+  int compare=data.one.compare(data.two,data.keyNrs1,data.keyNrs2,null,null);
+switch (compare) {
+case 0:
+    data.one.addRow(data.two);
+  putRow(data.one);
+data.one=getRowFrom(meta.getStepName1());
+data.two=getRowFrom(meta.getStepName2());
+break;
+case 1:
+data.two=getRowFrom(meta.getStepName2());
+break;
+case -1:
+data.one=getRowFrom(meta.getStepName1());
+break;
+default :
+data.one=getRowFrom(meta.getStepName1());
+data.two=getRowFrom(meta.getStepName2());
+break;
+}
+if (checkFeedback(linesRead)) logBasic(Messages.getString("MergeJoin.LineNumber") + linesRead);
+return true;
+}
