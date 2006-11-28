@@ -8,13 +8,27 @@
     }
     File file=new File(buildFilename());
     ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file,getTransMeta().getName(),getStepname());
-    resultFile.setComment("This file was created with a text file output step");
+    resultFile.setComment("This file was created with an Excel output step");
     addResultFile(resultFile);
-    data.workbook=Workbook.createWorkbook(file,ws);
-    data.sheet=data.workbook.createSheet("Sheet1",0);
+    if (!meta.isTemplateEnabled()) {
+      data.workbook=Workbook.createWorkbook(file,ws);
+      data.sheet=data.workbook.createSheet("Sheet1",0);
+    }
+ else {
+      Workbook tmpWorkbook=Workbook.getWorkbook(new File(StringUtil.environmentSubstitute(meta.getTemplateFileName())));
+      data.workbook=Workbook.createWorkbook(file,tmpWorkbook);
+      tmpWorkbook.close();
+      data.sheet=data.workbook.getSheet(0);
+      data.templateColumns=data.sheet.getColumns();
+    }
     data.sheet.setName("Sheet1");
     data.positionX=0;
-    data.positionY=0;
+    if (meta.isTemplateEnabled() && meta.isTemplateAppend()) {
+      data.positionY=data.sheet.getRows();
+    }
+ else {
+      data.positionY=0;
+    }
     retval=true;
   }
  catch (  Exception e) {
