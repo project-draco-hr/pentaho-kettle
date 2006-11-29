@@ -152,6 +152,46 @@
         }
  else {
           if (infoClusterSchema == null) {
+            int nrSlaves=originalClusterSchema.getSlaveServers().size();
+            for (int s=0; s < nrSlaves; s++) {
+              SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
+              SocketWriterMeta socketWriterMeta=new SocketWriterMeta();
+              socketWriterMeta.setPort("" + getPort(originalClusterSchema,slaveServer,originalStep.getName()));
+              StepMeta writerStep=new StepMeta(getWriterName(originalStep.getName(),originalClusterSchema,slaveServer),socketWriterMeta);
+              writerStep.setLocation(originalStep.getLocation().x,originalStep.getLocation().y + (s * FANOUT * 2) - (nrSlaves * FANOUT / 2));
+              writerStep.setDraw(originalStep.isDrawn());
+              master.addStep(writerStep);
+              StepMeta previous=master.findStep(infoStep.getName());
+              if (previous == null) {
+                previous=(StepMeta)infoStep.clone();
+                master.addStep(previous);
+              }
+              TransHopMeta masterHop=new TransHopMeta(previous,writerStep);
+              master.addTransHop(masterHop);
+              TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
+              SocketReaderMeta socketReaderMeta=new SocketReaderMeta();
+              SlaveServer masterServer=originalClusterSchema.findMaster();
+              if (masterServer == null) {
+                throw new KettleException("No master server set for cluster schema [" + originalClusterSchema.getName() + "]");
+              }
+              socketReaderMeta.setHostname(masterServer.getHostname());
+              socketReaderMeta.setPort("" + getPort(originalClusterSchema,slaveServer,originalStep.getName()));
+              StepMeta readerStep=new StepMeta(getReaderName(originalStep.getName(),originalClusterSchema,slaveServer),socketReaderMeta);
+              readerStep.setLocation(originalStep.getLocation().x - (SPLIT / 2),originalStep.getLocation().y);
+              readerStep.setDraw(originalStep.isDrawn());
+              slave.addStep(readerStep);
+              StepMeta slaveStep=slave.findStep(originalStep.getName());
+              if (slaveStep == null) {
+                slaveStep=(StepMeta)originalStep.clone();
+                slaveStep.setLocation(originalStep.getLocation().x + (SPLIT / 2),originalStep.getLocation().y);
+                slave.addStep(slaveStep);
+              }
+              TransHopMeta slaveHop=new TransHopMeta(readerStep,slaveStep);
+              slave.addTransHop(slaveHop);
+              if (slaveStep.getStepMetaInterface() instanceof StreamLookupMeta) {
+                ((StreamLookupMeta)slaveStep.getStepMetaInterface()).setLookupFromStep(readerStep);
+              }
+            }
           }
  else {
           }
