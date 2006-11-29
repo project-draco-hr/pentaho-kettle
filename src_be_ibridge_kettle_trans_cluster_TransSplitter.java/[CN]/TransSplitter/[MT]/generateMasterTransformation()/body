@@ -6,17 +6,16 @@
     for (int i=0; i < originalSteps.length; i++) {
       StepMeta originalStep=originalSteps[i];
       ClusterSchema originalClusterSchema=originalStep.getClusterSchema();
-      StepMeta copy=(StepMeta)originalStep.clone();
       int nrPreviousSteps=originalTransformation.findNrPrevSteps(originalStep);
       for (int p=0; p < nrPreviousSteps; p++) {
         StepMeta previousStep=originalTransformation.findPrevStep(originalStep,p);
         ClusterSchema previousClusterSchema=previousStep.getClusterSchema();
         if (originalClusterSchema == null) {
           if (previousClusterSchema == null) {
-            StepMeta target=master.findStep(copy.getName());
+            StepMeta target=master.findStep(originalStep.getName());
             if (target == null) {
-              target=copy;
-              master.addStep(copy);
+              target=(StepMeta)originalStep.clone();
+              master.addStep(target);
             }
             StepMeta source=master.findStep(previousStep.getName());
             if (source == null) {
@@ -27,8 +26,12 @@
             master.addTransHop(masterHop);
           }
  else {
-            copy.setLocation(copy.getLocation().x + (SPLIT / 2),copy.getLocation().y);
-            master.addStep(copy);
+            StepMeta target=master.findStep(originalStep.getName());
+            if (target == null) {
+              target=(StepMeta)originalStep.clone();
+              target.setLocation(target.getLocation().x + (SPLIT / 2),target.getLocation().y);
+              master.addStep(target);
+            }
             int nrSlaves=previousClusterSchema.getSlaveServers().size();
             for (int s=0; s < nrSlaves; s++) {
               SlaveServer slaveServer=(SlaveServer)previousClusterSchema.getSlaveServers().get(s);
@@ -39,7 +42,7 @@
               readerStep.setLocation(originalStep.getLocation().x - (SPLIT / 2),originalStep.getLocation().y + (s * FANOUT * 2) - (nrSlaves * FANOUT / 2));
               readerStep.setDraw(originalStep.isDrawn());
               master.addStep(readerStep);
-              TransHopMeta masterHop=new TransHopMeta(readerStep,copy);
+              TransHopMeta masterHop=new TransHopMeta(readerStep,target);
               master.addTransHop(masterHop);
               TransMeta slave=getSlaveTransformation(previousClusterSchema,slaveServer);
               SocketWriterMeta socketWriterMeta=new SocketWriterMeta();
@@ -91,8 +94,8 @@
               slave.addStep(readerStep);
               StepMeta slaveStep=slave.findStep(originalStep.getName());
               if (slaveStep == null) {
-                copy.setLocation(originalStep.getLocation().x + (SPLIT / 2),originalStep.getLocation().y);
-                slaveStep=copy;
+                slaveStep=(StepMeta)originalStep.clone();
+                slaveStep.setLocation(originalStep.getLocation().x + (SPLIT / 2),originalStep.getLocation().y);
                 slave.addStep(slaveStep);
               }
               TransHopMeta slaveHop=new TransHopMeta(readerStep,slaveStep);
@@ -104,9 +107,9 @@
             for (int s=0; s < nrSlaves; s++) {
               SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
               TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
-              StepMeta target=slave.findStep(copy.getName());
+              StepMeta target=slave.findStep(originalStep.getName());
               if (target == null) {
-                target=copy;
+                target=(StepMeta)originalStep.clone();
                 slave.addStep(target);
               }
               StepMeta source=slave.findStep(previousStep.getName());
@@ -122,14 +125,35 @@
       }
       if (nrPreviousSteps == 0) {
         if (originalClusterSchema == null) {
-          if (master.findStep(copy.getName()) == null)           master.addStep(copy);
+          if (master.findStep(originalStep.getName()) == null)           master.addStep(originalStep);
         }
  else {
           int nrSlaves=originalClusterSchema.getSlaveServers().size();
           for (int s=0; s < nrSlaves; s++) {
             SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
             TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
-            slave.addStep(copy);
+            slave.addStep(originalStep);
+          }
+        }
+      }
+      StepMeta infoSteps[]=originalTransformation.getInfoStep(originalStep);
+      for (int p=0; infoSteps != null && p < infoSteps.length; p++) {
+        StepMeta infoStep=infoSteps[p];
+        ClusterSchema infoClusterSchema=infoStep.getClusterSchema();
+        if (originalClusterSchema == null) {
+          if (infoClusterSchema == null) {
+            StepMeta target=master.findStep(originalStep.getName());
+            StepMeta source=master.findStep(infoStep.getName());
+            TransHopMeta masterHop=new TransHopMeta(source,target);
+            master.addTransHop(masterHop);
+          }
+ else {
+          }
+        }
+ else {
+          if (infoClusterSchema == null) {
+          }
+ else {
           }
         }
       }
