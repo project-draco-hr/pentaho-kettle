@@ -5,39 +5,27 @@
     MenuItem mi=msFile.getItem(i);
     mi.dispose();
   }
-  String lf[]=props.getLastFiles();
-  String ld[]=props.getLastDirs();
-  boolean lt[]=props.getLastTypes();
-  String lr[]=props.getLastRepositories();
-  for (int i=0; i < lf.length; i++) {
+  List lastUsedFiles=props.getLastUsedFiles();
+  for (int i=0; i < lastUsedFiles.size(); i++) {
+    final LastUsedFile lastUsedFile=(LastUsedFile)lastUsedFiles.get(i);
     MenuItem miFileLast=new MenuItem(msFile,SWT.CASCADE);
     char chr=(char)('1' + i);
     int accel=SWT.CTRL | chr;
-    String repository=(lr[i] != null && lr[i].length() > 0) ? ("[" + lr[i] + "] ") : "";
-    String filename=RepositoryDirectory.DIRECTORY_SEPARATOR + lf[i];
-    if (!lt[i])     filename=lf[i];
-    if (!ld[i].equals(RepositoryDirectory.DIRECTORY_SEPARATOR)) {
-      filename=ld[i] + filename;
-    }
     if (i < 9) {
       miFileLast.setAccelerator(accel);
-      miFileLast.setText("&" + chr + "  "+ repository+ filename+ "\tCTRL-"+ chr);
+      miFileLast.setText("&" + chr + "  "+ lastUsedFile+ "\tCTRL-"+ chr);
     }
  else {
-      miFileLast.setText("   " + repository + filename);
+      miFileLast.setText("   " + lastUsedFile);
     }
-    final String fn=lf[i];
-    final String fd=ld[i];
-    final boolean ft=lt[i];
-    final String fr=lr[i];
     Listener lsFileLast=new Listener(){
       public void handleEvent(      Event e){
         if (showChangedWarning()) {
           boolean noRepository=false;
-          if (ft && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(fr))) {
+          if (lastUsedFile.isSourceRepository() && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(lastUsedFile.getRepositoryName()))) {
             int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
             RepositoriesDialog rd=new RepositoriesDialog(disp,SWT.NONE,perms,Messages.getString("Spoon.Application.Name"));
-            rd.setRepositoryName(fr);
+            rd.setRepositoryName(lastUsedFile.getRepositoryName());
             if (rd.open()) {
               if (rep != null)               rep.disconnect();
               rep=new Repository(log,rd.getRepository(),rd.getUser());
@@ -53,15 +41,15 @@
               noRepository=true;
             }
           }
-          if (ft) {
-            if (!noRepository && rep != null && rep.getRepositoryInfo().getName().equalsIgnoreCase(fr)) {
-              RepositoryDirectory fdRepdir=rep.getDirectoryTree().findDirectory(fd);
-              TransLoadProgressDialog tlpd=new TransLoadProgressDialog(shell,rep,fn,fdRepdir);
+          if (lastUsedFile.isSourceRepository()) {
+            if (!noRepository && rep != null && rep.getRepositoryInfo().getName().equalsIgnoreCase(lastUsedFile.getRepositoryName())) {
+              RepositoryDirectory fdRepdir=rep.getDirectoryTree().findDirectory(lastUsedFile.getDirectory());
+              TransLoadProgressDialog tlpd=new TransLoadProgressDialog(shell,rep,lastUsedFile.getFilename(),fdRepdir);
               TransMeta transInfo=tlpd.open();
               if (transInfo != null) {
                 transMeta=transInfo;
                 transMeta.clearChanged();
-                props.addLastFile(Props.TYPE_PROPERTIES_SPOON,fn,fdRepdir.getPath(),true,rep.getName());
+                props.addLastFile(Props.TYPE_PROPERTIES_SPOON,lastUsedFile.getFilename(),fdRepdir.getPath(),true,rep.getName());
               }
             }
  else {
@@ -74,10 +62,10 @@
           }
  else {
             try {
-              transMeta=new TransMeta(fn);
+              transMeta=new TransMeta(lastUsedFile.getFilename());
               transMeta.clearChanged();
-              transMeta.setFilename(fn);
-              props.addLastFile(Props.TYPE_PROPERTIES_SPOON,fn,null,false,null);
+              transMeta.setFilename(lastUsedFile.getFilename());
+              props.addLastFile(Props.TYPE_PROPERTIES_SPOON,lastUsedFile.getFilename(),null,false,null);
             }
  catch (            KettleException ke) {
               clear();

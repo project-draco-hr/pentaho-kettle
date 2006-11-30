@@ -5,39 +5,27 @@
     MenuItem mi=msFile.getItem(i);
     mi.dispose();
   }
-  String lf[]=props.getLastFiles();
-  String ld[]=props.getLastDirs();
-  boolean lt[]=props.getLastTypes();
-  String lr[]=props.getLastRepositories();
-  for (int i=0; i < lf.length; i++) {
+  List lastUsedFiles=props.getLastUsedFiles();
+  for (int i=0; i < lastUsedFiles.size(); i++) {
+    final LastUsedFile lastUsedFile=(LastUsedFile)lastUsedFiles.get(i);
     MenuItem miFileLast=new MenuItem(msFile,SWT.CASCADE);
     char chr=(char)('1' + i);
     int accel=SWT.CTRL | chr;
-    String repository=(lr[i] != null && lr[i].length() > 0) ? ("[" + lr[i] + "] ") : "";
-    String filename=RepositoryDirectory.DIRECTORY_SEPARATOR + lf[i];
-    if (!lt[i])     filename=lf[i];
-    if (!ld[i].equals(RepositoryDirectory.DIRECTORY_SEPARATOR)) {
-      filename=ld[i] + filename;
-    }
     if (i < 9) {
       miFileLast.setAccelerator(accel);
-      miFileLast.setText("&" + chr + "  "+ repository+ filename+ "\tCTRL-"+ chr);
+      miFileLast.setText("&" + chr + "  "+ lastUsedFile+ "\tCTRL-"+ chr);
     }
  else {
-      miFileLast.setText("   " + repository + filename);
+      miFileLast.setText("   " + lastUsedFile);
     }
-    final String fn=lf[i];
-    final String fd=ld[i];
-    final boolean ft=lt[i];
-    final String fr=lr[i];
     Listener lsFileLast=new Listener(){
       public void handleEvent(      Event e){
         if (showChangedWarning()) {
           boolean noRepository=false;
-          if (ft && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(fr))) {
+          if (lastUsedFile.isSourceRepository() && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(lastUsedFile.getRepositoryName()))) {
             int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_JOB};
             RepositoriesDialog rd=new RepositoriesDialog(disp,SWT.NONE,perms,APP_NAME);
-            rd.setRepositoryName(fr);
+            rd.setRepositoryName(lastUsedFile.getRepositoryName());
             if (rd.open()) {
               if (rep != null)               rep.disconnect();
               rep=new Repository(log,rd.getRepository(),rd.getUser());
@@ -53,16 +41,16 @@
               noRepository=true;
             }
           }
-          if (ft) {
-            if (!noRepository && rep != null && rep.getRepositoryInfo().getName().equalsIgnoreCase(fr)) {
-              RepositoryDirectory fdRepdir=rep.getDirectoryTree().findDirectory(fd);
+          if (lastUsedFile.isSourceRepository()) {
+            if (!noRepository && rep != null && rep.getRepositoryInfo().getName().equalsIgnoreCase(lastUsedFile.getRepositoryName())) {
+              RepositoryDirectory fdRepdir=rep.getDirectoryTree().findDirectory(lastUsedFile.getDirectory());
               try {
                 if (fdRepdir != null) {
-                  jobMeta=new JobMeta(log,rep,fn,fdRepdir);
-                  props.addLastFile(Props.TYPE_PROPERTIES_CHEF,fn,fdRepdir.getPath(),true,rep.getName());
+                  jobMeta=new JobMeta(log,rep,lastUsedFile.getFilename(),fdRepdir);
+                  props.addLastFile(Props.TYPE_PROPERTIES_CHEF,lastUsedFile.getFilename(),fdRepdir.getPath(),true,rep.getName());
                 }
  else {
-                  throw new KettleException(Messages.getString("Chef.Exception.RepositoryDirectoryDoesNotExist") + fd);
+                  throw new KettleException(Messages.getString("Chef.Exception.RepositoryDirectoryDoesNotExist") + lastUsedFile.getDirectory());
                 }
               }
  catch (              KettleException ke) {
@@ -80,8 +68,8 @@
           }
  else {
             try {
-              jobMeta=new JobMeta(log,fn,rep);
-              props.addLastFile(Props.TYPE_PROPERTIES_CHEF,fn,null,false,null);
+              jobMeta=new JobMeta(log,lastUsedFile.getFilename(),rep);
+              props.addLastFile(Props.TYPE_PROPERTIES_CHEF,lastUsedFile.getFilename(),null,false,null);
             }
  catch (            KettleException ke) {
               jobMeta.clear();
