@@ -25,7 +25,8 @@
         int buffersize=di.readInt();
         if (log.isDetailed())         logDetailed("[" + filename + "] expecting "+ buffersize+ " rows...");
         if (buffersize > 0) {
-          data.rowbuffer.add(new Row(di));
+          Row metadata=(Row)data.rowMeta.get(f);
+          data.rowbuffer.add(new Row(di,metadata.size(),metadata));
         }
       }
     }
@@ -44,7 +45,9 @@
     }
   }
  else {
-    if (data.rowbuffer.size() == 0)     retval=null;
+    if (data.rowbuffer.size() == 0) {
+      retval=null;
+    }
  else {
       for (i=0; i < data.rowbuffer.size() && !isStopped(); i++) {
         Row b=(Row)data.rowbuffer.get(i);
@@ -67,7 +70,8 @@
       FileInputStream fi=(FileInputStream)data.fis.get(smallest);
       GZIPInputStream gzfi=(meta.getCompress()) ? (GZIPInputStream)data.gzis.get(smallest) : null;
       try {
-        data.rowbuffer.add(smallest,new Row(di));
+        Row metadata=(Row)data.rowMeta.get(smallest);
+        data.rowbuffer.add(smallest,new Row(di,metadata.size(),metadata));
       }
  catch (      KettleFileException fe) {
         try {
@@ -86,6 +90,7 @@
         data.dis.remove(smallest);
         data.fis.remove(smallest);
         if (gzfi != null)         data.gzis.remove(smallest);
+        data.rowMeta.remove(smallest);
       }
     }
   }
