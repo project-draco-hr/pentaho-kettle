@@ -2,6 +2,7 @@
   Properties properties=new Properties();
   properties.load(new FileInputStream(new File(args[0])));
   SharedObjects sharedObjects=new SharedObjects(args[1],new ArrayList(),new Hashtable());
+  DatabaseMeta mysql=new DatabaseMeta("MySQL EC2","MySQL","JDBC",null,"test","3306","matt","abcd");
   ClusterSchema clusterSchema=new ClusterSchema();
   clusterSchema.setName(args[2]);
   clusterSchema.setBasePort("40000");
@@ -11,11 +12,15 @@
   int max=1;
   while (properties.getProperty(PREFIX + max + IP) != null)   max++;
   max--;
+  mysql.setPartitioned(true);
+  PartitionDatabaseMeta[] partDbMeta=new PartitionDatabaseMeta[max];
   for (int i=1; i <= max; i++) {
     String serverIp=properties.getProperty(PREFIX + i + IP);
     String serverPort=properties.getProperty(PREFIX + i + PORT);
     if (i == 1) {
       clusterSchema.getSlaveServers().add(new SlaveServer(serverIp,serverPort,"cluster","cluster",null,null,null,true));
+      mysql.setHostname(serverIp);
+      partDbMeta[i - 1]=new PartitionDatabaseMeta("P" + i,serverIp,"3306","test");
       if (max == 1) {
         clusterSchema.getSlaveServers().add(new SlaveServer(serverIp,serverPort,"cluster","cluster"));
       }
@@ -25,5 +30,7 @@
     }
   }
   sharedObjects.storeObject(clusterSchema);
+  mysql.setPartitioningInformation(partDbMeta);
+  sharedObjects.storeObject(mysql);
   sharedObjects.saveToFile();
 }
