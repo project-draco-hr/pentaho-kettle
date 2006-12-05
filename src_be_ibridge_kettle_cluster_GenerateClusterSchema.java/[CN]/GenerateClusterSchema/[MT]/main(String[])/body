@@ -12,12 +12,11 @@
   int max=1;
   while (properties.getProperty(PREFIX + max + IP) != null)   max++;
   max--;
-  mysql.setPartitioned(true);
-  PartitionDatabaseMeta[] partDbMeta=new PartitionDatabaseMeta[max];
+  mysql.setPartitioned(max > 1);
+  PartitionDatabaseMeta[] partDbMeta=new PartitionDatabaseMeta[max - 1];
   for (int i=1; i <= max; i++) {
     String serverIp=properties.getProperty(PREFIX + i + IP);
     String serverPort=properties.getProperty(PREFIX + i + PORT);
-    partDbMeta[i - 1]=new PartitionDatabaseMeta("P" + i,serverIp,"3306","test");
     if (i == 1) {
       clusterSchema.getSlaveServers().add(new SlaveServer(serverIp,serverPort,"cluster","cluster",null,null,null,true));
       mysql.setHostname(serverIp);
@@ -27,6 +26,7 @@
     }
  else {
       clusterSchema.getSlaveServers().add(new SlaveServer(serverIp,serverPort,"cluster","cluster"));
+      partDbMeta[i - 2]=new PartitionDatabaseMeta("P" + i,serverIp,"3306","test");
     }
   }
   sharedObjects.storeObject(clusterSchema);
