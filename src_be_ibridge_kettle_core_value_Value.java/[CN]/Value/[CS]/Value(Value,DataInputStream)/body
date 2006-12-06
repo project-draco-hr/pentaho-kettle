@@ -6,23 +6,58 @@
     if (!isNull()) {
 switch (getType()) {
 case VALUE_TYPE_STRING:
+        int stringLength=dis.readInt();
+      if (stringLength < 0) {
+        setValue((String)null);
+      }
+ else       if (stringLength == 0) {
+        setValue("");
+      }
+ else {
+        byte buffer[]=new byte[stringLength];
+        dis.read(buffer);
+        setValue(new String(buffer,"UTF-8"));
+      }
+    break;
 case VALUE_TYPE_BIGNUMBER:
-{
-          String string=dis.readUTF();
-          setValue(string);
-          if (metaData.isBigNumber())           convertString(metaData.getType());
-        }
-      break;
+  int bnLength=dis.readInt();
+if (bnLength < 0) {
+  setValue((BigDecimal)null);
+}
+ else {
+  byte buffer[]=new byte[bnLength];
+  dis.read(buffer);
+  setValue(new String(buffer,"UTF-8"));
+  try {
+    convertString(VALUE_TYPE_BIGNUMBER);
+  }
+ catch (  KettleValueException e) {
+    throw new IOException("Unable to convert String to BigNumber while reading from data input stream [" + getString() + "]");
+  }
+}
+break;
 case VALUE_TYPE_DATE:
-    if (dis.readBoolean()) {
-      setValue(new Date(dis.readLong()));
-    }
-  break;
+if (dis.readBoolean()) {
+setValue(new Date(dis.readLong()));
+}
+break;
 case VALUE_TYPE_NUMBER:
 setValue(dis.readDouble());
 break;
 case VALUE_TYPE_INTEGER:
+int len=metaData.getLength();
+if (len > 9 || len <= 0) {
 setValue(dis.readLong());
+}
+ else if (len > 4) {
+setValue(dis.readInt());
+}
+ else if (len > 2) {
+setValue(dis.readShort());
+}
+ else {
+setValue(dis.readByte());
+}
 break;
 case VALUE_TYPE_BOOLEAN:
 setValue(dis.readBoolean());

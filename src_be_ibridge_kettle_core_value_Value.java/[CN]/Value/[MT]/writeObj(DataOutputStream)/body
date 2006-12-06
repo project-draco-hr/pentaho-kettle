@@ -9,19 +9,29 @@
   if (!isNull()) {
 switch (type) {
 case VALUE_TYPE_STRING:
-case VALUE_TYPE_BIGNUMBER:
-      if (getString() != null && getString().getBytes().length > 0) {
-        dos.writeInt(getString().getBytes("UTF-8").length);
-        dos.writeUTF(getString());
+      if (getString() == null) {
+        dos.writeInt(-1);
       }
  else {
-        dos.writeInt(0);
+        byte buffer[]=getString().getBytes("UTF-8");
+        dos.writeInt(buffer.length);
+        dos.write(buffer);
       }
     break;
+case VALUE_TYPE_BIGNUMBER:
+  if (getBigNumber() == null) {
+    dos.writeInt(-1);
+  }
+ else {
+    byte buffer[]=getBigNumber().toString().getBytes("UTF-8");
+    dos.writeInt(buffer.length);
+    dos.write(buffer);
+  }
+break;
 case VALUE_TYPE_DATE:
-  dos.writeBoolean(getDate() != null);
+dos.writeBoolean(getDate() != null);
 if (getDate() != null) {
-  dos.writeLong(getDate().getTime());
+dos.writeLong(getDate().getTime());
 }
 break;
 case VALUE_TYPE_NUMBER:
@@ -31,7 +41,28 @@ case VALUE_TYPE_BOOLEAN:
 dos.writeBoolean(getBoolean());
 break;
 case VALUE_TYPE_INTEGER:
+int len=getLength();
+if (len > 9 || len <= 0) {
 dos.writeLong(getInteger());
+}
+ else if (len > 4) {
+if (getInteger() > Integer.MAX_VALUE || getInteger() < Integer.MIN_VALUE) {
+throw new IOException("Length of " + len + " doesn't correspond with actual serialized value "+ getInteger());
+}
+dos.writeInt((int)getInteger());
+}
+ else if (len > 2) {
+if (getInteger() > Short.MAX_VALUE || getInteger() < Short.MIN_VALUE) {
+throw new IOException("Length of " + len + " doesn't correspond with actual serialized value "+ getInteger());
+}
+dos.writeShort((short)getInteger());
+}
+ else {
+if (getInteger() > Byte.MAX_VALUE || getInteger() < Byte.MIN_VALUE) {
+throw new IOException("Length of " + len + " doesn't correspond with actual serialized value "+ getInteger());
+}
+dos.writeByte((byte)getInteger());
+}
 break;
 default :
 break;
