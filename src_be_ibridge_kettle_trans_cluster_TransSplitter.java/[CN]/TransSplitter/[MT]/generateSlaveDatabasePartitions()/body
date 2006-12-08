@@ -1,26 +1,41 @@
 {
-  ArrayList transHopSteps=originalTransformation.getTransHopSteps(false);
-  StepMeta[] originalSteps=(StepMeta[])transHopSteps.toArray(new StepMeta[transHopSteps.size()]);
+  slaveServerPartitionsMap=new HashMap();
   for (int i=0; i < originalSteps.length; i++) {
     StepMeta stepMeta=originalSteps[i];
-    StepPartitioningMeta source=stepMeta.getStepPartitioningMeta();
-    StepPartitioningMeta target=new StepPartitioningMeta();
-    if (source == null)     break;
-    if (source.getMethod() == StepPartitioningMeta.PARTITIONING_METHOD_NONE)     break;
+    StepPartitioningMeta stepPartitioningMeta=stepMeta.getStepPartitioningMeta();
+    if (stepPartitioningMeta == null)     continue;
+    if (stepPartitioningMeta.getMethod() == StepPartitioningMeta.PARTITIONING_METHOD_NONE)     continue;
     ClusterSchema clusterSchema=stepMeta.getClusterSchema();
-    if (clusterSchema == null)     break;
-    PartitionSchema partitionSchema=source.getPartitionSchema();
+    if (clusterSchema == null)     continue;
+    PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
     int nrPartitions=partitionSchema.getPartitionIDs().length;
     int nrSlaves=clusterSchema.getSlaveServers().size();
+    if (nrSlaves == 0)     continue;
     if (nrPartitions < nrSlaves) {
       throw new KettleException("It doesn't make sense to have a database partitioned, clustered step with less partitions (" + nrPartitions + ") than that there are slave servers ("+ nrSlaves+ ")");
     }
-    List partitions=new ArrayList();
-    for (int s=0; s < clusterSchema.getSlaveServers().size(); s++) {
-      SlaveServer server=(SlaveServer)clusterSchema.getSlaveServers().get(s);
-      if (!server.isMaster()) {
+    int s=0;
+    for (int p=0; p < nrPartitions; p++) {
+      String partitionId=partitionSchema.getPartitionIDs()[p];
+      SlaveServer slaveServer=(SlaveServer)clusterSchema.getSlaveServers().get(s);
+      if (slaveServer.isMaster()) {
+        s++;
+        if (s >= nrSlaves)         s=0;
+        slaveServer=(SlaveServer)clusterSchema.getSlaveServers().get(s);
       }
+      Map schemaPartitionsMap=(Map)slaveServerPartitionsMap.get(slaveServer);
+      if (schemaPartitionsMap == null) {
+        schemaPartitionsMap=new HashMap();
+        slaveServerPartitionsMap.put(slaveServer,schemaPartitionsMap);
+      }
+      List partitions=(List)schemaPartitionsMap.get(partitionSchema.getName());
+      if (partitions == null) {
+        partitions=new ArrayList();
+        schemaPartitionsMap.put(partitionSchema.getName(),partitions);
+      }
+      partitions.add(partitionId);
+      s++;
+      if (s >= nrSlaves)       s=0;
     }
-    PartitionSchema targetSchema=new PartitionSchema(partitionSchema.getName(),(String[])partitions.toArray(new String[partitions.size()]));
   }
 }
