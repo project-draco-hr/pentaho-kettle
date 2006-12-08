@@ -1,11 +1,16 @@
 {
-  TransMeta slave=getSlaveTransformation(clusterSchema,slaveServer);
+  Map stepPartitionFlag=(Map)slaveStepPartitionFlag.get(slave);
+  if (stepPartitionFlag == null) {
+    stepPartitionFlag=new Hashtable();
+    slaveStepPartitionFlag.put(slave,stepPartitionFlag);
+  }
+  if (stepPartitionFlag.get(stepMeta) != null)   return;
   StepPartitioningMeta partitioningMeta=stepMeta.getStepPartitioningMeta();
   if (partitioningMeta != null && partitioningMeta.getMethod() != StepPartitioningMeta.PARTITIONING_METHOD_NONE && partitioningMeta.getPartitionSchema() != null) {
     Map schemaPartitionsMap=(Map)slaveServerPartitionsMap.get(slaveServer);
     if (schemaPartitionsMap != null) {
       PartitionSchema partitionSchema=partitioningMeta.getPartitionSchema();
-      List partitionsList=(List)schemaPartitionsMap.get(partitionSchema.getName());
+      List partitionsList=(List)schemaPartitionsMap.get(partitionSchema);
       if (partitionsList != null) {
         String partIds[]=(String[])partitionsList.toArray(new String[partitionsList.size()]);
         String targetSchemaName=partitionSchema.getName() + " (slave)";
@@ -14,9 +19,8 @@
           targetSchema=new PartitionSchema(targetSchemaName,partIds);
           slave.getPartitionSchemas().add(targetSchema);
         }
-        StepPartitioningMeta targetPartitioningMeta=new StepPartitioningMeta(partitioningMeta.getMethod(),partitioningMeta.getFieldName(),targetSchema);
-        stepMeta.setStepPartitioningMeta(targetPartitioningMeta);
       }
     }
   }
+  stepPartitionFlag.put(stepMeta,"Y");
 }

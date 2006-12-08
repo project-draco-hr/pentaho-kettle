@@ -1,5 +1,5 @@
 {
-  slaveServerPartitionsMap=new HashMap();
+  slaveServerPartitionsMap=new Hashtable();
   for (int i=0; i < originalSteps.length; i++) {
     StepMeta stepMeta=originalSteps[i];
     StepPartitioningMeta stepPartitioningMeta=stepMeta.getStepPartitioningMeta();
@@ -20,7 +20,7 @@
       SlaveServer slaveServer=(SlaveServer)clusterSchema.getSlaveServers().get(s);
       if (slaveServer.isMaster()) {
         s++;
-        if (s >= nrSlaves)         s=0;
+        if (s >= clusterSchema.getSlaveServers().size())         s=0;
         slaveServer=(SlaveServer)clusterSchema.getSlaveServers().get(s);
       }
       Map schemaPartitionsMap=(Map)slaveServerPartitionsMap.get(slaveServer);
@@ -28,14 +28,16 @@
         schemaPartitionsMap=new HashMap();
         slaveServerPartitionsMap.put(slaveServer,schemaPartitionsMap);
       }
-      List partitions=(List)schemaPartitionsMap.get(partitionSchema.getName());
+      List partitions=(List)schemaPartitionsMap.get(partitionSchema);
       if (partitions == null) {
         partitions=new ArrayList();
-        schemaPartitionsMap.put(partitionSchema.getName(),partitions);
+        schemaPartitionsMap.put(partitionSchema,partitions);
       }
-      partitions.add(partitionId);
+      if (partitions.indexOf(partitionId) < 0) {
+        partitions.add(partitionId);
+      }
       s++;
-      if (s >= nrSlaves)       s=0;
+      if (s >= clusterSchema.getSlaveServers().size())       s=0;
     }
   }
 }
