@@ -8,8 +8,7 @@
     lastUpdateView=time;
     wTree.removeAll();
     try {
-      String xml=slaveServer.execService(GetStatusHandler.CONTEXT_PATH + "?xml=Y");
-      slaveServerStatus=SlaveServerStatus.fromXML(xml);
+      slaveServerStatus=slaveServer.getStatus();
     }
  catch (    Exception e) {
       slaveServerStatus=new SlaveServerStatus("Error contacting server");
@@ -21,12 +20,12 @@
       transItem.setText(0,transStatus.getTransName());
       transItem.setText(8,transStatus.getStatusDescription());
       try {
-        String xml=slaveServer.execService(GetTransStatusHandler.CONTEXT_PATH + "?xml=Y");
-        SlaveServerTransStatus ts=SlaveServerTransStatus.fromXML(xml);
+        SlaveServerTransStatus ts=slaveServer.getTransStatus(transStatus.getTransName());
         List stepStatusList=ts.getStepStatusList();
         transStatus.setStepStatusList(stepStatusList);
+        transStatus.setLoggingString(ts.getLoggingString());
         for (int s=0; s < stepStatusList.size(); s++) {
-          StepStatus stepStatus=(StepStatus)stepStatusList.get(i);
+          StepStatus stepStatus=(StepStatus)stepStatusList.get(s);
           TreeItem stepItem=new TreeItem(transItem,SWT.NONE);
           stepItem.setText(stepStatus.getSpoonSlaveLogFields());
         }
@@ -35,6 +34,7 @@
         transStatus.setErrorDescription("Unable to access transformation details : " + Const.CR + Const.getStackTracker(e));
       }
     }
+    TreeMemory.setExpandedFromMemory(wTree,STRING_SLAVE_LOG_TREE_NAME + slaveServer.toString());
   }
   refresh_busy=false;
 }
