@@ -1,0 +1,103 @@
+{
+  super(parent,style);
+  this.shell=parent.getShell();
+  this.display=shell.getDisplay();
+  this.spoon=spoon;
+  this.slaveServer=slaveServer;
+  lastUpdateView=0L;
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  setLayout(formLayout);
+  setVisible(true);
+  spoon.props.setLook(this);
+  SashForm sash=new SashForm(this,SWT.VERTICAL);
+  spoon.props.setLook(sash);
+  sash.setLayout(new FillLayout());
+  colinf=new ColumnInfo[]{new ColumnInfo(Messages.getString("SpoonSlave.Column.Stepname"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Status"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Copynr"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Read"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Written"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Input"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Output"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Updated"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Errors"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Active"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Time"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Speed"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.PriorityBufferSizes"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("SpoonSlave.Column.Sleeps"),ColumnInfo.COLUMN_TYPE_TEXT,false,true)};
+  colinf[1].setAllignement(SWT.RIGHT);
+  colinf[2].setAllignement(SWT.LEFT);
+  colinf[3].setAllignement(SWT.RIGHT);
+  colinf[4].setAllignement(SWT.RIGHT);
+  colinf[5].setAllignement(SWT.RIGHT);
+  colinf[6].setAllignement(SWT.RIGHT);
+  colinf[7].setAllignement(SWT.RIGHT);
+  colinf[8].setAllignement(SWT.RIGHT);
+  colinf[9].setAllignement(SWT.RIGHT);
+  colinf[10].setAllignement(SWT.RIGHT);
+  colinf[11].setAllignement(SWT.RIGHT);
+  colinf[12].setAllignement(SWT.RIGHT);
+  colinf[13].setAllignement(SWT.RIGHT);
+  wTree=new Tree(sash,SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL);
+  wTree.setHeaderVisible(true);
+  TreeMemory.addTreeListener(wTree,STRING_SLAVE_LOG_TREE_NAME + slaveServer.toString());
+  for (int i=0; i < colinf.length; i++) {
+    ColumnInfo columnInfo=colinf[i];
+    TreeColumn treeColumn=new TreeColumn(wTree,columnInfo.getAllignement());
+    treeColumn.setText(columnInfo.getName());
+  }
+  wTree.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent arg0){
+      showLog();
+    }
+  }
+);
+  wText=new Text(sash,SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL| SWT.READ_ONLY);
+  spoon.props.setLook(wText);
+  wText.setVisible(true);
+  wRefresh=new Button(this,SWT.PUSH);
+  wRefresh.setText(Messages.getString("SpoonSlave.Button.Refresh"));
+  wRefresh.setEnabled(true);
+  wError=new Button(this,SWT.PUSH);
+  wError.setText(Messages.getString("SpoonSlave.Button.ShowErrorLines"));
+  BaseStepDialog.positionBottomButtons(this,new Button[]{wRefresh,wError},Const.MARGIN,null);
+  fdText=new FormData();
+  fdText.left=new FormAttachment(0,0);
+  fdText.top=new FormAttachment(0,0);
+  fdText.right=new FormAttachment(100,0);
+  fdText.bottom=new FormAttachment(100,0);
+  wText.setLayoutData(fdText);
+  fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(0,0);
+  fdSash.right=new FormAttachment(100,0);
+  fdSash.bottom=new FormAttachment(wRefresh,-5);
+  sash.setLayoutData(fdSash);
+  pack();
+  lsError=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      showErrors();
+    }
+  }
+;
+  lsRefresh=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      showErrors();
+    }
+  }
+;
+  final Timer tim=new Timer();
+  busy=new StringBuffer("N");
+  TimerTask timtask=new TimerTask(){
+    public void run(){
+      if (display != null && !display.isDisposed()) {
+        display.asyncExec(new Runnable(){
+          public void run(){
+            refresh();
+          }
+        }
+);
+      }
+    }
+  }
+;
+  tim.schedule(timtask,0L,REFRESH_TIME);
+  wError.addSelectionListener(lsError);
+  wRefresh.addSelectionListener(lsRefresh);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      tim.cancel();
+    }
+  }
+);
+}

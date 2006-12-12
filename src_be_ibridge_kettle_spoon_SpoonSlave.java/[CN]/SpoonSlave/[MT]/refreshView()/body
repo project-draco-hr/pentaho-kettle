@@ -1,0 +1,40 @@
+{
+  if (wTree.isDisposed())   return;
+  if (refresh_busy)   return;
+  refresh_busy=true;
+  long time=new Date().getTime();
+  long msSinceLastUpdate=time - lastUpdateView;
+  if (msSinceLastUpdate > UPDATE_TIME_VIEW) {
+    lastUpdateView=time;
+    wTree.removeAll();
+    try {
+      String xml=slaveServer.execService(GetStatusHandler.CONTEXT_PATH + "?xml=Y");
+      slaveServerStatus=SlaveServerStatus.fromXML(xml);
+    }
+ catch (    Exception e) {
+      slaveServerStatus=new SlaveServerStatus("Error contacting server");
+      slaveServerStatus.setErrorDescription(Const.getStackTracker(e));
+    }
+    for (int i=0; i < slaveServerStatus.getTransStatusList().size(); i++) {
+      SlaveServerTransStatus transStatus=(SlaveServerTransStatus)slaveServerStatus.getTransStatusList().get(i);
+      TreeItem transItem=new TreeItem(wTree,SWT.NONE);
+      transItem.setText(0,transStatus.getTransName());
+      transItem.setText(8,transStatus.getStatusDescription());
+      try {
+        String xml=slaveServer.execService(GetTransStatusHandler.CONTEXT_PATH + "?xml=Y");
+        SlaveServerTransStatus ts=SlaveServerTransStatus.fromXML(xml);
+        List stepStatusList=ts.getStepStatusList();
+        transStatus.setStepStatusList(stepStatusList);
+        for (int s=0; s < stepStatusList.size(); s++) {
+          StepStatus stepStatus=(StepStatus)stepStatusList.get(i);
+          TreeItem stepItem=new TreeItem(transItem,SWT.NONE);
+          stepItem.setText(stepStatus.getSpoonSlaveLogFields());
+        }
+      }
+ catch (      Exception e) {
+        transStatus.setErrorDescription("Unable to access transformation details : " + Const.CR + Const.getStackTracker(e));
+      }
+    }
+  }
+  refresh_busy=false;
+}
