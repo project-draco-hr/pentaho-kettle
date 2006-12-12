@@ -4,17 +4,21 @@
   try {
     int result=httpclient.executeMethod(method);
     log.logDebug(toString(),"Response status code: " + result);
-    InputStream inputStream=method.getResponseBodyAsStream();
+    InputStream inputStream=new BufferedInputStream(method.getResponseBodyAsStream(),1000);
     StringBuffer bodyBuffer=new StringBuffer();
     int c;
-    while ((c=inputStream.read()) != -1)     bodyBuffer.append((char)c);
+    while ((c=inputStream.read()) != -1) {
+      bodyBuffer.append((char)c);
+      if ((bodyBuffer.length() % 10000) == 0)       log.logBasic(toString(),"Read " + bodyBuffer.length() + " bytes from server...");
+    }
     inputStream.close();
     String body=bodyBuffer.toString();
+    log.logBasic(toString(),"Finished reading " + bodyBuffer.length() + " bytes from server.");
     log.logDebug(toString(),"Response body: " + body);
     return body;
   }
   finally {
     method.releaseConnection();
-    log.logDetailed(toString(),"Sent XML to service [" + service + "] on host ["+ hostname+ "]");
+    log.logBasic(toString(),"Executed service [" + service + "] on host ["+ hostname+ "]");
   }
 }
