@@ -133,11 +133,27 @@
         stepPartitioningMeta.setPartitionSchemaAfterLoading(partitionSchemas);
       }
     }
+    Node slaveServersNode=XMLHandler.getSubNode(infonode,"slaveservers");
+    int nrSlaveServers=XMLHandler.countNodes(slaveServersNode,SlaveServer.XML_TAG);
+    for (int i=0; i < nrSlaveServers; i++) {
+      Node slaveServerNode=XMLHandler.getSubNodeByNr(slaveServersNode,SlaveServer.XML_TAG,i);
+      SlaveServer slaveServer=new SlaveServer(slaveServerNode);
+      SlaveServer check=findSlaveServer(slaveServer.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplaceSlaveServer(slaveServer);
+        }
+      }
+ else {
+        slaveServers.add(slaveServer);
+      }
+    }
     Node clusterSchemasNode=XMLHandler.getSubNode(infonode,"clusterschemas");
     int nrClusterSchemas=XMLHandler.countNodes(clusterSchemasNode,ClusterSchema.XML_TAG);
     for (int i=0; i < nrClusterSchemas; i++) {
       Node clusterSchemaNode=XMLHandler.getSubNodeByNr(clusterSchemasNode,ClusterSchema.XML_TAG,i);
-      ClusterSchema clusterSchema=new ClusterSchema(clusterSchemaNode);
+      ClusterSchema clusterSchema=new ClusterSchema(clusterSchemaNode,slaveServers);
+      System.out.println("Loaded " + clusterSchema.getSlaveServers().size() + " servers in cluster "+ clusterSchema.getName());
       ClusterSchema check=findClusterSchema(clusterSchema.getName());
       if (check != null) {
         if (!check.isShared()) {

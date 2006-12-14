@@ -4,42 +4,35 @@
   }
   tabComp=new Composite(sashform,SWT.BORDER);
   props.setLook(tabComp);
-  FormLayout childLayout=new FormLayout();
-  childLayout.marginWidth=0;
-  childLayout.marginHeight=0;
-  tabComp.setLayout(childLayout);
+  tabComp.setLayout(new GridLayout());
   tabfolder=new CTabFolder(tabComp,SWT.BORDER);
+  tabfolder.setLayoutData(new GridData(SWT.FILL,SWT.FILL,true,true));
   props.setLook(tabfolder,Props.WIDGET_STYLE_TAB);
-  FormData fdTabfolder=new FormData();
-  fdTabfolder.left=new FormAttachment(0,0);
-  fdTabfolder.right=new FormAttachment(100,0);
-  fdTabfolder.top=new FormAttachment(0,0);
-  fdTabfolder.bottom=new FormAttachment(100,0);
-  tabfolder.setLayoutData(fdTabfolder);
-  CTabItem tiTabsGraph=new CTabItem(tabfolder,SWT.NONE);
-  tiTabsGraph.setText(Messages.getString("Spoon.Title.GraphicalView"));
-  tiTabsGraph.setToolTipText(Messages.getString("Spoon.Tooltip.DisplaysTransformationGraphical"));
-  CTabItem tiTabsList=new CTabItem(tabfolder,SWT.NONE);
-  tiTabsList.setText(Messages.getString("Spoon.Title.LogView"));
-  tiTabsList.setToolTipText(Messages.getString("Spoon.Tooltip.DisplaysTransformationLog"));
-  CTabItem tiTabsHist=new CTabItem(tabfolder,SWT.NONE);
-  tiTabsHist.setText(Messages.getString("Spoon.Title.LogHistory"));
-  tiTabsHist.setToolTipText(Messages.getString("Spoon.Tooltip.DisplaysHistoryLogging"));
-  spoongraph=new SpoonGraph(tabfolder,SWT.V_SCROLL | SWT.H_SCROLL | SWT.NO_BACKGROUND,log,this);
-  spoonlog=new SpoonLog(tabfolder,SWT.NONE,this,log,null);
-  spoonhist=new SpoonHistory(tabfolder,SWT.NONE,this,log,null,spoonlog,shell);
+  tabfolder.setSimple(false);
+  tabfolder.setUnselectedImageVisible(false);
+  tabfolder.setUnselectedCloseVisible(true);
   tabfolder.addKeyListener(defKeys);
   tabfolder.addKeyListener(modKeys);
-  SpoonHistoryRefresher spoonHistoryRefresher=new SpoonHistoryRefresher(tiTabsHist,spoonhist);
-  tabfolder.addSelectionListener(spoonHistoryRefresher);
-  spoonlog.setSpoonHistoryRefresher(spoonHistoryRefresher);
-  tiTabsGraph.setControl(spoongraph);
-  tiTabsList.setControl(spoonlog);
-  tiTabsHist.setControl(spoonhist);
-  tabfolder.setSelection(0);
   sashform.addKeyListener(defKeys);
   sashform.addKeyListener(modKeys);
   int weights[]=props.getSashWeights();
   sashform.setWeights(weights);
   sashform.setVisible(true);
+  tabfolder.addCTabFolder2Listener(new CTabFolder2Adapter(){
+    public void close(    CTabFolderEvent event){
+      Collection collection=tabMap.values();
+      for (Iterator iter=collection.iterator(); iter.hasNext(); ) {
+        TabMapEntry entry=(TabMapEntry)iter.next();
+        if (event.item.equals(entry.getTabItem())) {
+          event.doit=entry.getObject().close();
+          if (event.doit && entry.getObject() instanceof SpoonGraph) {
+            TransMeta transMeta=(TransMeta)entry.getObject().getManagedObject();
+            closeTransformation(transMeta);
+            refreshTree();
+          }
+        }
+      }
+    }
+  }
+);
 }

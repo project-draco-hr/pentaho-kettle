@@ -8,11 +8,11 @@
     MenuItem children[]=mPop.getItems();
     for (int i=0; i < children.length; i++)     children[i].dispose();
   }
-  final StepMeta stepMeta=spoon.getTransMeta().getStep(x,y,iconsize);
+  final StepMeta stepMeta=transMeta.getStep(x,y,iconsize);
   if (stepMeta != null) {
     MenuItem miNewHop=null;
     MenuItem miHideStep=null;
-    int sels=spoon.getTransMeta().nrSelectedSteps();
+    int sels=transMeta.nrSelectedSteps();
     if (sels == 2) {
       miNewHop=new MenuItem(mPop,SWT.NONE);
       miNewHop.setText(Messages.getString("SpoonGraph.PopupMenu.NewHop"));
@@ -41,13 +41,13 @@
     miDupeStep.setText(Messages.getString("SpoonGraph.PopupMenu.DuplicateStep"));
     MenuItem miDelStep=new MenuItem(mPop,SWT.NONE);
     miDelStep.setText(Messages.getString("SpoonGraph.PopupMenu.DeleteStep"));
-    if (stepMeta.isDrawn() && !spoon.getTransMeta().isStepUsedInTransHops(stepMeta)) {
+    if (stepMeta.isDrawn() && !transMeta.isStepUsedInTransHops(stepMeta)) {
       miHideStep=new MenuItem(mPop,SWT.NONE);
       miHideStep.setText(Messages.getString("SpoonGraph.PopupMenu.HideStep"));
       miHideStep.addSelectionListener(new SelectionAdapter(){
         public void widgetSelected(        SelectionEvent e){
-          for (int i=0; i < spoon.getTransMeta().nrSteps(); i++) {
-            StepMeta sti=spoon.getTransMeta().getStep(i);
+          for (int i=0; i < transMeta.nrSteps(); i++) {
+            StepMeta sti=transMeta.getStep(i);
             if (sti.isDrawn() && sti.isSelected()) {
               sti.hideStep();
               spoon.refreshTree();
@@ -60,7 +60,7 @@
       }
 );
     }
-    if (spoon.getTransMeta().isStepUsedInTransHops(stepMeta)) {
+    if (transMeta.isStepUsedInTransHops(stepMeta)) {
       MenuItem miDetach=new MenuItem(mPop,SWT.NONE);
       miDetach.setText(Messages.getString("SpoonGraph.PopupMenu.DetachStep"));
       miDetach.addSelectionListener(new SelectionAdapter(){
@@ -147,7 +147,7 @@
     miPreview.setText(Messages.getString("SpoonGraph.PopupMenu.CheckSelectedSteps"));
     miPreview.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
-        spoon.checkTrans(true);
+        spoon.checkTrans(transMeta,true);
       }
     }
 );
@@ -155,7 +155,7 @@
     miMapping.setText(Messages.getString("SpoonGraph.PopupMenu.GenerateMappingToThisStep"));
     miMapping.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
-        spoon.generateMapping(stepMeta);
+        spoon.generateMapping(transMeta,stepMeta);
       }
     }
 );
@@ -163,7 +163,7 @@
     miPartition.setText(Messages.getString("SpoonGraph.PopupMenu.Partitioning"));
     miPartition.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
-        spoon.editPartitioning(stepMeta);
+        spoon.editPartitioning(transMeta,stepMeta);
       }
     }
 );
@@ -171,7 +171,7 @@
     miCluster.setText(Messages.getString("SpoonGraph.PopupMenu.Clustering"));
     miCluster.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
-        spoon.editClustering(stepMeta);
+        spoon.editClustering(transMeta,stepMeta);
       }
     }
 );
@@ -233,14 +233,14 @@
     miDupeStep.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
         try {
-          if (spoon.getTransMeta().nrSelectedSteps() <= 1) {
-            spoon.dupeStep(stepMeta.getName());
+          if (transMeta.nrSelectedSteps() <= 1) {
+            spoon.dupeStep(transMeta,stepMeta);
           }
  else {
-            for (int i=0; i < spoon.getTransMeta().nrSteps(); i++) {
-              StepMeta stepMeta=spoon.getTransMeta().getStep(i);
+            for (int i=0; i < transMeta.nrSteps(); i++) {
+              StepMeta stepMeta=transMeta.getStep(i);
               if (stepMeta.isSelected()) {
-                spoon.dupeStep(stepMeta.getName());
+                spoon.dupeStep(transMeta,stepMeta);
               }
             }
           }
@@ -253,7 +253,7 @@
 );
     miCopyStep.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
-        spoon.copySelected(spoon.getTransMeta().getSelectedSteps(),spoon.getTransMeta().getSelectedNotes());
+        spoon.copySelected(transMeta,transMeta.getSelectedSteps(),transMeta.getSelectedNotes());
       }
     }
 );
@@ -302,7 +302,7 @@
         public void widgetSelected(        SelectionEvent e){
           selrect=null;
           hi.flip();
-          if (spoon.getTransMeta().hasLoop(hi.getFromStep())) {
+          if (transMeta.hasLoop(hi.getFromStep())) {
             spoon.refreshGraph();
             MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
             mb.setMessage(Messages.getString("SpoonGraph.Dialog.LoopsAreNotAllowed.Message"));
@@ -325,7 +325,7 @@
           selrect=null;
           TransHopMeta before=(TransHopMeta)hi.clone();
           hi.setEnabled(!hi.isEnabled());
-          if (spoon.getTransMeta().hasLoop(hi.getToStep())) {
+          if (transMeta.hasLoop(hi.getToStep())) {
             hi.setEnabled(!hi.isEnabled());
             MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
             mb.setMessage(Messages.getString("SpoonGraph.Dialog.LoopAfterHopEnabled.Message"));
@@ -334,7 +334,7 @@
           }
  else {
             TransHopMeta after=(TransHopMeta)hi.clone();
-            spoon.addUndoChange(new TransHopMeta[]{before},new TransHopMeta[]{after},new int[]{spoon.getTransMeta().indexOfTransHop(hi)});
+            spoon.addUndoChange(transMeta,new TransHopMeta[]{before},new TransHopMeta[]{after},new int[]{transMeta.indexOfTransHop(hi)});
             spoon.refreshGraph();
             spoon.refreshTree();
           }
@@ -344,9 +344,9 @@
       miDelHop.addSelectionListener(new SelectionAdapter(){
         public void widgetSelected(        SelectionEvent e){
           selrect=null;
-          int idx=spoon.getTransMeta().indexOfTransHop(hi);
-          spoon.addUndoDelete(new TransHopMeta[]{(TransHopMeta)hi.clone()},new int[]{idx});
-          spoon.getTransMeta().removeTransHop(idx);
+          int idx=transMeta.indexOfTransHop(hi);
+          spoon.addUndoDelete(transMeta,new TransHopMeta[]{(TransHopMeta)hi.clone()},new int[]{idx});
+          transMeta.removeTransHop(idx);
           spoon.refreshTree();
           spoon.refreshGraph();
         }
@@ -355,7 +355,7 @@
       setMenu(mPop);
     }
  else {
-      final NotePadMeta ni=spoon.getTransMeta().getNote(x,y);
+      final NotePadMeta ni=transMeta.getNote(x,y);
       if (ni != null) {
         MenuItem miNoteEdit=new MenuItem(mPop,SWT.NONE);
         miNoteEdit.setText(Messages.getString("SpoonGraph.PopupMenu.EditNote"));
@@ -371,10 +371,10 @@
         miNoteDel.addSelectionListener(new SelectionAdapter(){
           public void widgetSelected(          SelectionEvent e){
             selrect=null;
-            int idx=spoon.getTransMeta().indexOfNote(ni);
+            int idx=transMeta.indexOfNote(ni);
             if (idx >= 0) {
-              spoon.getTransMeta().removeNote(idx);
-              spoon.addUndoDelete(new NotePadMeta[]{(NotePadMeta)ni.clone()},new int[]{idx});
+              transMeta.removeNote(idx);
+              spoon.addUndoDelete(transMeta,new NotePadMeta[]{(NotePadMeta)ni.clone()},new int[]{idx});
               redraw();
             }
           }
@@ -394,8 +394,8 @@
             String n=dd.open();
             if (n != null) {
               NotePadMeta npi=new NotePadMeta(n,lastclick.x,lastclick.y,Const.NOTE_MIN_SIZE,Const.NOTE_MIN_SIZE);
-              spoon.getTransMeta().addNote(npi);
-              spoon.addUndoNew(new NotePadMeta[]{npi},new int[]{spoon.getTransMeta().indexOfNote(npi)});
+              transMeta.addNote(npi);
+              spoon.addUndoNew(transMeta,new NotePadMeta[]{npi},new int[]{transMeta.indexOfNote(npi)});
               redraw();
             }
           }
@@ -412,7 +412,7 @@
           final String description=sp[i].getDescription();
           miStepX.addSelectionListener(new SelectionAdapter(){
             public void widgetSelected(            SelectionEvent e){
-              StepMeta stepMeta=spoon.newStep(description,description,false,true);
+              StepMeta stepMeta=spoon.newStep(transMeta,description,description,false,true);
               stepMeta.setLocation(mousex,mousey);
               stepMeta.setDraw(true);
               redraw();
@@ -427,7 +427,7 @@
         miPasteStep.addSelectionListener(new SelectionAdapter(){
           public void widgetSelected(          SelectionEvent e){
             Point loc=new Point(mousex,mousey);
-            spoon.pasteXML(clipcontent,loc);
+            spoon.pasteXML(transMeta,clipcontent,loc);
           }
         }
 );

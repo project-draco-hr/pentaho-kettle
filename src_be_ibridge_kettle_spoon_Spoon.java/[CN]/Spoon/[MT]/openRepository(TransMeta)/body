@@ -1,0 +1,49 @@
+{
+  int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
+  RepositoriesDialog rd=new RepositoriesDialog(disp,SWT.NONE,perms,APP_NAME);
+  rd.getShell().setImage(GUIResource.getInstance().getImageSpoon());
+  if (rd.open()) {
+    if (rep != null) {
+      rep.disconnect();
+    }
+    rep=new Repository(log,rd.getRepository(),rd.getUser());
+    try {
+      rep.connect(APP_NAME);
+    }
+ catch (    KettleException ke) {
+      rep=null;
+      new ErrorDialog(shell,Messages.getString("Spoon.Dialog.ErrorConnectingRepository.Title"),Messages.getString("Spoon.Dialog.ErrorConnectingRepository.Message",Const.CR),ke);
+    }
+    for (int i=0; i < transMeta.nrDatabases(); i++) {
+      transMeta.getDatabase(i).setID(-1L);
+    }
+    transMeta.setID(-1L);
+    ArrayList oldDatabases=transMeta.getDatabases();
+    transMeta.setDatabases(new ArrayList());
+    readDatabases(transMeta,true);
+    for (int i=0; i < oldDatabases.size(); i++) {
+      DatabaseMeta oldDatabase=(DatabaseMeta)oldDatabases.get(i);
+      DatabaseMeta newDatabase=Const.findDatabase(transMeta.getDatabases(),oldDatabase.getName());
+      if (newDatabase != null) {
+        oldDatabase.setDatabaseInterface(newDatabase.getDatabaseInterface());
+      }
+ else {
+        transMeta.addDatabase(oldDatabase);
+      }
+    }
+    RepositoryDirectory redi=rep.getDirectoryTree().findDirectory(transMeta.getDirectory().getPath());
+    if (redi != null) {
+      transMeta.setDirectory(redi);
+    }
+ else {
+      transMeta.setDirectory(rep.getDirectoryTree());
+    }
+    refreshTree();
+    setShellText();
+  }
+ else {
+    if (!rd.isCancelled()) {
+      closeRepository();
+    }
+  }
+}

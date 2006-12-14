@@ -1,0 +1,43 @@
+{
+  try {
+    if (stepMeta != null) {
+      StepMetaInterface smi=stepMeta.getStepMetaInterface();
+      Row targetFields=smi.getRequiredFields();
+      Row sourceFields=transMeta.getPrevStepFields(stepMeta);
+      String[] source=sourceFields.getFieldNames();
+      for (int i=0; i < source.length; i++) {
+        Value v=sourceFields.getValue(i);
+        source[i]+=EnterMappingDialog.STRING_ORIGIN_SEPARATOR + v.getOrigin() + ")";
+      }
+      String[] target=targetFields.getFieldNames();
+      EnterMappingDialog dialog=new EnterMappingDialog(shell,source,target);
+      ArrayList mappings=dialog.open();
+      if (mappings != null) {
+        SelectValuesMeta svm=new SelectValuesMeta();
+        svm.allocate(mappings.size(),0,0);
+        for (int i=0; i < mappings.size(); i++) {
+          SourceToTargetMapping mapping=(SourceToTargetMapping)mappings.get(i);
+          svm.getSelectName()[i]=sourceFields.getValue(mapping.getSourcePosition()).getName();
+          svm.getSelectRename()[i]=target[mapping.getTargetPosition()];
+          svm.getSelectLength()[i]=-1;
+          svm.getSelectPrecision()[i]=-1;
+        }
+        String stepName=stepMeta.getName() + " Mapping";
+        stepName=transMeta.getAlternativeStepname(stepName);
+        StepMeta newStep=new StepMeta("SelectValues",stepName,svm);
+        newStep.setLocation(stepMeta.getLocation().x + 20,stepMeta.getLocation().y + 20);
+        newStep.setDraw(true);
+        transMeta.addStep(newStep);
+        addUndoNew(transMeta,new StepMeta[]{newStep},new int[]{transMeta.indexOfStep(newStep)});
+        refreshTree();
+        refreshGraph();
+      }
+    }
+ else {
+      System.out.println("No target to do mapping against!");
+    }
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,"Error creating mapping","There was an error when Kettle tried to generate a mapping against the target step",e);
+  }
+}

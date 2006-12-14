@@ -15,11 +15,10 @@
   layout.marginWidth=0;
   layout.marginHeight=0;
   shell.setLayout(layout);
-  if (ti == null) {
-    this.transMeta=new TransMeta();
-  }
- else {
-    this.transMeta=ti;
+  transformationMap=new Hashtable();
+  tabMap=new Hashtable();
+  if (ti != null) {
+    addTransformation(ti);
   }
   if (!Props.isInitialized()) {
     log.logDetailed(toString(),Messages.getString("Spoon.Log.LoadProperties"));
@@ -27,9 +26,6 @@
   }
   props=Props.getInstance();
   loadSettings();
-  remarks=new ArrayList();
-  impact=new ArrayList();
-  impactHasRun=false;
   executionConfiguration=new TransExecutionConfiguration();
   variables=new Row();
   shell.setImage(GUIResource.getInstance().getImageSpoon());
@@ -37,144 +33,134 @@
   cursor_hand=new Cursor(disp,SWT.CURSOR_HAND);
   defKeys=new KeyAdapter(){
     public void keyPressed(    KeyEvent e){
+      TransMeta transMeta=getActiveTransformation();
+      SpoonLog spoonLog=getActiveSpoonLog();
       boolean ctrl=((e.stateMask & SWT.CONTROL) != 0);
       boolean alt=((e.stateMask & SWT.ALT) != 0);
       if (e.keyCode == SWT.ESC) {
-        spoongraph.clearSettings();
-        transMeta.unselectAll();
-        refreshGraph();
+        if (transMeta != null) {
+          transMeta.unselectAll();
+          refreshGraph();
+        }
       }
       ;
       if (e.keyCode == SWT.F3) {
-        createDatabaseWizard();
+        createDatabaseWizard(transMeta);
       }
       if (e.keyCode == SWT.F4) {
-        copyTableWizard();
+        copyTableWizard(transMeta);
       }
       if (e.keyCode == SWT.F5) {
         refreshGraph();
-        refreshTree(true);
+        refreshTree();
       }
       if (e.keyCode == SWT.F6) {
-        showLastImpactAnalyses();
+        showLastImpactAnalyses(transMeta);
       }
       if (e.keyCode == SWT.F7) {
         showLastTransCheck();
       }
       if (e.keyCode == SWT.F8) {
-        spoonlog.showPreview();
+        if (spoonLog != null) {
+          spoonLog.showPreview();
+        }
       }
       if (e.keyCode == SWT.F9) {
-        executeTransformation(true,false,false,false,null);
-        spoongraph.clearSettings();
+        executeTransformation(transMeta,true,false,false,false,null);
       }
       if (e.keyCode == SWT.F10) {
-        executeTransformation(true,false,false,true,null);
-        spoongraph.clearSettings();
+        executeTransformation(transMeta,true,false,false,true,null);
       }
       if (e.keyCode == SWT.F11) {
-        checkTrans();
-        spoongraph.clearSettings();
+        checkTrans(transMeta);
       }
       if ((int)e.character == 1 && ctrl && !alt) {
-        transMeta.selectAll();
+        if (transMeta != null) {
+          transMeta.selectAll();
+          refreshGraph();
+        }
       }
       ;
       if ((int)e.character == 4 && ctrl && !alt) {
         closeRepository();
-        spoongraph.clearSettings();
       }
       ;
       if ((int)e.character == 5 && ctrl && !alt) {
         exploreRepository();
-        spoongraph.clearSettings();
       }
       ;
       if ((int)e.character == 6 && ctrl && !alt) {
         searchMetaData();
-        spoongraph.clearSettings();
       }
       ;
       if ((int)e.character == 9 && ctrl && !alt) {
         openFile(true);
-        spoongraph.clearSettings();
       }
       ;
       if ((int)e.character == 9 && ctrl && alt) {
-        copyTransformationImage();
-        spoongraph.clearSettings();
+        if (transMeta != null) {
+          copyTransformationImage(transMeta);
+        }
       }
       if ((int)e.character == 10 && ctrl && !alt) {
         getVariables();
-        spoongraph.clearSettings();
       }
       ;
       if ((int)e.character == 11 && ctrl && !alt) {
-        createKettleArchive();
-        spoongraph.clearSettings();
+        if (transMeta != null) {
+          createKettleArchive(transMeta);
+        }
       }
       ;
       if ((int)e.character == 12 && ctrl && !alt) {
         showVariables();
-        spoongraph.clearSettings();
       }
       ;
       if ((int)e.character == 14 && ctrl && !alt) {
         newFile();
-        spoongraph.clearSettings();
       }
       if ((int)e.character == 15 && ctrl && !alt) {
         openFile(false);
-        spoongraph.clearSettings();
       }
       if ((int)e.character == 16 && ctrl && !alt) {
-        printFile();
-        spoongraph.clearSettings();
+        printFile(transMeta);
       }
       if ((int)e.character == 17 && ctrl && !alt) {
-        analyseImpact();
-        spoongraph.clearSettings();
+        analyseImpact(transMeta);
       }
       if ((int)e.character == 18 && ctrl && !alt) {
-        openRepository();
-        spoongraph.clearSettings();
+        openRepository(transMeta);
       }
       ;
       if ((int)e.character == 19 && ctrl && !alt) {
-        saveFile();
-        spoongraph.clearSettings();
+        saveFile(transMeta);
       }
       if ((int)e.character == 19 && ctrl && alt) {
-        executeTransformation(false,true,false,false,null);
-        spoongraph.clearSettings();
+        executeTransformation(transMeta,false,true,false,false,null);
       }
       if ((int)e.character == 20 && ctrl && !alt) {
-        setTrans();
-        spoongraph.clearSettings();
+        setTrans(transMeta);
       }
       if ((int)e.character == 21 && ctrl && !alt) {
-        executeTransformation(false,false,true,false,null);
-        spoongraph.clearSettings();
+        executeTransformation(transMeta,false,false,true,false,null);
       }
       if ((int)e.character == 25 && ctrl && !alt) {
-        redoAction();
-        spoongraph.clearSettings();
+        redoAction(transMeta);
       }
       if ((int)e.character == 26 && ctrl && !alt) {
-        spoongraph.clearSettings();
-        undoAction();
+        undoAction(transMeta);
       }
     }
   }
 ;
   modKeys=new KeyAdapter(){
     public void keyPressed(    KeyEvent e){
-      spoongraph.shift=(e.keyCode == SWT.SHIFT);
-      spoongraph.control=(e.keyCode == SWT.CONTROL);
+      shift=(e.keyCode == SWT.SHIFT);
+      control=(e.keyCode == SWT.CONTROL);
     }
     public void keyReleased(    KeyEvent e){
-      spoongraph.shift=(e.keyCode == SWT.SHIFT);
-      spoongraph.control=(e.keyCode == SWT.CONTROL);
+      shift=(e.keyCode == SWT.SHIFT);
+      control=(e.keyCode == SWT.CONTROL);
     }
   }
 ;
@@ -193,7 +179,6 @@
   addMenu();
   addTree();
   addTabs();
-  setTreeImages();
   shell.addShellListener(new ShellAdapter(){
     public void shellClosed(    ShellEvent e){
       e.doit=quitFile();

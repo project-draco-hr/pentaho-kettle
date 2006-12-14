@@ -4,21 +4,61 @@
   for (int s=0; s < selection.length; s++) {
     TreeItem treeItem=selection[s];
     String[] path=Const.getTreeStrings(treeItem);
-    Object object=null;
+    TreeSelection object=null;
 switch (path.length) {
 case 0:
       break;
 case 1:
-    break;
+    if (path[0].equals(STRING_TRANSFORMATIONS)) {
+      object=new TreeSelection(TransMeta.class);
+    }
+  break;
 case 2:
-  if (path[0].equals(STRING_CONNECTIONS))   object=transMeta.findDatabase(path[1]);
-if (path[0].equals(STRING_STEPS)) object=transMeta.findStep(path[1]);
-if (path[0].equals(STRING_HOPS)) object=transMeta.findTransHop(path[1]);
-if (path[0].equals(STRING_PARTITIONS)) object=transMeta.findPartitionSchema(path[1]);
-if (path[0].equals(STRING_CLUSTERS)) object=transMeta.findClusterSchema(path[1]);
+if (path[0].equals(STRING_BUILDING_BLOCKS)) {
+  if (path[1].equals(STRING_BASE) || path[1].equals(STRING_PLUGIN)) {
+    object=new TreeSelection(StepPlugin.class);
+  }
+}
+if (path[0].equals(STRING_TRANSFORMATIONS)) {
+object=new TreeSelection(findTransformation(path[1]));
+}
 break;
 case 3:
-if (path[0].equals(STRING_CLUSTERS)) object=transMeta.findSlaveServer(path[2]);
+if (path[0].equals(STRING_TRANSFORMATIONS)) {
+TransMeta transMeta=findTransformation(path[1]);
+if (path[2].equals(STRING_CONNECTIONS)) object=new TreeSelection(DatabaseMeta.class,transMeta);
+if (path[2].equals(STRING_STEPS)) object=new TreeSelection(StepMeta.class,transMeta);
+if (path[2].equals(STRING_HOPS)) object=new TreeSelection(TransHopMeta.class,transMeta);
+if (path[2].equals(STRING_PARTITIONS)) object=new TreeSelection(PartitionSchema.class,transMeta);
+if (path[2].equals(STRING_SLAVES)) object=new TreeSelection(SlaveServer.class,transMeta);
+if (path[2].equals(STRING_CLUSTERS)) object=new TreeSelection(ClusterSchema.class,transMeta);
+}
+break;
+case 4:
+if (path[0].equals(STRING_TRANSFORMATIONS)) {
+TransMeta transMeta=findTransformation(path[1]);
+if (path[2].equals(STRING_CONNECTIONS)) object=new TreeSelection(transMeta.findDatabase(path[3]),transMeta);
+if (path[2].equals(STRING_STEPS)) object=new TreeSelection(transMeta.findStep(path[3]),transMeta);
+if (path[2].equals(STRING_HOPS)) object=new TreeSelection(transMeta.findTransHop(path[3]),transMeta);
+if (path[2].equals(STRING_PARTITIONS)) object=new TreeSelection(transMeta.findPartitionSchema(path[3]),transMeta);
+if (path[2].equals(STRING_SLAVES)) object=new TreeSelection(transMeta.findSlaveServer(path[3]),transMeta);
+if (path[2].equals(STRING_CLUSTERS)) object=new TreeSelection(transMeta.findClusterSchema(path[3]),transMeta);
+}
+if (path[0].equals(STRING_BUILDING_BLOCKS)) {
+if (path[1].equals(STRING_BASE) || path[1].equals(STRING_PLUGIN)) {
+object=new TreeSelection(StepLoader.getInstance().findStepPluginWithDescription(path[3]));
+}
+}
+break;
+case 5:
+if (path[0].equals(STRING_TRANSFORMATIONS)) {
+TransMeta transMeta=findTransformation(path[1]);
+if (path[2].equals(STRING_CLUSTERS)) {
+ClusterSchema clusterSchema=transMeta.findClusterSchema(path[3]);
+object=new TreeSelection(clusterSchema.findSlaveServer(path[4]),clusterSchema,transMeta);
+}
+}
+break;
 default :
 break;
 }
@@ -26,5 +66,5 @@ if (object != null) {
 objects.add(object);
 }
 }
-return (Object[])objects.toArray(new Object[objects.size()]);
+return (TreeSelection[])objects.toArray(new TreeSelection[objects.size()]);
 }
