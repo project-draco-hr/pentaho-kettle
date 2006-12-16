@@ -29,7 +29,7 @@
     FileOutputStream outputFile=null;
     OutputStream uploadStream=null;
     BufferedInputStream fileStream=null;
-    BufferedReader input=null;
+    InputStream input=null;
     try {
       String urlToUse=StringUtil.environmentSubstitute(row.getString(urlFieldnameToUse,""));
       log.logBasic(toString(),"Connecting to URL: " + urlToUse);
@@ -79,13 +79,14 @@
         log.logDetailed(toString(),"Finished sending content to server.");
       }
       log.logDetailed(toString(),"Start reading reply from webserver.");
-      input=new BufferedReader(new InputStreamReader(connection.getInputStream()));
+      input=server.openStream();
+      Date date=new Date(connection.getLastModified());
+      log.logBasic(toString(),"Resource type: \"" + connection.getContentType() + "\", last modified on: \""+ date+ "\".");
+      int oneChar;
       long bytesRead=0L;
-      String line;
-      while ((line=input.readLine()) != null) {
-        line+=Const.CR;
-        bytesRead+=line.length();
-        outputFile.write(line.getBytes());
+      while ((oneChar=input.read()) != -1) {
+        outputFile.write(oneChar);
+        bytesRead++;
       }
       log.logBasic(toString(),"Finished writing " + bytesRead + " bytes to result file ["+ realTargetFile+ "]");
       ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,new File(realTargetFile),parentJob.getJobname(),toString());
