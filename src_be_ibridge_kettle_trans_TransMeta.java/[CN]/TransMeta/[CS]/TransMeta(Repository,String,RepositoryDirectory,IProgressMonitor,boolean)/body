@@ -2,7 +2,7 @@
   try {
     String pathAndName=repdir.isRoot() ? repdir + transname : repdir + RepositoryDirectory.DIRECTORY_SEPARATOR + transname;
     clear();
-    readSharedObjects();
+    readSharedObjects(rep);
     setName(transname);
     directory=repdir;
     directoryTree=directory.findRoot();
@@ -17,8 +17,8 @@
       int nrWork=3 + noteids.length + stepids.length+ hopids.length;
       if (monitor != null)       monitor.beginTask(Messages.getString("TransMeta.Monitor.LoadingTransformationTask.Title") + pathAndName,nrWork);
       log.logDetailed(toString(),Messages.getString("TransMeta.Log.LoadingTransformation",getName()));
-      if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingTheAvailableDatabaseTask.Title"));
-      readDatabases(rep,true);
+      if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingTheAvailableSharedObjectsTask.Title"));
+      readSharedObjects(rep);
       if (monitor != null)       monitor.worked(1);
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingNoteTask.Title"));
       for (int i=0; i < noteids.length; i++) {
@@ -47,21 +47,11 @@
         addTransHop(hi);
         if (monitor != null)         monitor.worked(1);
       }
-      long[] partitionSchemaIDs=rep.getTransformationPartitionSchemaIDs(getID());
-      for (int i=0; i < partitionSchemaIDs.length; i++) {
-        PartitionSchema partitionSchema=new PartitionSchema(rep,partitionSchemaIDs[i]);
-        addOrReplacePartitionSchema(partitionSchema);
-      }
       for (int i=0; i < nrSteps(); i++) {
         StepPartitioningMeta stepPartitioningMeta=getStep(i).getStepPartitioningMeta();
         if (stepPartitioningMeta != null) {
           stepPartitioningMeta.setPartitionSchemaAfterLoading(partitionSchemas);
         }
-      }
-      long[] clusterSchemaIDs=rep.getClusterSchemaIDs();
-      for (int i=0; i < clusterSchemaIDs.length; i++) {
-        ClusterSchema clusterSchema=new ClusterSchema(rep,clusterSchemaIDs[i]);
-        addOrReplaceClusterSchema(clusterSchema);
       }
       for (int i=0; i < nrSteps(); i++) {
         getStep(i).setClusterSchemaAfterLoading(clusterSchemas);
