@@ -1,30 +1,30 @@
 {
-  TransMeta transMeta=getActiveTransformation();
-  if (transMeta != null) {
-    Properties sp=new Properties();
-    KettleVariables kettleVariables=KettleVariables.getInstance();
-    sp.putAll(kettleVariables.getProperties());
-    sp.putAll(System.getProperties());
+  TransMeta[] transMetas=getLoadedTransformations();
+  if (transMetas == null || transMetas.length == 0)   return;
+  KettleVariables kettleVariables=KettleVariables.getInstance();
+  Properties sp=new Properties();
+  sp.putAll(kettleVariables.getProperties());
+  sp.putAll(System.getProperties());
+  for (int t=0; t < transMetas.length; t++) {
+    TransMeta transMeta=transMetas[t];
     List list=transMeta.getUsedVariables();
     for (int i=0; i < list.size(); i++) {
       String varName=(String)list.get(i);
       String varValue=sp.getProperty(varName,"");
-      System.out.println("variable [" + varName + "] is defined as : "+ varValue);
       if (variables.searchValueIndex(varName) < 0 && !varName.startsWith(Const.INTERNAL_VARIABLE_PREFIX)) {
         variables.addValue(new Value(varName,varValue));
       }
     }
-    EnterStringsDialog esd=new EnterStringsDialog(shell,SWT.NONE,variables);
-    esd.setTitle(Messages.getString("Spoon.Dialog.SetVariables.Title"));
-    esd.setMessage(Messages.getString("Spoon.Dialog.SetVariables.Message"));
-    esd.setReadOnly(false);
-    if (esd.open() != null) {
-      for (int i=0; i < variables.size(); i++) {
-        Value varval=variables.getValue(i);
-        if (!Const.isEmpty(varval.getString())) {
-          kettleVariables.setVariable(varval.getName(),varval.getString());
-          System.out.println("Variable ${" + varval.getName() + "} set to ["+ varval.getString()+ "] for thread ["+ Thread.currentThread()+ "]");
-        }
+  }
+  EnterStringsDialog esd=new EnterStringsDialog(shell,SWT.NONE,variables);
+  esd.setTitle(Messages.getString("Spoon.Dialog.SetVariables.Title"));
+  esd.setMessage(Messages.getString("Spoon.Dialog.SetVariables.Message"));
+  esd.setReadOnly(false);
+  if (esd.open() != null) {
+    for (int i=0; i < variables.size(); i++) {
+      Value varval=variables.getValue(i);
+      if (!Const.isEmpty(varval.getString())) {
+        kettleVariables.setVariable(varval.getName(),varval.getString());
       }
     }
   }
