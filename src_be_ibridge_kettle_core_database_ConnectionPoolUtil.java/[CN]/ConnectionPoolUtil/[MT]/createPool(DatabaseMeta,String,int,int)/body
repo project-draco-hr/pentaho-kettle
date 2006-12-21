@@ -23,8 +23,17 @@
     userName=databaseMeta.getUsername();
     password=databaseMeta.getPassword();
   }
-  databaseMeta.getConnectionPoolingProperties();
-  ConnectionFactory cf=new DriverManagerConnectionFactory(url,userName,password);
+  Properties originalProperties=databaseMeta.getConnectionPoolingProperties();
+  originalProperties.setProperty("username",Const.NVL(userName,""));
+  originalProperties.setProperty("password",Const.NVL(password,""));
+  Properties properties=new Properties();
+  Iterator iterator=originalProperties.keySet().iterator();
+  while (iterator.hasNext()) {
+    String key=(String)iterator.next();
+    String value=originalProperties.getProperty(key);
+    properties.put(key,StringUtil.environmentSubstitute(value));
+  }
+  ConnectionFactory cf=new DriverManagerConnectionFactory(url,properties);
   new PoolableConnectionFactory(cf,gpool,null,null,false,false);
   for (int i=0; i < initialSize; i++) {
     try {
