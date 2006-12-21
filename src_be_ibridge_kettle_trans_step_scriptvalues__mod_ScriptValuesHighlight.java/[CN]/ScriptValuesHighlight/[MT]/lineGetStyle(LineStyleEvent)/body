@@ -1,0 +1,52 @@
+{
+  Vector styles=new Vector();
+  int token;
+  StyleRange lastStyle;
+  if (inBlockComment(event.lineOffset,event.lineOffset + event.lineText.length())) {
+    styles.addElement(new StyleRange(event.lineOffset,event.lineText.length() + 4,colors[1],null));
+    event.styles=new StyleRange[styles.size()];
+    styles.copyInto(event.styles);
+    return;
+  }
+  scanner.setRange(event.lineText);
+  String xs=((StyledText)event.widget).getText();
+  if (xs != null)   parseBlockComments(xs);
+  token=scanner.nextToken();
+  while (token != EOF) {
+    if (token == OTHER) {
+    }
+ else     if ((token == WHITE) && (!styles.isEmpty())) {
+      int start=scanner.getStartOffset() + event.lineOffset;
+      lastStyle=(StyleRange)styles.lastElement();
+      if (lastStyle.fontStyle != SWT.NORMAL) {
+        if (lastStyle.start + lastStyle.length == start) {
+          lastStyle.length+=scanner.getLength();
+        }
+      }
+    }
+ else {
+      Color color=getColor(token);
+      if (color != colors[0]) {
+        StyleRange style=new StyleRange(scanner.getStartOffset() + event.lineOffset,scanner.getLength(),color,null);
+        if (token == KEY) {
+          style.fontStyle=SWT.BOLD;
+        }
+        if (styles.isEmpty()) {
+          styles.addElement(style);
+        }
+ else {
+          lastStyle=(StyleRange)styles.lastElement();
+          if (lastStyle.similarTo(style) && (lastStyle.start + lastStyle.length == style.start)) {
+            lastStyle.length+=style.length;
+          }
+ else {
+            styles.addElement(style);
+          }
+        }
+      }
+    }
+    token=scanner.nextToken();
+  }
+  event.styles=new StyleRange[styles.size()];
+  styles.copyInto(event.styles);
+}

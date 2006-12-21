@@ -1,0 +1,47 @@
+{
+  meta=(ScriptValuesMetaMod)smi;
+  data=(ScriptValuesDataMod)sdi;
+  Row r=getRow();
+  if (r == null && !first) {
+    try {
+      if (strEndScript != null && strEndScript.length() > 0) {
+        Script endScript=data.cx.compileString(strEndScript,"trans_End",1,null);
+        endScript.exec(data.cx,data.scope);
+        if (log.isDetailed())         logDetailed(("End Script found!"));
+      }
+ else {
+        if (log.isDetailed())         logDetailed(("No end Script found!"));
+      }
+    }
+ catch (    Exception es) {
+      System.out.println("Exception processing StartScript " + es.toString());
+    }
+    if (data.cx != null)     Context.exit();
+    setOutputDone();
+    return false;
+  }
+  if (r == null && first)   r=new Row();
+switch (addValues(r)) {
+case CONTINUE_TRANSFORMATION:
+    bRC=true;
+  putRow(r);
+break;
+case SKIP_TRANSFORMATION:
+bRC=true;
+break;
+case ABORT_TRANSFORMATION:
+if (data.cx != null) Context.exit();
+stopAll();
+setOutputDone();
+bRC=false;
+break;
+case ERROR_TRANSFORMATION:
+if (data.cx != null) Context.exit();
+setErrors(1);
+stopAll();
+bRC=false;
+break;
+}
+if ((linesRead > 0) && (linesRead % Const.ROWS_UPDATE) == 0) logBasic(("ScriptValues.Log.LineNumber") + linesRead);
+return bRC;
+}
