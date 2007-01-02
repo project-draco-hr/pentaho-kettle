@@ -1,98 +1,96 @@
 {
-synchronized (outputRowSets) {
-    if (previewSize > 0 && previewBuffer.size() < previewSize) {
-      previewBuffer.add(new Row(row));
-    }
-    for (int i=0; i < rowListeners.size(); i++) {
-      RowListener rowListener=(RowListener)rowListeners.get(i);
-      rowListener.rowWrittenEvent(row);
-    }
-    if (terminator && terminator_rows != null) {
-      terminator_rows.add(new Row(row));
-    }
-    if (outputRowSets.size() == 0) {
-      return;
-    }
-    for (int i=0; i < outputRowSets.size(); i++) {
-      int sleeptime=transMeta.getSleepTimeFull();
-      RowSet rs=(RowSet)outputRowSets.get(i);
-      if (transMeta.isUsingThreadPriorityManagment()) {
-        if (linesWritten > 0 && (linesWritten & 0xFF) == 0) {
-          rs.setPriorityFrom(calcPutPriority(rs));
-        }
+  if (previewSize > 0 && previewBuffer.size() < previewSize) {
+    previewBuffer.add(new Row(row));
+  }
+  for (int i=0; i < rowListeners.size(); i++) {
+    RowListener rowListener=(RowListener)rowListeners.get(i);
+    rowListener.rowWrittenEvent(row);
+  }
+  if (terminator && terminator_rows != null) {
+    terminator_rows.add(new Row(row));
+  }
+  if (outputRowSets.size() == 0) {
+    return;
+  }
+  for (int i=0; i < outputRowSets.size(); i++) {
+    int sleeptime=transMeta.getSleepTimeFull();
+    RowSet rs=(RowSet)outputRowSets.get(i);
+    if (transMeta.isUsingThreadPriorityManagment()) {
+      if (linesWritten > 0 && (linesWritten & 0xFF) == 0) {
+        rs.setPriorityFrom(calcPutPriority(rs));
       }
-      while (rs.isFull() && !stopped) {
-        try {
-          if (sleeptime > 0) {
-            sleep(0,sleeptime);
-          }
+    }
+    while (rs.isFull() && !stopped) {
+      try {
+        if (sleeptime > 0) {
+          sleep(0,sleeptime);
+        }
  else {
-            super.notifyAll();
-          }
+          super.notifyAll();
         }
- catch (        Exception e) {
-          logError(Messages.getString("BaseStep.Log.ErrorInThreadSleeping") + e.toString());
-          setErrors(1);
-          stopAll();
-          return;
-        }
-        nrPutSleeps+=sleeptime;
-        if (sleeptime < 100)         sleeptime=((int)(sleeptime * 1.2)) + 1;
- else         sleeptime=100;
       }
+ catch (      Exception e) {
+        logError(Messages.getString("BaseStep.Log.ErrorInThreadSleeping") + e.toString());
+        setErrors(1);
+        stopAll();
+        return;
+      }
+      nrPutSleeps+=sleeptime;
+      if (sleeptime < 100)       sleeptime=((int)(sleeptime * 1.2)) + 1;
+ else       sleeptime=100;
     }
-    if (stopped) {
-      if (log.isDebug())       logDebug(Messages.getString("BaseStep.Log.StopPuttingARow"));
-      stopAll();
-      return;
-    }
-    if (repartitioning) {
+  }
+  if (stopped) {
+    if (log.isDebug())     logDebug(Messages.getString("BaseStep.Log.StopPuttingARow"));
+    stopAll();
+    return;
+  }
+  if (repartitioning) {
+    if (partitionColumnIndex < 0) {
+      StepMeta nextSteps[]=transMeta.getNextSteps(stepMeta);
+      if (nextSteps == null || nextSteps.length == 0) {
+        throw new KettleStepException("Re-partitioning is enabled but no next steps could be found: developer error!");
+      }
+      nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
+      partitionColumnIndex=row.searchValueIndex(nextStepPartitioningMeta.getFieldName());
       if (partitionColumnIndex < 0) {
-        StepMeta nextSteps[]=transMeta.getNextSteps(stepMeta);
-        if (nextSteps == null || nextSteps.length == 0) {
-          throw new KettleStepException("Re-partitioning is enabled but no next steps could be found: developer error!");
-        }
-        nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
-        partitionColumnIndex=row.searchValueIndex(nextStepPartitioningMeta.getFieldName());
-        if (partitionColumnIndex < 0) {
-          throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row : "+ row);
-        }
-        partitionIDs=nextSteps[0].getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-        for (int r=0; r < outputRowSets.size(); r++) {
-          RowSet rowSet=(RowSet)outputRowSets.get(r);
-          if (rowSet.getOriginStepName().equalsIgnoreCase(getStepname()) && rowSet.getOriginStepCopy() == getCopy()) {
-            StepMeta targetStep=transMeta.findStep(rowSet.getDestinationStepName());
-            String targetPartitions[]=targetStep.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-            String targetPartitionID=targetPartitions[rowSet.getDestinationStepCopy()];
-            partitionTargets.put(targetPartitionID,rowSet);
-          }
+        throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row : "+ row);
+      }
+      partitionIDs=nextSteps[0].getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+      for (int r=0; r < outputRowSets.size(); r++) {
+        RowSet rowSet=(RowSet)outputRowSets.get(r);
+        if (rowSet.getOriginStepName().equalsIgnoreCase(getStepname()) && rowSet.getOriginStepCopy() == getCopy()) {
+          StepMeta targetStep=transMeta.findStep(rowSet.getDestinationStepName());
+          String targetPartitions[]=targetStep.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+          String targetPartitionID=targetPartitions[rowSet.getDestinationStepCopy()];
+          partitionTargets.put(targetPartitionID,rowSet);
         }
       }
-      int partitionNr=nextStepPartitioningMeta.getPartitionNr(row.getValue(partitionColumnIndex),partitionIDs.length);
-      String targetPartition=partitionIDs[partitionNr];
-      RowSet rs=(RowSet)partitionTargets.get(targetPartition);
+    }
+    int partitionNr=nextStepPartitioningMeta.getPartitionNr(row.getValue(partitionColumnIndex),partitionIDs.length);
+    String targetPartition=partitionIDs[partitionNr];
+    RowSet rs=(RowSet)partitionTargets.get(targetPartition);
+    rs.putRow(row);
+    linesWritten++;
+  }
+ else {
+    if (distributed) {
+      RowSet rs=(RowSet)outputRowSets.get(out_handling);
       rs.putRow(row);
       linesWritten++;
+      if (outputRowSets.size() > 1) {
+        out_handling++;
+        if (out_handling >= outputRowSets.size())         out_handling=0;
+      }
     }
  else {
-      if (distributed) {
-        RowSet rs=(RowSet)outputRowSets.get(out_handling);
-        rs.putRow(row);
-        linesWritten++;
-        if (outputRowSets.size() > 1) {
-          out_handling++;
-          if (out_handling >= outputRowSets.size())           out_handling=0;
-        }
+      for (int i=1; i < outputRowSets.size(); i++) {
+        RowSet rs=(RowSet)outputRowSets.get(i);
+        rs.putRow(new Row(row));
       }
- else {
-        for (int i=1; i < outputRowSets.size(); i++) {
-          RowSet rs=(RowSet)outputRowSets.get(i);
-          rs.putRow(new Row(row));
-        }
-        RowSet rs=(RowSet)outputRowSets.get(0);
-        rs.putRow(row);
-        linesWritten++;
-      }
+      RowSet rs=(RowSet)outputRowSets.get(0);
+      rs.putRow(row);
+      linesWritten++;
     }
   }
 }

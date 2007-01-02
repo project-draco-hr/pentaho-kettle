@@ -1,64 +1,62 @@
 {
   int sleeptime;
   int switches;
-synchronized (inputRowSets) {
-    if (inputRowSets.size() == 0) {
-      return null;
-    }
-    RowSet in=currentInputStream();
-    switches=0;
-    sleeptime=transMeta.getSleepTimeEmpty();
-    while (in.isEmpty() && !stopped) {
-      if (in.isEmpty() && in.isDone()) {
-        inputRowSets.remove(in_handling);
-        if (inputRowSets.size() == 0) {
-          return null;
-        }
+  if (inputRowSets.size() == 0) {
+    return null;
+  }
+  RowSet in=currentInputStream();
+  switches=0;
+  sleeptime=transMeta.getSleepTimeEmpty();
+  while (in.isEmpty() && !stopped) {
+    if (in.isEmpty() && in.isDone()) {
+      inputRowSets.remove(in_handling);
+      if (inputRowSets.size() == 0) {
+        return null;
       }
-      nextInputStream();
-      in=currentInputStream();
-      switches++;
-      if (switches >= inputRowSets.size()) {
-        switches=0;
-        try {
-          if (sleeptime > 0) {
-            sleep(0,sleeptime);
-          }
- else {
-            super.notifyAll();
-          }
-        }
- catch (        Exception e) {
-          logError(Messages.getString("BaseStep.Log.SleepInterupted") + e.toString());
-          setErrors(1);
-          stopAll();
-          return null;
-        }
-        if (sleeptime < 100)         sleeptime=((int)(sleeptime * 1.2)) + 1;
- else         sleeptime=100;
-        nrGetSleeps+=sleeptime;
-      }
-    }
-    if (stopped) {
-      if (log.isDebug())       logDebug(Messages.getString("BaseStep.Log.StopLookingForMoreRows"));
-      stopAll();
-      return null;
-    }
-    if (transMeta.isUsingThreadPriorityManagment()) {
-      if (linesRead > 0 && (linesRead & 0xFF) == 0) {
-        in.setPriorityTo(calcGetPriority(in));
-      }
-    }
-    Row row=in.getRow();
-    linesRead++;
-    for (int i=0; i < rowListeners.size(); i++) {
-      RowListener rowListener=(RowListener)rowListeners.get(i);
-      rowListener.rowReadEvent(row);
     }
     nextInputStream();
-    if (safeModeEnabled) {
-      safeModeChecking(row);
+    in=currentInputStream();
+    switches++;
+    if (switches >= inputRowSets.size()) {
+      switches=0;
+      try {
+        if (sleeptime > 0) {
+          sleep(0,sleeptime);
+        }
+ else {
+          super.notifyAll();
+        }
+      }
+ catch (      Exception e) {
+        logError(Messages.getString("BaseStep.Log.SleepInterupted") + e.toString());
+        setErrors(1);
+        stopAll();
+        return null;
+      }
+      if (sleeptime < 100)       sleeptime=((int)(sleeptime * 1.2)) + 1;
+ else       sleeptime=100;
+      nrGetSleeps+=sleeptime;
     }
-    return row;
   }
+  if (stopped) {
+    if (log.isDebug())     logDebug(Messages.getString("BaseStep.Log.StopLookingForMoreRows"));
+    stopAll();
+    return null;
+  }
+  if (transMeta.isUsingThreadPriorityManagment()) {
+    if (linesRead > 0 && (linesRead & 0xFF) == 0) {
+      in.setPriorityTo(calcGetPriority(in));
+    }
+  }
+  Row row=in.getRow();
+  linesRead++;
+  for (int i=0; i < rowListeners.size(); i++) {
+    RowListener rowListener=(RowListener)rowListeners.get(i);
+    rowListener.rowReadEvent(row);
+  }
+  nextInputStream();
+  if (safeModeEnabled) {
+    safeModeChecking(row);
+  }
+  return row;
 }
