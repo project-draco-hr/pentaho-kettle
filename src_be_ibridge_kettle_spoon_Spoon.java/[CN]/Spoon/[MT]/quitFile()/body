@@ -13,60 +13,43 @@
   list.addAll(tabMap.values());
   for (Iterator iter=list.iterator(); iter.hasNext() && exit; ) {
     TabMapEntry mapEntry=(TabMapEntry)iter.next();
-    if (!mapEntry.getObject().canBeClosed()) {
-      if (mapEntry.getObject() instanceof SpoonGraph) {
-        TransMeta transMeta=(TransMeta)mapEntry.getObject().getManagedObject();
-        if (transMeta.hasChanged()) {
-          tabfolder.setSelection(mapEntry.getTabItem());
-          MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.CANCEL| SWT.ICON_WARNING);
-          mb.setMessage(Messages.getString("Spoon.Dialog.SaveChangedFile.Message",makeGraphTabName(transMeta)));
-          mb.setText(Messages.getString("Spoon.Dialog.SaveChangedFile.Title"));
-          int answer=mb.open();
-switch (answer) {
-case SWT.YES:
-            exit=saveFile(transMeta);
-          break;
-case SWT.NO:
-        exit=true;
-      break;
-case SWT.CANCEL:
-    exit=false;
-  break;
-}
-}
-}
-if (mapEntry.getObject() instanceof SpoonLog) {
-SpoonLog spoonLog=(SpoonLog)mapEntry.getObject();
-if (spoonLog.isRunning()) {
-MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.ICON_QUESTION);
-mb.setMessage(Messages.getString("Spoon.Message.Warning.PromptExitWhenRunTransformation"));
-mb.setText(Messages.getString("System.Warning"));
-int reply=mb.open();
-if (reply == SWT.NO) exit=false;
-}
-}
-}
-}
-if (exit) {
-for (Iterator iter=list.iterator(); iter.hasNext() && exit; ) {
-TabMapEntry mapEntry=(TabMapEntry)iter.next();
-if (!mapEntry.getObject().canBeClosed()) {
-if (mapEntry.getObject() instanceof SpoonGraph) {
-TransMeta transMeta=(TransMeta)mapEntry.getObject().getManagedObject();
-if (transMeta.hasChanged()) {
-mapEntry.getTabItem().dispose();
-}
-}
-if (mapEntry.getObject() instanceof SpoonLog) {
-SpoonLog spoonLog=(SpoonLog)mapEntry.getObject();
-if (spoonLog.isRunning()) {
-spoonLog.stop();
-mapEntry.getTabItem().dispose();
-}
-}
-}
-}
-}
-if (exit) dispose();
-return exit;
+    TabItemInterface itemInterface=mapEntry.getObject();
+    if (!itemInterface.canBeClosed()) {
+      tabfolder.setSelection(mapEntry.getTabItem());
+      int reply=itemInterface.showChangedWarning();
+      if (reply == SWT.YES) {
+        exit=itemInterface.applyChanges();
+      }
+ else {
+        if (reply == SWT.CANCEL) {
+          exit=false;
+        }
+ else {
+          exit=true;
+        }
+      }
+    }
+  }
+  if (exit) {
+    for (Iterator iter=list.iterator(); iter.hasNext() && exit; ) {
+      TabMapEntry mapEntry=(TabMapEntry)iter.next();
+      if (!mapEntry.getObject().canBeClosed()) {
+        if (mapEntry.getObject() instanceof SpoonGraph) {
+          TransMeta transMeta=(TransMeta)mapEntry.getObject().getManagedObject();
+          if (transMeta.hasChanged()) {
+            mapEntry.getTabItem().dispose();
+          }
+        }
+        if (mapEntry.getObject() instanceof SpoonLog) {
+          SpoonLog spoonLog=(SpoonLog)mapEntry.getObject();
+          if (spoonLog.isRunning()) {
+            spoonLog.stop();
+            mapEntry.getTabItem().dispose();
+          }
+        }
+      }
+    }
+  }
+  if (exit)   dispose();
+  return exit;
 }
