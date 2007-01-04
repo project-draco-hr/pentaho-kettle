@@ -1,9 +1,12 @@
 {
   if (shell.isDisposed())   return;
   GUIResource guiResource=GUIResource.getInstance();
-  Collection collection=transformationMap.values();
-  TransMeta[] transMetas=(TransMeta[])collection.toArray(new TransMeta[collection.size()]);
+  Collection transformations=transformationMap.values();
+  TransMeta[] transMetas=(TransMeta[])transformations.toArray(new TransMeta[transformations.size()]);
+  Collection jobs=jobMap.values();
+  JobMeta[] jobMetas=(JobMeta[])jobs.toArray(new JobMeta[jobs.size()]);
   tiTrans.removeAll();
+  tiJobs.removeAll();
   for (int t=0; t < transMetas.length; t++) {
     TransMeta transMeta=transMetas[t];
     TreeItem tiTransName=new TreeItem(tiTrans,SWT.NONE);
@@ -69,6 +72,42 @@
       tiCluster.setText(clusterSchema.toString());
       tiCluster.setImage(guiResource.getImageBol());
       if (clusterSchema.isShared())       tiCluster.setFont(guiResource.getFontBold());
+    }
+  }
+  for (int t=0; t < jobMetas.length; t++) {
+    JobMeta jobMeta=jobMetas[t];
+    TreeItem tiJobName=new TreeItem(tiJobs,SWT.NONE);
+    String name=makeJobGraphTabName(jobMeta);
+    if (Const.isEmpty(name))     name=STRING_JOB_NO_NAME;
+    tiJobName.setText(name);
+    tiJobName.setImage(guiResource.getImageBol());
+    TreeItem tiDbTitle=new TreeItem(tiJobName,SWT.NONE);
+    tiDbTitle.setText(STRING_CONNECTIONS);
+    tiDbTitle.setImage(guiResource.getImageConnection());
+    for (int i=0; i < jobMeta.nrDatabases(); i++) {
+      DatabaseMeta databaseMeta=jobMeta.getDatabase(i);
+      TreeItem tiDb=new TreeItem(tiDbTitle,SWT.NONE);
+      tiDb.setText(databaseMeta.getName());
+      if (databaseMeta.isShared())       tiDb.setFont(guiResource.getFontBold());
+      tiDb.setImage(guiResource.getImageConnection());
+    }
+    TreeItem tiJobEntriesTitle=new TreeItem(tiJobName,SWT.NONE);
+    tiJobEntriesTitle.setText(STRING_JOB_ENTRIES);
+    tiJobEntriesTitle.setImage(guiResource.getImageBol());
+    for (int i=0; i < jobMeta.nrJobEntries(); i++) {
+      JobEntryCopy jobEntry=jobMeta.getJobEntry(i);
+      TreeItem tiJobEntry=new TreeItem(tiJobEntriesTitle,SWT.NONE);
+      tiJobEntry.setText(jobEntry.getName());
+      if (jobEntry.isStart()) {
+        tiJobEntry.setImage(GUIResource.getInstance().getImageStart());
+      }
+ else       if (jobEntry.isDummy()) {
+        tiJobEntry.setImage(GUIResource.getInstance().getImageDummy());
+      }
+ else {
+        Image image=(Image)GUIResource.getInstance().getImagesJobentriesSmall().get(jobEntry.getTypeDesc());
+        tiJobEntry.setImage(image);
+      }
     }
   }
   TreeMemory.setExpandedFromMemory(selectionTree,STRING_SPOON_MAIN_TREE);

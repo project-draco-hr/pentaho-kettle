@@ -1,0 +1,121 @@
+{
+  final JobMeta jobMeta=new JobMeta(log);
+  jobMeta.setDatabases(databases);
+  jobMeta.setFilename(null);
+  jobMeta.setName(jobname);
+  jobMeta.setDirectory(repdir);
+  refreshTree();
+  refreshGraph();
+  final Point location=new Point(50,50);
+  final JobEntryCopy start=jobMeta.findStart();
+  start.setLocation(new Point(location.x,location.y));
+  start.setDrawn();
+  IRunnableWithProgress op=new IRunnableWithProgress(){
+    public void run(    IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+      monitor.beginTask(Messages.getString("Spoon.RipDB.Monitor.BuildingNewJob"),tables.length);
+      monitor.worked(0);
+      JobEntryCopy previous=start;
+      for (int i=0; i < tables.length && !monitor.isCanceled(); i++) {
+        monitor.setTaskName(Messages.getString("Spoon.RipDB.Monitor.ProcessingTable") + tables[i] + "]...");
+        String transname=Messages.getString("Spoon.RipDB.Monitor.Transname1") + sourceDbInfo + "].["+ tables[i]+ Messages.getString("Spoon.RipDB.Monitor.Transname2")+ targetDbInfo+ "]";
+        TransMeta ti=new TransMeta((String)null,transname,null);
+        ti.setDirectory(repdir);
+        String note=Messages.getString("Spoon.RipDB.Monitor.Note1") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.Note2")+ sourceDbInfo+ "]"+ Const.CR;
+        note+=Messages.getString("Spoon.RipDB.Monitor.Note3") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.Note4")+ targetDbInfo+ "]";
+        NotePadMeta ni=new NotePadMeta(note,150,10,-1,-1);
+        ti.addNote(ni);
+        String fromstepname=Messages.getString("Spoon.RipDB.Monitor.FromStep.Name") + tables[i] + "]";
+        TableInputMeta tii=new TableInputMeta();
+        tii.setDatabaseMeta(sourceDbInfo);
+        tii.setSQL("SELECT * FROM " + sourceDbInfo.quoteField(tables[i]));
+        String fromstepid=StepLoader.getInstance().getStepPluginID(tii);
+        StepMeta fromstep=new StepMeta(fromstepid,fromstepname,(StepMetaInterface)tii);
+        fromstep.setLocation(150,100);
+        fromstep.setDraw(true);
+        fromstep.setDescription(Messages.getString("Spoon.RipDB.Monitor.FromStep.Description") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.FromStep.Description2")+ sourceDbInfo+ "]");
+        ti.addStep(fromstep);
+        String tostepname=Messages.getString("Spoon.RipDB.Monitor.ToStep.Name") + tables[i] + "]";
+        TableOutputMeta toi=new TableOutputMeta();
+        toi.setDatabase(targetDbInfo);
+        toi.setTablename(tables[i]);
+        toi.setCommitSize(100);
+        toi.setTruncateTable(true);
+        String tostepid=StepLoader.getInstance().getStepPluginID(toi);
+        StepMeta tostep=new StepMeta(tostepid,tostepname,(StepMetaInterface)toi);
+        tostep.setLocation(500,100);
+        tostep.setDraw(true);
+        tostep.setDescription(Messages.getString("Spoon.RipDB.Monitor.ToStep.Description1") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.ToStep.Description2")+ targetDbInfo+ "]");
+        ti.addStep(tostep);
+        TransHopMeta hi=new TransHopMeta(fromstep,tostep);
+        ti.addTransHop(hi);
+        String tmpSql=tii.getSQL();
+        tii.setSQL(tii.getSQL() + sourceDbInfo.getLimitClause(1));
+        String sql="";
+        try {
+          sql=ti.getSQLStatementsString();
+        }
+ catch (        KettleStepException kse) {
+          throw new InvocationTargetException(kse,Messages.getString("Spoon.RipDB.Exception.ErrorGettingSQLFromTransformation") + ti + "] : "+ kse.getMessage());
+        }
+        tii.setSQL(tmpSql);
+        try {
+          ti.saveRep(rep);
+        }
+ catch (        KettleException dbe) {
+          throw new InvocationTargetException(dbe,Messages.getString("Spoon.RipDB.Exception.UnableToSaveTransformationToRepository"));
+        }
+        location.x=250;
+        if (i > 0)         location.y+=100;
+        if (sql != null && sql.length() > 0) {
+          String jesqlname=Messages.getString("Spoon.RipDB.JobEntrySQL.Name") + tables[i] + "]";
+          JobEntrySQL jesql=new JobEntrySQL(jesqlname);
+          jesql.setDatabase(targetDbInfo);
+          jesql.setSQL(sql);
+          jesql.setDescription(Messages.getString("Spoon.RipDB.JobEntrySQL.Description") + targetDbInfo + "].["+ tables[i]+ "]");
+          JobEntryCopy jecsql=new JobEntryCopy(log);
+          jecsql.setEntry(jesql);
+          jecsql.setLocation(new Point(location.x,location.y));
+          jecsql.setDrawn();
+          jobMeta.addJobEntry(jecsql);
+          JobHopMeta jhi=new JobHopMeta(previous,jecsql);
+          jobMeta.addJobHop(jhi);
+          previous=jecsql;
+        }
+        String jetransname=Messages.getString("Spoon.RipDB.JobEntryTrans.Name") + tables[i] + "]";
+        JobEntryTrans jetrans=new JobEntryTrans(jetransname);
+        jetrans.setTransname(ti.getName());
+        jetrans.setDirectory(ti.getDirectory());
+        JobEntryCopy jectrans=new JobEntryCopy(log,jetrans);
+        jectrans.setDescription(Messages.getString("Spoon.RipDB.JobEntryTrans.Description1") + Const.CR + Messages.getString("Spoon.RipDB.JobEntryTrans.Description2")+ sourceDbInfo+ "].["+ tables[i]+ "]"+ Const.CR+ Messages.getString("Spoon.RipDB.JobEntryTrans.Description3")+ targetDbInfo+ "].["+ tables[i]+ "]");
+        jectrans.setDrawn();
+        location.x+=400;
+        jectrans.setLocation(new Point(location.x,location.y));
+        jobMeta.addJobEntry(jectrans);
+        JobHopMeta jhi2=new JobHopMeta(previous,jectrans);
+        jobMeta.addJobHop(jhi2);
+        previous=jectrans;
+        monitor.worked(1);
+      }
+      monitor.worked(100);
+      monitor.done();
+    }
+  }
+;
+  try {
+    ProgressMonitorDialog pmd=new ProgressMonitorDialog(shell);
+    pmd.run(false,true,op);
+  }
+ catch (  InvocationTargetException e) {
+    new ErrorDialog(shell,Messages.getString("Spoon.ErrorDialog.RipDB.ErrorRippingTheDatabase.Title"),Messages.getString("Spoon.ErrorDialog.RipDB.ErrorRippingTheDatabase.Message"),e);
+    return null;
+  }
+catch (  InterruptedException e) {
+    new ErrorDialog(shell,Messages.getString("Spoon.ErrorDialog.RipDB.ErrorRippingTheDatabase.Title"),Messages.getString("Spoon.ErrorDialog.RipDB.ErrorRippingTheDatabase.Message"),e);
+    return null;
+  }
+ finally {
+    refreshGraph();
+    refreshTree();
+  }
+  return jobMeta;
+}

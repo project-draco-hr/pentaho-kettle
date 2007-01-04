@@ -1,47 +1,82 @@
 {
   if (rep == null || importfile) {
     FileDialog dialog=new FileDialog(shell,SWT.OPEN);
-    dialog.setFilterExtensions(Const.STRING_TRANS_FILTER_EXT);
-    dialog.setFilterNames(Const.STRING_TRANS_FILTER_NAMES);
+    dialog.setFilterExtensions(Const.STRING_TRANS_AND_JOB_FILTER_EXT);
+    dialog.setFilterNames(Const.STRING_TRANS_AND_JOB_FILTER_NAMES);
     String fname=dialog.open();
     if (fname != null) {
       try {
-        TransMeta transMeta=new TransMeta(fname,rep);
-        props.addLastFile(Props.TYPE_PROPERTIES_SPOON,fname,null,false,null);
-        addMenuLast();
-        if (!importfile)         transMeta.clearChanged();
-        transMeta.setFilename(fname);
-        addSpoonGraph(transMeta);
+        Document document=XMLHandler.loadXMLFile(fname);
+        boolean loaded=false;
+        Node transNode=XMLHandler.getSubNode(document,TransMeta.XML_TAG);
+        if (transNode != null) {
+          TransMeta transMeta=new TransMeta();
+          transMeta.loadXML(transNode,rep,true);
+          props.addLastFile(LastUsedFile.FILE_TYPE_TRANSFORMATION,fname,null,false,null);
+          addMenuLast();
+          if (!importfile)           transMeta.clearChanged();
+          transMeta.setFilename(fname);
+          addSpoonGraph(transMeta);
+          refreshTree();
+          refreshHistory();
+          loaded=true;
+        }
+        Node jobNode=XMLHandler.getSubNode(document,JobMeta.XML_TAG);
+        if (jobNode != null) {
+          JobMeta jobMeta=new JobMeta(log);
+          jobMeta.loadXML(jobNode,rep);
+          props.addLastFile(LastUsedFile.FILE_TYPE_JOB,fname,null,false,null);
+          addMenuLast();
+          if (!importfile)           jobMeta.clearChanged();
+          jobMeta.setFilename(fname);
+          addChefGraph(jobMeta);
+          loaded=true;
+        }
+        if (!loaded) {
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+          mb.setMessage(Messages.getString("Spoon.UnknownFileType.Message",fname));
+          mb.setText(Messages.getString("Spoon.UnknownFileType.Title"));
+          mb.open();
+        }
       }
  catch (      KettleException e) {
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage(Messages.getString("Spoon.Dialog.ErrorOpening.Message") + fname + Const.CR+ e.getMessage());
-        mb.setText(Messages.getString("Spoon.Dialog.ErrorOpening.Title"));
-        mb.open();
+        new ErrorDialog(shell,Messages.getString("Spoon.Dialog.ErrorOpening.Title"),Messages.getString("Spoon.Dialog.ErrorOpening.Message") + fname,e);
       }
-      refreshGraph();
-      refreshTree();
-      refreshHistory();
     }
   }
  else {
-    SelectObjectDialog sod=new SelectObjectDialog(shell,props,rep,true,false,false);
-    String transname=sod.open();
-    RepositoryDirectory repdir=sod.getDirectory();
-    if (transname != null && repdir != null) {
-      TransLoadProgressDialog tlpd=new TransLoadProgressDialog(shell,rep,transname,repdir);
-      TransMeta transMeta=tlpd.open();
-      if (transMeta != null) {
-        log.logDetailed(toString(),Messages.getString("Spoon.Log.LoadToTransformation",transname,repdir.getDirectoryName()));
-        props.addLastFile(Props.TYPE_PROPERTIES_SPOON,transname,repdir.getPath(),true,rep.getName());
-        addMenuLast();
-        transMeta.clearChanged();
-        transMeta.setFilename(transname);
-        addSpoonGraph(transMeta);
+    SelectObjectDialog sod=new SelectObjectDialog(shell,rep);
+    if (sod.open() != null) {
+      String type=sod.getObjectType();
+      String name=sod.getObjectName();
+      RepositoryDirectory repdir=sod.getDirectory();
+      if (RepositoryObject.STRING_OBJECT_TYPE_TRANSFORMATION.equals(type)) {
+        TransLoadProgressDialog tlpd=new TransLoadProgressDialog(shell,rep,name,repdir);
+        TransMeta transMeta=tlpd.open();
+        if (transMeta != null) {
+          log.logDetailed(toString(),Messages.getString("Spoon.Log.LoadToTransformation",name,repdir.getDirectoryName()));
+          props.addLastFile(LastUsedFile.FILE_TYPE_TRANSFORMATION,name,repdir.getPath(),true,rep.getName());
+          addMenuLast();
+          transMeta.clearChanged();
+          transMeta.setFilename(name);
+          addSpoonGraph(transMeta);
+        }
+        refreshGraph();
+        refreshTree();
+        refreshHistory();
       }
-      refreshGraph();
-      refreshTree();
-      refreshHistory();
+ else       if (RepositoryObject.STRING_OBJECT_TYPE_JOB.equals(type)) {
+        JobLoadProgressDialog jlpd=new JobLoadProgressDialog(shell,rep,name,repdir);
+        JobMeta jobMeta=jlpd.open();
+        if (jobMeta != null) {
+          props.addLastFile(LastUsedFile.FILE_TYPE_JOB,name,repdir.getPath(),true,rep.getName());
+          saveSettings();
+          addMenuLast();
+          addChefGraph(jobMeta);
+        }
+        refreshGraph();
+        refreshTree();
+      }
     }
   }
 }

@@ -43,33 +43,33 @@
     log.logError("Spoon","Error loading job entries & plugins... halting Kitchen!");
     return;
   }
-  final Spoon win=new Spoon(log,display,null);
-  win.setDestroy(true);
-  win.setArguments((String[])args.toArray(new String[args.size()]));
+  final Spoon spoon=new Spoon(log,display,null);
+  spoon.setDestroy(true);
+  spoon.setArguments((String[])args.toArray(new String[args.size()]));
   log.logBasic(APP_NAME,Messages.getString("Spoon.Log.MainWindowCreated"));
-  RepositoryMeta repinfo=null;
+  RepositoryMeta repositoryMeta=null;
   UserInfo userinfo=null;
-  if (Const.isEmpty(optionRepname) && Const.isEmpty(optionFilename) && win.props.showRepositoriesDialogAtStartup()) {
+  if (Const.isEmpty(optionRepname) && Const.isEmpty(optionFilename) && spoon.props.showRepositoriesDialogAtStartup()) {
     log.logBasic(APP_NAME,Messages.getString("Spoon.Log.AskingForRepository"));
     int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
     splash.hide();
-    RepositoriesDialog rd=new RepositoriesDialog(win.disp,SWT.NONE,perms,Messages.getString("Spoon.Application.Name"));
+    RepositoriesDialog rd=new RepositoriesDialog(spoon.disp,SWT.NONE,perms,Messages.getString("Spoon.Application.Name"));
     if (rd.open()) {
-      repinfo=rd.getRepository();
+      repositoryMeta=rd.getRepository();
       userinfo=rd.getUser();
       if (!userinfo.useTransformations()) {
-        MessageBox mb=new MessageBox(win.shell,SWT.OK | SWT.ICON_ERROR);
+        MessageBox mb=new MessageBox(spoon.shell,SWT.OK | SWT.ICON_ERROR);
         mb.setMessage(Messages.getString("Spoon.Dialog.RepositoryUserCannotWork.Message"));
         mb.setText(Messages.getString("Spoon.Dialog.RepositoryUserCannotWork.Title"));
         mb.open();
         userinfo=null;
-        repinfo=null;
+        repositoryMeta=null;
       }
     }
  else {
       if (rd.isCancelled()) {
         splash.dispose();
-        win.quitFile();
+        spoon.quitFile();
         return;
       }
     }
@@ -79,20 +79,20 @@
       if (!Const.isEmpty(optionRepname)) {
         RepositoriesMeta repsinfo=new RepositoriesMeta(log);
         if (repsinfo.readData()) {
-          repinfo=repsinfo.findRepository(optionRepname.toString());
-          if (repinfo != null) {
-            win.rep=new Repository(log,repinfo,userinfo);
-            if (win.rep.connect(Messages.getString("Spoon.Application.Name"))) {
+          repositoryMeta=repsinfo.findRepository(optionRepname.toString());
+          if (repositoryMeta != null) {
+            spoon.rep=new Repository(log,repositoryMeta,userinfo);
+            if (spoon.rep.connect(Messages.getString("Spoon.Application.Name"))) {
               if (Const.isEmpty(optionDirname))               optionDirname=new StringBuffer(RepositoryDirectory.DIRECTORY_SEPARATOR);
-              win.rep.userinfo=new UserInfo(win.rep,optionUsername.toString(),optionPassword.toString());
-              if (win.rep.userinfo.getID() > 0) {
+              spoon.rep.userinfo=new UserInfo(spoon.rep,optionUsername.toString(),optionPassword.toString());
+              if (spoon.rep.userinfo.getID() > 0) {
                 if (!Const.isEmpty(optionTransname)) {
-                  RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(optionDirname.toString());
+                  RepositoryDirectory repdir=spoon.rep.getDirectoryTree().findDirectory(optionDirname.toString());
                   if (repdir != null) {
-                    TransMeta transMeta=new TransMeta(win.rep,optionTransname.toString(),repdir);
+                    TransMeta transMeta=new TransMeta(spoon.rep,optionTransname.toString(),repdir);
                     transMeta.setFilename(optionRepname.toString());
                     transMeta.clearChanged();
-                    win.addSpoonGraph(transMeta);
+                    spoon.addSpoonGraph(transMeta);
                   }
  else {
                     log.logError(APP_NAME,Messages.getString("Spoon.Log.UnableFindDirectory",optionDirname.toString()));
@@ -101,8 +101,8 @@
               }
  else {
                 log.logError(APP_NAME,Messages.getString("Spoon.Log.UnableVerifyUser"));
-                win.rep.disconnect();
-                win.rep=null;
+                spoon.rep.disconnect();
+                spoon.rep=null;
               }
             }
  else {
@@ -121,74 +121,42 @@
         TransMeta transMeta=new TransMeta(optionFilename.toString());
         transMeta.setFilename(optionFilename.toString());
         transMeta.clearChanged();
-        win.addSpoonGraph(transMeta);
+        spoon.addSpoonGraph(transMeta);
       }
     }
  else {
-      if (repinfo != null && userinfo != null) {
-        win.rep=new Repository(log,repinfo,userinfo);
-        if (!win.rep.connect(Messages.getString("Spoon.Application.Name"))) {
-          win.rep=null;
+      if (repositoryMeta != null && userinfo != null) {
+        spoon.rep=new Repository(log,repositoryMeta,userinfo);
+        if (!spoon.rep.connect(Messages.getString("Spoon.Application.Name"))) {
+          spoon.rep=null;
         }
       }
-      if (win.props.openLastFile()) {
+      if (spoon.props.openLastFile()) {
         log.logDetailed(APP_NAME,Messages.getString("Spoon.Log.TryingOpenLastUsedFile"));
-        String lastfiles[]=win.props.getLastFiles();
-        String lastdirs[]=win.props.getLastDirs();
-        boolean lasttypes[]=win.props.getLastTypes();
-        String lastrepos[]=win.props.getLastRepositories();
-        if (lastfiles.length > 0) {
-          boolean use_repository=repinfo != null;
-          if (lasttypes[0]) {
-            if (!Const.isEmpty(lastrepos[0])) {
-              if (use_repository && !lastrepos[0].equalsIgnoreCase(repinfo.getName())) {
-                use_repository=false;
-              }
-            }
-          }
-          if (use_repository && lasttypes[0]) {
-            if (win.rep != null) {
-              if (win.rep.getName().equalsIgnoreCase(lastrepos[0])) {
-                RepositoryDirectory repdir=win.rep.getDirectoryTree().findDirectory(lastdirs[0]);
-                if (repdir != null) {
-                  log.logDetailed(APP_NAME,Messages.getString("Spoon.Log.AutoLoadingTransformation",lastfiles[0],lastdirs[0]));
-                  TransLoadProgressDialog tlpd=new TransLoadProgressDialog(win.shell,win.rep,lastfiles[0],repdir);
-                  TransMeta transMeta=tlpd.open();
-                  if (transMeta != null) {
-                    transMeta.setFilename(lastfiles[0]);
-                    transMeta.clearChanged();
-                    win.addSpoonGraph(transMeta);
-                  }
-                }
-              }
-            }
-          }
-          if (!lasttypes[0] && !Const.isEmpty(lastfiles[0])) {
-            TransMeta transMeta=new TransMeta(lastfiles[0]);
-            transMeta.setFilename(lastfiles[0]);
-            transMeta.clearChanged();
-            win.addSpoonGraph(transMeta);
-          }
+        List lastUsedFiles=spoon.props.getLastUsedFiles();
+        if (lastUsedFiles.size() > 0) {
+          LastUsedFile lastUsedFile=(LastUsedFile)lastUsedFiles.get(0);
+          spoon.loadLastUsedFile(lastUsedFile,repositoryMeta);
         }
       }
     }
   }
  catch (  KettleException ke) {
     log.logError(APP_NAME,Messages.getString("Spoon.Log.ErrorOccurred") + Const.CR + ke.getMessage());
-    win.rep=null;
+    spoon.rep=null;
   }
-  win.open();
+  spoon.open();
   splash.dispose();
   try {
-    while (!win.isDisposed()) {
-      if (!win.readAndDispatch())       win.sleep();
+    while (!spoon.isDisposed()) {
+      if (!spoon.readAndDispatch())       spoon.sleep();
     }
   }
  catch (  Throwable e) {
     log.logError(APP_NAME,Messages.getString("Spoon.Log.UnexpectedErrorOccurred") + Const.CR + e.getMessage());
     e.printStackTrace();
   }
-  win.dispose();
+  spoon.dispose();
   log.logBasic(APP_NAME,APP_NAME + " " + Messages.getString("Spoon.Log.AppHasEnded"));
   log.close();
   System.exit(0);
