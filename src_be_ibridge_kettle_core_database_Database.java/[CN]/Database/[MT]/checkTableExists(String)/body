@@ -1,27 +1,13 @@
 {
   try {
     log.logDebug(toString(),"Checking if table [" + tablename + "] exists!");
-    if (getDatabaseMetaData() != null) {
-      ResultSet alltables=getDatabaseMetaData().getTables(null,null,"%",new String[]{"TABLE","VIEW","SYNONYM"});
-      boolean found=false;
-      if (alltables != null) {
-        while (alltables.next() && !found) {
-          String schemaName=alltables.getString("TABLE_SCHEM");
-          String name=alltables.getString("TABLE_NAME");
-          if (tablename.equalsIgnoreCase(name) || (schemaName != null && tablename.equalsIgnoreCase(databaseMeta.getSchemaTableCombination(schemaName,name)))) {
-            log.logDebug(toString(),"table [" + tablename + "] was found!");
-            found=true;
-          }
-        }
-        alltables.close();
-        return found;
-      }
- else {
-        throw new KettleDatabaseException("Unable to read table-names from the database meta-data.");
-      }
+    String sql=databaseMeta.getSQLTableExists(tablename);
+    try {
+      getOneRow(sql);
+      return true;
     }
- else {
-      throw new KettleDatabaseException("Unable to get database meta-data from the database.");
+ catch (    KettleDatabaseException e) {
+      return false;
     }
   }
  catch (  Exception e) {
