@@ -44,18 +44,13 @@
     }
     try {
       log.logDetailed(toString(),"Starting transformation...(file=" + getFilename() + ", name="+ getName()+ "), repinfo="+ getDescription());
-      Trans trans=new Trans(logwriter,transMeta);
-      if (parentJob.getJobMeta().isBatchIdPassed()) {
-        trans.setPassedBatchId(parentJob.getPassedBatchId());
-      }
-      trans.getTransMeta().setPreviousResult(result);
+      transMeta.setPreviousResult(result);
       if (clearResultRows) {
-        trans.getTransMeta().getPreviousResult().setRows(new ArrayList());
+        transMeta.getPreviousResult().setRows(new ArrayList());
       }
       if (clearResultFiles) {
-        trans.getTransMeta().getPreviousResult().getResultFiles().clear();
+        transMeta.getPreviousResult().getResultFiles().clear();
       }
-      trans.setParentJob(parentJob);
       if (execPerRow) {
         if (argFromPrevious) {
           args=null;
@@ -69,7 +64,7 @@
  else {
           ArrayList newList=new ArrayList();
           newList.add(resultRow);
-          trans.getTransMeta().getPreviousResult().getRows().addAll(newList);
+          transMeta.getPreviousResult().getRows().addAll(newList);
         }
       }
  else {
@@ -86,34 +81,52 @@
           args=parentJob.getJobMeta().getArguments();
         }
       }
-      if (!trans.execute(args)) {
-        log.logError(toString(),"Unable to prepare for execution of the transformation");
-        result.setNrErrors(1);
+      if (clustering) {
+        TransExecutionConfiguration executionConfiguration=new TransExecutionConfiguration();
+        executionConfiguration.setClusterPosting(true);
+        executionConfiguration.setClusterPreparing(true);
+        executionConfiguration.setClusterStarting(true);
+        executionConfiguration.setClusterShowingTransformation(false);
+        executionConfiguration.setSafeModeEnabled(false);
+        TransSplitter transSplitter=Trans.executeClustered(transMeta,executionConfiguration);
+        transSplitter.getSlaveTargets();
+        transSplitter.getMasterServer();
       }
  else {
-        while (!trans.isFinished() && !parentJob.isStopped() && trans.getErrors() == 0) {
-          try {
-            Thread.sleep(100);
-          }
- catch (          InterruptedException e) {
-          }
+        Trans trans=new Trans(logwriter,transMeta);
+        if (parentJob.getJobMeta().isBatchIdPassed()) {
+          trans.setPassedBatchId(parentJob.getPassedBatchId());
         }
-        if (parentJob.isStopped() || trans.getErrors() != 0) {
-          trans.stopAll();
-          trans.waitUntilFinished();
-          trans.endProcessing("stop");
+        trans.setParentJob(parentJob);
+        if (!trans.execute(args)) {
+          log.logError(toString(),"Unable to prepare for execution of the transformation");
           result.setNrErrors(1);
         }
  else {
-          trans.endProcessing("end");
-        }
-        Result newResult=trans.getResult();
-        result.clear();
-        result.add(newResult);
-        result.setRows(newResult.getRows());
-        if (setLogfile) {
-          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,new File(getLogFilename()),parentJob.getName(),toString());
-          result.getResultFiles().add(resultFile);
+          while (!trans.isFinished() && !parentJob.isStopped() && trans.getErrors() == 0) {
+            try {
+              Thread.sleep(100);
+            }
+ catch (            InterruptedException e) {
+            }
+          }
+          if (parentJob.isStopped() || trans.getErrors() != 0) {
+            trans.stopAll();
+            trans.waitUntilFinished();
+            trans.endProcessing("stop");
+            result.setNrErrors(1);
+          }
+ else {
+            trans.endProcessing("end");
+          }
+          Result newResult=trans.getResult();
+          result.clear();
+          result.add(newResult);
+          result.setRows(newResult.getRows());
+          if (setLogfile) {
+            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,new File(getLogFilename()),parentJob.getName(),toString());
+            result.getResultFiles().add(resultFile);
+          }
         }
       }
     }
