@@ -2,6 +2,8 @@
   if (rep != null) {
     if (!rep.userinfo.isReadonly()) {
       try {
+        rep.lockRepository();
+        rep.insertLogEntry("Saving database '" + db.getName() + "'");
         db.saveRep(rep);
         log.logDetailed(toString(),Messages.getString("Spoon.Log.SavedDatabaseConnection",db.getDatabaseName()));
         rep.commit();
@@ -10,6 +12,14 @@
  catch (      KettleException ke) {
         rep.rollback();
         new ErrorDialog(shell,Messages.getString("Spoon.Dialog.ErrorSavingConnection.Title"),Messages.getString("Spoon.Dialog.ErrorSavingConnection.Message",db.getDatabaseName()),ke);
+      }
+ finally {
+        try {
+          rep.unlockRepository();
+        }
+ catch (        KettleDatabaseException e) {
+          new ErrorDialog(shell,"Error","Unexpected error unlocking the repository database",e);
+        }
       }
     }
  else {

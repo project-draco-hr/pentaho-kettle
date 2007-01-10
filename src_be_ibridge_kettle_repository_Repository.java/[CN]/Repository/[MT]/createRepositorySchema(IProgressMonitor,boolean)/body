@@ -7,8 +7,32 @@
   String user[], pass[], code[], desc[], prof[];
   int KEY=9;
   log.logBasic(toString(),"Starting to create or modify the repository tables...");
-  if (monitor != null)   monitor.beginTask((upgrade ? "Upgrading " : "Creating") + " the Kettle repository...",31);
+  String message=(upgrade ? "Upgrading " : "Creating") + " the Kettle repository...";
+  if (monitor != null)   monitor.beginTask(message,31);
   setAutoCommit(true);
+  table=new Row();
+  tablename="R_REPOSITORY_LOG";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValue(new Value("ID_REPOSITORY_LOG",Value.VALUE_TYPE_INTEGER,KEY,0));
+  table.addValue(new Value("REP_VERSION",Value.VALUE_TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValue(new Value("LOG_DATE",Value.VALUE_TYPE_DATE));
+  table.addValue(new Value("LOG_USER",Value.VALUE_TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValue(new Value("OPERATION_DESC",Value.VALUE_TYPE_STRING,REP_STRING_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_REPOSITORY_LOG",false);
+  if (sql != null && sql.length() > 0) {
+    try {
+      if (log.isDetailed())       log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+      database.execStatements(sql);
+      if (log.isDetailed())       log.logDetailed(toString(),"Created/altered table " + tablename);
+    }
+ catch (    KettleDatabaseException dbe) {
+      throw new KettleDatabaseException("Unable to create or modify table " + tablename,dbe);
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  insertLogEntry((upgrade ? "Upgrade" : "Creation") + " of the Kettle repository");
   table=new Row();
   tablename="R_VERSION";
   if (monitor != null)   monitor.subTask("Checking table " + tablename);

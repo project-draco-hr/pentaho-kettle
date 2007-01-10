@@ -2,12 +2,23 @@
   if (rep != null) {
     if (!rep.getUserInfo().isReadonly()) {
       try {
+        rep.lockRepository();
+        rep.insertLogEntry("saving database connection '" + db.getName() + "'");
         db.saveRep(rep);
         log.logDetailed(toString(),"Saved database connection [" + db + "] to the repository.");
         rep.commit();
       }
  catch (      KettleException ke) {
+        rep.rollback();
         new ErrorDialog(shell,Messages.getString("Chef.ErrorDialog.ErrorSavingConnection.Title"),Messages.getString("Chef.ErrorDialog.ErrorSavingConnection.Message1") + db + Messages.getString("Chef.ErrorDialog.ErrorSavingConnection.Message2"),ke);
+      }
+ finally {
+        try {
+          rep.unlockRepository();
+        }
+ catch (        KettleException e) {
+          new ErrorDialog(shell,Messages.getString("Chef.ErrorDialog.ErrorSavingConnection.Title"),Messages.getString("Chef.ErrorDialog.ErrorSavingConnection.Message1") + db + Messages.getString("Chef.ErrorDialog.ErrorSavingConnection.Message2"),e);
+        }
       }
     }
  else {
