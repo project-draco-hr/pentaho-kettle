@@ -3,16 +3,35 @@
   JobPlugin jobPlugin=null;
   try {
     jobPlugin=jobLoader.findJobEntriesWithDescription(type_desc);
+    if (jobPlugin == null) {
+      if (JobMeta.STRING_SPECIAL_START.equals(type_desc) || JobMeta.STRING_SPECIAL_DUMMY.equals(type_desc)) {
+        jobPlugin=jobLoader.findJobEntriesWithID(JobMeta.STRING_SPECIAL);
+      }
+    }
     if (jobPlugin != null) {
       String basename=type_desc;
       int nr=jobMeta.generateJobEntryNameNr(basename);
       String entry_name=basename + " " + nr;
       JobEntryInterface jei=jobLoader.getJobEntryClass(jobPlugin);
       jei.setName(entry_name);
+      if (jei.isSpecial()) {
+        if (JobMeta.STRING_SPECIAL_START.equals(type_desc)) {
+          if (jobMeta.findStart() != null) {
+            ChefGraph.showOnlyStartOnceMessage(shell);
+            return null;
+          }
+          ((JobEntrySpecial)jei).setStart(true);
+          jei.setName("Start");
+        }
+        if (JobMeta.STRING_SPECIAL_DUMMY.equals(type_desc)) {
+          ((JobEntrySpecial)jei).setDummy(true);
+          jei.setName("Dummy");
+        }
+      }
       if (openit) {
         JobEntryDialogInterface d=jei.getDialog(shell,jei,jobMeta,entry_name,rep);
         if (d.open() != null) {
-          JobEntryCopy jge=new JobEntryCopy(log);
+          JobEntryCopy jge=new JobEntryCopy();
           jge.setEntry(jei);
           jge.setLocation(50,50);
           jge.setNr(0);
@@ -27,7 +46,7 @@
         }
       }
  else {
-        JobEntryCopy jge=new JobEntryCopy(log);
+        JobEntryCopy jge=new JobEntryCopy();
         jge.setEntry(jei);
         jge.setLocation(50,50);
         jge.setNr(0);
