@@ -3,7 +3,8 @@
   int i;
   if (database != null) {
     if (prev != null && prev.size() > 0) {
-      if (tablename != null && tablename.length() > 0) {
+      if (!Const.isEmpty(tablename)) {
+        String schemaTable=database.getQuotedSchemaTableCombination(schemaName,tablename);
         Database db=new Database(database);
         try {
           boolean doHash=false;
@@ -13,12 +14,12 @@
           Value vkeyfield=new Value(technicalKeyField,Value.VALUE_TYPE_INTEGER);
           vkeyfield.setLength(10,0);
           Value vhashfield=null;
-          if (useHash && hashField != null && hashField.length() > 0) {
+          if (useHash && !Const.isEmpty(hashField)) {
             vhashfield=new Value(hashField,Value.VALUE_TYPE_INTEGER);
             vhashfield.setLength(15,0);
             doHash=true;
           }
-          if (!db.checkTableExists(tablename)) {
+          if (!db.checkTableExists(schemaTable)) {
             fields.addValue(vkeyfield);
             if (keyField != null && keyLookup != null) {
               int cnt=keyField.length;
@@ -46,7 +47,7 @@
             }
           }
  else {
-            Row tabFields=db.getTableFields(tablename);
+            Row tabFields=db.getTableFields(schemaTable);
             database.quoteReservedWords(tabFields);
             if (tabFields.searchValue(vkeyfield.getName()) == null) {
               fields.addValue(vkeyfield);
@@ -75,7 +76,7 @@
               fields.addValue(vhashfield);
             }
           }
-          cr_table=db.getDDL(tablename,fields,(CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && sequenceFrom != null && sequenceFrom.length() != 0) ? null : technicalKeyField,CREATION_METHOD_AUTOINC.equals(getTechKeyCreation()),null,true);
+          cr_table=db.getDDL(schemaTable,fields,(CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && sequenceFrom != null && sequenceFrom.length() != 0) ? null : technicalKeyField,CREATION_METHOD_AUTOINC.equals(getTechKeyCreation()),null,true);
           String cr_index="";
           String cr_uniq_index="";
           String idx_fields[]=null;
@@ -88,7 +89,7 @@
             }
           }
  else {
-            if (keyLookup != null && keyLookup.length > 0) {
+            if (!Const.isEmpty(keyLookup)) {
               int nrfields=keyLookup.length;
               if (nrfields > 32 && database.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) {
                 nrfields=32;
@@ -100,23 +101,23 @@
               retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NotFieldsSpecified"));
             }
           }
-          if (technicalKeyField != null) {
+          if (!Const.isEmpty(technicalKeyField)) {
             String techKeyArr[]=new String[]{technicalKeyField};
-            if (!db.checkIndexExists(tablename,techKeyArr)) {
+            if (!db.checkIndexExists(schemaName,tablename,techKeyArr)) {
               String indexname="idx_" + tablename + "_pk";
-              cr_uniq_index=db.getCreateIndexStatement(tablename,indexname,techKeyArr,true,true,false,true);
+              cr_uniq_index=db.getCreateIndexStatement(schemaName,tablename,indexname,techKeyArr,true,true,false,true);
               cr_uniq_index+=Const.CR;
             }
           }
-          if (idx_fields != null && idx_fields.length > 0 && !db.checkIndexExists(tablename,idx_fields)) {
+          if (!Const.isEmpty(idx_fields) && !db.checkIndexExists(schemaName,tablename,idx_fields)) {
             String indexname="idx_" + tablename + "_lookup";
-            cr_index=db.getCreateIndexStatement(tablename,indexname,idx_fields,false,false,false,true);
+            cr_index=db.getCreateIndexStatement(schemaName,tablename,indexname,idx_fields,false,false,false,true);
             cr_index+=Const.CR;
           }
           String cr_seq="";
-          if ((database.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) && CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && sequenceFrom != null && sequenceFrom.length() > 0) {
-            if (!db.checkSequenceExists(sequenceFrom)) {
-              cr_seq+=db.getCreateSequenceStatement(sequenceFrom,1L,1L,-1L,true);
+          if (database.supportsSequences() && !Const.isEmpty(sequenceFrom)) {
+            if (!db.checkSequenceExists(schemaName,sequenceFrom)) {
+              cr_seq+=db.getCreateSequenceStatement(schemaName,sequenceFrom,1L,1L,-1L,true);
               cr_seq+=Const.CR;
             }
           }

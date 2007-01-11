@@ -1,6 +1,6 @@
 {
-  SQLStatement retval=new SQLStatement(stepMeta.getName(),database,null);
-  if (database != null) {
+  SQLStatement retval=new SQLStatement(stepMeta.getName(),databaseMeta,null);
+  if (databaseMeta != null) {
     if (prev != null && prev.size() > 0) {
       Row tableFields=new Row();
       for (int i=0; i < updateLookup.length; i++) {
@@ -14,11 +14,12 @@
           throw new KettleStepException("Unable to find field [" + updateStream[i] + "] in the input rows");
         }
       }
-      if (tableName != null && tableName.length() > 0) {
-        Database db=new Database(database);
+      if (!Const.isEmpty(tableName)) {
+        Database db=new Database(databaseMeta);
         try {
           db.connect();
-          String cr_table=db.getDDL(tableName,tableFields,null,false,null,true);
+          String schemaTable=databaseMeta.getSchemaTableCombination(databaseMeta.quoteField(schemaName),databaseMeta.quoteField(tableName));
+          String cr_table=db.getDDL(schemaTable,tableFields,null,false,null,true);
           String cr_index="";
           String idx_fields[]=null;
           if (keyLookup != null && keyLookup.length > 0) {
@@ -28,9 +29,9 @@
  else {
             retval.setError(Messages.getString("InsertUpdateMeta.CheckResult.MissingKeyFields"));
           }
-          if (idx_fields != null && idx_fields.length > 0 && !db.checkIndexExists(tableName,idx_fields)) {
+          if (idx_fields != null && idx_fields.length > 0 && !db.checkIndexExists(schemaName,tableName,idx_fields)) {
             String indexname="idx_" + tableName + "_lookup";
-            cr_index=db.getCreateIndexStatement(tableName,indexname,idx_fields,false,false,false,true);
+            cr_index=db.getCreateIndexStatement(schemaTable,indexname,idx_fields,false,false,false,true);
           }
           String sql=cr_table + cr_index;
           if (sql.length() == 0)           retval.setSQL(null);

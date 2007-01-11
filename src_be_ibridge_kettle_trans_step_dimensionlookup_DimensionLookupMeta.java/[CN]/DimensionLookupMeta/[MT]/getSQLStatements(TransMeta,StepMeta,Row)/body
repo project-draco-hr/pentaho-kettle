@@ -5,7 +5,8 @@
     log.logDebug(toString(),Messages.getString("DimensionLookupMeta.Log.Update"));
     if (databaseMeta != null) {
       if (prev != null && prev.size() > 0) {
-        if (tableName != null && tableName.length() > 0) {
+        if (!Const.isEmpty(tableName)) {
+          String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
           Database db=new Database(databaseMeta);
           try {
             db.connect();
@@ -49,34 +50,36 @@
             if (errors.length() > 0) {
               retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.UnableToFindFields") + errors);
             }
-            log.logDebug(toString(),Messages.getString("DimensionLookupMeta.Log.GetDDLForTable") + tableName + "] : "+ fields.toStringMeta());
-            sql+=db.getDDL(tableName,fields,(sequenceName != null && sequenceName.length() != 0) ? null : keyField,autoIncrement,null,true);
+            log.logDebug(toString(),Messages.getString("DimensionLookupMeta.Log.GetDDLForTable") + schemaTable + "] : "+ fields.toStringMeta());
+            sql+=db.getDDL(schemaTable,fields,(sequenceName != null && sequenceName.length() != 0) ? null : keyField,autoIncrement,null,true);
             log.logDebug(toString(),"sql =" + sql);
             String idx_fields[]=null;
-            if (keyLookup != null && keyLookup.length > 0) {
+            if (!Const.isEmpty(keyLookup)) {
               idx_fields=new String[keyLookup.length];
-              for (int i=0; i < keyLookup.length; i++)               idx_fields[i]=keyLookup[i];
+              for (int i=0; i < keyLookup.length; i++) {
+                idx_fields[i]=keyLookup[i];
+              }
             }
  else {
               retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.NoKeyFieldsSpecified"));
             }
-            if (idx_fields != null && idx_fields.length > 0 && !db.checkIndexExists(tableName,idx_fields)) {
+            if (!Const.isEmpty(idx_fields) && !db.checkIndexExists(schemaName,tableName,idx_fields)) {
               String indexname="idx_" + tableName + "_lookup";
-              sql+=db.getCreateIndexStatement(tableName,indexname,idx_fields,false,false,false,true);
+              sql+=db.getCreateIndexStatement(schemaName,tableName,indexname,idx_fields,false,false,false,true);
             }
             idx_fields=new String[]{keyField};
-            if (keyField != null && keyField.length() > 0) {
-              if (!db.checkIndexExists(tableName,idx_fields)) {
+            if (!Const.isEmpty(keyField)) {
+              if (!db.checkIndexExists(schemaName,tableName,idx_fields)) {
                 String indexname="idx_" + tableName + "_tk";
-                sql+=db.getCreateIndexStatement(tableName,indexname,idx_fields,true,false,true,true);
+                sql+=db.getCreateIndexStatement(schemaName,tableName,indexname,idx_fields,true,false,true,true);
               }
             }
  else {
               retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.TechnicalKeyFieldRequired"));
             }
-            if (CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && sequenceName != null) {
-              if (!db.checkSequenceExists(sequenceName)) {
-                sql+=db.getCreateSequenceStatement(sequenceName,1L,1L,-1L,true);
+            if (CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && !Const.isEmpty(sequenceName)) {
+              if (!db.checkSequenceExists(schemaName,sequenceName)) {
+                sql+=db.getCreateSequenceStatement(schemaName,sequenceName,1L,1L,-1L,true);
               }
             }
             if (sql.length() == 0)             retval.setSQL(null);
