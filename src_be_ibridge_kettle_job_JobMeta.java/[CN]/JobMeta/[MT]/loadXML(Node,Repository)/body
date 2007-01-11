@@ -10,9 +10,13 @@
       modifiedDate=new Value(STRING_MODIFIED_DATE,modDate);
       modifiedDate.setType(Value.VALUE_TYPE_DATE);
     }
-    if (rep != null) {
-      readDatabases(rep);
-      clearChanged();
+    try {
+      sharedObjectsFile=XMLHandler.getTagValue(jobnode,"info","shared_objects_file");
+      readSharedObjects(rep);
+    }
+ catch (    Exception e) {
+      LogWriter.getInstance().logError(toString(),Messages.getString("JobMeta.ErrorReadingSharedObjects.Message",e.toString()));
+      LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
     }
     int nr=XMLHandler.countNodes(jobnode,"connection");
     for (int i=0; i < nr; i++) {
@@ -28,7 +32,7 @@
         if (askOverwrite) {
           if (props.getDisplay() != null) {
             Shell shell=props.getDisplay().getActiveShell();
-            MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Warning",null,"Connection [" + dbcon.getName() + "] already exists, do you want to overwrite this database connection?",MessageDialog.WARNING,new String[]{"Yes","No"},1,"Please, don't show this warning anymore.",!props.askAboutReplacingDatabaseConnections());
+            MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Warning",null,Messages.getString("JobMeta.Dialog.ConnectionExistsOverWrite.Message",dbcon.getName()),MessageDialog.WARNING,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},1,Messages.getString("JobMeta.Dialog.ConnectionExistsOverWrite.DontShowAnyMoreMessage"),!props.askAboutReplacingDatabaseConnections());
             int idx=md.open();
             props.setAskAboutReplacingDatabaseConnections(!md.getToggleState());
             overwrite=((idx & 0xFF) == 0);
@@ -86,7 +90,7 @@
     clearChanged();
   }
  catch (  Exception e) {
-    throw new KettleXMLException("Unable to load job info from XML node",e);
+    throw new KettleXMLException(Messages.getString("JobMeta.Exception.UnableToLoadJobFromXMLNode"),e);
   }
  finally {
     setInternalKettleVariables();

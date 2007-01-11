@@ -9,32 +9,39 @@
       long jecids[]=rep.getJobEntryCopyIDs(getID());
       long hopid[]=rep.getJobHopIDs(getID());
       int nrWork=2 + noteids.length + jecids.length+ hopid.length;
-      if (monitor != null)       monitor.beginTask("Loading job " + repdir + Const.FILE_SEPARATOR+ jobname,nrWork);
-      if (monitor != null)       monitor.subTask("Reading the available database from the repository");
-      readDatabases(rep);
-      if (monitor != null)       monitor.worked(1);
-      if (monitor != null)       monitor.subTask("Reading the job information");
-      Row jobrow=rep.getJob(getID());
-      name=jobrow.searchValue("NAME").getString();
-      logTable=jobrow.searchValue("TABLE_NAME_LOG").getString();
-      long id_logdb=jobrow.searchValue("ID_DATABASE_LOG").getInteger();
+      if (monitor != null)       monitor.beginTask(Messages.getString("JobMeta.Monitor.LoadingJob") + repdir + Const.FILE_SEPARATOR+ jobname,nrWork);
+      if (monitor != null)       monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingJobInformation"));
+      Row jobRow=rep.getJob(getID());
+      name=jobRow.searchValue("NAME").getString();
+      logTable=jobRow.searchValue("TABLE_NAME_LOG").getString();
+      long id_logdb=jobRow.searchValue("ID_DATABASE_LOG").getInteger();
       if (id_logdb > 0) {
         logconnection=new DatabaseMeta(rep,id_logdb);
       }
-      useBatchId=jobrow.getBoolean("USE_BATCH_ID",false);
-      batchIdPassed=jobrow.getBoolean("PASS_BATCH_ID",false);
-      logfieldUsed=jobrow.getBoolean("USE_LOGFIELD",false);
+      useBatchId=jobRow.getBoolean("USE_BATCH_ID",false);
+      batchIdPassed=jobRow.getBoolean("PASS_BATCH_ID",false);
+      logfieldUsed=jobRow.getBoolean("USE_LOGFIELD",false);
+      if (monitor != null)       monitor.worked(1);
+      if (monitor != null)       monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingAvailableDatabasesFromRepository"));
+      try {
+        sharedObjectsFile=jobRow.getString("SHARED_FILE",null);
+        readSharedObjects(rep);
+      }
+ catch (      Exception e) {
+        LogWriter.getInstance().logError(toString(),Messages.getString("JobMeta.ErrorReadingSharedObjects.Message",e.toString()));
+        LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
+      }
       if (monitor != null)       monitor.worked(1);
       log.logDetailed(toString(),"Loading " + noteids.length + " notes");
       for (int i=0; i < noteids.length; i++) {
-        if (monitor != null)         monitor.subTask("Reading note #" + (i + 1) + "/"+ noteids.length);
+        if (monitor != null)         monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingNoteNr") + (i + 1) + "/"+ noteids.length);
         NotePadMeta ni=new NotePadMeta(log,rep,noteids[i]);
         if (indexOfNote(ni) < 0)         addNote(ni);
         if (monitor != null)         monitor.worked(1);
       }
       log.logDetailed(toString(),"Loading " + jecids.length + " job entries");
       for (int i=0; i < jecids.length; i++) {
-        if (monitor != null)         monitor.subTask("Reading job entry #" + (i + 1) + "/"+ (jecids.length));
+        if (monitor != null)         monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingJobEntryNr") + (i + 1) + "/"+ (jecids.length));
         JobEntryCopy jec=new JobEntryCopy(log,rep,getID(),jecids[i],jobentries,databases);
         int idx=indexOfJobEntry(jec);
         if (idx < 0) {
@@ -47,21 +54,21 @@
       }
       log.logDetailed(toString(),"Loading " + hopid.length + " job hops");
       for (int i=0; i < hopid.length; i++) {
-        if (monitor != null)         monitor.subTask("Reading job hop #" + (i + 1) + "/"+ (jecids.length));
+        if (monitor != null)         monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingJobHopNr") + (i + 1) + "/"+ (jecids.length));
         JobHopMeta hi=new JobHopMeta(rep,hopid[i],this,jobcopies);
         jobhops.add(hi);
         if (monitor != null)         monitor.worked(1);
       }
       clearChanged();
-      if (monitor != null)       monitor.subTask("Finishing load");
+      if (monitor != null)       monitor.subTask(Messages.getString("JobMeta.Monitor.FinishedLoadOfJob"));
       if (monitor != null)       monitor.done();
     }
  else {
-      throw new KettleException("Can't find job : " + jobname);
+      throw new KettleException(Messages.getString("JobMeta.Exception.CanNotFindJob") + jobname);
     }
   }
  catch (  KettleException dbe) {
-    throw new KettleException("An error occurred reading job [" + jobname + "] from the repository",dbe);
+    throw new KettleException(Messages.getString("JobMeta.Exception.AnErrorOccuredReadingJob1") + jobname + Messages.getString("JobMeta.Exception.AnErrorOccuredReadingJob2"),dbe);
   }
  finally {
     setInternalKettleVariables();

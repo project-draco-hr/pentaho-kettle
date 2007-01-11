@@ -2,7 +2,6 @@
   this();
   try {
     String pathAndName=repdir.isRoot() ? repdir + transname : repdir + RepositoryDirectory.DIRECTORY_SEPARATOR + transname;
-    readSharedObjects(rep);
     setName(transname);
     directory=repdir;
     directoryTree=directory.findRoot();
@@ -17,8 +16,17 @@
       int nrWork=3 + noteids.length + stepids.length+ hopids.length;
       if (monitor != null)       monitor.beginTask(Messages.getString("TransMeta.Monitor.LoadingTransformationTask.Title") + pathAndName,nrWork);
       log.logDetailed(toString(),Messages.getString("TransMeta.Log.LoadingTransformation",getName()));
+      if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.LoadingTransformationDetailsTask.Title"));
+      loadRepTrans(rep);
+      if (monitor != null)       monitor.worked(1);
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingTheAvailableSharedObjectsTask.Title"));
-      readSharedObjects(rep);
+      try {
+        readSharedObjects(rep);
+      }
+ catch (      Exception e) {
+        LogWriter.getInstance().logError(toString(),Messages.getString("TransMeta.ErrorReadingSharedObjects.Message",e.toString()));
+        LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
+      }
       if (monitor != null)       monitor.worked(1);
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.ReadingNoteTask.Title"));
       for (int i=0; i < noteids.length; i++) {
@@ -56,9 +64,6 @@
       for (int i=0; i < nrSteps(); i++) {
         getStep(i).setClusterSchemaAfterLoading(clusterSchemas);
       }
-      if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.LoadingTransformationDetailsTask.Title"));
-      loadRepTrans(rep);
-      if (monitor != null)       monitor.worked(1);
       for (int i=0; i < nrSteps(); i++) {
         getStep(i).getStepPartitioningMeta().setPartitionSchemaAfterLoading(partitionSchemas);
       }
