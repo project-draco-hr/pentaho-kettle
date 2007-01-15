@@ -89,8 +89,71 @@
         executionConfiguration.setClusterShowingTransformation(false);
         executionConfiguration.setSafeModeEnabled(false);
         TransSplitter transSplitter=Trans.executeClustered(transMeta,executionConfiguration);
-        transSplitter.getSlaveTargets();
-        transSplitter.getMasterServer();
+        SlaveServer[] slaveServers=transSplitter.getSlaveTargets();
+        TransMeta[] slaves=transSplitter.getSlaves();
+        SlaveServer masterServer=transSplitter.getMasterServer();
+        TransMeta master=transSplitter.getMaster();
+        boolean allFinished=false;
+        long errors=0L;
+        while (!allFinished && !parentJob.isStopped() && errors == 0) {
+          allFinished=true;
+          errors=0L;
+          for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
+            try {
+              SlaveServerTransStatus transStatus=slaveServers[s].getTransStatus(slaves[s].getName());
+              if (transStatus.isRunning())               allFinished=false;
+              errors+=transStatus.getNrStepErrors();
+            }
+ catch (            Exception e) {
+              errors+=1;
+              log.logError(toString(),"Unable to contact slave server '" + slaveServers[s].getName() + "' to check slave transformation : "+ e.toString());
+            }
+          }
+          if (allFinished && errors == 0) {
+            try {
+              SlaveServerTransStatus transStatus=masterServer.getTransStatus(master.getName());
+              if (transStatus.isRunning())               allFinished=false;
+              errors+=transStatus.getNrStepErrors();
+            }
+ catch (            Exception e) {
+              errors+=1;
+              log.logError(toString(),"Unable to contact slave server '" + masterServer.getName() + "' to check master transformation : "+ e.toString());
+            }
+          }
+          if (parentJob.isStopped() || errors != 0) {
+            for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
+              try {
+                WebResult webResult=slaveServers[s].stopTransformation(slaves[s].getName());
+                if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+                  log.logError(toString(),"Unable to stop slave transformation '" + slaves[s].getName() + "' : "+ webResult.getMessage());
+                }
+              }
+ catch (              Exception e) {
+                errors+=1;
+                log.logError(toString(),"Unable to contact slave server '" + slaveServers[s].getName() + "' to stop transformation : "+ e.toString());
+              }
+            }
+            try {
+              WebResult webResult=masterServer.stopTransformation(master.getName());
+              if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+                log.logError(toString(),"Unable to stop master transformation '" + masterServer.getName() + "' : "+ webResult.getMessage());
+              }
+            }
+ catch (            Exception e) {
+              errors+=1;
+              log.logError(toString(),"Unable to contact master server '" + masterServer.getName() + "' to stop the master : "+ e.toString());
+            }
+          }
+          if (!allFinished) {
+            log.logDetailed(toString(),"Clustered transformation is still running, waiting 10 seconds...");
+            try {
+              Thread.sleep(10000);
+            }
+ catch (            Exception e) {
+            }
+          }
+        }
+        result.setNrErrors(errors);
       }
  else {
         Trans trans=new Trans(logwriter,transMeta);
