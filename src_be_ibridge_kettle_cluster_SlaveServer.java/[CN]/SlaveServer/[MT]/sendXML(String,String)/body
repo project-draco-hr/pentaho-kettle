@@ -3,21 +3,32 @@
   PostMethod post=new PostMethod(constructUrl(service));
   RequestEntity entity=new ByteArrayRequestEntity(content);
   post.setRequestEntity(entity);
-  HttpClient httpclient=new HttpClient();
+  post.setDoAuthentication(true);
+  HttpClient client=new HttpClient();
+  client.getState().setCredentials(new AuthScope(hostname,Const.toInt(port,80),"Kettle"),new UsernamePasswordCredentials(username,password));
   try {
-    int result=httpclient.executeMethod(post);
+    int result=client.executeMethod(post);
     log.logDebug(toString(),"Response status code: " + result);
     InputStream inputStream=new BufferedInputStream(post.getResponseBodyAsStream(),1000);
     StringBuffer bodyBuffer=new StringBuffer();
     int c;
     while ((c=inputStream.read()) != -1)     bodyBuffer.append((char)c);
     inputStream.close();
-    String body=bodyBuffer.toString();
-    log.logDebug(toString(),"Response body: " + body);
-    return body;
-  }
+    String bodyTmp=bodyBuffer.toString();
+switch (result) {
+case 401:
+      String message="Authentication failed" + Const.DOSCR + Const.DOSCR+ bodyTmp;
+    WebResult webResult=new WebResult(WebResult.STRING_ERROR,message);
+  bodyBuffer.setLength(0);
+bodyBuffer.append(webResult.getXML());
+break;
+}
+String body=bodyBuffer.toString();
+log.logDebug(toString(),"Response body: " + body);
+return body;
+}
   finally {
-    post.releaseConnection();
-    log.logDetailed(toString(),"Sent XML to service [" + service + "] on host ["+ hostname+ "]");
-  }
+post.releaseConnection();
+log.logDetailed(toString(),"Sent XML to service [" + service + "] on host ["+ hostname+ "]");
+}
 }
