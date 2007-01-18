@@ -36,9 +36,9 @@
     for (int i=0; i < nrDatabases(); i++) {
       if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
       if (monitor != null)       monitor.subTask(Messages.getString("TransMeta.Monitor.SavingDatabaseTask.Title") + (i + 1) + "/"+ nrDatabases());
-      DatabaseMeta ci=getDatabase(i);
-      if (ci.hasChanged() || ci.getID() <= 0) {
-        ci.saveRep(rep);
+      DatabaseMeta databaseMeta=getDatabase(i);
+      if (databaseMeta.hasChanged() || databaseMeta.getID() <= 0) {
+        databaseMeta.saveRep(rep);
       }
       if (monitor != null)       monitor.worked(1);
     }
@@ -66,16 +66,22 @@
     rep.insertTransformation(this);
     rep.closeTransAttributeInsertPreparedStatement();
     for (int i=0; i < partitionSchemas.size(); i++) {
-      PartitionSchema schema=(PartitionSchema)partitionSchemas.get(i);
-      schema.saveRep(rep,getID());
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
+      PartitionSchema partitionSchema=(PartitionSchema)partitionSchemas.get(i);
+      boolean isUsedByTransformation=isUsingPartitionSchema(partitionSchema);
+      partitionSchema.saveRep(rep,getID(),isUsedByTransformation);
     }
     for (int i=0; i < slaveServers.size(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
       SlaveServer slaveServer=(SlaveServer)slaveServers.get(i);
-      slaveServer.saveRep(rep,getID());
+      boolean isUsedByTransformation=isUsingSlaveServer(slaveServer);
+      slaveServer.saveRep(rep,getID(),isUsedByTransformation);
     }
     for (int i=0; i < clusterSchemas.size(); i++) {
-      ClusterSchema schema=(ClusterSchema)clusterSchemas.get(i);
-      schema.saveRep(rep,getID());
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(Messages.getString("TransMeta.Log.UserCancelledTransSave"));
+      ClusterSchema clusterSchema=(ClusterSchema)clusterSchemas.get(i);
+      boolean isUsedByTransformation=isUsingClusterSchema(clusterSchema);
+      clusterSchema.saveRep(rep,getID(),isUsedByTransformation);
     }
     log.logDebug(toString(),Messages.getString("TransMeta.Log.SavingDependencies"));
     for (int i=0; i < nrDependencies(); i++) {
