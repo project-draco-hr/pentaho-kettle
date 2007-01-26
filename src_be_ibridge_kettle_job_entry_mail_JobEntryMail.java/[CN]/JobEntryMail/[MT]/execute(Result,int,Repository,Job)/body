@@ -8,20 +8,18 @@
     result.setResult(false);
     return result;
   }
-  props.put("mail.smtp.host",StringUtil.environmentSubstitute(server));
+  String protocol="smtp";
+  if (usingSecureAuthentication) {
+    protocol="smtps";
+  }
+  props.put("mail." + protocol + ".host",StringUtil.environmentSubstitute(server));
+  if (!Const.isEmpty(port))   props.put("mail." + protocol + ".port",StringUtil.environmentSubstitute(port));
   boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
   if (debug)   props.put("mail.debug","true");
-  Authenticator authenticator=null;
   if (usingAuthentication) {
-    props.put("mail.smtp.auth","true");
-    authenticator=new Authenticator(){
-      protected PasswordAuthentication getPasswordAuthentication(){
-        return new PasswordAuthentication(StringUtil.environmentSubstitute(Const.NVL(authenticationUser,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationPassword,"")));
-      }
-    }
-;
+    props.put("mail." + protocol + ".auth","true");
   }
-  Session session=Session.getInstance(props,authenticator);
+  Session session=Session.getInstance(props);
   session.setDebug(debug);
   try {
     Message msg=new MimeMessage(session);
@@ -151,7 +149,25 @@
       }
     }
     msg.setContent(parts);
-    Transport.send(msg);
+    Transport transport=null;
+    try {
+      transport=session.getTransport(protocol);
+      if (usingAuthentication) {
+        if (!Const.isEmpty(port)) {
+          transport.connect(StringUtil.environmentSubstitute(Const.NVL(server,"")),Integer.parseInt(StringUtil.environmentSubstitute(Const.NVL(port,""))),StringUtil.environmentSubstitute(Const.NVL(authenticationUser,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationPassword,"")));
+        }
+ else {
+          transport.connect(StringUtil.environmentSubstitute(Const.NVL(server,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationUser,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationPassword,"")));
+        }
+      }
+ else {
+        transport.connect();
+      }
+      transport.sendMessage(msg,msg.getAllRecipients());
+    }
+  finally {
+      if (transport != null)       transport.close();
+    }
   }
  catch (  MessagingException mex) {
     log.logError(toString(),"Problem while sending message: " + mex.toString());
