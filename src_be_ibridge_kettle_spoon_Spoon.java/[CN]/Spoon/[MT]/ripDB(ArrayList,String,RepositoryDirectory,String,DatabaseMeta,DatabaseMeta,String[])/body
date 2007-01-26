@@ -3,7 +3,12 @@
   jobMeta.setDatabases(databases);
   jobMeta.setFilename(null);
   jobMeta.setName(jobname);
-  jobMeta.setDirectory(repdir);
+  if (rep != null) {
+    jobMeta.setDirectory(repdir);
+  }
+ else {
+    jobMeta.setFilename(Const.createFilename(directory,jobname,Const.STRING_JOB_DEFAULT_EXT));
+  }
   refreshTree();
   refreshGraph();
   final Point location=new Point(50,50);
@@ -19,12 +24,17 @@
       for (int i=0; i < tables.length && !monitor.isCanceled(); i++) {
         monitor.setTaskName(Messages.getString("Spoon.RipDB.Monitor.ProcessingTable") + tables[i] + "]...");
         String transname=Messages.getString("Spoon.RipDB.Monitor.Transname1") + sourceDbInfo + "].["+ tables[i]+ Messages.getString("Spoon.RipDB.Monitor.Transname2")+ targetDbInfo+ "]";
-        TransMeta ti=new TransMeta((String)null,transname,null);
-        ti.setDirectory(repdir);
+        TransMeta transMeta=new TransMeta((String)null,transname,null);
+        if (repdir != null) {
+          transMeta.setDirectory(repdir);
+        }
+ else {
+          transMeta.setFilename(Const.createFilename(directory,transname,Const.STRING_TRANS_DEFAULT_EXT));
+        }
         String note=Messages.getString("Spoon.RipDB.Monitor.Note1") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.Note2")+ sourceDbInfo+ "]"+ Const.CR;
         note+=Messages.getString("Spoon.RipDB.Monitor.Note3") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.Note4")+ targetDbInfo+ "]";
         NotePadMeta ni=new NotePadMeta(note,150,10,-1,-1);
-        ti.addNote(ni);
+        transMeta.addNote(ni);
         String fromstepname=Messages.getString("Spoon.RipDB.Monitor.FromStep.Name") + tables[i] + "]";
         TableInputMeta tii=new TableInputMeta();
         tii.setDatabaseMeta(sourceDbInfo);
@@ -34,7 +44,7 @@
         fromstep.setLocation(150,100);
         fromstep.setDraw(true);
         fromstep.setDescription(Messages.getString("Spoon.RipDB.Monitor.FromStep.Description") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.FromStep.Description2")+ sourceDbInfo+ "]");
-        ti.addStep(fromstep);
+        transMeta.addStep(fromstep);
         String tostepname=Messages.getString("Spoon.RipDB.Monitor.ToStep.Name") + tables[i] + "]";
         TableOutputMeta toi=new TableOutputMeta();
         toi.setDatabaseMeta(targetDbInfo);
@@ -46,24 +56,28 @@
         tostep.setLocation(500,100);
         tostep.setDraw(true);
         tostep.setDescription(Messages.getString("Spoon.RipDB.Monitor.ToStep.Description1") + tables[i] + Messages.getString("Spoon.RipDB.Monitor.ToStep.Description2")+ targetDbInfo+ "]");
-        ti.addStep(tostep);
+        transMeta.addStep(tostep);
         TransHopMeta hi=new TransHopMeta(fromstep,tostep);
-        ti.addTransHop(hi);
+        transMeta.addTransHop(hi);
         String tmpSql=tii.getSQL();
         tii.setSQL(tii.getSQL() + sourceDbInfo.getLimitClause(1));
         String sql="";
         try {
-          sql=ti.getSQLStatementsString();
+          sql=transMeta.getSQLStatementsString();
         }
  catch (        KettleStepException kse) {
-          throw new InvocationTargetException(kse,Messages.getString("Spoon.RipDB.Exception.ErrorGettingSQLFromTransformation") + ti + "] : "+ kse.getMessage());
+          throw new InvocationTargetException(kse,Messages.getString("Spoon.RipDB.Exception.ErrorGettingSQLFromTransformation") + transMeta + "] : "+ kse.getMessage());
         }
         tii.setSQL(tmpSql);
-        try {
-          ti.saveRep(rep);
+        boolean ok;
+        if (rep != null) {
+          ok=saveTransRepository(transMeta);
         }
- catch (        KettleException dbe) {
-          throw new InvocationTargetException(dbe,Messages.getString("Spoon.RipDB.Exception.UnableToSaveTransformationToRepository"));
+ else {
+          ok=saveTransFile(transMeta);
+        }
+        if (!ok) {
+          throw new InvocationTargetException(new Exception(Messages.getString("Spoon.RipDB.Exception.UnableToSaveTransformationToRepository")),Messages.getString("Spoon.RipDB.Exception.UnableToSaveTransformationToRepository"));
         }
         location.x=250;
         if (i > 0)         location.y+=100;
@@ -84,8 +98,13 @@
         }
         String jetransname=Messages.getString("Spoon.RipDB.JobEntryTrans.Name") + tables[i] + "]";
         JobEntryTrans jetrans=new JobEntryTrans(jetransname);
-        jetrans.setTransname(ti.getName());
-        jetrans.setDirectory(ti.getDirectory());
+        jetrans.setTransname(transMeta.getName());
+        if (rep != null) {
+          jetrans.setDirectory(transMeta.getDirectory());
+        }
+ else {
+          jetrans.setFileName(Const.createFilename("${" + Const.INTERNAL_VARIABLE_JOB_FILENAME_DIRECTORY + "}",transMeta.getName(),Const.STRING_TRANS_DEFAULT_EXT));
+        }
         JobEntryCopy jectrans=new JobEntryCopy(log,jetrans);
         jectrans.setDescription(Messages.getString("Spoon.RipDB.JobEntryTrans.Description1") + Const.CR + Messages.getString("Spoon.RipDB.JobEntryTrans.Description2")+ sourceDbInfo+ "].["+ tables[i]+ "]"+ Const.CR+ Messages.getString("Spoon.RipDB.JobEntryTrans.Description3")+ targetDbInfo+ "].["+ tables[i]+ "]");
         jectrans.setDrawn();
