@@ -1,0 +1,83 @@
+{
+  for (Iterator iter=aListParam.iterator(); iter.hasNext(); ) {
+    String vParamName=(String)iter.next();
+    List vComplexTypeList=new ArrayList();
+    NodeList vElementList=aDoc.getElementsByTagName("xsd:element");
+    for (int l=0; l < vElementList.getLength(); ++l) {
+      Node vElement=vElementList.item(l);
+      if (vElement.getAttributes() != null) {
+        if (vElement.getAttributes().getNamedItem("name").getNodeValue().equals(vParamName.substring(vParamName.indexOf(":") + 1))) {
+          Node vParentNode=vElement.getParentNode();
+          if (vParentNode.getAttributes() != null) {
+            aWSDLOperation.setTargetNamespace(vParentNode.getAttributes().getNamedItem("targetNamespace").getNodeValue());
+          }
+          WSDLArgument vWSDLArgument=new WSDLArgument("");
+          getArguments(aWSDLOperation,request).add(vWSDLArgument);
+          for (int m=0; m < vElement.getChildNodes().getLength(); ++m) {
+            Node vComplexType=vElement.getChildNodes().item(m);
+            if (vComplexType.getNodeName().equals("xsd:complexType")) {
+              for (int n=0; n < vElement.getChildNodes().getLength(); ++n) {
+                Node vSequence=vComplexType.getChildNodes().item(n);
+                if (vSequence != null && vSequence.getNodeName().equals("xsd:sequence")) {
+                  for (int o=0; o < vSequence.getChildNodes().getLength() && vWSDLArgument.isMultiple(); o++) {
+                    Node vElementRef=vSequence.getChildNodes().item(o);
+                    if (vElementRef.getAttributes() != null && vElementRef.getAttributes().getNamedItem("type") != null) {
+                      if (vElementRef.getAttributes().getNamedItem("type").getNodeValue().startsWith("xsd")) {
+                        vWSDLArgument.setMultiple(false);
+                        for (int p=0; p < vSequence.getChildNodes().getLength(); p++) {
+                          Node vElementParam=vSequence.getChildNodes().item(p);
+                          if (vElementParam.getAttributes() != null && vElementParam.getAttributes().getNamedItem("name") != null) {
+                            String name=vElementParam.getAttributes().getNamedItem("name").getNodeValue();
+                            String type=vElementParam.getAttributes().getNamedItem("type").getNodeValue();
+                            WSDLParameter vWSDLParameter=new WSDLParameter(name,type);
+                            vWSDLArgument.getParameters().add(vWSDLParameter);
+                          }
+                        }
+                      }
+ else {
+                        vComplexTypeList.add(vElementRef.getAttributes().getNamedItem("type").getNodeValue());
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    String vFinalType="";
+    int i=0;
+    for (Iterator iterator=vComplexTypeList.iterator(); iterator.hasNext(); ) {
+      String vComplexType=(String)iterator.next();
+      NodeList vElementNodeList=getElementForComplexType(vComplexType.substring(vComplexType.indexOf(":") + 1),aDoc);
+      for (int o=0; o < vElementNodeList.getLength(); o++) {
+        Node vElementRef=vElementNodeList.item(o);
+        if (vElementRef.getAttributes() != null && vElementRef.getAttributes().getNamedItem("type") != null) {
+          vFinalType=vElementRef.getAttributes().getNamedItem("type").getNodeValue();
+          Node vParentNode=vElementRef.getParentNode().getParentNode().getParentNode();
+          if (vParentNode.getAttributes() != null) {
+            ((WSDLArgument)getArguments(aWSDLOperation,request).get(i)).setTargetNamespace(vParentNode.getAttributes().getNamedItem("targetNamespace").getNodeValue());
+            ((WSDLArgument)getArguments(aWSDLOperation,request).get(i)).setName(vFinalType.substring(vFinalType.indexOf(":") + 1));
+          }
+        }
+      }
+      i++;
+    }
+    if (!vFinalType.equals("")) {
+      for (i=0; i < vComplexTypeList.size(); ++i) {
+        ((WSDLArgument)getArguments(aWSDLOperation,request).get(i)).setMultiple(true);
+        NodeList vElementNodeList=getElementForComplexType(vFinalType.substring(vFinalType.indexOf(":") + 1),aDoc);
+        for (int o=0; o < vElementNodeList.getLength(); o++) {
+          Node vElementRef=vElementNodeList.item(o);
+          if (vElementRef.getAttributes() != null && vElementRef.getAttributes().getNamedItem("name") != null) {
+            String name=vElementRef.getAttributes().getNamedItem("name").getNodeValue();
+            String type=vElementRef.getAttributes().getNamedItem("type").getNodeValue();
+            WSDLParameter vWSDLParameter=new WSDLParameter(name,type);
+            ((WSDLArgument)getArguments(aWSDLOperation,request).get(i)).getParameters().add(vWSDLParameter);
+          }
+        }
+      }
+    }
+  }
+}

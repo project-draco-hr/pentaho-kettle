@@ -1,0 +1,26 @@
+{
+  Set vRet=new HashSet();
+  DocumentBuilderFactory factory=DocumentBuilderFactory.newInstance();
+  DocumentBuilder builder=factory.newDocumentBuilder();
+  Document doc=builder.parse(anURI);
+  NodeList vPortTypeList=doc.getElementsByTagName("wsdl:portType");
+  if (vPortTypeList.getLength() == 0)   vPortTypeList=doc.getElementsByTagName("portType");
+  if (vPortTypeList.getLength() > 0) {
+    for (int i=0; i < vPortTypeList.getLength(); ++i) {
+      Node vPortType=vPortTypeList.item(i);
+      WSDLService vWSDLService=new WSDLService(vPortType.getAttributes().getNamedItem("name").getNodeValue());
+      vRet.add(vWSDLService);
+      for (int j=0; j < vPortType.getChildNodes().getLength(); ++j) {
+        Node vOperation=vPortType.getChildNodes().item(j);
+        if (vOperation.getNodeName().equals("wsdl:operation") || vOperation.getNodeName().equals("operation")) {
+          if (vOperation.getAttributes() != null && vOperation.getAttributes().getLength() > 0) {
+            WSDLOperation vWSDLOperation=new WSDLOperation(vOperation.getAttributes().getNamedItem("name").getNodeValue());
+            vWSDLService.getOperations().add(vWSDLOperation);
+            getOperations(doc,vOperation,vWSDLOperation);
+          }
+        }
+      }
+    }
+  }
+  return vRet;
+}
