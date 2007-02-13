@@ -26,29 +26,34 @@
   try {
     data.script.exec(data.cx,data.scope);
     StringBuffer message=new StringBuffer();
+    Row add=new Row();
     for (int i=0; i < meta.getName().length; i++) {
       Value res=new Value();
       if (meta.getValue(data.scope,i,res,message)) {
-        logError(message.toString());
-        setErrors(1);
-        stopAll();
+        if (getStepMeta().isDoingErrorHandling()) {
+          putError(row,1,message.toString(),meta.getName()[i],"SCR001");
+        }
+ else {
+          logError(message.toString());
+          setErrors(1);
+          stopAll();
+        }
         return false;
       }
-      row.addValue(res);
+      add.addValue(res);
     }
+    row.addRow(add);
   }
- catch (  JavaScriptException jse) {
-    logError(Messages.getString("ScriptValues.Log.JavascriptError") + jse.toString());
-    logError(Messages.getString("ScriptValues.Log.ErrorStackTrace") + Const.CR + Const.getStackTracker(jse));
-    setErrors(1);
-    stopAll();
-    return false;
-  }
-catch (  Exception e) {
-    logError(Messages.getString("ScriptValues.Log.JavascriptError") + e.toString());
-    logError(Messages.getString("ScriptValues.Log.ErrorStackTrace") + Const.CR + Const.getStackTracker(e));
-    setErrors(1);
-    stopAll();
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(row,1,e.toString(),null,"SCR002");
+    }
+ else {
+      logError(Messages.getString("ScriptValues.Log.JavascriptError") + e.toString());
+      logError(Messages.getString("ScriptValues.Log.ErrorStackTrace") + Const.CR + Const.getStackTracker(e));
+      setErrors(1);
+      stopAll();
+    }
     return false;
   }
   return true;
