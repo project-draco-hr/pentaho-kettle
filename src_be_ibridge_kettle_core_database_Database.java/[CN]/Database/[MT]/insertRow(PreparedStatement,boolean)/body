@@ -1,7 +1,8 @@
 {
   String debug="insertRow start";
+  boolean rowsAreSafe=false;
   try {
-    boolean useBatchInsert=batch && getDatabaseMetaData().supportsBatchUpdates() && databaseMeta.supportsBatchUpdates()&& !Const.isEmpty(connectionGroup);
+    boolean useBatchInsert=batch && getDatabaseMetaData().supportsBatchUpdates() && databaseMeta.supportsBatchUpdates()&& Const.isEmpty(connectionGroup);
     if (!isAutoCommit()) {
       if (useBatchInsert) {
         debug="insertRow add batch";
@@ -29,15 +30,22 @@
         debug="insertRow normal commit";
         commit();
       }
+      rowsAreSafe=true;
     }
+    return rowsAreSafe;
   }
  catch (  BatchUpdateException ex) {
     KettleDatabaseBatchException kdbe=new KettleDatabaseBatchException("Error updating batch",ex);
     kdbe.setUpdateCounts(ex.getUpdateCounts());
+    List exceptions=new ArrayList();
+    SQLException nextException;
+    while ((nextException=ex.getNextException()) != null) {
+      exceptions.add(nextException);
+    }
+    kdbe.setExceptionsList(exceptions);
     throw kdbe;
   }
 catch (  SQLException ex) {
-    log.logError(toString(),Const.getStackTracker(ex));
     throw new KettleDatabaseException("Error inserting row",ex);
   }
 catch (  Exception e) {

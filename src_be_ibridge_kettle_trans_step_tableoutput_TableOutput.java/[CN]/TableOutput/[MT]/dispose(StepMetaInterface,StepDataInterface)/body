@@ -9,9 +9,21 @@
     }
   }
  catch (  KettleDatabaseBatchException be) {
-    logError("Unexpected batch update error committing the database connection: " + be.toString());
-    setErrors(1);
-    stopAll();
+    if (getStepMeta().isDoingErrorHandling()) {
+      try {
+        processBatchException(be.toString(),be.getUpdateCounts(),be.getExceptionsList());
+      }
+ catch (      KettleException e) {
+        logError("Unexpected error processing batch error : " + e.toString());
+        setErrors(1);
+        stopAll();
+      }
+    }
+ else {
+      logError("Unexpected batch update error committing the database connection: " + be.toString());
+      setErrors(1);
+      stopAll();
+    }
   }
 catch (  Exception dbe) {
     logError("Unexpected error committing the database connection: " + dbe.toString());
@@ -19,6 +31,7 @@ catch (  Exception dbe) {
     stopAll();
   }
  finally {
+    setOutputDone();
     if (getErrors() > 0) {
       try {
         data.db.rollback();
