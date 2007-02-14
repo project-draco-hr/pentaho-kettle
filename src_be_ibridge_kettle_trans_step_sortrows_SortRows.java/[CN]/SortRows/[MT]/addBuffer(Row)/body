@@ -7,22 +7,19 @@
   }
   if (data.buffer.size() == meta.getSortSize() || (data.files.size() > 0 && r == null && data.buffer.size() > 0)) {
     quickSort(data.buffer);
-    File fil;
-    FileOutputStream fos;
     DataOutputStream dos;
     GZIPOutputStream gzos;
     int p;
     try {
-      fil=File.createTempFile(meta.getPrefix(),".tmp",new File(StringUtil.environmentSubstitute(meta.getDirectory())));
-      fil.deleteOnExit();
-      data.files.add(fil);
-      fos=new FileOutputStream(fil);
+      FileObject fileObject=KettleVFS.createTempFile(meta.getPrefix(),".tmp",StringUtil.environmentSubstitute(meta.getDirectory()));
+      data.files.add(fileObject);
+      OutputStream outputStream=fileObject.getContent().getOutputStream();
       if (meta.getCompress()) {
-        gzos=new GZIPOutputStream(new BufferedOutputStream(fos));
+        gzos=new GZIPOutputStream(new BufferedOutputStream(outputStream));
         dos=new DataOutputStream(gzos);
       }
  else {
-        dos=new DataOutputStream(fos);
+        dos=new DataOutputStream(outputStream);
         gzos=null;
       }
       dos.writeInt(data.buffer.size());
@@ -36,7 +33,7 @@
       if (gzos != null) {
         gzos.close();
       }
-      fos.close();
+      outputStream.close();
     }
  catch (    Exception e) {
       logError("Error processing temp-file: " + e.toString());
