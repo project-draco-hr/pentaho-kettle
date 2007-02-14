@@ -99,10 +99,10 @@
         if (!zipFiles) {
           for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
             ResultFile resultFile=(ResultFile)iter.next();
-            File file=resultFile.getFile();
+            FileObject file=resultFile.getFile();
             if (file != null && file.exists()) {
               MimeBodyPart files=new MimeBodyPart();
-              FileDataSource fds=new FileDataSource(file);
+              URLDataSource fds=new URLDataSource(file.getURL());
               files.setDataHandler(new DataHandler(fds));
               files.setFileName(fds.getName());
               parts.addBodyPart(files);
@@ -116,10 +116,10 @@
             zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
             for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
               ResultFile resultFile=(ResultFile)iter.next();
-              File file=resultFile.getFile();
-              ZipEntry zipEntry=new ZipEntry(file.getPath());
+              FileObject file=resultFile.getFile();
+              ZipEntry zipEntry=new ZipEntry(file.getName().getURI());
               zipOutputStream.putNextEntry(zipEntry);
-              BufferedInputStream inputStream=new BufferedInputStream(new FileInputStream(file));
+              BufferedInputStream inputStream=new BufferedInputStream(file.getContent().getInputStream());
               int c;
               while ((c=inputStream.read()) >= 0) {
                 zipOutputStream.write(c);
@@ -177,7 +177,11 @@
       if (transport != null)       transport.close();
     }
   }
- catch (  MessagingException mex) {
+ catch (  IOException e) {
+    log.logError(toString(),"Problem while sending message: " + e.toString());
+    result.setNrErrors(1);
+  }
+catch (  MessagingException mex) {
     log.logError(toString(),"Problem while sending message: " + mex.toString());
     result.setNrErrors(1);
     Exception ex=mex;

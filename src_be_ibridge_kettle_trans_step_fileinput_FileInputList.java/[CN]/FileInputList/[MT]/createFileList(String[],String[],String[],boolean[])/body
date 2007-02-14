@@ -6,32 +6,38 @@
     final String onefile=realfile[i];
     final String onemask=realmask[i];
     final boolean onerequired=YES.equalsIgnoreCase(fileRequired[i]);
-    boolean subdirs=includeSubdirs[i];
+    final boolean subdirs=includeSubdirs[i];
     if (onefile == null)     continue;
     if (!Const.isEmpty(onemask)) {
-      File file=new File(onefile);
       try {
-        String[] fileNames=file.list(new FilenameFilter(){
-          public boolean accept(          File dir,          String name){
-            return Pattern.matches(onemask,name);
+        FileObject directoryFileObject=KettleVFS.getFileObject(onefile);
+        FileObject[] children=directoryFileObject.getChildren();
+        if (children.length == 0) {
+          FileObject[] fileObjects=directoryFileObject.findFiles(new FileDepthSelector(1,1){
+            public boolean traverseDescendents(            FileSelectInfo arg0){
+              return subdirs;
+            }
+            public boolean includeFile(            FileSelectInfo fileSelectInfo){
+              String name=fileSelectInfo.getFile().getName().getBaseName();
+              return Pattern.matches(onemask,name);
+            }
           }
-        }
 );
-        if (subdirs) {
-          Vector matchingFilenames=new Vector();
-          appendToVector(matchingFilenames,fileNames,"");
-          findMatchingFiles(file,onemask,matchingFilenames,"");
-          fileNames=new String[matchingFilenames.size()];
-          matchingFilenames.copyInto(fileNames);
-        }
-        if (fileNames != null) {
-          for (int j=0; j < fileNames.length; j++) {
-            File localFile=new File(file,fileNames[j]);
-            if (!localFile.isDirectory() && localFile.isFile())             fileInputList.addFile(localFile);
+          if (fileObjects != null) {
+            for (int j=0; j < fileObjects.length; j++) {
+              if (fileObjects[j].exists())               fileInputList.addFile(fileObjects[j]);
+            }
           }
+          if (Const.isEmpty(fileObjects)) {
+            if (onerequired)             fileInputList.addNonAccessibleFile(directoryFileObject);
+          }
+          fileInputList.sortFiles();
         }
-        if (Const.isEmpty(fileNames)) {
-          if (onerequired)           fileInputList.addNonAccessibleFile(file);
+ else {
+          for (int j=0; j < children.length; j++) {
+            String name=children[j].getName().getBaseName();
+            if (Pattern.matches(onemask,name))             fileInputList.addFile(children[j]);
+          }
         }
       }
  catch (      Exception e) {
@@ -39,20 +45,24 @@
       }
     }
  else {
-      File file=new File(onefile);
-      if (file.exists()) {
-        if (file.canRead() && file.isFile()) {
-          if (file.isFile())           fileInputList.addFile(file);
+      try {
+        FileObject fileObject=KettleVFS.getFileObject(onefile);
+        if (fileObject.exists()) {
+          if (fileObject.isReadable()) {
+            fileInputList.addFile(fileObject);
+          }
+ else {
+            if (onerequired)             fileInputList.addNonAccessibleFile(fileObject);
+          }
         }
  else {
-          if (onerequired)           fileInputList.addNonAccessibleFile(file);
+          if (onerequired)           fileInputList.addNonExistantFile(fileObject);
         }
       }
- else {
-        if (onerequired)         fileInputList.addNonExistantFile(file);
+ catch (      Exception e) {
+        LogWriter.getInstance().logError("FileInputList",Const.getStackTracker(e));
       }
     }
   }
-  fileInputList.sortFiles();
   return fileInputList;
 }
