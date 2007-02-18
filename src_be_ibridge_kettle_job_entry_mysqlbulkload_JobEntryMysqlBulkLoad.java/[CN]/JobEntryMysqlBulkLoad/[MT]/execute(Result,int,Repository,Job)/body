@@ -1,0 +1,74 @@
+{
+  String ReplaceIgnore;
+  String IgnoreNbrLignes;
+  String ListOfColumn="";
+  LogWriter log=LogWriter.getInstance();
+  Result result=new Result(nr);
+  result.setResult(false);
+  if (connection != null) {
+    Database db=new Database(connection);
+    try {
+      db.connect();
+      String realTablename=StringUtil.environmentSubstitute(tablename);
+      if (db.checkTableExists(realTablename)) {
+        log.logDetailed(toString(),"Table [" + realTablename + "] exists.");
+        if (filename != null) {
+          String realFilename=getRealFilename();
+          File file=new File(realFilename);
+          if (1 == 1) {
+            log.logDetailed(toString(),"File [" + realFilename + "] exists.");
+            if (isReplacedata()) {
+              ReplaceIgnore="REPLACE";
+            }
+ else {
+              ReplaceIgnore="IGNORE";
+            }
+            if (Const.toInt(getRealIgnorelines(),0) > 0) {
+              IgnoreNbrLignes=" IGNORE " + getRealIgnorelines() + " LINES ";
+            }
+ else {
+              IgnoreNbrLignes=" ";
+            }
+            if (getRealListattribut() != null) {
+              ListOfColumn="(" + getRealListattribut() + ")";
+            }
+            String SQLBULKLOAD="LOAD DATA INFILE '" + realFilename + "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " FIELDS TERMINATED BY  '"+ getRealSeparator()+ "' "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
+            try {
+              db.execStatements(SQLBULKLOAD);
+            }
+ catch (            KettleDatabaseException je) {
+              result.setNrErrors(1);
+              log.logError(toString(),"An error occurred executing this job entry : " + je.getMessage());
+            }
+ finally {
+              db.disconnect();
+            }
+            db.disconnect();
+            result.setResult(true);
+          }
+ else {
+            result.setNrErrors(1);
+            log.logDetailed(toString(),"File [" + realFilename + "] doesn't exist!");
+          }
+        }
+ else {
+          result.setNrErrors(1);
+          log.logError(toString(),"No filename is defined.");
+        }
+      }
+ else {
+        log.logDetailed(toString(),"Table [" + realTablename + "] doesn't exist!");
+      }
+      db.disconnect();
+    }
+ catch (    KettleDatabaseException dbe) {
+      result.setNrErrors(1);
+      log.logError(toString(),"An error occurred executing this step: " + dbe.getMessage());
+    }
+  }
+ else {
+    result.setNrErrors(1);
+    log.logError(toString(),"No database connection is defined.");
+  }
+  return result;
+}
