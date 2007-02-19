@@ -2,20 +2,22 @@
   String ReplaceIgnore;
   String IgnoreNbrLignes;
   String ListOfColumn="";
+  String LocalExec="";
   LogWriter log=LogWriter.getInstance();
   Result result=new Result(nr);
   result.setResult(false);
-  if (connection != null) {
-    Database db=new Database(connection);
-    try {
-      db.connect();
-      String realTablename=StringUtil.environmentSubstitute(tablename);
-      if (db.checkTableExists(realTablename)) {
-        log.logDetailed(toString(),"Table [" + realTablename + "] exists.");
-        if (filename != null) {
-          String realFilename=getRealFilename();
-          if (1 == 1) {
-            log.logDetailed(toString(),"File [" + realFilename + "] exists.");
+  if (filename != null) {
+    String realFilename=getRealFilename();
+    File file=new File(realFilename);
+    if ((file.exists() && file.canRead()) || isLocalInfile() == false) {
+      log.logDetailed(toString(),"File [" + realFilename + "] exists.");
+      if (connection != null) {
+        Database db=new Database(connection);
+        try {
+          db.connect();
+          String realTablename=StringUtil.environmentSubstitute(tablename);
+          if (db.checkTableExists(realTablename)) {
+            log.logDetailed(toString(),"Table [" + realTablename + "] exists.");
             if (isReplacedata()) {
               ReplaceIgnore="REPLACE";
             }
@@ -31,43 +33,46 @@
             if (getRealListattribut() != null) {
               ListOfColumn="(" + getRealListattribut() + ")";
             }
-            String SQLBULKLOAD="LOAD DATA INFILE '" + realFilename + "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " FIELDS TERMINATED BY  '"+ getRealSeparator()+ "' "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
+            if (isLocalInfile()) {
+              LocalExec=" LOCAL ";
+            }
+            String SQLBULKLOAD="LOAD DATA " + LocalExec + " INFILE '"+ realFilename+ "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " FIELDS TERMINATED BY  '"+ getRealSeparator()+ "' "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
             try {
               db.execStatements(SQLBULKLOAD);
+              db.disconnect();
+              result.setResult(true);
             }
  catch (            KettleDatabaseException je) {
+              db.disconnect();
               result.setNrErrors(1);
               log.logError(toString(),"An error occurred executing this job entry : " + je.getMessage());
             }
- finally {
-              db.disconnect();
-            }
+          }
+ else {
             db.disconnect();
-            result.setResult(true);
-          }
- else {
             result.setNrErrors(1);
-            log.logDetailed(toString(),"File [" + realFilename + "] doesn't exist!");
+            log.logDetailed(toString(),"Table [" + realTablename + "] doesn't exist!");
           }
         }
- else {
+ catch (        KettleDatabaseException dbe) {
+          db.disconnect();
           result.setNrErrors(1);
-          log.logError(toString(),"No filename is defined.");
+          log.logError(toString(),"An error occurred executing this entry: " + dbe.getMessage());
         }
       }
  else {
-        log.logDetailed(toString(),"Table [" + realTablename + "] doesn't exist!");
+        result.setNrErrors(1);
+        log.logError(toString(),Messages.getString("JobMysqlBulkLoad.Nodatabase.Label"));
       }
-      db.disconnect();
     }
- catch (    KettleDatabaseException dbe) {
+ else {
       result.setNrErrors(1);
-      log.logError(toString(),"An error occurred executing this step: " + dbe.getMessage());
+      log.logDetailed(toString(),"File [" + realFilename + "] doesn't exist!");
     }
   }
  else {
     result.setNrErrors(1);
-    log.logError(toString(),"No database connection is defined.");
+    log.logError(toString(),Messages.getString("JobMysqlBulkLoad.Nofilename.Label"));
   }
   return result;
 }
