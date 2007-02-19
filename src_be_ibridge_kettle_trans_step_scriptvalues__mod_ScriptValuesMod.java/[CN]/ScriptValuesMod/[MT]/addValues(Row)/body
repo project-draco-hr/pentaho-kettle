@@ -14,22 +14,10 @@
     }
     data.scope.put("_TransformationName_",data.scope,new String(this.getName()));
     try {
-      try {
-        ScriptableObject.defineClass(data.scope,tranVar.class);
-        tranVars=new tranVar[data.fields_used.length];
-        for (int i=0; i < data.fields_used.length; i++) {
-          Value val=row.getValue(data.fields_used[i]);
-          Object[] arg={new String(val.getName())};
-          tranVars[i]=(tranVar)data.cx.newObject(data.scope,"tranVar",arg);
-          data.scope.put(val.getName(),data.scope,tranVars[i]);
-        }
-      }
- catch (      Exception e) {
-        logError(Messages.getString("ScriptValuesMod.Log.CouldNotAttachTransVars") + e.toString());
-        logError(Const.getStackTracker(e));
-        setErrors(1);
-        stopAll();
-        return ERROR_TRANSFORMATION;
+      for (int i=0; i < data.fields_used.length; i++) {
+        Value val=row.getValue(data.fields_used[i]);
+        Scriptable jsarg=Context.toObject(val,data.scope);
+        data.scope.put(val.getName(),data.scope,jsarg);
       }
       try {
         if (meta.getAddClasses() != null) {
@@ -94,10 +82,6 @@
       stopAll();
       return ERROR_TRANSFORMATION;
     }
-  }
-  for (int i=0; i < data.fields_used.length; i++) {
-    Value val=row.getValue(data.fields_used[i]);
-    tranVars[i].setValue(val);
   }
   try {
     data.script.exec(data.cx,data.scope);
