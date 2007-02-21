@@ -2,15 +2,15 @@
   Row lu=new Row();
   Row add;
   Value technicalKey;
-  Value val_version;
-  Value val_date=null;
-  Value val_datfrom=null;
-  Value val_datto=null;
+  Value valueVersion;
+  Value valueDate=null;
+  Value valueDateFrom=null;
+  Value valueDateTo=null;
   if (first) {
     first=false;
     determineTechKeyCreation();
     if (getCopy() == 0)     data.db.checkDimZero(meta.getSchemaName(),meta.getTableName(),meta.getKeyField(),meta.getVersionField(),meta.isAutoIncrement());
-    data.db.setDimLookup(meta.getSchemaName(),meta.getTableName(),meta.getKeyLookup(),meta.getKeyField(),meta.getVersionField(),meta.getFieldLookup(),meta.getFieldStream(),meta.getDateFrom(),meta.getDateTo());
+    data.db.setDimLookup(meta.getSchemaName(),meta.getTableName(),meta.getKeyLookup(),meta.getKeyField(),meta.getVersionField(),meta.getFieldLookup(),meta.getFieldStream(),meta.getDateFrom(),meta.getDateTo(),meta.getCacheSize() >= 0);
     data.keynrs=new int[meta.getKeyStream().length];
     for (int i=0; i < meta.getKeyStream().length; i++) {
       data.keynrs[i]=row.searchValueIndex(meta.getKeyStream()[i]);
@@ -33,15 +33,23 @@
     meta.setNotFound(new Value(meta.getKeyField(),(double)meta.getDatabaseMeta().getNotFoundTK(meta.isAutoIncrement())));
     if (meta.getKeyRename() != null && meta.getKeyRename().length() > 0)     meta.getNotFound().setName(meta.getKeyRename());
     if (meta.getDateField() != null && data.datefieldnr >= 0) {
-      data.val_datnow=row.getValue(data.datefieldnr);
+      data.valueDateNow=row.getValue(data.datefieldnr);
     }
  else {
       Calendar cal=Calendar.getInstance();
-      data.val_datnow=new Value("MIN",new Date(cal.getTimeInMillis()));
+      data.valueDateNow=new Value("MIN",new Date(cal.getTimeInMillis()));
+    }
+    if (meta.getCacheSize() >= 0) {
+      data.keyMeta=new Row();
+      for (int i=0; i < data.keynrs.length; i++) {
+        Value key=new Value(row.getValue(data.keynrs[i]));
+        data.keyMeta.addValue(key.Clone());
+      }
+      data.cache=new ByteArrayHashIndex(meta.getCacheSize() > 0 ? meta.getCacheSize() : 5000,data.keyMeta);
     }
   }
   if (meta.getDateField() != null && data.datefieldnr >= 0) {
-    data.val_datnow=row.getValue(data.datefieldnr);
+    data.valueDateNow=row.getValue(data.datefieldnr);
   }
   for (int i=0; i < meta.getKeyStream().length; i++) {
     try {
@@ -51,11 +59,21 @@
       throw new KettleStepException(Messages.getString("DimensionLookup.Exception.ErrorDetectedInGettingKey",i + "",data.keynrs[i] + "/" + row.size(),row.toString()));
     }
   }
-  if (data.datefieldnr >= 0)   val_date=row.getValue(data.datefieldnr);
- else   val_date=data.val_datnow;
-  if (log.isDebug())   logDebug(Messages.getString("DimensionLookup.Log.LookupRow") + lu.toString() + " val_date="+ val_date.toString());
-  data.db.setDimValues(lu,val_date);
-  add=data.db.getLookup();
+  if (data.datefieldnr >= 0)   valueDate=row.getValue(data.datefieldnr);
+ else   valueDate=data.valueDateNow;
+  if (log.isDebug())   logDebug(Messages.getString("DimensionLookup.Log.LookupRow") + lu.toString() + " valueDate="+ valueDate.toString());
+  add=null;
+  if (meta.getCacheSize() >= 0) {
+    add=getFromCache(lu,valueDate);
+  }
+  if (add == null) {
+    data.db.setDimValues(lu,valueDate);
+    add=data.db.getLookup();
+    linesInput++;
+    if (add != null && meta.getCacheSize() >= 0) {
+      addToCache(lu,add);
+    }
+  }
   if (!meta.isUpdate()) {
     if (add == null) {
       add=new Row();
@@ -78,9 +96,9 @@
  else {
     if (add == null) {
       if (log.isRowLevel())       logRowlevel(Messages.getString("DimensionLookup.Log.NoDimensionEntryFound") + lu + ")");
-      val_datfrom=new Value("MIN",meta.getMinDate());
-      val_datto=new Value("MAX",meta.getMaxDate());
-      val_version=new Value(meta.getVersionField(),1L);
+      valueDateFrom=new Value("MIN",meta.getMinDate());
+      valueDateTo=new Value("MAX",meta.getMaxDate());
+      valueVersion=new Value(meta.getVersionField(),1L);
       boolean autoinc=false;
       technicalKey=null;
 switch (getTechKeyCreation()) {
@@ -97,19 +115,23 @@ technicalKey=data.db.getNextSequenceValue(meta.getSchemaName(),meta.getSequenceN
 if (technicalKey != null && log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.FoundNextSequence") + technicalKey.toString());
 break;
 }
-data.db.dimInsert(row,meta.getSchemaName(),meta.getTableName(),true,autoinc ? null : meta.getKeyField(),autoinc,technicalKey,meta.getVersionField(),val_version,meta.getDateFrom(),val_datfrom,meta.getDateTo(),val_datto,meta.getFieldLookup(),data.fieldnrs,meta.getKeyStream(),meta.getKeyLookup(),data.keynrs);
+data.db.dimInsert(row,meta.getSchemaName(),meta.getTableName(),true,autoinc ? null : meta.getKeyField(),autoinc,technicalKey,meta.getVersionField(),valueVersion,meta.getDateFrom(),valueDateFrom,meta.getDateTo(),valueDateTo,meta.getFieldLookup(),data.fieldnrs,meta.getKeyStream(),meta.getKeyLookup(),data.keynrs);
 linesOutput++;
 add=new Row();
 if (meta.getKeyRename() != null && meta.getKeyRename().length() > 0) technicalKey.setName(meta.getKeyRename());
 add.addValue(technicalKey);
+if (meta.getCacheSize() >= 0) {
+Row values=getCacheValues(row,technicalKey,valueVersion,valueDateFrom,valueDateTo);
+addToCache(lu,values);
+}
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.AddedDimensionEntry") + add.toString());
 }
  else {
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.DimensionEntryFound") + add);
 technicalKey=add.getValue(0);
-val_version=add.getValue(1);
-val_datfrom=new Value("MIN",meta.getMinDate());
-val_datto=new Value("MAX",meta.getMaxDate());
+valueVersion=add.getValue(1);
+valueDateFrom=new Value("MIN",meta.getMinDate());
+valueDateTo=new Value("MAX",meta.getMaxDate());
 int cmp;
 boolean insert=false;
 boolean identical=true;
@@ -133,6 +155,10 @@ if (!identical) {
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.UpdateRowWithValues") + row);
 data.db.dimUpdate(row,meta.getSchemaName(),meta.getTableName(),meta.getFieldLookup(),data.fieldnrs,meta.getKeyField(),technicalKey);
 linesUpdated++;
+if (meta.getCacheSize() >= 0) {
+Row values=getCacheValues(row,technicalKey,valueVersion,valueDateFrom,valueDateTo);
+addToCache(lu,values);
+}
 }
  else {
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.SkipLine"));
@@ -141,8 +167,8 @@ linesSkipped++;
 }
  else {
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.InsertNewVersion") + technicalKey.toString());
-val_datfrom=data.val_datnow;
-val_datto=new Value("MAX",meta.getMaxDate());
+valueDateFrom=data.valueDateNow;
+valueDateTo=new Value("MAX",meta.getMaxDate());
 boolean autoinc=false;
 if (meta.getDatabaseMeta().supportsAutoinc() && meta.isAutoIncrement()) {
 autoinc=true;
@@ -156,8 +182,12 @@ if (technicalKey != null && log.isRowLevel()) logRowlevel(Messages.getString("Di
 technicalKey=new Value(meta.getKeyField(),0L);
 data.db.getNextValue(getTransMeta().getCounters(),meta.getSchemaName(),meta.getTableName(),technicalKey);
 }
-data.db.dimInsert(row,meta.getSchemaName(),meta.getTableName(),false,meta.getKeyField(),autoinc,technicalKey,meta.getVersionField(),val_version,meta.getDateFrom(),val_datfrom,meta.getDateTo(),val_datto,meta.getFieldLookup(),data.fieldnrs,meta.getKeyStream(),meta.getKeyLookup(),data.keynrs);
+data.db.dimInsert(row,meta.getSchemaName(),meta.getTableName(),false,meta.getKeyField(),autoinc,technicalKey,meta.getVersionField(),valueVersion,meta.getDateFrom(),valueDateFrom,meta.getDateTo(),valueDateTo,meta.getFieldLookup(),data.fieldnrs,meta.getKeyStream(),meta.getKeyLookup(),data.keynrs);
 linesOutput++;
+if (meta.getCacheSize() >= 0) {
+Row values=getCacheValues(row,technicalKey,valueVersion,valueDateFrom,valueDateTo);
+addToCache(lu,values);
+}
 }
 if (punch) {
 data.db.dimPunchThrough(row,meta.getSchemaName(),meta.getTableName(),meta.getFieldUpdate(),meta.getFieldLookup(),data.fieldnrs,meta.getKeyStream(),meta.getKeyLookup(),data.keynrs);
@@ -170,7 +200,11 @@ if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.Techni
 }
 }
 if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.AddValuesToRow") + add);
-for (int i=0; i < add.size(); i++) {
+int size=add.size();
+if (meta.getCacheSize() >= 0) {
+size-=2;
+}
+for (int i=0; i < size; i++) {
 row.addValue(add.getValue(i));
 }
 Value date;

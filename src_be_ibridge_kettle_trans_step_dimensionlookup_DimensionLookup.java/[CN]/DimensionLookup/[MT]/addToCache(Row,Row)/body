@@ -1,0 +1,37 @@
+{
+  if (data.valueMeta == null) {
+    data.valueMeta=returnValues.Clone();
+  }
+  data.cache.putAgain(Row.extractData(keyValues),Row.extractData(returnValues));
+  int tenPercent=meta.getCacheSize() / 10;
+  if (meta.getCacheSize() > 0 && data.cache.size() > meta.getCacheSize() + tenPercent) {
+    List keys=data.cache.getKeys();
+    int sizeBefore=keys.size();
+    List samples=new ArrayList();
+    for (int i=0; i < keys.size(); i+=keys.size() / 5) {
+      byte[] key=(byte[])keys.get(i);
+      byte[] value=data.cache.get(key);
+      if (value != null) {
+        Row values=Row.getRow(value,data.valueMeta);
+        Long tk=new Long(values.getValue(0).getInteger());
+        samples.add(tk);
+      }
+    }
+    Collections.sort(samples);
+    data.smallestCacheKey=((Long)samples.get(1)).longValue();
+    for (int i=0; i < keys.size(); i++) {
+      byte[] key=(byte[])keys.get(i);
+      byte[] value=data.cache.get(key);
+      if (value != null) {
+        Row values=Row.getRow(value,data.valueMeta);
+        long tk=new Long(values.getValue(0).getInteger()).longValue();
+        if (tk <= data.smallestCacheKey) {
+          data.cache.remove(key);
+        }
+      }
+    }
+    int sizeAfter=data.cache.size();
+    logDetailed("Reduced the lookup cache from " + sizeBefore + " to "+ sizeAfter+ " rows.");
+  }
+  if (log.isRowLevel())   logRowlevel("Cache store: key=" + keyValues + "    values="+ returnValues);
+}
