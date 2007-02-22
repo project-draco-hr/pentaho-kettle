@@ -1,0 +1,74 @@
+{
+  try {
+    int rowSize=r.size();
+    if (meta.getFormula() != null)     for (int i=0; i < meta.getFormula().length; i++) {
+      FormulaMetaFunction fn=meta.getFormula()[i];
+      if (!Const.isEmpty(fn.getFieldName())) {
+        if (data.lValue[i] == null) {
+          data.lValue[i]=data.parser.parse(meta.getFormula()[i].getFormula());
+          data.lValue[i].initialize(data.context);
+        }
+        TypeValuePair result=data.lValue[i].evaluate();
+        Value value=null;
+        Object formulaResult=result.getValue();
+        if (formulaResult instanceof String) {
+          value=new Value(fn.getFieldName(),(String)formulaResult);
+        }
+ else         if (formulaResult instanceof Number) {
+          value=new Value(fn.getFieldName(),((Number)formulaResult).doubleValue());
+        }
+ else         if (formulaResult instanceof Integer) {
+          value=new Value(fn.getFieldName(),(long)((Integer)formulaResult).intValue());
+        }
+ else         if (formulaResult instanceof Long) {
+          value=new Value(fn.getFieldName(),((Long)formulaResult).longValue());
+        }
+ else         if (formulaResult instanceof Date) {
+          value=new Value(fn.getFieldName(),(Date)formulaResult);
+        }
+ else         if (formulaResult instanceof BigDecimal) {
+          value=new Value(fn.getFieldName(),(BigDecimal)formulaResult);
+        }
+ else         if (formulaResult instanceof byte[]) {
+          value=new Value(fn.getFieldName(),(byte[])formulaResult);
+        }
+ else         if (formulaResult instanceof Boolean) {
+          value=new Value(fn.getFieldName(),((Boolean)formulaResult).booleanValue());
+        }
+ else {
+          value=new Value(fn.getFieldName(),formulaResult.toString());
+        }
+        if (value != null) {
+          if (fn.getValueType() != Value.VALUE_TYPE_NONE) {
+            value.setType(fn.getValueType());
+            value.setLength(fn.getValueLength(),fn.getValuePrecision());
+          }
+          r.addValue(value);
+        }
+      }
+    }
+    int inpFieldsRemoved=0;
+    for (int i=meta.getFormula().length - 1; i >= 0; i--) {
+      FormulaMetaFunction fn=meta.getFormula()[i];
+      if (fn.isRemovedFromResult()) {
+        Integer idx=(Integer)data.indexCache.get(fn.getFieldName());
+        if (idx != null) {
+          int y=idx.intValue();
+          if (y < rowSize) {
+            r.removeValue(idx.intValue());
+            inpFieldsRemoved++;
+          }
+ else {
+            r.removeValue(idx.intValue() - inpFieldsRemoved);
+          }
+        }
+ else {
+          r.removeValue(rowSize + i);
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleValueException(e);
+  }
+}
