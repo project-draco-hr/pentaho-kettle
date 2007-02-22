@@ -20,7 +20,6 @@
       }
     }
   }
-  Row prevFields=null;
   Row nextStepRequiredFields=null;
   StepMeta stepMeta=new StepMeta(stepname,input);
   StepMeta[] nextSteps=transMeta.getNextSteps(stepMeta);
@@ -31,11 +30,11 @@
   StepMeta outputStepMeta=nextSteps[0];
   StepMetaInterface stepMetaInterface=outputStepMeta.getStepMetaInterface();
   try {
-    prevFields=transMeta.getPrevStepFields(stepname);
     nextStepRequiredFields=stepMetaInterface.getRequiredFields();
   }
  catch (  KettleException e) {
-    throw new RuntimeException(e);
+    log.logError(toString(),Messages.getString("SelectValuesDialog.DoMapping.UnableToFindOutput"));
+    nextStepRequiredFields=new Row();
   }
   String[] inputNames=new String[prevFields.size()];
   for (int i=0; i < prevFields.size(); i++) {
@@ -55,14 +54,19 @@
   ArrayList mappings=new ArrayList();
   StringBuffer missingFields=new StringBuffer();
   for (int i=0; i < selectName.length; i++) {
-    int inIndex=prevFields.searchValueIndex(selectName[i]);
+    String valueName=selectName[i];
+    String valueRename=selectRename[i];
+    int inIndex=prevFields.searchValueIndex(valueName);
     if (inIndex < 0) {
-      missingFields.append(Const.CR + "   " + selectName[i]+ " --> "+ selectRename[i]);
+      missingFields.append(Const.CR + "   " + valueName+ " --> "+ valueRename);
       continue;
     }
-    int outIndex=nextStepRequiredFields.searchValueIndex(selectRename[i]);
+    if (null == valueRename || valueRename.equals("")) {
+      valueRename=valueName;
+    }
+    int outIndex=nextStepRequiredFields.searchValueIndex(valueRename);
     if (outIndex < 0) {
-      missingFields.append(Const.CR + "   " + selectName[i]+ " --> "+ selectRename[i]);
+      missingFields.append(Const.CR + "   " + valueName+ " --> "+ valueRename);
       continue;
     }
     SourceToTargetMapping mapping=new SourceToTargetMapping(inIndex,outIndex);
@@ -87,5 +91,8 @@
       item.setText(3,"-1");
       item.setText(4,"-1");
     }
+    wFields.setRowNums();
+    wFields.optWidth(true);
+    wTabFolder.setSelection(0);
   }
 }

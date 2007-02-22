@@ -10,6 +10,12 @@
     }
   }
 ;
+  FocusListener lsFocusLost=new FocusAdapter(){
+    public void focusLost(    FocusEvent arg0){
+      setTableFieldCombo();
+    }
+  }
+;
   backupChanged=input.hasChanged();
   FormLayout formLayout=new FormLayout();
   formLayout.marginWidth=Const.FORM_MARGIN;
@@ -49,6 +55,7 @@
   wSchema=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wSchema);
   wSchema.addModifyListener(lsMod);
+  wSchema.addFocusListener(lsFocusLost);
   fdSchema=new FormData();
   fdSchema.left=new FormAttachment(middle,0);
   fdSchema.top=new FormAttachment(wConnection,margin * 2);
@@ -72,6 +79,7 @@
   wTable=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wTable);
   wTable.addModifyListener(lsMod);
+  wTable.addFocusListener(lsFocusLost);
   fdTable=new FormData();
   fdTable.left=new FormAttachment(middle,0);
   fdTable.top=new FormAttachment(wSchema,margin * 2);
@@ -127,10 +135,13 @@
   int nrKeyCols=4;
   int nrKeyRows=(input.getStreamKeyField1() != null ? input.getStreamKeyField1().length : 1);
   ColumnInfo[] ciKey=new ColumnInfo[nrKeyCols];
-  ciKey[0]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Tablefield"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciKey[0]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Tablefield"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
   ciKey[1]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Comparator"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{"=","<>","<","<=",">",">=","LIKE","BETWEEN","IS NULL","IS NOT NULL"});
-  ciKey[2]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Field1"),ColumnInfo.COLUMN_TYPE_TEXT,false);
-  ciKey[3]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Field2"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciKey[2]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Field1"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  ciKey[3]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Field2"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  tableFieldColumns.add(ciKey[0]);
+  fieldColumns.add(ciKey[2]);
+  fieldColumns.add(ciKey[3]);
   wKey=new TableView(shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciKey,nrKeyRows,lsMod,props);
   fdKey=new FormData();
   fdKey.left=new FormAttachment(0,0);
@@ -212,10 +223,11 @@
   int UpInsCols=4;
   int UpInsRows=(input.getReturnValueField() != null ? input.getReturnValueField().length : 1);
   ColumnInfo[] ciReturn=new ColumnInfo[UpInsCols];
-  ciReturn[0]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Field"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciReturn[0]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Field"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{},false);
   ciReturn[1]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Newname"),ColumnInfo.COLUMN_TYPE_TEXT,false);
   ciReturn[2]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Default"),ColumnInfo.COLUMN_TYPE_TEXT,false);
   ciReturn[3]=new ColumnInfo(Messages.getString("DatabaseLookupDialog.ColumnInfo.Type"),ColumnInfo.COLUMN_TYPE_CCOMBO,Value.getTypes());
+  tableFieldColumns.add(ciReturn[0]);
   wReturn=new TableView(shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciReturn,UpInsRows,lsMod,props);
   fdReturn=new FormData();
   fdReturn.left=new FormAttachment(0,0);
@@ -276,6 +288,8 @@
   setSize();
   getData();
   input.setChanged(backupChanged);
+  setComboValues();
+  setTableFieldCombo();
   shell.open();
   while (!shell.isDisposed()) {
     if (!display.readAndDispatch())     display.sleep();
