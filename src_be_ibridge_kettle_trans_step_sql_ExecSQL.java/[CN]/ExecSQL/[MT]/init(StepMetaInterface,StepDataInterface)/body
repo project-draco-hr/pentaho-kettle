@@ -4,7 +4,14 @@
   if (super.init(smi,sdi)) {
     data.db=new Database(meta.getDatabaseMeta());
     try {
-      data.db.connect();
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
       if (log.isDetailed())       logDetailed(Messages.getString("ExecSQL.Log.ConnectedToDB"));
       if (!meta.isExecutedEachInputRow()) {
         data.result=data.db.execStatements(meta.getSql());
