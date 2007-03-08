@@ -4,6 +4,8 @@
   String ListOfColumn="";
   String LocalExec="";
   String PriorityText="";
+  String LineTerminatedby="";
+  String FieldTerminatedby="";
   LogWriter log=LogWriter.getInstance();
   Result result=new Result(nr);
   result.setResult(false);
@@ -30,24 +32,42 @@
               ReplaceIgnore="IGNORE";
             }
             if (Const.toInt(getRealIgnorelines(),0) > 0) {
-              IgnoreNbrLignes=" IGNORE " + getRealIgnorelines() + " LINES ";
+              IgnoreNbrLignes="IGNORE " + getRealIgnorelines() + " LINES";
             }
             if (getRealListattribut() != null) {
               ListOfColumn="(" + MysqlString(getRealListattribut()) + ")";
             }
             if (isLocalInfile()) {
-              LocalExec=" LOCAL ";
+              LocalExec="LOCAL";
             }
-            if (prorityvalue == 0) {
-              PriorityText="";
-            }
- else             if (prorityvalue == 1) {
-              PriorityText=" LOW_PRIORITY ";
+            if (prorityvalue == 1) {
+              PriorityText="LOW_PRIORITY";
             }
  else {
-              PriorityText=" CONCURRENT ";
+              PriorityText="CONCURRENT";
             }
-            String SQLBULKLOAD="LOAD DATA " + PriorityText + " "+ LocalExec+ " INFILE '"+ realFilename+ "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " FIELDS TERMINATED BY  '"+ getRealSeparator()+ "' "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
+            if (getRealSeparator() != null || getRealEnclosed() != null || getRealEscaped() != null) {
+              FieldTerminatedby="FIELDS ";
+              if (getRealSeparator() != null) {
+                FieldTerminatedby=FieldTerminatedby + "TERMINATED BY '" + getRealSeparator().replace("'","''")+ "'";
+              }
+              if (getRealEnclosed() != null) {
+                FieldTerminatedby=FieldTerminatedby + " ENCLOSED BY '" + getRealEnclosed().replace("'","''")+ "'";
+              }
+              if (getRealEscaped() != null) {
+                FieldTerminatedby=FieldTerminatedby + " ESCAPED BY '" + getRealEscaped().replace("'","''")+ "'";
+              }
+            }
+            if (getRealLinestarted() != null || getRealLineterminated() != null) {
+              LineTerminatedby="LINES ";
+              if (getRealLinestarted() != null) {
+                LineTerminatedby=LineTerminatedby + "STARTING BY '" + getRealLinestarted().replace("'","''")+ "'";
+              }
+              if (getRealLineterminated() != null) {
+                LineTerminatedby=LineTerminatedby + " TERMINATED BY '" + getRealLineterminated().replace("'","''")+ "'";
+              }
+            }
+            String SQLBULKLOAD="LOAD DATA " + PriorityText + " "+ LocalExec+ " INFILE '"+ realFilename+ "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " "+ FieldTerminatedby+ " "+ LineTerminatedby+ " "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
             try {
               db.execStatements(SQLBULKLOAD);
               db.disconnect();
