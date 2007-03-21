@@ -105,11 +105,17 @@
             ResultFile resultFile=(ResultFile)iter.next();
             FileObject file=resultFile.getFile();
             if (file != null && file.exists()) {
-              MimeBodyPart files=new MimeBodyPart();
-              URLDataSource fds=new URLDataSource(file.getURL());
-              files.setDataHandler(new DataHandler(fds));
-              files.setFileName(fds.getName());
-              parts.addBodyPart(files);
+              boolean found=false;
+              for (int i=0; i < fileType.length; i++) {
+                if (fileType[i] == resultFile.getType())                 found=true;
+              }
+              if (found) {
+                MimeBodyPart files=new MimeBodyPart();
+                URLDataSource fds=new URLDataSource(file.getURL());
+                files.setDataHandler(new DataHandler(fds));
+                files.setFileName(fds.getName());
+                parts.addBodyPart(files);
+              }
             }
           }
         }
@@ -120,16 +126,22 @@
             zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
             for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
               ResultFile resultFile=(ResultFile)iter.next();
-              FileObject file=resultFile.getFile();
-              ZipEntry zipEntry=new ZipEntry(file.getName().getURI());
-              zipOutputStream.putNextEntry(zipEntry);
-              BufferedInputStream inputStream=new BufferedInputStream(file.getContent().getInputStream());
-              int c;
-              while ((c=inputStream.read()) >= 0) {
-                zipOutputStream.write(c);
+              boolean found=false;
+              for (int i=0; i < fileType.length; i++) {
+                if (fileType[i] == resultFile.getType())                 found=true;
               }
-              inputStream.close();
-              zipOutputStream.closeEntry();
+              if (found) {
+                FileObject file=resultFile.getFile();
+                ZipEntry zipEntry=new ZipEntry(file.getName().getURI());
+                zipOutputStream.putNextEntry(zipEntry);
+                BufferedInputStream inputStream=new BufferedInputStream(file.getContent().getInputStream());
+                int c;
+                while ((c=inputStream.read()) >= 0) {
+                  zipOutputStream.write(c);
+                }
+                inputStream.close();
+                zipOutputStream.closeEntry();
+              }
             }
           }
  catch (          Exception e) {
