@@ -1,0 +1,29 @@
+{
+  meta=(WebServicePluginMeta)metaInterface;
+  data=(WebServicePluginData)dataInterface;
+  Row vCurrentRow=getRow();
+  if (nbRowProcess == 0) {
+    try {
+      initRowParsing(vCurrentRow);
+    }
+ catch (    Exception e) {
+      new KettleException(e);
+    }
+    startXML();
+  }
+  if (vCurrentRow != null) {
+    parseRow(vCurrentRow);
+    nbRowProcess++;
+  }
+  boolean valuesUsed=meta.getValueInWebService() != null && meta.getValueInWebService().size() > 0;
+  boolean fieldsUsed=meta.getFieldInWebService() != null && meta.getFieldInWebService().size() > 0;
+  if ((vCurrentRow == null && (nbRowProcess % STEP != 0 && !valuesUsed)) || (vCurrentRow != null && ((nbRowProcess > 0 && nbRowProcess % STEP == 0) || valuesUsed)) || (vCurrentRow == null && !valuesUsed && !fieldsUsed)) {
+    endXML();
+    requestSOAP();
+    startXML();
+  }
+  if (vCurrentRow == null) {
+    setOutputDone();
+  }
+  return vCurrentRow != null;
+}

@@ -170,16 +170,18 @@ StepMetaDataCombi sid=(StepMetaDataCombi)steps.get(i);
 StepMeta stepMeta=sid.stepMeta;
 BaseStep baseStep=(BaseStep)sid.step;
 baseStep.setPartitioned(stepMeta.isPartitioned());
-PartitionSchema thisSchema=stepMeta.getStepPartitioningMeta().getPartitionSchema();
+StepPartitioningMeta thisPartitioningMeta=stepMeta.getStepPartitioningMeta();
+PartitionSchema thisSchema=thisPartitioningMeta.getPartitionSchema();
 String thisFieldName=stepMeta.getStepPartitioningMeta().getFieldName();
-boolean nextPartitioned=true;
+int nextPartitioned=StepPartitioningMeta.PARTITIONING_METHOD_NONE;
 boolean samePartitioned=thisSchema != null;
 boolean sameFieldName=thisFieldName != null;
 int nrNext=transMeta.findNrNextSteps(stepMeta);
 for (int p=0; p < nrNext; p++) {
 StepMeta nextStep=transMeta.findNextStep(stepMeta,p);
-if (!nextStep.isPartitioned()) {
-nextPartitioned=false;
+StepPartitioningMeta nextPartitioningMeta=nextStep.getStepPartitioningMeta();
+if (nextStep.isPartitioned()) {
+nextPartitioned=nextStep.getStepPartitioningMeta().getMethod();
 }
  else {
 if (thisSchema != null && !thisSchema.equals(nextStep.getStepPartitioningMeta().getPartitionSchema())) {
@@ -188,11 +190,14 @@ samePartitioned=false;
 if (thisFieldName != null && !thisFieldName.equalsIgnoreCase(nextStep.getStepPartitioningMeta().getFieldName())) {
 sameFieldName=false;
 }
+if (thisPartitioningMeta != null && nextPartitioningMeta != null && thisPartitioningMeta.getMethod() != nextPartitioningMeta.getMethod()) {
+samePartitioned=false;
 }
 }
-baseStep.setRepartitioning(false);
-if ((!stepMeta.isPartitioned() && nextPartitioned) || (stepMeta.isPartitioned() && nextPartitioned && !samePartitioned) || (stepMeta.isPartitioned() && nextPartitioned && !sameFieldName)) {
-baseStep.setRepartitioning(true);
+}
+baseStep.setRepartitioning(StepPartitioningMeta.PARTITIONING_METHOD_NONE);
+if ((!stepMeta.isPartitioned() && nextPartitioned != StepPartitioningMeta.PARTITIONING_METHOD_NONE) || (stepMeta.isPartitioned() && nextPartitioned != StepPartitioningMeta.PARTITIONING_METHOD_NONE && !samePartitioned) || (stepMeta.isPartitioned() && nextPartitioned != StepPartitioningMeta.PARTITIONING_METHOD_NONE && !sameFieldName)) {
+baseStep.setRepartitioning(nextPartitioned);
 }
 boolean prevPartitioned=true;
 int nrPrev=transMeta.findNrPrevSteps(stepMeta);

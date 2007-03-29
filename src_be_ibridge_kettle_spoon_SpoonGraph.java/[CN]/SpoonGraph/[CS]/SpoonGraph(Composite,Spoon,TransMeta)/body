@@ -1,16 +1,17 @@
 {
-  super(parent,SWT.V_SCROLL | SWT.H_SCROLL | SWT.NO_BACKGROUND);
+  super(parent,SWT.NONE);
   this.shell=parent.getShell();
   this.spoon=spoon;
   this.transMeta=transMeta;
-  canvas=this;
+  setLayout(new FillLayout());
+  canvas=new Canvas(this,SWT.V_SCROLL | SWT.H_SCROLL | SWT.NO_BACKGROUND);
   iconsize=spoon.props.getIconSize();
   clearSettings();
   remarks=new ArrayList();
   impact=new ArrayList();
   impactFinished=false;
-  hori=getHorizontalBar();
-  vert=getVerticalBar();
+  hori=canvas.getHorizontalBar();
+  vert=canvas.getVerticalBar();
   hori.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
       redraw();
@@ -30,7 +31,7 @@
   setVisible(true);
   newProps();
   canvas.setBackground(GUIResource.getInstance().getColorBackground());
-  addPaintListener(new PaintListener(){
+  canvas.addPaintListener(new PaintListener(){
     public void paintControl(    PaintEvent e){
       if (!spoon.isStopped())       SpoonGraph.this.paintControl(e);
     }
@@ -38,8 +39,8 @@
 );
   selected_steps=null;
   lastclick=null;
-  addKeyListener(spoon.modKeys);
-  addMouseListener(new MouseAdapter(){
+  canvas.addKeyListener(spoon.modKeys);
+  canvas.addMouseListener(new MouseAdapter(){
     public void mouseDoubleClick(    MouseEvent e){
       clearSettings();
       Point real=screen2real(e.x,e.y);
@@ -108,21 +109,7 @@
       Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
       if (candidate != null) {
         if (transMeta.findTransHop(candidate) == null) {
-          transMeta.addTransHop(candidate);
-          spoon.refreshTree();
-          if (transMeta.hasLoop(candidate.getFromStep())) {
-            MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
-            mb.setMessage(Messages.getString("SpoonGraph.Dialog.HopCausesLoop.Message"));
-            mb.setText(Messages.getString("SpoonGraph.Dialog.HopCausesLoop.Title"));
-            mb.open();
-            int idx=transMeta.indexOfTransHop(candidate);
-            transMeta.removeTransHop(idx);
-            spoon.refreshTree();
-          }
- else {
-            spoon.addUndoNew(transMeta,new TransHopMeta[]{candidate},new int[]{transMeta.indexOfTransHop(candidate)});
-          }
-          spoon.verifyCopyDistribute(transMeta,candidate.getFromStep());
+          spoon.newHop(transMeta,candidate);
         }
         candidate=null;
         selected_steps=null;
@@ -228,7 +215,7 @@
     }
   }
 );
-  addMouseMoveListener(new MouseMoveListener(){
+  canvas.addMouseMoveListener(new MouseMoveListener(){
     public void mouseMove(    MouseEvent e){
       boolean shift=(e.stateMask & SWT.SHIFT) != 0;
       lastMove=new Point(e.x,e.y);
@@ -323,7 +310,7 @@
   }
 );
   Transfer[] ttypes=new Transfer[]{XMLTransfer.getInstance()};
-  DropTarget ddTarget=new DropTarget(this,DND.DROP_MOVE);
+  DropTarget ddTarget=new DropTarget(canvas,DND.DROP_MOVE);
   ddTarget.setTransfer(ttypes);
   ddTarget.addDropListener(new DropTargetListener(){
     public void dragEnter(    DropTargetEvent event){
@@ -438,7 +425,7 @@ public void dropAccept(DropTargetEvent event){
 }
 }
 );
-addKeyListener(new KeyAdapter(){
+canvas.addKeyListener(new KeyAdapter(){
 public void keyPressed(KeyEvent e){
 if (e.keyCode == SWT.F2) {
 renameStep();
@@ -496,7 +483,6 @@ inputOutputFields(stepMeta,false);
 }
 }
 );
-addKeyListener(spoon.defKeys);
+canvas.addKeyListener(spoon.defKeys);
 setBackground(GUIResource.getInstance().getColorBackground());
-setLayout(new FormLayout());
 }

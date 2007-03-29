@@ -1,0 +1,91 @@
+{
+  boolean showTrans=getActiveTransformation() != null;
+  boolean showJob=getActiveJob() != null;
+  if (showTrans == previousShowTrans && showJob == previousShowJob)   return;
+  ExpandItem[] expandItems=expandBar.getItems();
+  for (int i=0; i < expandItems.length; i++) {
+    ExpandItem item=expandItems[i];
+    item.getControl().dispose();
+    item.dispose();
+  }
+  if (showTrans) {
+    String locale=LanguageChoice.getInstance().getDefaultLocale().toString().toLowerCase();
+    StepLoader steploader=StepLoader.getInstance();
+    StepPlugin basesteps[]=steploader.getStepsWithType(StepPlugin.TYPE_ALL);
+    String basecat[]=steploader.getCategories(StepPlugin.TYPE_ALL,locale);
+    for (int i=0; i < basecat.length; i++) {
+      ScrolledComposite scrolledComposite=new ScrolledComposite(expandBar,SWT.V_SCROLL | SWT.H_SCROLL);
+      scrolledComposite.setLayout(new FillLayout());
+      Composite composite=new Composite(scrolledComposite,SWT.NONE);
+      props.setLook(composite);
+      GridLayout layout=new GridLayout();
+      layout.marginLeft=15;
+      layout.verticalSpacing=Const.MARGIN;
+      composite.setLayout(layout);
+      for (int j=0; j < basesteps.length; j++) {
+        if (basesteps[j].getCategory(locale).equalsIgnoreCase(basecat[i])) {
+          final Image stepimg=(Image)GUIResource.getInstance().getImagesStepsSmall().get(basesteps[j].getID()[0]);
+          String pluginName=basesteps[j].getDescription(locale);
+          String pluginDescription=basesteps[j].getTooltip(locale);
+          boolean isPlugin=basesteps[j].isPlugin();
+          addExpandBarItemLine(composite,stepimg,pluginName,pluginDescription,isPlugin,basesteps[j]);
+        }
+      }
+      composite.pack();
+      org.eclipse.swt.graphics.Rectangle bounds=composite.getBounds();
+      scrolledComposite.setMinSize(bounds.width,bounds.height);
+      scrolledComposite.setContent(composite);
+      scrolledComposite.setExpandHorizontal(true);
+      scrolledComposite.setExpandVertical(true);
+      ExpandItem item=new ExpandItem(expandBar,SWT.NONE);
+      item.setText(basecat[i]);
+      item.setControl(scrolledComposite);
+      item.setImage(GUIResource.getInstance().getImageArrow());
+      item.setHeight(scrolledComposite.computeSize(SWT.DEFAULT,SWT.DEFAULT).y);
+    }
+  }
+  if (showJob) {
+    ScrolledComposite scrolledComposite=new ScrolledComposite(expandBar,SWT.V_SCROLL | SWT.H_SCROLL);
+    scrolledComposite.setLayout(new FillLayout());
+    Composite composite=new Composite(scrolledComposite,SWT.NONE);
+    props.setLook(composite);
+    GridLayout layout=new GridLayout();
+    layout.marginLeft=20;
+    layout.verticalSpacing=Const.MARGIN;
+    composite.setLayout(layout);
+    JobEntryCopy startEntry=JobMeta.createStartEntry();
+    JobEntryCopy dummyEntry=JobMeta.createDummyEntry();
+    String specialText[]=new String[]{startEntry.getName(),dummyEntry.getName()};
+    String specialTooltip[]=new String[]{startEntry.getDescription(),dummyEntry.getDescription()};
+    Image specialImage[]=new Image[]{GUIResource.getInstance().getImageStartSmall(),GUIResource.getInstance().getImageDummySmall()};
+    for (int i=0; i < specialText.length; i++) {
+      addExpandBarItemLine(composite,specialImage[i],specialText[i],specialTooltip[i],false,specialText[i]);
+    }
+    JobEntryLoader jobEntryLoader=JobEntryLoader.getInstance();
+    JobPlugin baseEntries[]=jobEntryLoader.getJobEntriesWithType(JobPlugin.TYPE_ALL);
+    for (int i=0; i < baseEntries.length; i++) {
+      if (!baseEntries[i].getID().equals("SPECIAL")) {
+        final Image stepimg=(Image)GUIResource.getInstance().getImagesJobentriesSmall().get(baseEntries[i].getID());
+        String pluginName=baseEntries[i].getDescription();
+        String pluginDescription=baseEntries[i].getTooltip();
+        boolean isPlugin=baseEntries[i].isPlugin();
+        addExpandBarItemLine(composite,stepimg,pluginName,pluginDescription,isPlugin,baseEntries[i]);
+      }
+    }
+    composite.pack();
+    org.eclipse.swt.graphics.Rectangle bounds=composite.getBounds();
+    scrolledComposite.setMinSize(bounds.width,bounds.height);
+    scrolledComposite.setContent(composite);
+    scrolledComposite.setExpandHorizontal(true);
+    scrolledComposite.setExpandVertical(true);
+    ExpandItem item=new ExpandItem(expandBar,SWT.NONE);
+    item.setText(Spoon.STRING_JOB_ENTRIES);
+    item.setControl(scrolledComposite);
+    item.setImage(GUIResource.getInstance().getImageArrow());
+    item.setHeight(scrolledComposite.computeSize(SWT.DEFAULT,SWT.DEFAULT).y);
+    item.setExpanded(true);
+  }
+  leftSash.layout(true,true);
+  previousShowTrans=showTrans;
+  previousShowJob=showJob;
+}

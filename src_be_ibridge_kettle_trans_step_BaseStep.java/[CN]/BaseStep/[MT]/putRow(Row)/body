@@ -52,52 +52,66 @@
     stopAll();
     return;
   }
-  if (repartitioning) {
-    if (partitionColumnIndex < 0) {
-      StepMeta nextSteps[]=transMeta.getNextSteps(stepMeta);
-      if (nextSteps == null || nextSteps.length == 0) {
-        throw new KettleStepException("Re-partitioning is enabled but no next steps could be found: developer error!");
-      }
-      nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
-      partitionColumnIndex=row.searchValueIndex(nextStepPartitioningMeta.getFieldName());
+switch (repartitioning) {
+case StepPartitioningMeta.PARTITIONING_METHOD_MOD:
+{
       if (partitionColumnIndex < 0) {
-        throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row : "+ row);
-      }
-      partitionIDs=nextSteps[0].getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-      for (int r=0; r < outputRowSets.size(); r++) {
-        RowSet rowSet=(RowSet)outputRowSets.get(r);
-        if (rowSet.getOriginStepName().equalsIgnoreCase(getStepname()) && rowSet.getOriginStepCopy() == getCopy()) {
-          StepMeta targetStep=transMeta.findStep(rowSet.getDestinationStepName());
-          String targetPartitions[]=targetStep.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-          String targetPartitionID=targetPartitions[rowSet.getDestinationStepCopy()];
-          partitionTargets.put(targetPartitionID,rowSet);
+        StepMeta nextSteps[]=transMeta.getNextSteps(stepMeta);
+        if (nextSteps == null || nextSteps.length == 0) {
+          throw new KettleStepException("Re-partitioning is enabled but no next steps could be found: developer error!");
+        }
+        nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
+        partitionColumnIndex=row.searchValueIndex(nextStepPartitioningMeta.getFieldName());
+        if (partitionColumnIndex < 0) {
+          throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row : "+ row);
+        }
+        partitionIDs=nextSteps[0].getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+        for (int r=0; r < outputRowSets.size(); r++) {
+          RowSet rowSet=(RowSet)outputRowSets.get(r);
+          if (rowSet.getOriginStepName().equalsIgnoreCase(getStepname()) && rowSet.getOriginStepCopy() == getCopy()) {
+            StepMeta targetStep=transMeta.findStep(rowSet.getDestinationStepName());
+            String targetPartitions[]=targetStep.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+            String targetPartitionID=targetPartitions[rowSet.getDestinationStepCopy()];
+            partitionTargets.put(targetPartitionID,rowSet);
+          }
         }
       }
-    }
-    int partitionNr=nextStepPartitioningMeta.getPartitionNr(row.getValue(partitionColumnIndex),partitionIDs.length);
-    String targetPartition=partitionIDs[partitionNr];
-    RowSet rs=(RowSet)partitionTargets.get(targetPartition);
-    rs.putRow(row);
-    linesWritten++;
-  }
- else {
-    if (distributed) {
-      RowSet rs=(RowSet)outputRowSets.get(out_handling);
-      rs.putRow(row);
-      linesWritten++;
-      if (outputRowSets.size() > 1) {
-        out_handling++;
-        if (out_handling >= outputRowSets.size())         out_handling=0;
-      }
-    }
- else {
-      for (int i=1; i < outputRowSets.size(); i++) {
-        RowSet rs=(RowSet)outputRowSets.get(i);
-        rs.putRow(new Row(row));
-      }
-      RowSet rs=(RowSet)outputRowSets.get(0);
+      int partitionNr=nextStepPartitioningMeta.getPartitionNr(row.getValue(partitionColumnIndex),partitionIDs.length);
+      String targetPartition=partitionIDs[partitionNr];
+      RowSet rs=(RowSet)partitionTargets.get(targetPartition);
       rs.putRow(row);
       linesWritten++;
     }
+  break;
+case StepPartitioningMeta.PARTITIONING_METHOD_MIRROR:
+{
+  for (int r=0; r < outputRowSets.size(); r++) {
+    RowSet rowSet=(RowSet)outputRowSets.get(r);
+    rowSet.putRow(row);
   }
+}
+break;
+case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
+{
+if (distributed) {
+RowSet rs=(RowSet)outputRowSets.get(out_handling);
+rs.putRow(row);
+linesWritten++;
+if (outputRowSets.size() > 1) {
+  out_handling++;
+  if (out_handling >= outputRowSets.size())   out_handling=0;
+}
+}
+ else {
+for (int i=1; i < outputRowSets.size(); i++) {
+  RowSet rs=(RowSet)outputRowSets.get(i);
+  rs.putRow(new Row(row));
+}
+RowSet rs=(RowSet)outputRowSets.get(0);
+rs.putRow(row);
+linesWritten++;
+}
+}
+break;
+}
 }
