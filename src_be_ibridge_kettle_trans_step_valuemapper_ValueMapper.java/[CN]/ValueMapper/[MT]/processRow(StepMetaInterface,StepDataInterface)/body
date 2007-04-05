@@ -14,30 +14,40 @@
       log.logError(toString(),message);
       setErrors(1);
       stopAll();
-      throw new KettleStepException(message);
+      return false;
+    }
+    for (int i=0; i < meta.getSourceValue().length; i++) {
+      if (Const.isEmpty(meta.getSourceValue()[i])) {
+        if (data.emptyFieldIndex < 0) {
+          data.emptyFieldIndex=i;
+        }
+ else {
+          throw new KettleException(Messages.getString("ValueMapper.RuntimeError.OnlyOneEmptyMappingAllowed.VALUEMAPPER0004"));
+        }
+      }
     }
   }
   Value value=r.getValue(data.keynr);
   String source=value.getString();
-  String target;
-  if (source != null && (target=(String)data.hashtable.get(source)) != null) {
-    if (meta.getTargetField() != null && meta.getTargetField().length() > 0) {
-      Value extraValue=new Value(meta.getTargetField(),target);
-      r.addValue(extraValue);
-    }
- else {
-      int type=value.getType();
-      value.setValue(target);
-      if (type != value.getType()) {
-        value.setType(type);
-      }
-    }
+  String target=null;
+  if (data.emptyFieldIndex >= 0 && (value.isNull() || Const.isEmpty(source))) {
+    target=meta.getTargetValue()[data.emptyFieldIndex];
   }
  else {
-    if (meta.getTargetField() != null && meta.getTargetField().length() > 0) {
-      Value emptyValue=new Value(meta.getTargetField(),Value.VALUE_TYPE_STRING);
-      emptyValue.setNull();
-      r.addValue(emptyValue);
+    if (!Const.isEmpty(source)) {
+      target=(String)data.hashtable.get(source);
+    }
+  }
+  if (!Const.isEmpty(meta.getTargetField())) {
+    Value extraValue=new Value(meta.getTargetField(),target);
+    if (Const.isEmpty(target))     extraValue.setNull();
+    r.addValue(extraValue);
+  }
+ else {
+    int type=value.getType();
+    if (!Const.isEmpty(target))     value.setValue(target);
+    if (type != value.getType()) {
+      value.setType(type);
     }
   }
   putRow(r);
