@@ -1,6 +1,5 @@
 {
   server=new Server();
-  server.addUserRealm(userRealm);
   Constraint constraint=new Constraint();
   constraint.setName(Constraint.__BASIC_AUTH);
   ;
@@ -10,12 +9,9 @@
   constraintMapping.setConstraint(constraint);
   constraintMapping.setPathSpec("/*");
   SecurityHandler securityHandler=new SecurityHandler();
-  securityHandler.setUserRealm(userRealm);
+  securityHandler.setUserRealm(new HashUserRealm("Kettle","pwd/kettle.pwd"));
   securityHandler.setConstraintMappings(new ConstraintMapping[]{constraintMapping});
   ContextHandlerCollection contexts=new ContextHandlerCollection();
-  server.setHandler(contexts);
-  Context security=new Context(contexts,"/*",Context.SECURITY);
-  security.addHandler(securityHandler);
   Context root=new Context(contexts,GetRootServlet.CONTEXT_PATH,Context.SESSIONS);
   root.addServlet(new ServletHolder(new GetRootServlet()),"/*");
   Context status=new Context(contexts,GetStatusServlet.CONTEXT_PATH,Context.SESSIONS);
@@ -32,6 +28,7 @@
   stopTrans.addServlet(new ServletHolder(new StopTransServlet(transformationMap)),"/*");
   Context addTrans=new Context(contexts,AddTransServlet.CONTEXT_PATH,Context.SESSIONS);
   addTrans.addServlet(new ServletHolder(new AddTransServlet(transformationMap)),"/*");
+  server.setHandlers(new Handler[]{securityHandler,contexts});
   createListeners();
   server.start();
   server.join();
