@@ -1,0 +1,24 @@
+{
+  ArrayList resolvedParams=new ArrayList();
+  Element schemaElement=_wsdlTypes.findNamedElement(p.getElementName());
+  if (schemaElement.hasAttribute(WsdlUtils.ELEMENT_TYPE_ATTR)) {
+    resolvedParams.add(new WsdlOpParameter(p.getName(),schemaElement,_wsdlTypes));
+  }
+ else {
+    Element complex=DomUtils.getChildElementByName(schemaElement,WsdlUtils.COMPLEX_TYPE_NAME);
+    Element sequence=DomUtils.getChildElementByName(complex,WsdlUtils.SEQUENCE_TAG_NAME);
+    if (sequence == null) {
+      return resolvedParams;
+    }
+    List seqElements=DomUtils.getChildElementsByName(sequence,WsdlUtils.ELEMENT_NAME);
+    for (Iterator itr=seqElements.iterator(); itr.hasNext(); ) {
+      Element e=(Element)itr.next();
+      WsdlOpParameter op=new WsdlOpParameter(e,_wsdlTypes);
+      if (op.isArray() && _parameterStyle == WsdlOperation.SOAPParameterStyle.BARE) {
+        op.setName(schemaElement.getAttribute(WsdlUtils.NAME_ATTR),_wsdlTypes);
+      }
+      resolvedParams.add(op);
+    }
+  }
+  return resolvedParams;
+}

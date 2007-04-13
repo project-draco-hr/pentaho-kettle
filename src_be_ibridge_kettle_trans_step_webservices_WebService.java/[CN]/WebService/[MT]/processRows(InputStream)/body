@@ -1,0 +1,57 @@
+{
+  try {
+    XMLInputFactory vFactory=XMLInputFactory.newInstance();
+    XMLStreamReader vReader=vFactory.createXMLStreamReader(anXml);
+    Row r=null;
+    boolean processing=false;
+    boolean oneValueRowProcessing=false;
+    for (int event=vReader.next(); event != XMLStreamConstants.END_DOCUMENT; event=vReader.next()) {
+switch (event) {
+case XMLStreamConstants.START_ELEMENT:
+        if ((meta.getOutFieldArgumentName() == null && meta.getOutFieldContainerName().equals(vReader.getLocalName()))) {
+          oneValueRowProcessing=true;
+        }
+ else         if (meta.getOutFieldArgumentName() != null && meta.getOutFieldArgumentName().equals(vReader.getLocalName())) {
+          r=new Row();
+          WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+          if (meta.getFieldsOut().size() == 1 && field != null) {
+            r.addValue(getValue(vReader.getElementText(),field));
+            putRow(r);
+          }
+ else {
+            processing=true;
+          }
+        }
+ else         if (processing) {
+          WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+          if (field != null) {
+            r.addValue(getValue(vReader.getElementText(),field));
+          }
+        }
+ else         if (oneValueRowProcessing) {
+          WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+          if (field != null) {
+            r=new Row();
+            r.addValue(getValue(vReader.getElementText(),field));
+            putRow(r);
+          }
+        }
+      break;
+case XMLStreamConstants.END_ELEMENT:
+    if ((meta.getOutFieldArgumentName() == null && meta.getOperationName().equals(vReader.getLocalName()))) {
+      oneValueRowProcessing=false;
+    }
+ else     if (meta.getOutFieldArgumentName() != null && meta.getOutFieldArgumentName().equals(vReader.getLocalName())) {
+      putRow(r);
+      processing=false;
+    }
+  break;
+default :
+break;
+}
+}
+}
+ catch (Exception e) {
+throw new KettleStepException(Messages.getString("WebServices.ERROR0010.OutputParsingError"),e);
+}
+}

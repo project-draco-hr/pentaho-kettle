@@ -1,0 +1,110 @@
+{
+  wsdlOperation=null;
+  inWsdlParamContainer=null;
+  outWsdlParamContainer=null;
+  if (wsdl != null) {
+    for (Iterator vItOperation=wsdl.getOperations().iterator(); vItOperation.hasNext() && wsdlOperation == null; ) {
+      WsdlOperation vCurrentOperation=(WsdlOperation)vItOperation.next();
+      if (vCurrentOperation.getOperationQName().getLocalPart().equals(anOperationName)) {
+        wsdlOperation=vCurrentOperation;
+      }
+    }
+  }
+  if (wsdlOperation != null) {
+    for (int cpt=0; cpt < wsdlOperation.getParameters().size(); cpt++) {
+      WsdlOpParameter param=(WsdlOpParameter)wsdlOperation.getParameters().get(cpt);
+      if (param.isArray()) {
+        if (param.getItemXmlType() != null) {
+          ComplexType type=param.getItemComplexType();
+          if (type != null) {
+            for (Iterator itrType=type.getElementNames().iterator(); itrType.hasNext(); ) {
+              String attributeName=(String)itrType.next();
+              QName attributeType=type.getElementType(attributeName);
+              if (!WebServiceMeta.XSD_NS_URI.equals(attributeType.getNamespaceURI())) {
+                throw new KettleStepException(Messages.getString("WebServiceDialog.ERROR0007.UnsupporteOperation.ComplexType"));
+              }
+            }
+          }
+          if (ParameterMode.IN.equals(param.getMode())) {
+            if (inWsdlParamContainer != null) {
+              throw new KettleStepException(Messages.getString("WebServiceDialog.ERROR0006.UnsupportedOperation.MultipleArrays"));
+            }
+ else {
+              inWsdlParamContainer=new WsdlOpParameterContainer(param);
+            }
+          }
+ else           if (ParameterMode.OUT.equals(param.getMode())) {
+            if (outWsdlParamContainer != null) {
+              throw new KettleStepException(Messages.getString("WebServiceDialog.ERROR0006.UnsupportedOperation.MultipleArrays"));
+            }
+ else {
+              outWsdlParamContainer=new WsdlOpParameterContainer(param);
+            }
+          }
+        }
+      }
+ else {
+        if (ParameterMode.IN.equals(param.getMode())) {
+          if (inWsdlParamContainer != null && !(inWsdlParamContainer instanceof WsdlOperationContainer)) {
+            throw new KettleStepException(Messages.getString("WebServiceDialog.ERROR0008.UnsupportedOperation.IncorrectParams"));
+          }
+ else {
+            inWsdlParamContainer=new WsdlOperationContainer(wsdlOperation,ParameterMode.IN);
+          }
+        }
+ else         if (ParameterMode.OUT.equals(param.getMode())) {
+          if (outWsdlParamContainer != null && !(outWsdlParamContainer instanceof WsdlOperationContainer)) {
+            throw new KettleStepException(Messages.getString("WebServiceDialog.ERROR0008.UnsupportedOperation.IncorrectParams"));
+          }
+ else {
+            outWsdlParamContainer=new WsdlOperationContainer(wsdlOperation,ParameterMode.OUT);
+          }
+        }
+      }
+    }
+    if (wsdlOperation.getReturnType() != null) {
+      outWsdlParamContainer=new WsdlOpParameterContainer((WsdlOpParameter)wsdlOperation.getReturnType());
+      if (wsdlOperation.getReturnType().isArray()) {
+        if (wsdlOperation.getReturnType().getItemXmlType() != null) {
+          ComplexType type=wsdlOperation.getReturnType().getItemComplexType();
+          if (type != null) {
+            for (Iterator itrType=type.getElementNames().iterator(); itrType.hasNext(); ) {
+              String attributeName=(String)itrType.next();
+              QName attributeType=type.getElementType(attributeName);
+              if (!WebServiceMeta.XSD_NS_URI.equals(attributeType.getNamespaceURI())) {
+                throw new KettleStepException(Messages.getString("WebServiceDialog.ERROR0007.UnsupportedOperation.ComplexType"));
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  CTabItem olbTabItemFieldIn=tabItemFieldIn;
+  CTabItem olbTabItemFieldOut=tabItemFieldOut;
+  tabItemFieldIn=null;
+  tabItemFieldOut=null;
+  if (inWsdlParamContainer != null) {
+    wStep.setVisible(true);
+    wlStep.setVisible(true);
+    if (!inWsdlParamContainer.isArray()) {
+      wStep.setText("1");
+      wStep.setEditable(false);
+    }
+ else {
+      wStep.setText(Integer.toString(WebServiceMeta.DEFAULT_STEP));
+    }
+    addTabFieldIn(fieldInTableView == null ? null : fieldInTableView.table.getItems());
+  }
+ else {
+    wStep.setText("1");
+    wStep.setEditable(false);
+    wStep.setVisible(false);
+    wlStep.setVisible(false);
+  }
+  if (outWsdlParamContainer != null) {
+    addTabFieldOut();
+  }
+  removeTabField(olbTabItemFieldIn);
+  removeTabField(olbTabItemFieldOut);
+}
