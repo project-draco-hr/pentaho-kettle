@@ -1,0 +1,63 @@
+{
+  DatabaseMeta dm=meta.getDatabaseMeta();
+  String inputName="'" + StringUtil.environmentSubstitute(meta.getDataFile()) + "'";
+  String loadAction=meta.getLoadAction();
+  StringBuffer contents=new StringBuffer(500);
+  contents.append("OPTIONS(").append(Const.CR);
+  contents.append("  ERRORS=\'").append(meta.getMaxErrors()).append("\'").append(Const.CR);
+  if (meta.getCommitSize() != 0 && !(meta.isDirectPath() && getStepMeta().getCopies() > 1)) {
+    contents.append("  , ROWS=\'").append(meta.getCommitSize()).append("\'").append(Const.CR);
+  }
+  if (meta.getBindSize() != 0) {
+    contents.append("  , BINDSIZE=\'").append(meta.getBindSize()).append("\'").append(Const.CR);
+  }
+  if (meta.getReadSize() != 0) {
+    contents.append("  , READSIZE=\'").append(meta.getReadSize()).append("\'").append(Const.CR);
+  }
+  contents.append(")").append(Const.CR);
+  contents.append("LOAD DATA").append(Const.CR).append("INFILE ").append(inputName).append(Const.CR).append("INTO TABLE ").append(dm.getQuotedSchemaTableCombination(StringUtil.environmentSubstitute(meta.getSchemaName()),StringUtil.environmentSubstitute(meta.getTableName()))).append(Const.CR).append(loadAction).append(Const.CR).append("FIELDS TERMINATED BY ',' ENCLOSED BY '\"'").append(Const.CR).append("(");
+  String fields[]=meta.getFieldTable();
+  String dateMask[]=meta.getDateMask();
+  if (fields == null || fields.length == 0) {
+    throw new KettleException("No fields defined to load to database");
+  }
+  for (int i=0; i < fields.length; i++) {
+    if (i != 0)     contents.append(", ").append(Const.CR);
+    contents.append(dm.quoteField(fields[i]));
+    int pos=r.searchValueIndex(fields[i]);
+    if (pos < 0) {
+      throw new KettleException("Could not find field " + meta.getFieldStream()[i] + " in stream");
+    }
+    Value v=r.getValue(pos);
+switch (v.getType()) {
+case Value.VALUE_TYPE_STRING:
+      if (v.getLength() > 255) {
+        contents.append(" CHAR(").append(v.getLength()).append(")");
+      }
+ else {
+        contents.append(" CHAR");
+      }
+    break;
+case Value.VALUE_TYPE_INTEGER:
+case Value.VALUE_TYPE_NUMBER:
+case Value.VALUE_TYPE_BIGNUMBER:
+  break;
+case Value.VALUE_TYPE_DATE:
+if (OraBulkLoaderMeta.DATE_MASK_DATE.equals(dateMask[pos])) {
+  contents.append(" DATE 'yyyy-mm-dd'");
+}
+ else if (OraBulkLoaderMeta.DATE_MASK_DATETIME.equals(dateMask[pos])) {
+  contents.append(" TIMESTAMP 'yyyy-mm-dd hh24:mi:ss.ff'");
+}
+ else {
+  contents.append(" DATE 'yyyy-mm-dd'");
+}
+break;
+case Value.VALUE_TYPE_BINARY:
+contents.append(" ENCLOSED BY '<startlob>' AND '<endlob>'");
+break;
+}
+}
+contents.append(")");
+return contents.toString();
+}

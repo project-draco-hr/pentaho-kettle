@@ -1,0 +1,76 @@
+{
+  if (first) {
+    first=false;
+    enclosure=meta.getEnclosure();
+    fieldNumbers=new int[meta.getFieldStream().length];
+    for (int i=0; i < fieldNumbers.length; i++) {
+      fieldNumbers[i]=row.searchValueIndex(meta.getFieldStream()[i]);
+      if (fieldNumbers[i] < 0) {
+        throw new KettleException("Could not find field " + meta.getFieldStream()[i] + " in stream");
+      }
+    }
+    sdfDate=new SimpleDateFormat("yyyy-MM-dd");
+    sdfDateTime=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+  }
+  Value v;
+  for (int i=0; i < fieldNumbers.length; i++) {
+    if (i != 0)     output.print(",");
+    v=row.getValue(fieldNumbers[i]);
+    if (v.isNull()) {
+      output.print(enclosure);
+      output.print(enclosure);
+    }
+ else {
+switch (v.getType()) {
+case Value.VALUE_TYPE_STRING:
+        String s=v.getString();
+      if (s.indexOf(enclosure) >= 0)       s=createEscapedString(s,enclosure);
+    output.print(enclosure);
+  output.print(s);
+output.print(enclosure);
+break;
+case Value.VALUE_TYPE_INTEGER:
+output.print(enclosure);
+output.print(v.getInteger());
+output.print(enclosure);
+break;
+case Value.VALUE_TYPE_NUMBER:
+output.print(enclosure);
+output.print(v.getNumber());
+output.print(enclosure);
+break;
+case Value.VALUE_TYPE_BIGNUMBER:
+output.print(enclosure);
+output.print(v.getBigNumber());
+output.print(enclosure);
+break;
+case Value.VALUE_TYPE_DATE:
+output.print(enclosure);
+String mask=meta.getDateMask()[i];
+if (OraBulkLoaderMeta.DATE_MASK_DATETIME.equals(mask)) {
+output.print(sdfDateTime.format(v.getDate()));
+}
+ else {
+output.print(sdfDate.format(v.getDate()));
+}
+output.print(enclosure);
+break;
+case Value.VALUE_TYPE_BOOLEAN:
+output.print(enclosure);
+output.print(v.getString());
+output.print(enclosure);
+break;
+case Value.VALUE_TYPE_BINARY:
+output.print("<startlob>");
+output.print(v.getString());
+output.print("<endlob>");
+break;
+case Value.VALUE_TYPE_SERIALIZABLE:
+throw new KettleException("Serialiable not supported");
+default :
+throw new KettleException("Unsupported type");
+}
+}
+}
+output.print(Const.CR);
+}
