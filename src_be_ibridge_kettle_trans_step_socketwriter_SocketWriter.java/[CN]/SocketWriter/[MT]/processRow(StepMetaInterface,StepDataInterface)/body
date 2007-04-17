@@ -1,15 +1,10 @@
 {
   meta=(SocketWriterMeta)smi;
   data=(SocketWriterData)sdi;
-  Row r=getRow();
-  if (r == null) {
-    setOutputDone();
-    return false;
-  }
   try {
     if (first) {
       int bufferSize=Const.toInt(StringUtil.environmentSubstitute(meta.getBufferSize()),1000);
-      data.clientSocket=data.serverClientSocket.accept();
+      data.clientSocket=data.serverSocket.accept();
       if (meta.isCompressed()) {
         data.outputStream=new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(data.clientSocket.getOutputStream()),bufferSize));
         data.inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(data.clientSocket.getInputStream()),bufferSize));
@@ -19,6 +14,23 @@
         data.inputStream=new DataInputStream(new BufferedInputStream(data.clientSocket.getInputStream(),bufferSize));
       }
       data.flushInterval=Const.toInt(StringUtil.environmentSubstitute(meta.getFlushInterval()),4000);
+    }
+  }
+ catch (  Exception e) {
+    logError("Error accepting from socket : " + e.toString());
+    logError("Stack trace: " + Const.CR + Const.getStackTracker(e));
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  Row r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  try {
+    if (first) {
       r.write(data.outputStream);
       first=false;
     }
