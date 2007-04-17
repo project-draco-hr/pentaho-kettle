@@ -4,23 +4,39 @@
   try {
     Row r;
     if (first) {
-      try {
-        int port=Integer.parseInt(StringUtil.environmentSubstitute(meta.getPort()));
-        int bufferSize=Integer.parseInt(StringUtil.environmentSubstitute(meta.getBufferSize()));
-        data.socket=new Socket(StringUtil.environmentSubstitute(meta.getHostname()),port);
-        if (meta.isCompressed()) {
-          data.outputStream=new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(data.socket.getOutputStream()),bufferSize));
-          data.inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(data.socket.getInputStream()),bufferSize));
-        }
+      long startTime=new Date().getTime();
+      boolean connected=false;
+      KettleException lastException=null;
+      while (!connected && (TIMEOUT_IN_SECONDS > (new Date().getTime() - startTime) / 1000)) {
+        try {
+          int port=Integer.parseInt(StringUtil.environmentSubstitute(meta.getPort()));
+          int bufferSize=Integer.parseInt(StringUtil.environmentSubstitute(meta.getBufferSize()));
+          data.socket=new Socket(StringUtil.environmentSubstitute(meta.getHostname()),port);
+          connected=true;
+          if (meta.isCompressed()) {
+            data.outputStream=new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(data.socket.getOutputStream()),bufferSize));
+            data.inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(data.socket.getInputStream()),bufferSize));
+          }
  else {
-          data.outputStream=new DataOutputStream(new BufferedOutputStream(data.socket.getOutputStream(),bufferSize));
-          data.inputStream=new DataInputStream(new BufferedInputStream(data.socket.getInputStream(),bufferSize));
+            data.outputStream=new DataOutputStream(new BufferedOutputStream(data.socket.getOutputStream(),bufferSize));
+            data.inputStream=new DataInputStream(new BufferedInputStream(data.socket.getInputStream(),bufferSize));
+          }
+          lastException=null;
+        }
+ catch (        Exception e) {
+          lastException=new KettleException("Unable to open socket to server " + StringUtil.environmentSubstitute(meta.getHostname()) + " port "+ StringUtil.environmentSubstitute(meta.getPort()),e);
+        }
+        if (lastException != null) {
+          Thread.sleep(1000);
         }
       }
- catch (      Exception e) {
-        logError("Error initialising step: " + e.toString());
-        logError(Const.getStackTracker(e));
-        throw new KettleException("Unable to open socket to server " + StringUtil.environmentSubstitute(meta.getHostname()) + " port "+ StringUtil.environmentSubstitute(meta.getPort()),e);
+      if (lastException != null) {
+        logError("Error initialising step: " + lastException.toString());
+        logError(Const.getStackTracker(lastException));
+        throw lastException;
+      }
+ else {
+        if (data.inputStream == null)         throw new KettleException("Unable to connect to the SocketWriter in the " + TIMEOUT_IN_SECONDS + "s timeout period.");
       }
       data.row=new Row(data.inputStream);
       first=false;
