@@ -1,0 +1,89 @@
+{
+  TableView oldTableView=fieldInTableView;
+  int margin=Const.MARGIN;
+  Composite vCompositeTabField=new Composite(wTabFolder,SWT.NONE);
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  vCompositeTabField.setLayout(formLayout);
+  props.setLook(vCompositeTabField);
+  if (tabItemFieldIn == null) {
+    tabItemFieldIn=new CTabItem(wTabFolder,SWT.NONE);
+  }
+  final ColumnInfo colNames=new ColumnInfo(Messages.getString("WebServiceDialog.NameColumn.Column"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{},false);
+  fieldColumns.add(colNames);
+  ColumnInfo[] colinf=new ColumnInfo[]{colNames,new ColumnInfo(Messages.getString("WebServiceDialog.WsNameColumn.Column"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("WebServiceDialog.TypeColumn.Column"),ColumnInfo.COLUMN_TYPE_TEXT,false,true)};
+  fieldInTableView=new TableView(vCompositeTabField,SWT.FULL_SELECTION | SWT.MULTI,colinf,0,lsMod,Props.getInstance());
+  fieldInTableView.table.removeAll();
+  String containerName=inWsdlParamContainer == null ? meta.getInFieldContainerName() : inWsdlParamContainer.getContainerName();
+  tabItemFieldIn.setText(containerName == null ? "in" : containerName);
+  Button vButton=new Button(vCompositeTabField,SWT.NONE);
+  vButton.setText(Messages.getString("System.Button.GetFields"));
+  vButton.addMouseListener(new MouseAdapter(){
+    public void mouseDown(    MouseEvent arg0){
+      if (inWsdlParamContainer == null) {
+        try {
+          loadWebService(wURL.getText());
+          loadOperation(wOperation.getText());
+        }
+ catch (        KettleStepException e) {
+          e.printStackTrace();
+        }
+      }
+      Row r=getInWebServiceFields();
+      if (r != null) {
+        BaseStepDialog.getFieldsFromPrevious(r,fieldInTableView,2,new int[]{2},new int[]{},-1,-1,null);
+      }
+      if (inWsdlParamContainer != null) {
+        TableItem[] items=fieldInTableView.table.getItems();
+        for (int i=0; i < items.length; i++) {
+          String type=inWsdlParamContainer.getParamType(items[i].getText(2));
+          if (type != null) {
+            items[i].setText(3,type);
+          }
+ else {
+            items[i].dispose();
+          }
+        }
+      }
+    }
+  }
+);
+  Button[] buttons=new Button[]{vButton};
+  BaseStepDialog.positionBottomButtons(vCompositeTabField,buttons,Const.MARGIN,null);
+  FormData fdTable=new FormData();
+  fdTable.left=new FormAttachment(0,0);
+  fdTable.top=new FormAttachment(0,margin);
+  fdTable.right=new FormAttachment(100,0);
+  fdTable.bottom=new FormAttachment(vButton,0);
+  fieldInTableView.setLayoutData(fdTable);
+  FormData fdInComp=new FormData();
+  fdInComp.left=new FormAttachment(0,0);
+  fdInComp.top=new FormAttachment(0,0);
+  fdInComp.right=new FormAttachment(100,0);
+  fdInComp.bottom=new FormAttachment(100,0);
+  vCompositeTabField.setLayoutData(fdInComp);
+  vCompositeTabField.layout();
+  tabItemFieldIn.setControl(vCompositeTabField);
+  if (inWsdlParamContainer != null) {
+    Row r=getInWebServiceFields();
+    for (int i=0; i < r.size(); ++i) {
+      String wsName=r.getValue(i).getName();
+      TableItem vTableItem=new TableItem(fieldInTableView.table,SWT.NONE);
+      vTableItem.setText(2,wsName);
+      vTableItem.setText(3,inWsdlParamContainer.getParamType(wsName));
+      if (oldTableView != null) {
+        TableItem[] oldItems=oldTableView.table.getItems();
+        String previousField=getField(oldItems,wsName);
+        if (previousField != null) {
+          vTableItem.setText(1,previousField);
+        }
+      }
+    }
+  }
+  if (oldTableView != null) {
+    oldTableView.dispose();
+  }
+  fieldInTableView.setRowNums();
+  fieldInTableView.optWidth(true);
+}
