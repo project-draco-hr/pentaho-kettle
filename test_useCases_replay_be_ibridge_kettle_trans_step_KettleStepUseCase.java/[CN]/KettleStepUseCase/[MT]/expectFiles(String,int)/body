@@ -1,10 +1,25 @@
 {
-  String[] files=new File(directory).list(new FilenameFilter(){
-    public boolean accept(    File dir,    String name){
-      return !(name.endsWith(".svn"));
+  FileObject dirObject=KettleVFS.getFileObject(directory);
+  FileObject[] fileObjects;
+  try {
+    fileObjects=dirObject.findFiles(new AllFileSelector(){
+      public boolean traverseDescendents(      FileSelectInfo info){
+        return info.getDepth() == 0;
+      }
+      public boolean includeFile(      FileSelectInfo info){
+        try {
+          return !info.getFile().equals(info.getBaseFolder()) && info.getFile().isReadable() && !info.getFile().getType().equals(FileType.FOLDER);
+        }
+ catch (        FileSystemException e) {
+          return false;
+        }
+      }
     }
-  }
 );
-  if (files == null)   assertEquals(0,expected);
- else   assertEquals(expected,files.length);
+  }
+ catch (  FileSystemException e) {
+    fileObjects=null;
+  }
+  if (fileObjects == null)   assertEquals(0,expected);
+ else   assertEquals(expected,fileObjects.length);
 }
