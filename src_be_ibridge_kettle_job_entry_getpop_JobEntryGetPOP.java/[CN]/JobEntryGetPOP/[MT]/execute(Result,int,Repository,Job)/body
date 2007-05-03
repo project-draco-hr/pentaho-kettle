@@ -34,13 +34,18 @@
       }
       log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.LoggedWithUser.Label") + user);
       Folder f=st.getFolder("INBOX");
-      f.open(Folder.READ_ONLY);
+      if (delete) {
+        f.open(Folder.READ_WRITE);
+      }
+ else {
+        f.open(Folder.READ_ONLY);
+      }
       if (f == null) {
         log.logError(toString(),Messages.getString("JobGetMailsFromPOP.InvalidFolder.Label"));
       }
  else {
         log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.TotalMessagesFolder1.Label") + f.getName() + Messages.getString("JobGetMailsFromPOP.TotalMessagesFolder2.Label")+ f.getMessageCount());
-        log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.TotalNewMessagesFolder1.Label") + f.getName() + Messages.getString("JobGetMailsFromPOP.TotalNewMessagesFolder2.Label")+ f.getNewMessageCount());
+        log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.TotalUnreadMessagesFolder1.Label") + f.getName() + Messages.getString("JobGetMailsFromPOP.TotalUnreadMessagesFolder2.Label")+ f.getUnreadMessageCount());
         Message msg_list[]=getPOPMessages(f,retrievemails);
         if (msg_list.length > 0) {
           List current_file_POP=new ArrayList();
@@ -76,6 +81,10 @@
               nb_email_POP++;
               current_file_POP.add(filename_message);
               current_filepath_POP.add(filename_message.getPath());
+              Object content=msg_POP.getContent();
+              if (content instanceof Multipart) {
+                handleMultipart(getRealOutputDirectory(),(Multipart)content);
+              }
               if (delete) {
                 log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.DeleteEmail.Label"));
                 msg_POP.setFlag(javax.mail.Flags.Flag.DELETED,true);
