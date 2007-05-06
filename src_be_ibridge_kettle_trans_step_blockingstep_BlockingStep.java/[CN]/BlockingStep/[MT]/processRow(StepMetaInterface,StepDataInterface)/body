@@ -1,12 +1,33 @@
 {
+  boolean err=true;
   Row r=getRow();
-  if (r == null) {
-    if (lastRow != null) {
-      putRow(lastRow);
+  if (!meta.isPassAllRows()) {
+    if (r == null) {
+      if (lastRow != null) {
+        putRow(lastRow);
+      }
+      setOutputDone();
+      return false;
     }
-    setOutputDone();
-    return false;
+    lastRow=r;
+    return true;
   }
-  lastRow=r;
-  return true;
+ else {
+    err=addBuffer(r);
+    if (!err) {
+      setOutputDone();
+      return false;
+    }
+    if (r == null) {
+      r=getBuffer();
+      while (r != null && !isStopped()) {
+        if (log.isRowLevel())         logRowlevel("Read row: " + r.toString());
+        putRow(r);
+        r=getBuffer();
+      }
+      setOutputDone();
+      return false;
+    }
+    return true;
+  }
 }

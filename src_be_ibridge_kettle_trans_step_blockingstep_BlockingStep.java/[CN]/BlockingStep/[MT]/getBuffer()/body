@@ -1,0 +1,79 @@
+{
+  Row retval;
+  if (data.files.size() > 0 && (data.dis.size() == 0 || data.fis.size() == 0)) {
+    logBasic("Opening tmp-file ...");
+    try {
+      FileObject fileObject=(FileObject)data.files.get(0);
+      String filename=KettleVFS.getFilename(fileObject);
+      if (log.isDetailed())       logDetailed("Opening tmp-file: [" + filename + "]");
+      InputStream fi=fileObject.getContent().getInputStream();
+      DataInputStream di;
+      data.fis.add(fi);
+      if (meta.getCompress()) {
+        GZIPInputStream gzfi=new GZIPInputStream(new BufferedInputStream(fi));
+        di=new DataInputStream(gzfi);
+        data.gzis.add(gzfi);
+      }
+ else {
+        di=new DataInputStream(fi);
+      }
+      data.dis.add(di);
+      int buffersize=di.readInt();
+      if (log.isDetailed())       logDetailed("[" + filename + "] expecting "+ buffersize+ " rows...");
+      if (buffersize > 0) {
+        Row metadata=(Row)data.rowMeta.get(0);
+        data.rowbuffer.add(new Row(di,metadata.size(),metadata));
+      }
+    }
+ catch (    Exception e) {
+      logError("Error reading back tmp-file : " + e.toString());
+      logError(Const.getStackTracker(e));
+    }
+  }
+  if (data.files.size() == 0) {
+    if (data.buffer.size() > 0) {
+      retval=(Row)data.buffer.get(0);
+      data.buffer.remove(0);
+    }
+ else {
+      retval=null;
+    }
+  }
+ else {
+    if (data.rowbuffer.size() == 0) {
+      retval=null;
+    }
+ else {
+      retval=(Row)data.rowbuffer.get(0);
+      data.rowbuffer.remove(0);
+      FileObject file=(FileObject)data.files.get(0);
+      DataInputStream di=(DataInputStream)data.dis.get(0);
+      InputStream fi=(InputStream)data.fis.get(0);
+      GZIPInputStream gzfi=(meta.getCompress()) ? (GZIPInputStream)data.gzis.get(0) : null;
+      try {
+        Row metadata=(Row)data.rowMeta.get(0);
+        data.rowbuffer.add(0,new Row(di,metadata.size(),metadata));
+      }
+ catch (      KettleFileException fe) {
+        try {
+          di.close();
+          fi.close();
+          if (gzfi != null)           gzfi.close();
+          file.delete();
+        }
+ catch (        IOException e) {
+          logError("Unable to close/delete file #0 --> " + file.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+        data.files.remove(0);
+        data.dis.remove(0);
+        data.fis.remove(0);
+        if (gzfi != null)         data.gzis.remove(0);
+        data.rowMeta.remove(0);
+      }
+    }
+  }
+  return retval;
+}
