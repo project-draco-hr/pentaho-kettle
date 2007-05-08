@@ -1,0 +1,76 @@
+{
+  String retval="";
+  String fieldname=v.getName();
+  int length=v.getLength();
+  int precision=v.getPrecision();
+  if (add_fieldname)   retval+=fieldname + " ";
+  int type=v.getType();
+switch (type) {
+case ValueMetaInterface.TYPE_DATE:
+    retval+="TIMESTAMP";
+  break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+retval+="CHAR(1)";
+break;
+case ValueMetaInterface.TYPE_NUMBER:
+case ValueMetaInterface.TYPE_INTEGER:
+case ValueMetaInterface.TYPE_BIGNUMBER:
+if (fieldname.equalsIgnoreCase(tk) || fieldname.equalsIgnoreCase(pk)) {
+if (use_autoinc) {
+retval+="BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 0, INCREMENT BY 1)";
+}
+ else {
+retval+="BIGINT NOT NULL PRIMARY KEY";
+}
+}
+ else {
+if (precision == 0) {
+if (length > 9) {
+  retval+="BIGINT";
+}
+ else {
+  if (length > 4) {
+    retval+="INTEGER";
+  }
+ else {
+    retval+="SMALLINT";
+  }
+}
+}
+ else {
+if (length > 18) {
+  retval+="DECIMAL(" + length;
+  if (precision > 0)   retval+=", " + precision;
+  retval+=")";
+}
+ else {
+  retval+="FLOAT";
+}
+}
+}
+break;
+case ValueMetaInterface.TYPE_STRING:
+if (length >= DatabaseMeta.CLOB_LENGTH || length > 32700) {
+retval+="CLOB";
+}
+ else {
+retval+="VARCHAR";
+if (length > 0) {
+retval+="(" + length;
+}
+ else {
+retval+="(";
+}
+retval+=")";
+}
+break;
+case ValueMetaInterface.TYPE_BINARY:
+retval+="BLOB";
+break;
+default :
+retval+="UNKNOWN";
+break;
+}
+if (add_cr) retval+=Const.CR;
+return retval;
+}

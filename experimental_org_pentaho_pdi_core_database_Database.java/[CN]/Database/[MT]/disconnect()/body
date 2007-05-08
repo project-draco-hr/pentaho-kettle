@@ -1,0 +1,69 @@
+{
+  try {
+    if (connection == null) {
+      return;
+    }
+    if (connection.isClosed()) {
+      return;
+    }
+    if (pstmt != null) {
+      pstmt.close();
+      pstmt=null;
+    }
+    if (prepStatementLookup != null) {
+      prepStatementLookup.close();
+      prepStatementLookup=null;
+    }
+    if (prepStatementInsert != null) {
+      prepStatementInsert.close();
+      prepStatementInsert=null;
+    }
+    if (prepStatementUpdate != null) {
+      prepStatementUpdate.close();
+      prepStatementUpdate=null;
+    }
+    if (pstmt_seq != null) {
+      pstmt_seq.close();
+      pstmt_seq=null;
+    }
+    if (!Const.isEmpty(connectionGroup)) {
+      DatabaseConnectionMap map=DatabaseConnectionMap.getInstance();
+      Database lookup=map.getDatabase(connectionGroup,partitionId,this);
+      if (lookup != null) {
+        lookup.opened--;
+        if (lookup.opened > 0) {
+          return;
+        }
+ else {
+          map.removeConnection(connectionGroup,partitionId,this);
+          if (performRollbackAtLastDisconnect) {
+            rollback(true);
+          }
+ else {
+            commit(true);
+          }
+        }
+      }
+    }
+ else {
+      if (!isAutoCommit()) {
+        commit();
+      }
+    }
+    if (connection != null) {
+      connection.close();
+      if (!databaseMeta.isUsingConnectionPool()) {
+        connection=null;
+      }
+    }
+    log.logDetailed(toString(),"Connection to database closed!");
+  }
+ catch (  SQLException ex) {
+    log.logError(toString(),"Error disconnecting from database:" + Const.CR + ex.getMessage());
+    log.logError(toString(),Const.getStackTracker(ex));
+  }
+catch (  KettleDatabaseException dbe) {
+    log.logError(toString(),"Error disconnecting from database:" + Const.CR + dbe.getMessage());
+    log.logError(toString(),Const.getStackTracker(dbe));
+  }
+}

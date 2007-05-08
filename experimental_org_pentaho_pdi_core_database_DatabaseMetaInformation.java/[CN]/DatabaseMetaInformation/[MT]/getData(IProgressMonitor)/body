@@ -1,0 +1,106 @@
+{
+  if (monitor != null) {
+    monitor.beginTask("Getting information from the database...",8);
+  }
+  Database db=new Database(dbInfo);
+  try {
+    if (monitor != null)     monitor.subTask("Connecting to database");
+    db.connect();
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask("Getting database metadata");
+    DatabaseMetaData dbmd=db.getDatabaseMetaData();
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask("Getting catalog information");
+    if (dbInfo.supportsCatalogs() && dbmd.supportsCatalogsInTableDefinitions()) {
+      ArrayList catalogList=new ArrayList();
+      ResultSet catalogs=dbmd.getCatalogs();
+      while (catalogs != null && catalogs.next()) {
+        String catalogName=catalogs.getString(1);
+        ArrayList catalogItems=new ArrayList();
+        ResultSet tables=null;
+        try {
+          tables=dbmd.getTables(catalogName,null,null,null);
+          while (tables.next()) {
+            String table_name=tables.getString(3);
+            if (!db.isSystemTable(table_name)) {
+              catalogItems.add(table_name);
+            }
+          }
+        }
+ catch (        Exception e) {
+        }
+ finally {
+          if (tables != null)           tables.close();
+        }
+        Catalog catalog=new Catalog(catalogName,(String[])catalogItems.toArray(new String[catalogItems.size()]));
+        catalogList.add(catalog);
+      }
+      catalogs.close();
+      setCatalogs((Catalog[])catalogList.toArray(new Catalog[catalogList.size()]));
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask("Getting schema information");
+    if (dbInfo.supportsSchemas() && dbmd.supportsSchemasInTableDefinitions()) {
+      ArrayList schemaList=new ArrayList();
+      ResultSet schemas=null;
+      try {
+        schemas=dbmd.getSchemas();
+        while (schemas != null && schemas.next()) {
+          ArrayList schemaItems=new ArrayList();
+          String schemaName=schemas.getString(1);
+          ResultSet tables=null;
+          try {
+            tables=dbmd.getTables(null,schemaName,null,null);
+            while (tables.next()) {
+              String table_name=tables.getString(3);
+              if (!db.isSystemTable(table_name)) {
+                schemaItems.add(table_name);
+              }
+            }
+            Collections.sort(schemaItems);
+          }
+ catch (          Exception e) {
+          }
+ finally {
+            if (tables != null)             tables.close();
+          }
+          Schema schema=new Schema(schemaName,(String[])schemaItems.toArray(new String[schemaItems.size()]));
+          schemaList.add(schema);
+        }
+      }
+  finally {
+        if (schemas != null)         schemas.close();
+      }
+      setSchemas((Schema[])schemaList.toArray(new Schema[schemaList.size()]));
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask("Getting tables");
+    setTables(db.getTablenames());
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask("Getting views");
+    if (dbInfo.supportsViews()) {
+      setViews(db.getViews());
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask("Getting synonyms");
+    if (dbInfo.supportsSynonyms()) {
+      setSynonyms(db.getSynonyms());
+    }
+    if (monitor != null)     monitor.worked(1);
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Unable to retrieve database information because of an error",e);
+  }
+ finally {
+    if (monitor != null)     monitor.subTask("Closing database connection");
+    db.disconnect();
+    if (monitor != null)     monitor.worked(1);
+  }
+  if (monitor != null)   monitor.done();
+}

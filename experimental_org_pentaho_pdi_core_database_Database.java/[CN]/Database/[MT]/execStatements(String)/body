@@ -1,0 +1,86 @@
+{
+  Result result=new Result();
+  String all=script;
+  int from=0;
+  int to=0;
+  int length=all.length();
+  int nrstats=0;
+  while (to < length) {
+    char c=all.charAt(to);
+    if (c == '"') {
+      to++;
+      c=' ';
+      while (to < length && c != '"') {
+        c=all.charAt(to);
+        to++;
+      }
+    }
+ else     if (c == '\'') {
+      to++;
+      c=' ';
+      while (to < length && c != '\'') {
+        c=all.charAt(to);
+        to++;
+      }
+    }
+ else     if (all.substring(to).startsWith("--")) {
+      to++;
+      while (to < length && c != '\n' && c != '\r') {
+        c=all.charAt(to);
+        to++;
+      }
+    }
+    if (c == ';' || to >= length - 1) {
+      if (to >= length - 1)       to++;
+      String stat;
+      if (to <= length)       stat=all.substring(from,to);
+ else       stat=all.substring(from);
+      if (stat.length() > 0 && stat.charAt(stat.length() - 1) == ';') {
+        stat=stat.substring(0,stat.length() - 1);
+      }
+      if (!Const.onlySpaces(stat)) {
+        String sql=Const.trim(stat);
+        if (sql.toUpperCase().startsWith("SELECT")) {
+          log.logDetailed(toString(),"launch SELECT statement: " + Const.CR + sql);
+          nrstats++;
+          ResultSet rs=null;
+          try {
+            rs=openQuery(sql);
+            if (rs != null) {
+              Object[] row=getRow(rs);
+              while (row != null) {
+                result.setNrLinesRead(result.getNrLinesRead() + 1);
+                if (log.isDetailed())                 log.logDetailed(toString(),row.toString());
+                row=getRow(rs);
+              }
+            }
+ else {
+              if (log.isDebug())               log.logDebug(toString(),"Error executing query: " + Const.CR + sql);
+            }
+          }
+  finally {
+            try {
+              if (rs != null)               rs.close();
+            }
+ catch (            SQLException ex) {
+              if (log.isDebug())               log.logDebug(toString(),"Error closing query: " + Const.CR + sql);
+            }
+          }
+        }
+ else {
+          log.logDetailed(toString(),"launch DDL statement: " + Const.CR + sql);
+          nrstats++;
+          Result res=execStatement(sql);
+          result.add(res);
+        }
+      }
+      to++;
+      from=to;
+    }
+ else {
+      to++;
+    }
+  }
+  log.logDetailed(toString(),nrstats + " statement" + (nrstats == 1 ? "" : "s")+ " executed");
+  return result;
+}

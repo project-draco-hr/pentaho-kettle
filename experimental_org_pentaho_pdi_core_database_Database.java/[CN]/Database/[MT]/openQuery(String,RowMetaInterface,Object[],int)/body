@@ -1,0 +1,59 @@
+{
+  ResultSet res;
+  String debug="Start";
+  try {
+    if (params != null) {
+      debug="P create prepared statement (con==null? " + (connection == null) + ")";
+      pstmt=connection.prepareStatement(databaseMeta.stripCR(sql),ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      debug="P Set values";
+      setValues(params,data);
+      if (canWeSetFetchSize(pstmt)) {
+        debug="P Set fetchsize";
+        int fs=Const.FETCH_SIZE <= pstmt.getMaxRows() ? pstmt.getMaxRows() : Const.FETCH_SIZE;
+{
+          if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL && databaseMeta.isStreamingResults()) {
+            pstmt.setFetchSize(Integer.MIN_VALUE);
+          }
+ else           pstmt.setFetchSize(fs);
+        }
+        debug="P Set fetch direction";
+        pstmt.setFetchDirection(fetch_mode);
+      }
+      debug="P Set max rows";
+      if (rowlimit > 0 && databaseMeta.supportsSetMaxRows())       pstmt.setMaxRows(rowlimit);
+      debug="exec query";
+      res=pstmt.executeQuery();
+    }
+ else {
+      debug="create statement";
+      sel_stmt=connection.createStatement();
+      if (canWeSetFetchSize(sel_stmt)) {
+        debug="Set fetchsize";
+        int fs=Const.FETCH_SIZE <= sel_stmt.getMaxRows() ? sel_stmt.getMaxRows() : Const.FETCH_SIZE;
+        if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL && databaseMeta.isStreamingResults()) {
+          sel_stmt.setFetchSize(Integer.MIN_VALUE);
+        }
+ else {
+          sel_stmt.setFetchSize(fs);
+        }
+        debug="Set fetch direction";
+        sel_stmt.setFetchDirection(fetch_mode);
+      }
+      debug="Set max rows";
+      if (rowlimit > 0 && databaseMeta.supportsSetMaxRows())       sel_stmt.setMaxRows(rowlimit);
+      debug="exec query";
+      res=sel_stmt.executeQuery(databaseMeta.stripCR(sql));
+    }
+    debug="openQuery : get rowinfo";
+    rowinfo=getRowInfo(res.getMetaData(),databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL);
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("An error occurred executing SQL: " + Const.CR + sql,ex);
+  }
+catch (  Exception e) {
+    log.logError(toString(),"ERROR executing query: " + e.toString());
+    log.logError(toString(),"ERROR in part: " + debug);
+    throw new KettleDatabaseException("An error occurred executing SQL in part [" + debug + "]:"+ Const.CR+ sql,e);
+  }
+  return res;
+}

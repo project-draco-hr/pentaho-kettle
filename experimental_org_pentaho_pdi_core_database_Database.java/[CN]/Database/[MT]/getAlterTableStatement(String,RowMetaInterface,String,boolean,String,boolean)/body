@@ -1,0 +1,52 @@
+{
+  String retval="";
+  RowMetaInterface tabFields=getTableFields(tableName);
+  databaseMeta.quoteReservedWords(tabFields);
+  RowMetaInterface missing=new RowMeta();
+  for (int i=0; i < fields.size(); i++) {
+    ValueMetaInterface v=fields.getValueMeta(i);
+    if (tabFields.searchValueMeta(v.getName()) == null) {
+      missing.addMetaValue(v);
+    }
+  }
+  if (missing.size() != 0) {
+    for (int i=0; i < missing.size(); i++) {
+      ValueMetaInterface v=missing.getValueMeta(i);
+      retval+=databaseMeta.getAddColumnStatement(tableName,v,tk,use_autoinc,pk,true);
+    }
+  }
+  RowMetaInterface surplus=new RowMeta();
+  for (int i=0; i < tabFields.size(); i++) {
+    ValueMetaInterface v=tabFields.getValueMeta(i);
+    if (fields.searchValueMeta(v.getName()) == null) {
+      surplus.addMetaValue(v);
+    }
+  }
+  if (surplus.size() != 0) {
+    for (int i=0; i < surplus.size(); i++) {
+      ValueMetaInterface v=surplus.getValueMeta(i);
+      retval+=databaseMeta.getDropColumnStatement(tableName,v,tk,use_autoinc,pk,true);
+    }
+  }
+  RowMetaInterface modify=new RowMeta();
+  for (int i=0; i < fields.size(); i++) {
+    ValueMetaInterface desiredField=fields.getValueMeta(i);
+    ValueMetaInterface currentField=tabFields.searchValueMeta(desiredField.getName());
+    if (currentField != null) {
+      boolean mod=false;
+      mod|=(currentField.getLength() < desiredField.getLength()) && desiredField.getLength() > 0;
+      mod|=(currentField.getPrecision() < desiredField.getPrecision()) && desiredField.getPrecision() > 0;
+      mod|=(currentField.getType() != desiredField.getType()) && (currentField.isNumber() ^ desiredField.isNumeric());
+      if (mod) {
+        modify.addMetaValue(desiredField);
+      }
+    }
+  }
+  if (modify.size() > 0) {
+    for (int i=0; i < modify.size(); i++) {
+      ValueMetaInterface v=modify.getValueMeta(i);
+      retval+=databaseMeta.getModifyColumnStatement(tableName,v,tk,use_autoinc,pk,true);
+    }
+  }
+  return retval;
+}

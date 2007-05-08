@@ -1,0 +1,63 @@
+{
+  try {
+    int nrcols=resultSetMetaData.getColumnCount();
+    Object[] data=new Object[nrcols];
+    if (rs.next()) {
+      for (int i=0; i < nrcols; i++) {
+        ValueMetaInterface val=rowInfo.getValueMeta(i);
+switch (val.getType()) {
+case ValueMetaInterface.TYPE_BOOLEAN:
+          data[i]=new Boolean(rs.getBoolean(i + 1));
+        break;
+case ValueMetaInterface.TYPE_NUMBER:
+      data[i]=new Double(rs.getDouble(i + 1));
+    break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+  data[i]=rs.getBigDecimal(i + 1);
+break;
+case ValueMetaInterface.TYPE_INTEGER:
+data[i]=new Long(rs.getLong(i + 1));
+break;
+case ValueMetaInterface.TYPE_STRING:
+data[i]=rs.getString(i + 1);
+break;
+case ValueMetaInterface.TYPE_BINARY:
+{
+if (databaseMeta.supportsGetBlob()) {
+Blob blob=rs.getBlob(i + 1);
+if (blob != null) {
+data[i]=blob.getBytes(1L,(int)blob.length());
+}
+ else {
+data[i]=null;
+}
+}
+ else {
+data[i]=rs.getBytes(i + 1);
+}
+}
+break;
+case ValueMetaInterface.TYPE_DATE:
+if (databaseMeta.supportsTimeStampToDateConversion()) {
+data[i]=rs.getTimestamp(i + 1);
+break;
+}
+ else {
+data[i]=rs.getDate(i + 1);
+break;
+}
+default :
+break;
+}
+if (rs.wasNull()) data[i]=null;
+}
+}
+ else {
+data=null;
+}
+return data;
+}
+ catch (SQLException ex) {
+throw new KettleDatabaseException("Couldn't get row from result set",ex);
+}
+}

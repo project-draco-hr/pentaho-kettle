@@ -1,0 +1,28 @@
+{
+  if (!databaseMeta.supportsSynonyms())   return new String[]{};
+  String schemaname=null;
+  if (databaseMeta.useSchemaNameForTableList())   schemaname=databaseMeta.getUsername().toUpperCase();
+  ArrayList names=new ArrayList();
+  ResultSet alltables=null;
+  try {
+    alltables=dbmd.getTables(null,schemaname,null,databaseMeta.getSynonymTypes());
+    while (alltables.next()) {
+      String table=alltables.getString("TABLE_NAME");
+      if (log.isRowLevel())       log.logRowlevel(toString(),"got view from meta-data: " + table);
+      names.add(table);
+    }
+  }
+ catch (  SQLException e) {
+    throw new KettleDatabaseException("Error getting synonyms from schema [" + schemaname + "]",e);
+  }
+ finally {
+    try {
+      if (alltables != null)       alltables.close();
+    }
+ catch (    SQLException e) {
+      throw new KettleDatabaseException("Error closing resultset after getting synonyms from schema [" + schemaname + "]",e);
+    }
+  }
+  log.logDetailed(toString(),"read :" + names.size() + " views from db meta-data.");
+  return (String[])names.toArray(new String[names.size()]);
+}

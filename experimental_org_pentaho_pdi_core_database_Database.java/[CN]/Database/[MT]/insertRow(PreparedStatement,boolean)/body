@@ -1,0 +1,54 @@
+{
+  String debug="insertRow start";
+  boolean rowsAreSafe=false;
+  try {
+    boolean useBatchInsert=batch && getDatabaseMetaData().supportsBatchUpdates() && databaseMeta.supportsBatchUpdates()&& Const.isEmpty(connectionGroup);
+    if (!isAutoCommit()) {
+      if (useBatchInsert) {
+        debug="insertRow add batch";
+        batchCounter++;
+        ps.addBatch();
+      }
+ else {
+        debug="insertRow exec update";
+        ps.executeUpdate();
+      }
+    }
+ else {
+      ps.executeUpdate();
+    }
+    written++;
+    if (!isAutoCommit() && (written % commitsize) == 0) {
+      if (useBatchInsert) {
+        debug="insertRow executeBatch commit";
+        ps.executeBatch();
+        commit();
+        ps.clearBatch();
+        batchCounter=0;
+      }
+ else {
+        debug="insertRow normal commit";
+        commit();
+      }
+      rowsAreSafe=true;
+    }
+    return rowsAreSafe;
+  }
+ catch (  BatchUpdateException ex) {
+    KettleDatabaseBatchException kdbe=new KettleDatabaseBatchException("Error updating batch",ex);
+    kdbe.setUpdateCounts(ex.getUpdateCounts());
+    List exceptions=new ArrayList();
+    SQLException nextException;
+    while ((nextException=ex.getNextException()) != null) {
+      exceptions.add(nextException);
+    }
+    kdbe.setExceptionsList(exceptions);
+    throw kdbe;
+  }
+catch (  SQLException ex) {
+    throw new KettleDatabaseException("Error inserting row",ex);
+  }
+catch (  Exception e) {
+    throw new KettleDatabaseException("Unexpected error inserting row in part [" + debug + "]",e);
+  }
+}

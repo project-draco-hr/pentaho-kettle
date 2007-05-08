@@ -1,0 +1,33 @@
+{
+  ResultSet res;
+  String debug="Start";
+  try {
+    debug="OQ Set values";
+    setValues(params,data,ps);
+    if (canWeSetFetchSize(ps)) {
+      debug="OQ Set fetchsize";
+      int fs=Const.FETCH_SIZE <= ps.getMaxRows() ? ps.getMaxRows() : Const.FETCH_SIZE;
+      if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL && databaseMeta.isStreamingResults()) {
+        ps.setFetchSize(Integer.MIN_VALUE);
+      }
+ else {
+        ps.setFetchSize(fs);
+      }
+      debug="OQ Set fetch direction";
+      ps.setFetchDirection(ResultSet.FETCH_FORWARD);
+    }
+    debug="OQ Set max rows";
+    if (rowlimit > 0 && databaseMeta.supportsSetMaxRows())     ps.setMaxRows(rowlimit);
+    debug="OQ exec query";
+    res=ps.executeQuery();
+    debug="OQ getRowInfo()";
+    rowinfo=getRowInfo(res.getMetaData(),databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL);
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("ERROR executing query in part[" + debug + "]",ex);
+  }
+catch (  Exception e) {
+    throw new KettleDatabaseException("ERROR executing query in part[" + debug + "]",e);
+  }
+  return res;
+}

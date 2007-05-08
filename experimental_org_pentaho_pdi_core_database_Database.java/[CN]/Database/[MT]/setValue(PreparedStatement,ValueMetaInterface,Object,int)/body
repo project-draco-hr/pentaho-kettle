@@ -1,0 +1,142 @@
+{
+  String debug="";
+  try {
+switch (v.getType()) {
+case ValueMetaInterface.TYPE_NUMBER:
+      if (object != null) {
+        debug="Number, not null, getting number from value";
+        double num=v.convertToNumber(object).doubleValue();
+        if (databaseMeta.supportsFloatRoundingOnUpdate() && v.getPrecision() >= 0) {
+          debug="Number, rounding to precision [" + v.getPrecision() + "]";
+          num=Const.round(num,v.getPrecision());
+        }
+        debug="Number, setting [" + num + "] on position #"+ pos+ " of the prepared statement";
+        ps.setDouble(pos,num);
+      }
+ else {
+        ps.setNull(pos,java.sql.Types.DOUBLE);
+      }
+    break;
+case ValueMetaInterface.TYPE_INTEGER:
+  debug="Integer";
+if (object != null) {
+  if (databaseMeta.supportsSetLong()) {
+    ps.setLong(pos,v.convertToInteger(object).longValue());
+  }
+ else {
+    double d=v.convertToNumber(object).doubleValue();
+    if (databaseMeta.supportsFloatRoundingOnUpdate() && v.getPrecision() >= 0) {
+      ps.setDouble(pos,d);
+    }
+ else {
+      ps.setDouble(pos,Const.round(d,v.getPrecision()));
+    }
+  }
+}
+ else {
+  ps.setNull(pos,java.sql.Types.INTEGER);
+}
+break;
+case ValueMetaInterface.TYPE_STRING:
+debug="String";
+if (v.getLength() < DatabaseMeta.CLOB_LENGTH) {
+if (object != null) {
+ps.setString(pos,v.convertToString(object));
+}
+ else {
+ps.setNull(pos,java.sql.Types.VARCHAR);
+}
+}
+ else {
+if (object != null) {
+String string=v.convertToString(object);
+int maxlen=databaseMeta.getMaxTextFieldLength();
+int len=string.length();
+int begin=len - maxlen;
+if (begin < 0) begin=0;
+String logging=string.substring(begin);
+if (databaseMeta.supportsSetCharacterStream()) {
+StringReader sr=new StringReader(logging);
+ps.setCharacterStream(pos,sr,logging.length());
+}
+ else {
+ps.setString(pos,logging);
+}
+}
+ else {
+ps.setNull(pos,java.sql.Types.VARCHAR);
+}
+}
+break;
+case ValueMetaInterface.TYPE_DATE:
+debug="Date";
+if (object != null) {
+long dat=v.convertToInteger(object).longValue();
+if (v.getPrecision() == 1 || !databaseMeta.supportsTimeStampToDateConversion()) {
+java.sql.Date ddate=new java.sql.Date(dat);
+ps.setDate(pos,ddate);
+}
+ else {
+java.sql.Timestamp sdate=new java.sql.Timestamp(dat);
+ps.setTimestamp(pos,sdate);
+}
+}
+ else {
+if (v.getPrecision() == 1 || !databaseMeta.supportsTimeStampToDateConversion()) {
+ps.setNull(pos,java.sql.Types.DATE);
+}
+ else {
+ps.setNull(pos,java.sql.Types.TIMESTAMP);
+}
+}
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+debug="Boolean";
+if (databaseMeta.supportsBooleanDataType()) {
+if (object != null) {
+ps.setBoolean(pos,v.convertToBoolean(object).booleanValue());
+}
+ else {
+ps.setNull(pos,java.sql.Types.BOOLEAN);
+}
+}
+ else {
+if (object != null) {
+ps.setString(pos,v.convertToBoolean(object).booleanValue() ? "Y" : "N");
+}
+ else {
+ps.setNull(pos,java.sql.Types.CHAR);
+}
+}
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+debug="BigNumber";
+if (object != null) {
+ps.setBigDecimal(pos,v.convertToBigNumber(object));
+}
+ else {
+ps.setNull(pos,java.sql.Types.DECIMAL);
+}
+break;
+case ValueMetaInterface.TYPE_BINARY:
+debug="Binary";
+if (object != null) {
+ps.setBytes(pos,v.convertToBinary(object));
+}
+ else {
+ps.setNull(pos,java.sql.Types.BINARY);
+}
+break;
+default :
+debug="default";
+ps.setNull(pos,java.sql.Types.VARCHAR);
+break;
+}
+}
+ catch (SQLException ex) {
+throw new KettleDatabaseException("Error setting value #" + pos + " ["+ v.toString()+ "] on prepared statement ("+ debug+ ")"+ Const.CR+ ex.toString(),ex);
+}
+catch (Exception e) {
+throw new KettleDatabaseException("Error setting value #" + pos + " ["+ (v == null ? "NULL" : v.toString())+ "] on prepared statement ("+ debug+ ")"+ Const.CR+ e.toString(),e);
+}
+}
