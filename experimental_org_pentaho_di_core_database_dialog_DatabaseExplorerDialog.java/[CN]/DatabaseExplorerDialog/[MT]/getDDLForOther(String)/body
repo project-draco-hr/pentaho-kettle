@@ -1,0 +1,34 @@
+{
+  if (databases != null) {
+    Database db=new Database(dbMeta);
+    try {
+      db.connect();
+      RowMetaInterface r=db.getTableFields(tableName);
+      List dbs=new ArrayList();
+      for (int i=0; i < databases.size(); i++)       if (((DatabaseMeta)databases.get(i)).getDatabaseType() != DatabaseMeta.TYPE_DATABASE_SAPR3)       dbs.add(databases.get(i));
+      String conn[]=new String[dbs.size()];
+      for (int i=0; i < conn.length; i++)       conn[i]=((DatabaseMeta)dbs.get(i)).getName();
+      EnterSelectionDialog esd=new EnterSelectionDialog(shell,conn,Messages.getString("DatabaseExplorerDialog.TargetDatabase.Title"),Messages.getString("DatabaseExplorerDialog.TargetDatabase.Message"));
+      String target=esd.open();
+      if (target != null) {
+        DatabaseMeta targetdbi=DatabaseMeta.findDatabase(dbs,target);
+        Database targetdb=new Database(targetdbi);
+        String sql=targetdb.getCreateTableStatement(tableName,r,null,false,null,true);
+        SQLEditor se=new SQLEditor(shell,SWT.NONE,dbMeta,dbcache,sql);
+        se.open();
+      }
+    }
+ catch (    KettleDatabaseException dbe) {
+      new ErrorDialog(shell,Messages.getString("Dialog.Error.Header"),Messages.getString("DatabaseExplorerDialog.Error.GenDDL"),dbe);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.NONE | SWT.ICON_INFORMATION);
+    mb.setMessage(Messages.getString("DatabaseExplorerDialog.NoConnectionsKnown.Message"));
+    mb.setText(Messages.getString("DatabaseExplorerDialog.NoConnectionsKnown.Title"));
+    mb.open();
+  }
+}

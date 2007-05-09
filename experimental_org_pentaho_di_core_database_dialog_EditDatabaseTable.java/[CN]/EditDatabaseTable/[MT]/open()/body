@@ -1,0 +1,122 @@
+{
+  Shell parent=getParent();
+  Display display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX);
+  props.setLook(shell);
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText("Edit table [" + tablename + "] on database ["+ dbinfo.getName()+ "]");
+  int margin=Const.MARGIN;
+  try {
+    openQuery();
+    getFirst();
+  }
+ catch (  KettleException e) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("An error occured : " + e.getMessage());
+    mb.setText("ERROR");
+    mb.open();
+    return;
+  }
+  if (buffer.size() == 0) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage("No rows found in this table!");
+    mb.setText("ERROR");
+    mb.open();
+    return;
+  }
+  int FieldsRows=buffer.size();
+  ColumnInfo[] colinf=new ColumnInfo[rowMeta.size()];
+  for (int i=0; i < rowMeta.size(); i++) {
+    ValueMetaInterface v=rowMeta.getValueMeta(i);
+    colinf[i]=new ColumnInfo(v.getName(),ColumnInfo.COLUMN_TYPE_TEXT,false);
+    colinf[i].setToolTip(v.toStringMeta());
+  }
+  wFields=new TableView(shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,null,props);
+  fdFields=new FormData();
+  fdFields.left=new FormAttachment(0,0);
+  fdFields.top=new FormAttachment(0,0);
+  fdFields.right=new FormAttachment(100,0);
+  fdFields.bottom=new FormAttachment(100,-50);
+  wFields.setLayoutData(fdFields);
+  wClose=new Button(shell,SWT.PUSH);
+  wClose.setText(" &Close ");
+  fdClose=new FormData();
+  fdClose.left=new FormAttachment(25,0);
+  fdClose.bottom=new FormAttachment(100,-margin);
+  wClose.setLayoutData(fdClose);
+  wFirst=new Button(shell,SWT.PUSH);
+  wFirst.setText(" &First ");
+  fdFirst=new FormData();
+  fdFirst.left=new FormAttachment(wClose,10);
+  fdFirst.bottom=new FormAttachment(100,-margin);
+  wFirst.setLayoutData(fdFirst);
+  wPrev=new Button(shell,SWT.PUSH);
+  wPrev.setText(" &Prev ");
+  fdPrev=new FormData();
+  fdPrev.left=new FormAttachment(wFirst,10);
+  fdPrev.bottom=new FormAttachment(100,-margin);
+  wPrev.setLayoutData(fdPrev);
+  wNext=new Button(shell,SWT.PUSH);
+  wNext.setText(" &Next ");
+  fdNext=new FormData();
+  fdNext.left=new FormAttachment(wPrev,10);
+  fdNext.bottom=new FormAttachment(100,-margin);
+  wNext.setLayoutData(fdNext);
+  wLast=new Button(shell,SWT.PUSH);
+  wLast.setText(" &Last ");
+  fdLast=new FormData();
+  fdLast.left=new FormAttachment(wNext,10);
+  fdLast.bottom=new FormAttachment(100,-margin);
+  wLast.setLayoutData(fdLast);
+  lsClose=new Listener(){
+    public void handleEvent(    Event e){
+      close();
+    }
+  }
+;
+  lsFirst=new Listener(){
+    public void handleEvent(    Event e){
+      first();
+    }
+  }
+;
+  lsPrev=new Listener(){
+    public void handleEvent(    Event e){
+      prev();
+    }
+  }
+;
+  lsNext=new Listener(){
+    public void handleEvent(    Event e){
+      next();
+    }
+  }
+;
+  lsLast=new Listener(){
+    public void handleEvent(    Event e){
+      last();
+    }
+  }
+;
+  wClose.addListener(SWT.Selection,lsClose);
+  wFirst.addListener(SWT.Selection,lsFirst);
+  wPrev.addListener(SWT.Selection,lsPrev);
+  wNext.addListener(SWT.Selection,lsNext);
+  wLast.addListener(SWT.Selection,lsLast);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      close();
+    }
+  }
+);
+  BaseStepDialog.setSize(shell);
+  getData();
+  wFields.optWidth(true);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+}

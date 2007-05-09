@@ -1,0 +1,68 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  String urlToUse=constructUrl(service);
+  URL server;
+  StringBuffer result=new StringBuffer();
+  try {
+    String beforeProxyHost=System.getProperty("http.proxyHost");
+    String beforeProxyPort=System.getProperty("http.proxyPort");
+    String beforeNonProxyHosts=System.getProperty("http.nonProxyHosts");
+    BufferedReader input=null;
+    try {
+      log.logBasic(toString(),"Connecting to URL: " + urlToUse);
+      if (proxyHostname != null) {
+        System.setProperty("http.proxyHost",proxyHostname);
+        System.setProperty("http.proxyPort",proxyPort);
+        if (nonProxyHosts != null)         System.setProperty("http.nonProxyHosts",nonProxyHosts);
+      }
+      if (username != null && username.length() > 0) {
+        Authenticator.setDefault(new Authenticator(){
+          protected PasswordAuthentication getPasswordAuthentication(){
+            return new PasswordAuthentication(username,password != null ? password.toCharArray() : new char[]{});
+          }
+        }
+);
+      }
+      server=new URL(urlToUse);
+      URLConnection connection=server.openConnection();
+      log.logDetailed(toString(),"Start reading reply from webserver.");
+      InputStream inputStream=new BufferedInputStream(connection.getInputStream(),1000);
+      input=new BufferedReader(new InputStreamReader(inputStream));
+      long bytesRead=0L;
+      String line;
+      while ((line=input.readLine()) != null) {
+        result.append(line).append(Const.CR);
+        bytesRead+=line.length();
+      }
+      log.logBasic(toString(),"Finished reading " + bytesRead + " bytes as a response from the webserver");
+    }
+ catch (    MalformedURLException e) {
+      log.logError(toString(),"The specified URL is not valid [" + urlToUse + "] : "+ e.getMessage());
+      log.logError(toString(),Const.getStackTracker(e));
+    }
+catch (    IOException e) {
+      log.logError(toString(),"I was unable to save the HTTP result to file because of a I/O error: " + e.getMessage());
+      log.logError(toString(),Const.getStackTracker(e));
+    }
+catch (    Exception e) {
+      log.logError(toString(),"Error getting file from HTTP : " + e.getMessage());
+      log.logError(toString(),Const.getStackTracker(e));
+    }
+ finally {
+      try {
+        if (input != null)         input.close();
+      }
+ catch (      Exception e) {
+        log.logError(toString(),"Unable to close streams : " + e.getMessage());
+        log.logError(toString(),Const.getStackTracker(e));
+      }
+    }
+    System.setProperty("http.proxyHost",Const.NVL(beforeProxyHost,""));
+    System.setProperty("http.proxyPort",Const.NVL(beforeProxyPort,""));
+    System.setProperty("http.nonProxyHosts",Const.NVL(beforeNonProxyHosts,""));
+    return result.toString();
+  }
+ catch (  Exception e) {
+    throw new Exception("Unable to contact URL [" + urlToUse + "] to get the security reference information.",e);
+  }
+}

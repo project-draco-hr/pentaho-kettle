@@ -1,0 +1,57 @@
+{
+  meta=(SocketReaderMeta)smi;
+  data=(SocketReaderData)sdi;
+  try {
+    Object[] r;
+    if (first) {
+      long startTime=System.currentTimeMillis();
+      boolean connected=false;
+      KettleException lastException=null;
+      while (!connected && (TIMEOUT_IN_SECONDS > (System.currentTimeMillis() - startTime) / 1000) && !isStopped()) {
+        try {
+          int port=Integer.parseInt(StringUtil.environmentSubstitute(meta.getPort()));
+          int bufferSize=Integer.parseInt(StringUtil.environmentSubstitute(meta.getBufferSize()));
+          data.socket=new Socket(StringUtil.environmentSubstitute(meta.getHostname()),port);
+          connected=true;
+          if (meta.isCompressed()) {
+            data.outputStream=new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(data.socket.getOutputStream()),bufferSize));
+            data.inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(data.socket.getInputStream()),bufferSize));
+          }
+ else {
+            data.outputStream=new DataOutputStream(new BufferedOutputStream(data.socket.getOutputStream(),bufferSize));
+            data.inputStream=new DataInputStream(new BufferedInputStream(data.socket.getInputStream(),bufferSize));
+          }
+          lastException=null;
+        }
+ catch (        Exception e) {
+          lastException=new KettleException("Unable to open socket to server " + StringUtil.environmentSubstitute(meta.getHostname()) + " port "+ StringUtil.environmentSubstitute(meta.getPort()),e);
+        }
+        if (lastException != null) {
+          Thread.sleep(1000);
+        }
+      }
+      if (lastException != null) {
+        logError("Error initialising step: " + lastException.toString());
+        logError(Const.getStackTracker(lastException));
+        throw lastException;
+      }
+ else {
+        if (data.inputStream == null)         throw new KettleException("Unable to connect to the SocketWriter in the " + TIMEOUT_IN_SECONDS + "s timeout period.");
+      }
+      data.rowMeta=new RowMeta(data.inputStream);
+      first=false;
+    }
+    r=data.rowMeta.readData(data.inputStream);
+    linesInput++;
+    if (checkFeedback(linesInput))     logBasic(Messages.getString("SocketReader.Log.LineNumber") + linesInput);
+    putRow(data.rowMeta,r);
+  }
+ catch (  KettleEOFException e) {
+    setOutputDone();
+    return false;
+  }
+catch (  Exception e) {
+    throw new KettleException(e);
+  }
+  return true;
+}

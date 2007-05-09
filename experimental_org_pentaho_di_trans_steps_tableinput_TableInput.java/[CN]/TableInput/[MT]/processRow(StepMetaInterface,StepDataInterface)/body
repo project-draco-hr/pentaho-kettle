@@ -1,0 +1,65 @@
+{
+  if (first) {
+    RowMetaAndData parameters;
+    first=false;
+    if (meta.getInfoSteps() != null) {
+      if (meta.isExecuteEachInputRow()) {
+        if (log.isDetailed())         logDetailed("Reading single row from stream [" + meta.getLookupStepname() + "]");
+        parameters=getRowFrom(meta.getLookupStepname());
+      }
+ else {
+        if (log.isDetailed())         logDetailed("Reading query parameters from stream [" + meta.getLookupStepname() + "]");
+        parameters=readStartDate();
+      }
+      if (parameters != null) {
+        if (log.isDetailed())         logDetailed("Query parameters found = " + parameters.toString());
+      }
+    }
+ else {
+      parameters=new RowMetaAndData(new RowMeta(),new Object[]{});
+    }
+    if (meta.isExecuteEachInputRow() && (parameters == null || parameters.getRowMeta().size() == 0)) {
+      setOutputDone();
+      return false;
+    }
+    boolean success=doQuery(parameters);
+    if (!success) {
+      return false;
+    }
+  }
+ else {
+    if (data.thisrow != null) {
+      data.nextrow=data.db.getRow(data.rs);
+      if (data.nextrow != null)       linesInput++;
+    }
+  }
+  if (data.thisrow == null) {
+    boolean done=false;
+    if (meta.isExecuteEachInputRow()) {
+      RowMetaAndData nextRow=getRowFrom(meta.getLookupStepname());
+      if (nextRow == null) {
+        done=true;
+      }
+ else {
+        closePreviousQuery();
+        boolean success=doQuery(nextRow);
+        if (!success) {
+          return false;
+        }
+      }
+    }
+ else {
+      done=true;
+    }
+    if (done) {
+      setOutputDone();
+      return false;
+    }
+  }
+  if (data.thisrow != null) {
+    putRow(data.rowMeta,data.thisrow);
+    data.thisrow=data.nextrow;
+    if (checkFeedback(linesInput))     logBasic("linenr " + linesInput);
+  }
+  return true;
+}

@@ -1,0 +1,29 @@
+{
+  meta=(TableInputMeta)smi;
+  data=(TableInputData)sdi;
+  if (super.init(smi,sdi)) {
+    data.db=new Database(meta.getDatabaseMeta());
+    data.db.setQueryLimit(meta.getRowLimit());
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      if (meta.getDatabaseMeta().getDatabaseType() != DatabaseMeta.TYPE_DATABASE_SYBASE) {
+        data.db.setCommit(100);
+      }
+      if (log.isDetailed())       logDetailed("Connected to database...");
+      return true;
+    }
+ catch (    KettleException e) {
+      logError("An error occurred, processing will be stopped: " + e.getMessage());
+      setErrors(1);
+      stopAll();
+    }
+  }
+  return false;
+}

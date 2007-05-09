@@ -1,0 +1,101 @@
+{
+  if (use_id && log_string != null && !status.equalsIgnoreCase("start")) {
+    String sql="UPDATE " + logtable + " SET STATUS=?, LINES_READ=?, LINES_WRITTEN=?, LINES_INPUT=?,"+ " LINES_OUTPUT=?, LINES_UPDATED=?, ERRORS=?, STARTDATE=?, ENDDATE=?, LOGDATE=?, DEPDATE=?, REPLAYDATE=?, LOG_FIELD=? "+ "WHERE ";
+    if (job)     sql+="ID_JOB=?";
+ else     sql+="ID_BATCH=?";
+    RowMetaInterface rowMeta;
+    if (job)     rowMeta=getJobLogrecordFields(use_id,true);
+ else     rowMeta=getTransLogrecordFields(use_id,true);
+    Object[] data=new Object[]{status,new Long(read),new Long(written),new Long(input),new Long(output),new Long(updated),new Long(errors),startdate,enddate,logdate,depdate,replayDate,log_string,new Long(id)};
+    execStatement(sql,rowMeta,data);
+  }
+ else {
+    int parms;
+    String sql="INSERT INTO " + logtable + " ( ";
+    if (job) {
+      if (use_id) {
+        sql+="ID_JOB, JOBNAME";
+        parms=14;
+      }
+ else {
+        sql+="JOBNAME";
+        parms=13;
+      }
+    }
+ else {
+      if (use_id) {
+        sql+="ID_BATCH, TRANSNAME";
+        parms=14;
+      }
+ else {
+        sql+="TRANSNAME";
+        parms=13;
+      }
+    }
+    sql+=", STATUS, LINES_READ, LINES_WRITTEN, LINES_UPDATED, LINES_INPUT, LINES_OUTPUT, ERRORS, STARTDATE, ENDDATE, LOGDATE, DEPDATE, REPLAYDATE";
+    if (log_string != null && log_string.length() > 0)     sql+=", LOG_FIELD";
+    sql+=") VALUES(";
+    for (int i=0; i < parms; i++)     if (i == 0)     sql+="?";
+ else     sql+=", ?";
+    if (log_string != null && log_string.length() > 0)     sql+=", ?";
+    sql+=")";
+    try {
+      pstmt=connection.prepareStatement(databaseMeta.stripCR(sql));
+      RowMetaInterface rowMeta=new RowMeta();
+      List data=new ArrayList();
+      if (job) {
+        if (use_id) {
+          rowMeta.addValueMeta(new ValueMeta("ID_BATCH",ValueMetaInterface.TYPE_INTEGER));
+          data.add(new Long(id));
+        }
+        rowMeta.addValueMeta(new ValueMeta("TRANSNAME",ValueMetaInterface.TYPE_STRING));
+        data.add(name);
+      }
+ else {
+        if (use_id) {
+          rowMeta.addValueMeta(new ValueMeta("ID_JOB",ValueMetaInterface.TYPE_INTEGER));
+          data.add(new Long(id));
+        }
+        rowMeta.addValueMeta(new ValueMeta("JOBNAME",ValueMetaInterface.TYPE_STRING));
+        data.add(name);
+      }
+      rowMeta.addValueMeta(new ValueMeta("STATUS",ValueMetaInterface.TYPE_STRING));
+      data.add(status);
+      rowMeta.addValueMeta(new ValueMeta("LINES_READ",ValueMetaInterface.TYPE_INTEGER));
+      data.add(new Long(read));
+      rowMeta.addValueMeta(new ValueMeta("LINES_WRITTEN",ValueMetaInterface.TYPE_INTEGER));
+      data.add(new Long(written));
+      rowMeta.addValueMeta(new ValueMeta("LINES_UPDATED",ValueMetaInterface.TYPE_INTEGER));
+      data.add(new Long(updated));
+      rowMeta.addValueMeta(new ValueMeta("LINES_INPUT",ValueMetaInterface.TYPE_INTEGER));
+      data.add(new Long(input));
+      rowMeta.addValueMeta(new ValueMeta("LINES_OUTPUT",ValueMetaInterface.TYPE_INTEGER));
+      data.add(new Long(output));
+      rowMeta.addValueMeta(new ValueMeta("ERRORS",ValueMetaInterface.TYPE_INTEGER));
+      data.add(new Long(errors));
+      rowMeta.addValueMeta(new ValueMeta("STARTDATE",ValueMetaInterface.TYPE_DATE));
+      data.add(startdate);
+      rowMeta.addValueMeta(new ValueMeta("ENDDATE",ValueMetaInterface.TYPE_DATE));
+      data.add(enddate);
+      rowMeta.addValueMeta(new ValueMeta("LOGDATE",ValueMetaInterface.TYPE_DATE));
+      data.add(logdate);
+      rowMeta.addValueMeta(new ValueMeta("DEPDATE",ValueMetaInterface.TYPE_DATE));
+      data.add(depdate);
+      rowMeta.addValueMeta(new ValueMeta("REPLAYDATE",ValueMetaInterface.TYPE_DATE));
+      data.add(replayDate);
+      if (!Const.isEmpty(log_string)) {
+        ValueMetaInterface large=new ValueMeta("LOG_FIELD",ValueMetaInterface.TYPE_STRING);
+        large.setLength(DatabaseMeta.CLOB_LENGTH);
+        rowMeta.addValueMeta(large);
+        data.add(log_string);
+      }
+      setValues(rowMeta,data.toArray(new Object[data.size()]));
+      pstmt.executeUpdate();
+      pstmt.close();
+      pstmt=null;
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Unable to write log record to log table " + logtable,ex);
+    }
+  }
+}

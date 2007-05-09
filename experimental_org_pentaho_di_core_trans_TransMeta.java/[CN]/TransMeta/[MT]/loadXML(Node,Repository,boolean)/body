@@ -1,0 +1,211 @@
+{
+  Props props=null;
+  if (Props.isInitialized()) {
+    props=Props.getInstance();
+  }
+  try {
+    clearUndo();
+    clear();
+    try {
+      sharedObjectsFile=XMLHandler.getTagValue(transnode,"info","shared_objects_file");
+    }
+ catch (    Exception e) {
+      LogWriter.getInstance().logError(toString(),Messages.getString("TransMeta.ErrorReadingSharedObjects.Message",e.toString()));
+      LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
+    }
+    int n=XMLHandler.countNodes(transnode,DatabaseMeta.XML_TAG);
+    log.logDebug(toString(),Messages.getString("TransMeta.Log.WeHaveConnections",String.valueOf(n)));
+    for (int i=0; i < n; i++) {
+      log.logDebug(toString(),Messages.getString("TransMeta.Log.LookingAtConnection") + i);
+      Node nodecon=XMLHandler.getSubNodeByNr(transnode,DatabaseMeta.XML_TAG,i);
+      DatabaseMeta dbcon=new DatabaseMeta(nodecon);
+      DatabaseMeta exist=findDatabase(dbcon.getName());
+      if (exist == null) {
+        addDatabase(dbcon);
+      }
+ else {
+        if (!exist.isShared()) {
+          boolean askOverwrite=Props.isInitialized() ? props.askAboutReplacingDatabaseConnections() : false;
+          boolean overwrite=Props.isInitialized() ? props.replaceExistingDatabaseConnections() : true;
+          if (askOverwrite) {
+            if (props.getDisplay() != null) {
+              Shell shell=props.getDisplay().getActiveShell();
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Warning",null,"Connection [" + dbcon.getName() + "] already exists, do you want to overwrite this database connection?",MessageDialog.WARNING,new String[]{"Yes","No"},1,"Please, don't show this warning anymore.",!props.askAboutReplacingDatabaseConnections());
+              int idx=md.open();
+              props.setAskAboutReplacingDatabaseConnections(!md.getToggleState());
+              overwrite=((idx & 0xFF) == 0);
+            }
+          }
+          if (overwrite) {
+            int idx=indexOfDatabase(exist);
+            removeDatabase(idx);
+            addDatabase(idx,dbcon);
+          }
+        }
+      }
+    }
+    Node notepadsnode=XMLHandler.getSubNode(transnode,XML_TAG_NOTEPADS);
+    int nrnotes=XMLHandler.countNodes(notepadsnode,NotePadMeta.XML_TAG);
+    for (int i=0; i < nrnotes; i++) {
+      Node notepadnode=XMLHandler.getSubNodeByNr(notepadsnode,NotePadMeta.XML_TAG,i);
+      NotePadMeta ni=new NotePadMeta(notepadnode);
+      notes.add(ni);
+    }
+    int s=XMLHandler.countNodes(transnode,StepMeta.XML_TAG);
+    log.logDebug(toString(),Messages.getString("TransMeta.Log.ReadingSteps") + s + " steps...");
+    for (int i=0; i < s; i++) {
+      Node stepnode=XMLHandler.getSubNodeByNr(transnode,StepMeta.XML_TAG,i);
+      log.logDebug(toString(),Messages.getString("TransMeta.Log.LookingAtStep") + i);
+      StepMeta stepMeta=new StepMeta(stepnode,databases,counters);
+      StepMeta check=findStep(stepMeta.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplaceStep(stepMeta);
+        }
+ else {
+          check.setDraw(stepMeta.isDrawn());
+          check.setLocation(stepMeta.getLocation());
+        }
+      }
+ else {
+        addStep(stepMeta);
+      }
+    }
+    Node errorHandlingNode=XMLHandler.getSubNode(transnode,XML_TAG_STEP_ERROR_HANDLING);
+    int nrErrorHandlers=XMLHandler.countNodes(errorHandlingNode,StepErrorMeta.XML_TAG);
+    for (int i=0; i < nrErrorHandlers; i++) {
+      Node stepErrorMetaNode=XMLHandler.getSubNodeByNr(errorHandlingNode,StepErrorMeta.XML_TAG,i);
+      StepErrorMeta stepErrorMeta=new StepErrorMeta(stepErrorMetaNode,steps);
+      stepErrorMeta.getSourceStep().setStepErrorMeta(stepErrorMeta);
+    }
+    for (int i=0; i < nrSteps(); i++) {
+      StepMeta stepMeta=getStep(i);
+      StepMetaInterface sii=stepMeta.getStepMetaInterface();
+      if (sii != null)       sii.searchInfoAndTargetSteps(steps);
+    }
+    Node ordernode=XMLHandler.getSubNode(transnode,XML_TAG_ORDER);
+    n=XMLHandler.countNodes(ordernode,TransHopMeta.XML_TAG);
+    log.logDebug(toString(),Messages.getString("TransMeta.Log.WeHaveHops") + n + " hops...");
+    for (int i=0; i < n; i++) {
+      log.logDebug(toString(),Messages.getString("TransMeta.Log.LookingAtHop") + i);
+      Node hopnode=XMLHandler.getSubNodeByNr(ordernode,TransHopMeta.XML_TAG,i);
+      TransHopMeta hopinf=new TransHopMeta(hopnode,steps);
+      addTransHop(hopinf);
+    }
+    Node infonode=XMLHandler.getSubNode(transnode,XML_TAG_INFO);
+    name=XMLHandler.getTagValue(infonode,"name");
+    description=XMLHandler.getTagValue(infonode,"description");
+    extended_description=XMLHandler.getTagValue(infonode,"extended_description");
+    trans_version=XMLHandler.getTagValue(infonode,"trans_version");
+    trans_status=Const.toInt(XMLHandler.getTagValue(infonode,"trans_status"),-1);
+    readStep=findStep(XMLHandler.getTagValue(infonode,"log","read"));
+    writeStep=findStep(XMLHandler.getTagValue(infonode,"log","write"));
+    inputStep=findStep(XMLHandler.getTagValue(infonode,"log","input"));
+    outputStep=findStep(XMLHandler.getTagValue(infonode,"log","output"));
+    updateStep=findStep(XMLHandler.getTagValue(infonode,"log","update"));
+    rejectedStep=findStep(XMLHandler.getTagValue(infonode,"log","rejected"));
+    String logcon=XMLHandler.getTagValue(infonode,"log","connection");
+    logConnection=findDatabase(logcon);
+    logTable=XMLHandler.getTagValue(infonode,"log","table");
+    useBatchId="Y".equalsIgnoreCase(XMLHandler.getTagValue(infonode,"log","use_batchid"));
+    logfieldUsed="Y".equalsIgnoreCase(XMLHandler.getTagValue(infonode,"log","USE_LOGFIELD"));
+    String maxdatcon=XMLHandler.getTagValue(infonode,"maxdate","connection");
+    maxDateConnection=findDatabase(maxdatcon);
+    maxDateTable=XMLHandler.getTagValue(infonode,"maxdate","table");
+    maxDateField=XMLHandler.getTagValue(infonode,"maxdate","field");
+    String offset=XMLHandler.getTagValue(infonode,"maxdate","offset");
+    maxDateOffset=Const.toDouble(offset,0.0);
+    String mdiff=XMLHandler.getTagValue(infonode,"maxdate","maxdiff");
+    maxDateDifference=Const.toDouble(mdiff,0.0);
+    Node depsNode=XMLHandler.getSubNode(infonode,XML_TAG_DEPENDENCIES);
+    int nrDeps=XMLHandler.countNodes(depsNode,TransDependency.XML_TAG);
+    for (int i=0; i < nrDeps; i++) {
+      Node depNode=XMLHandler.getSubNodeByNr(depsNode,TransDependency.XML_TAG,i);
+      TransDependency transDependency=new TransDependency(depNode,databases);
+      if (transDependency.getDatabase() != null && transDependency.getFieldname() != null) {
+        addDependency(transDependency);
+      }
+    }
+    Node partSchemasNode=XMLHandler.getSubNode(infonode,XML_TAG_PARTITIONSCHEMAS);
+    int nrPartSchemas=XMLHandler.countNodes(partSchemasNode,PartitionSchema.XML_TAG);
+    for (int i=0; i < nrPartSchemas; i++) {
+      Node partSchemaNode=XMLHandler.getSubNodeByNr(partSchemasNode,PartitionSchema.XML_TAG,i);
+      PartitionSchema partitionSchema=new PartitionSchema(partSchemaNode);
+      PartitionSchema check=findPartitionSchema(partitionSchema.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplacePartitionSchema(partitionSchema);
+        }
+      }
+ else {
+        partitionSchemas.add(partitionSchema);
+      }
+    }
+    for (int i=0; i < nrSteps(); i++) {
+      StepPartitioningMeta stepPartitioningMeta=getStep(i).getStepPartitioningMeta();
+      if (stepPartitioningMeta != null) {
+        stepPartitioningMeta.setPartitionSchemaAfterLoading(partitionSchemas);
+      }
+    }
+    Node slaveServersNode=XMLHandler.getSubNode(infonode,XML_TAG_SLAVESERVERS);
+    int nrSlaveServers=XMLHandler.countNodes(slaveServersNode,SlaveServer.XML_TAG);
+    for (int i=0; i < nrSlaveServers; i++) {
+      Node slaveServerNode=XMLHandler.getSubNodeByNr(slaveServersNode,SlaveServer.XML_TAG,i);
+      SlaveServer slaveServer=new SlaveServer(slaveServerNode);
+      SlaveServer check=findSlaveServer(slaveServer.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplaceSlaveServer(slaveServer);
+        }
+      }
+ else {
+        slaveServers.add(slaveServer);
+      }
+    }
+    Node clusterSchemasNode=XMLHandler.getSubNode(infonode,XML_TAG_CLUSTERSCHEMAS);
+    int nrClusterSchemas=XMLHandler.countNodes(clusterSchemasNode,ClusterSchema.XML_TAG);
+    for (int i=0; i < nrClusterSchemas; i++) {
+      Node clusterSchemaNode=XMLHandler.getSubNodeByNr(clusterSchemasNode,ClusterSchema.XML_TAG,i);
+      ClusterSchema clusterSchema=new ClusterSchema(clusterSchemaNode,slaveServers);
+      ClusterSchema check=findClusterSchema(clusterSchema.getName());
+      if (check != null) {
+        if (!check.isShared()) {
+          addOrReplaceClusterSchema(clusterSchema);
+        }
+      }
+ else {
+        clusterSchemas.add(clusterSchema);
+      }
+    }
+    for (int i=0; i < nrSteps(); i++) {
+      getStep(i).setClusterSchemaAfterLoading(clusterSchemas);
+    }
+    String srowset=XMLHandler.getTagValue(infonode,"size_rowset");
+    sizeRowset=Const.toInt(srowset,Const.ROWS_IN_ROWSET);
+    sleepTimeEmpty=Const.toInt(XMLHandler.getTagValue(infonode,"sleep_time_empty"),Const.SLEEP_EMPTY_NANOS);
+    sleepTimeFull=Const.toInt(XMLHandler.getTagValue(infonode,"sleep_time_full"),Const.SLEEP_FULL_NANOS);
+    usingUniqueConnections="Y".equalsIgnoreCase(XMLHandler.getTagValue(infonode,"unique_connections"));
+    feedbackShown=!"N".equalsIgnoreCase(XMLHandler.getTagValue(infonode,"feedback_shown"));
+    feedbackSize=Const.toInt(XMLHandler.getTagValue(infonode,"feedback_size"),Const.ROWS_UPDATE);
+    usingThreadPriorityManagment=!"N".equalsIgnoreCase(XMLHandler.getTagValue(infonode,"using_thread_priorities"));
+    createdUser=XMLHandler.getTagValue(infonode,"created_user");
+    String createDate=XMLHandler.getTagValue(infonode,"created_date");
+    if (createDate != null) {
+      createdDate=XMLHandler.stringToDate(createDate);
+    }
+    modifiedUser=XMLHandler.getTagValue(infonode,"modified_user");
+    String modDate=XMLHandler.getTagValue(infonode,"modified_date");
+    if (modDate != null) {
+      modifiedDate=XMLHandler.stringToDate(modDate);
+    }
+    log.logDebug(toString(),Messages.getString("TransMeta.Log.NumberOfStepsReaded") + nrSteps());
+    log.logDebug(toString(),Messages.getString("TransMeta.Log.NumberOfHopsReaded") + nrTransHops());
+    sortSteps();
+  }
+ catch (  KettleXMLException xe) {
+    throw new KettleXMLException(Messages.getString("TransMeta.Exception.ErrorReadingTransformation"),xe);
+  }
+ finally {
+    if (setInternalVariables)     setInternalKettleVariables();
+  }
+}

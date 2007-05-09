@@ -1,0 +1,36 @@
+{
+  byte[] content=xml.getBytes(Const.XML_ENCODING);
+  String urlString=constructUrl(service);
+  System.out.println("Connecting to: " + urlString);
+  PutMethod put=new PutMethod(urlString);
+  RequestEntity entity=new ByteArrayRequestEntity(content);
+  put.setRequestEntity(entity);
+  put.setDoAuthentication(true);
+  HttpClient client=new HttpClient();
+  addCredentials(client);
+  try {
+    int result=client.executeMethod(put);
+    log.logDebug(toString(),"Response status code: " + result);
+    InputStream inputStream=new BufferedInputStream(put.getResponseBodyAsStream(),1000);
+    StringBuffer bodyBuffer=new StringBuffer();
+    int c;
+    while ((c=inputStream.read()) != -1)     bodyBuffer.append((char)c);
+    inputStream.close();
+    String bodyTmp=bodyBuffer.toString();
+switch (result) {
+case 401:
+      String message="Authentication failed" + Const.DOSCR + Const.DOSCR+ bodyTmp;
+    WebResult webResult=new WebResult(WebResult.STRING_ERROR,message);
+  bodyBuffer.setLength(0);
+bodyBuffer.append(webResult.getXML());
+break;
+}
+String body=bodyBuffer.toString();
+log.logDebug(toString(),"Response body: " + body);
+return body;
+}
+  finally {
+put.releaseConnection();
+log.logDetailed(toString(),"Sent XML to service [" + service + "] on host ["+ hostname+ "]");
+}
+}

@@ -1,0 +1,77 @@
+{
+  try {
+    if (Const.isEmpty(transMeta.getName()))     throw new KettleException("The transformation needs a name to uniquely identify it by on the remote server.");
+    TransSplitter transSplitter=new TransSplitter(transMeta);
+    transSplitter.splitOriginalTransformation();
+    TransMeta master=transSplitter.getMaster();
+    SlaveServer masterServer=null;
+    List masterSteps=master.getTransHopSteps(false);
+    if (masterSteps.size() > 0) {
+      masterServer=transSplitter.getMasterServer();
+      if (executionConfiguration.isClusterPosting()) {
+        String masterReply=masterServer.sendXML(new TransConfiguration(master,executionConfiguration).getXML(),AddTransServlet.CONTEXT_PATH + "?xml=Y");
+        WebResult webResult=WebResult.fromXMLString(masterReply);
+        if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+          throw new KettleException("An error occurred sending the master transformation: " + webResult.getMessage());
+        }
+      }
+    }
+    SlaveServer slaves[]=transSplitter.getSlaveTargets();
+    for (int i=0; i < slaves.length; i++) {
+      TransMeta slaveTrans=(TransMeta)transSplitter.getSlaveTransMap().get(slaves[i]);
+      if (executionConfiguration.isClusterPosting()) {
+        TransConfiguration transConfiguration=new TransConfiguration(slaveTrans,executionConfiguration);
+        RowMetaAndData variables=transConfiguration.getTransExecutionConfiguration().getVariables();
+        variables.getRowMeta().addValueMeta(new ValueMeta(Const.INTERNAL_VARIABLE_SLAVE_TRANS_NUMBER,ValueMetaInterface.TYPE_STRING));
+        variables.getRowMeta().addValueMeta(new ValueMeta(Const.INTERNAL_VARIABLE_CLUSTER_SIZE,ValueMetaInterface.TYPE_STRING));
+        Object[] data=RowDataUtil.addRowData(variables.getData(),new Object[]{Integer.toString(i),Integer.toString(slaves.length)});
+        variables.setData(data);
+        String slaveReply=slaves[i].sendXML(transConfiguration.getXML(),AddTransServlet.CONTEXT_PATH + "?xml=Y");
+        WebResult webResult=WebResult.fromXMLString(slaveReply);
+        if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+          throw new KettleException("An error occurred sending a slave transformation: " + webResult.getMessage());
+        }
+      }
+    }
+    if (executionConfiguration.isClusterPosting()) {
+      if (executionConfiguration.isClusterPreparing()) {
+        if (masterSteps.size() > 0) {
+          String masterReply=masterServer.getContentFromServer(PrepareExecutionTransServlet.CONTEXT_PATH + "?name=" + master.getName()+ "&xml=Y");
+          WebResult webResult=WebResult.fromXMLString(masterReply);
+          if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+            throw new KettleException("An error occurred while preparing the execution of the master transformation: " + webResult.getMessage());
+          }
+        }
+        for (int i=0; i < slaves.length; i++) {
+          TransMeta slaveTrans=(TransMeta)transSplitter.getSlaveTransMap().get(slaves[i]);
+          String slaveReply=slaves[i].getContentFromServer(PrepareExecutionTransServlet.CONTEXT_PATH + "?name=" + slaveTrans.getName()+ "&xml=Y");
+          WebResult webResult=WebResult.fromXMLString(slaveReply);
+          if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+            throw new KettleException("An error occurred while preparing the execution of a slave transformation: " + webResult.getMessage());
+          }
+        }
+      }
+      if (executionConfiguration.isClusterStarting()) {
+        if (masterSteps.size() > 0) {
+          String masterReply=masterServer.getContentFromServer(StartExecutionTransServlet.CONTEXT_PATH + "?name=" + master.getName()+ "&xml=Y");
+          WebResult webResult=WebResult.fromXMLString(masterReply);
+          if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+            throw new KettleException("An error occurred while starting the execution of the master transformation: " + webResult.getMessage());
+          }
+        }
+        for (int i=0; i < slaves.length; i++) {
+          TransMeta slaveTrans=(TransMeta)transSplitter.getSlaveTransMap().get(slaves[i]);
+          String slaveReply=slaves[i].getContentFromServer(StartExecutionTransServlet.CONTEXT_PATH + "?name=" + slaveTrans.getName()+ "&xml=Y");
+          WebResult webResult=WebResult.fromXMLString(slaveReply);
+          if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+            throw new KettleException("An error occurred while starting the execution of a slave transformation: " + webResult.getMessage());
+          }
+        }
+      }
+    }
+    return transSplitter;
+  }
+ catch (  Exception e) {
+    throw new KettleException("There was an error during transformation split",e);
+  }
+}
