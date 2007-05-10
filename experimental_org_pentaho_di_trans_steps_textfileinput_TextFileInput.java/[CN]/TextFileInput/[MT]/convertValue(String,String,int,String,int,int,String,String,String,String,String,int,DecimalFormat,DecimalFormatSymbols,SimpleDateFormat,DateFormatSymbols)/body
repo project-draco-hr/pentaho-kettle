@@ -1,0 +1,107 @@
+{
+  Object value=null;
+  String null_value=nullif;
+  if (null_value == null) {
+    value=null;
+  }
+  String null_cmp=Const.rightPad(new StringBuffer(null_value),pol.length());
+  if (pol == null || pol.length() == 0 || pol.equalsIgnoreCase(null_cmp)) {
+    if (ifNull != null && ifNull.length() != 0)     pol=ifNull;
+  }
+  if (pol == null || pol.length() == 0 || pol.equalsIgnoreCase(null_cmp)) {
+    value=null;
+  }
+ else {
+    if (field_type == ValueMetaInterface.TYPE_NUMBER || field_type == ValueMetaInterface.TYPE_INTEGER || field_type == ValueMetaInterface.TYPE_BIGNUMBER) {
+      try {
+        StringBuffer strpol=new StringBuffer(pol);
+switch (trim_type) {
+case TextFileInputMeta.TYPE_TRIM_LEFT:
+          while (strpol.length() > 0 && strpol.charAt(0) == ' ')           strpol.deleteCharAt(0);
+        break;
+case TextFileInputMeta.TYPE_TRIM_RIGHT:
+      while (strpol.length() > 0 && strpol.charAt(strpol.length() - 1) == ' ')       strpol.deleteCharAt(strpol.length() - 1);
+    break;
+case TextFileInputMeta.TYPE_TRIM_BOTH:
+  while (strpol.length() > 0 && strpol.charAt(0) == ' ')   strpol.deleteCharAt(0);
+while (strpol.length() > 0 && strpol.charAt(strpol.length() - 1) == ' ') strpol.deleteCharAt(strpol.length() - 1);
+break;
+default :
+break;
+}
+pol=strpol.toString();
+switch (field_type) {
+case ValueMetaInterface.TYPE_NUMBER:
+{
+if (field_format != null) {
+ldf.applyPattern(field_format);
+if (num_decimal != null && num_decimal.length() >= 1) ldfs.setDecimalSeparator(num_decimal.charAt(0));
+if (num_group != null && num_group.length() >= 1) ldfs.setGroupingSeparator(num_group.charAt(0));
+if (num_currency != null && num_currency.length() >= 1) ldfs.setCurrencySymbol(num_currency);
+ldf.setDecimalFormatSymbols(ldfs);
+}
+value=new Double(ldf.parse(pol).doubleValue());
+}
+break;
+case ValueMetaInterface.TYPE_INTEGER:
+{
+value=new Long(Long.parseLong(pol));
+}
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+{
+value=new BigDecimal(pol);
+}
+break;
+default :
+throw new KettleValueException("Unknown numeric type: this is a program error.");
+}
+}
+ catch (Exception e) {
+throw (e);
+}
+}
+ else {
+if (field_type == ValueMetaInterface.TYPE_STRING) {
+if (pol.length() == 0) {
+value=null;
+}
+ else {
+switch (trim_type) {
+case TextFileInputMeta.TYPE_TRIM_LEFT:
+value=ValueDataUtil.leftTrim(pol);
+break;
+case TextFileInputMeta.TYPE_TRIM_RIGHT:
+value=ValueDataUtil.rightTrim(pol);
+break;
+case TextFileInputMeta.TYPE_TRIM_BOTH:
+value=ValueDataUtil.trim(pol);
+break;
+default :
+value=pol;
+}
+}
+}
+ else {
+if (field_type == ValueMetaInterface.TYPE_DATE) {
+try {
+if (field_format != null) {
+ldaf.applyPattern(field_format);
+ldaf.setDateFormatSymbols(ldafs);
+}
+value=ldaf.parse(pol);
+}
+ catch (Exception e) {
+throw (e);
+}
+}
+ else {
+if (field_type == ValueMetaInterface.TYPE_BINARY) {
+value=pol.getBytes();
+}
+}
+}
+}
+}
+return value;
+}

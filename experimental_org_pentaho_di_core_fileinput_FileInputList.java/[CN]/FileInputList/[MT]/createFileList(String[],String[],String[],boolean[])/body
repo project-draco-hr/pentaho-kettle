@@ -1,0 +1,69 @@
+{
+  FileInputList fileInputList=new FileInputList();
+  final String realfile[]=StringUtil.environmentSubstitute(fileName);
+  final String realmask[]=StringUtil.environmentSubstitute(fileMask);
+  for (int i=0; i < realfile.length; i++) {
+    final String onefile=realfile[i];
+    final String onemask=realmask[i];
+    final boolean onerequired=YES.equalsIgnoreCase(fileRequired[i]);
+    final boolean subdirs=includeSubdirs[i];
+    if (Const.isEmpty(onefile))     continue;
+    if (!Const.isEmpty(onemask)) {
+      try {
+        FileObject directoryFileObject=KettleVFS.getFileObject(onefile);
+        if (directoryFileObject != null && directoryFileObject.getType() == FileType.FOLDER) {
+          FileObject[] fileObjects=directoryFileObject.findFiles(new AllFileSelector(){
+            public boolean traverseDescendents(            FileSelectInfo info){
+              return info.getDepth() == 0 || subdirs;
+            }
+            public boolean includeFile(            FileSelectInfo info){
+              String name=info.getFile().getName().getBaseName();
+              boolean matches=Pattern.matches(onemask,name);
+              return matches;
+            }
+          }
+);
+          if (fileObjects != null) {
+            for (int j=0; j < fileObjects.length; j++) {
+              if (fileObjects[j].exists())               fileInputList.addFile(fileObjects[j]);
+            }
+          }
+          if (Const.isEmpty(fileObjects)) {
+            if (onerequired)             fileInputList.addNonAccessibleFile(directoryFileObject);
+          }
+          fileInputList.sortFiles();
+        }
+ else {
+          FileObject[] children=directoryFileObject.getChildren();
+          for (int j=0; j < children.length; j++) {
+            String name=children[j].getName().getBaseName();
+            if (Pattern.matches(onemask,name))             fileInputList.addFile(children[j]);
+          }
+        }
+      }
+ catch (      Exception e) {
+        LogWriter.getInstance().logError("FileInputList",Const.getStackTracker(e));
+      }
+    }
+ else {
+      try {
+        FileObject fileObject=KettleVFS.getFileObject(onefile);
+        if (fileObject.exists()) {
+          if (fileObject.isReadable()) {
+            fileInputList.addFile(fileObject);
+          }
+ else {
+            if (onerequired)             fileInputList.addNonAccessibleFile(fileObject);
+          }
+        }
+ else {
+          if (onerequired)           fileInputList.addNonExistantFile(fileObject);
+        }
+      }
+ catch (      Exception e) {
+        LogWriter.getInstance().logError("FileInputList",Const.getStackTracker(e));
+      }
+    }
+  }
+  return fileInputList;
+}

@@ -1,0 +1,115 @@
+{
+  if (textFileLine == null || textFileLine.line == null || textFileLine.line.length() == 0)   return null;
+  int nrfields=info.getInputFields().length;
+  int nrToAllocate=nrfields;
+  Long errorCount=null;
+  if (info.isErrorIgnored() && info.getErrorCountField() != null && info.getErrorCountField().length() > 0) {
+    errorCount=new Long(0L);
+    nrToAllocate++;
+  }
+  String errorFields=null;
+  if (info.isErrorIgnored() && info.getErrorFieldsField() != null && info.getErrorFieldsField().length() > 0) {
+    errorFields="";
+    nrToAllocate++;
+  }
+  String errorText=null;
+  if (info.isErrorIgnored() && info.getErrorTextField() != null && info.getErrorTextField().length() > 0) {
+    errorText="";
+    nrToAllocate++;
+  }
+  if (info.includeFilename()) {
+    nrToAllocate++;
+  }
+  if (info.includeRowNumber()) {
+    nrToAllocate++;
+  }
+  Object[] r=new Object[nrToAllocate];
+  int fieldnr;
+  try {
+    ArrayList strings=convertLineToStrings(log,textFileLine.line,info);
+    for (fieldnr=0; fieldnr < nrfields; fieldnr++) {
+      TextFileInputField f=info.getInputFields()[fieldnr];
+      Object value;
+      String field=fieldnr < nrfields ? f.getName() : "empty" + fieldnr;
+      int type=fieldnr < nrfields ? f.getType() : ValueMetaInterface.TYPE_STRING;
+      String format=fieldnr < nrfields ? f.getFormat() : "";
+      int length=fieldnr < nrfields ? f.getLength() : -1;
+      int precision=fieldnr < nrfields ? f.getPrecision() : -1;
+      String group=fieldnr < nrfields ? f.getGroupSymbol() : "";
+      String decimal=fieldnr < nrfields ? f.getDecimalSymbol() : "";
+      String currency=fieldnr < nrfields ? f.getCurrencySymbol() : "";
+      String nullif=fieldnr < nrfields ? f.getNullString() : "";
+      String ifnull=fieldnr < nrfields ? f.getIfNullValue() : "";
+      int trim_type=fieldnr < nrfields ? f.getTrimType() : TextFileInputMeta.TYPE_TRIM_NONE;
+      if (fieldnr < strings.size()) {
+        String pol=(String)strings.get(fieldnr);
+        try {
+          value=convertValue(pol,field,type,format,length,precision,group,decimal,currency,nullif,ifnull,trim_type,ldf,ldfs,ldaf,ldafs);
+        }
+ catch (        Exception e) {
+          String message="Couldn't parse field [" + field + "] with value ["+ pol+ "], format ["+ format+ "] ldaf=["+ ldaf.toLocalizedPattern()+ "]";
+          if (info.isErrorIgnored()) {
+            log.logBasic(fname,"WARNING: " + message + " : "+ e.getMessage());
+            value=null;
+            if (errorCount != null) {
+              errorCount=new Long(errorCount.longValue() + 1L);
+            }
+            if (errorFields != null) {
+              StringBuffer sb=new StringBuffer(errorFields);
+              if (sb.length() > 0)               sb.append(", ");
+              sb.append(field);
+              errorFields=sb.toString();
+            }
+            if (errorText != null) {
+              StringBuffer sb=new StringBuffer(errorText);
+              if (sb.length() > 0)               sb.append(Const.CR);
+              sb.append(message);
+              errorText=sb.toString();
+            }
+            if (errorHandler != null) {
+              errorHandler.handleLineError(textFileLine.lineNumber,AbstractFileErrorHandler.NO_PARTS);
+            }
+            if (info.isErrorLineSkipped())             r=null;
+          }
+ else {
+            throw new KettleException(message,e);
+          }
+        }
+      }
+ else {
+        value=null;
+      }
+      r[fieldnr]=value;
+    }
+    if (fieldnr < nrfields) {
+      for (int i=fieldnr; i < info.getInputFields().length; i++) {
+        r[i]=null;
+      }
+    }
+    int index=nrfields;
+    if (errorCount != null) {
+      r[index]=errorCount;
+      index++;
+    }
+    if (errorFields != null) {
+      r[index]=errorFields;
+      index++;
+    }
+    if (errorText != null) {
+      r[index]=errorText;
+      index++;
+    }
+    if (info.includeFilename()) {
+      r[index]=fname;
+      index++;
+    }
+    if (info.includeRowNumber()) {
+      r[index]=new Long(rowNr);
+      index++;
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException("Error converting line",e);
+  }
+  return r;
+}

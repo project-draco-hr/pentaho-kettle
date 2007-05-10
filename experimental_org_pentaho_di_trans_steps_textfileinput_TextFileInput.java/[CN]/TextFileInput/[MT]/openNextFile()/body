@@ -1,0 +1,93 @@
+{
+  try {
+    lineNumberInFile=0;
+    if (!closeLastFile())     return false;
+    if (data.files.nrOfFiles() == 0)     return false;
+    data.isLastFile=(data.filenr == data.files.nrOfFiles() - 1);
+    data.file=data.files.getFile(data.filenr);
+    data.filename=KettleVFS.getFilename(data.file);
+    data.lineInFile=0;
+    ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),toString());
+    addResultFile(resultFile);
+    logBasic("Opening file: " + data.filename);
+    data.fr=KettleVFS.getInputStream(data.file);
+    data.dataErrorLineHandler.handleFile(data.file);
+    String sFileCompression=meta.getFileCompression();
+    if (sFileCompression != null && sFileCompression.equals("Zip")) {
+      logBasic("This is a zipped file");
+      data.zi=new ZipInputStream(data.fr);
+      data.zi.getNextEntry();
+      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+        data.isr=new InputStreamReader(new BufferedInputStream(data.zi,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
+      }
+ else {
+        data.isr=new InputStreamReader(new BufferedInputStream(data.zi,BUFFER_SIZE_INPUT_STREAM));
+      }
+    }
+ else     if (sFileCompression != null && sFileCompression.equals("GZip")) {
+      logBasic("This is a gzipped file");
+      data.gzi=new GZIPInputStream(data.fr);
+      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+        data.isr=new InputStreamReader(new BufferedInputStream(data.gzi,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
+      }
+ else {
+        data.isr=new InputStreamReader(new BufferedInputStream(data.gzi,BUFFER_SIZE_INPUT_STREAM));
+      }
+    }
+ else {
+      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+        data.isr=new InputStreamReader(new BufferedInputStream(data.fr,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
+      }
+ else {
+        data.isr=new InputStreamReader(new BufferedInputStream(data.fr,BUFFER_SIZE_INPUT_STREAM));
+      }
+    }
+    data.filenr++;
+    data.doneReading=false;
+    int bufferSize=1;
+    bufferSize+=meta.hasHeader() ? meta.getNrHeaderLines() : 0;
+    bufferSize+=meta.isLayoutPaged() ? meta.getNrLinesPerPage() : 0;
+    bufferSize+=meta.hasFooter() ? meta.getNrFooterLines() : 0;
+    if (meta.isLayoutPaged()) {
+      for (int i=0; i < meta.getNrLinesDocHeader(); i++) {
+        getLine(log,data.isr,meta.getFileFormat());
+        lineNumberInFile++;
+      }
+    }
+    String line;
+    for (int i=0; i < bufferSize && !data.doneReading; i++) {
+      line=getLine(log,data.isr,meta.getFileFormat());
+      if (line != null) {
+        if (!meta.hasHeader()) {
+          boolean isFilterLastLine=false;
+          boolean filterOK=checkFilterRow(line,isFilterLastLine);
+          if (filterOK) {
+            data.lineBuffer.add(new TextFileLine(line,lineNumberInFile,data.file));
+          }
+ else {
+            bufferSize++;
+          }
+        }
+ else {
+          if (!meta.noEmptyLines() || line.length() != 0) {
+            data.lineBuffer.add(new TextFileLine(line,lineNumberInFile,data.file));
+          }
+        }
+      }
+ else {
+        data.doneReading=true;
+      }
+    }
+    data.headerLinesRead=0;
+    data.footerLinesRead=0;
+    data.pageLinesRead=0;
+    data.doneWithHeader=!meta.hasHeader();
+  }
+ catch (  Exception e) {
+    logError("Couldn't open file #" + data.filenr + " : "+ data.filename+ " --> "+ e.toString());
+    stopAll();
+    setErrors(1);
+    return false;
+  }
+  return true;
+}

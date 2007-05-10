@@ -1,0 +1,191 @@
+{
+  Object[] r=null;
+  boolean retval=true;
+  boolean putrow=false;
+  if (first) {
+    first=false;
+    if (meta.isAcceptingFilenames()) {
+      data.files.getFiles().clear();
+      int idx=-1;
+      RowMetaAndData fileRow=getRowFrom(meta.getAcceptingStepName());
+      while (fileRow != null) {
+        if (idx < 0) {
+          idx=fileRow.getRowMeta().indexOfValue(meta.getAcceptingField());
+          if (idx < 0) {
+            logError(Messages.getString("TextFileInput.Log.Error.UnableToFindFilenameField",meta.getAcceptingField()));
+            setErrors(1);
+            stopAll();
+            return false;
+          }
+        }
+        String fileValue=fileRow.getRowMeta().getString(fileRow.getData(),idx);
+        try {
+          FileObject fileObject=KettleVFS.getFileObject(fileValue);
+          data.files.addFile(fileObject);
+        }
+ catch (        IOException e) {
+          logError(Messages.getString("TextFileInput.Log.Error.UnableToCreateFileObject",fileValue));
+        }
+        fileRow=getRowFrom(meta.getAcceptingStepName());
+      }
+      if (data.files.nrOfFiles() == 0) {
+        logBasic(Messages.getString("TextFileInput.Log.Error.NoFilesSpecified"));
+        setOutputDone();
+        return false;
+      }
+    }
+    handleMissingFiles();
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    if (!openNextFile()) {
+      closeLastFile();
+      setOutputDone();
+      return false;
+    }
+    for (int i=0; i < meta.getInputFields().length; i++) {
+      if (meta.getInputFields()[i].isRepeated())       data.nr_repeats++;
+    }
+  }
+ else {
+    if (!data.doneReading) {
+      int repeats=1;
+      if (meta.isLineWrapped())       repeats=meta.getNrWraps() > 0 ? meta.getNrWraps() : repeats;
+      for (int i=0; i < repeats && !data.doneReading; i++) {
+        String line=getLine(log,data.isr,meta.getFileFormat());
+        if (line != null) {
+          boolean isFilterLastLine=false;
+          boolean filterOK=checkFilterRow(line,isFilterLastLine);
+          if (filterOK) {
+            data.lineBuffer.add(new TextFileLine(line,lineNumberInFile,data.file));
+          }
+ else {
+            if (isFilterLastLine) {
+              data.doneReading=true;
+            }
+            repeats++;
+          }
+        }
+ else {
+          data.doneReading=true;
+        }
+      }
+    }
+  }
+  while (data.lineBuffer.size() == 0) {
+    if (!openNextFile()) {
+      closeLastFile();
+      setOutputDone();
+      return false;
+    }
+  }
+  TextFileLine textLine=(TextFileLine)data.lineBuffer.get(0);
+  linesInput++;
+  lineNumberInFile++;
+  data.lineBuffer.remove(0);
+  if (meta.isLayoutPaged()) {
+    if (!data.doneWithHeader && data.pageLinesRead == 0) {
+      if (log.isRowLevel())       logRowlevel("P-HEADER (" + data.headerLinesRead + ") : "+ textLine.line);
+      data.headerLinesRead++;
+      if (data.headerLinesRead >= meta.getNrHeaderLines()) {
+        data.doneWithHeader=true;
+      }
+    }
+ else {
+      if (data.pageLinesRead < meta.getNrLinesPerPage()) {
+        if (meta.isLineWrapped()) {
+          for (int i=0; i < meta.getNrWraps(); i++) {
+            String extra="";
+            if (data.lineBuffer.size() > 0) {
+              extra=((TextFileLine)data.lineBuffer.get(0)).line;
+              data.lineBuffer.remove(0);
+            }
+            textLine.line+=extra;
+          }
+        }
+        if (log.isRowLevel())         logRowlevel("P-DATA: " + textLine.line);
+        data.pageLinesRead++;
+        data.lineInFile++;
+        long useNumber=meta.isRowNumberByFile() ? data.lineInFile : linesWritten + 1;
+        r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,useNumber,data.dataErrorLineHandler);
+        if (r != null)         putrow=true;
+      }
+ else {
+        if (meta.hasFooter() && data.footerLinesRead < meta.getNrFooterLines()) {
+          if (log.isRowLevel())           logRowlevel("P-FOOTER: " + textLine.line);
+          data.footerLinesRead++;
+        }
+        if (!meta.hasFooter() || data.footerLinesRead >= meta.getNrFooterLines()) {
+          data.doneWithHeader=false;
+          data.headerLinesRead=0;
+          data.pageLinesRead=0;
+          data.footerLinesRead=0;
+          if (log.isRowLevel())           logRowlevel("RESTART PAGE");
+        }
+      }
+    }
+  }
+ else {
+    if (!data.doneWithHeader) {
+      data.headerLinesRead++;
+      if (data.headerLinesRead >= meta.getNrHeaderLines()) {
+        data.doneWithHeader=true;
+      }
+    }
+ else {
+      if (data.doneReading && meta.hasFooter() && data.lineBuffer.size() < meta.getNrFooterLines()) {
+        data.lineBuffer.clear();
+      }
+ else {
+        if (meta.isLineWrapped()) {
+          for (int i=0; i < meta.getNrWraps(); i++) {
+            String extra="";
+            if (data.lineBuffer.size() > 0) {
+              extra=((TextFileLine)data.lineBuffer.get(0)).line;
+              data.lineBuffer.remove(0);
+            }
+            textLine.line+=extra;
+          }
+        }
+        if (data.filePlayList.isProcessingNeeded(textLine.file,textLine.lineNumber,AbstractFileErrorHandler.NO_PARTS)) {
+          data.lineInFile++;
+          long useNumber=meta.isRowNumberByFile() ? data.lineInFile : linesWritten + 1;
+          r=convertLineToRow(log,textLine,meta,data.df,data.dfs,data.daf,data.dafs,data.filename,useNumber,data.dataErrorLineHandler);
+          if (r != null) {
+            putrow=true;
+          }
+        }
+ else         putrow=false;
+      }
+    }
+  }
+  if (putrow && r != null) {
+    if (data.nr_repeats > 0) {
+      if (data.previous_row == null) {
+        data.previous_row=data.outputRowMeta.cloneRow(r);
+      }
+ else {
+        int repnr=0;
+        for (int i=0; i < meta.getInputFields().length; i++) {
+          if (meta.getInputFields()[i].isRepeated()) {
+            if (r[i] == null) {
+              r[i]=data.previous_row[i];
+            }
+ else {
+              data.previous_row[i]=r[i];
+            }
+            repnr++;
+          }
+        }
+      }
+    }
+    if (log.isRowLevel())     logRowlevel("Putting row: " + r.toString());
+    putRow(data.outputRowMeta,r);
+    if (linesInput >= meta.getRowLimit() && meta.getRowLimit() > 0) {
+      closeLastFile();
+      setOutputDone();
+      return false;
+    }
+  }
+  if (checkFeedback(linesInput))   logBasic("linenr " + linesInput);
+  return retval;
+}
