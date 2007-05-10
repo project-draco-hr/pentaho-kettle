@@ -1,0 +1,104 @@
+{
+  Props props=null;
+  if (Props.isInitialized())   props=Props.getInstance();
+  StringBuffer retval=new StringBuffer(800);
+  retval.append(XMLHandler.openTag(XML_TAG)).append(Const.CR);
+  retval.append("  ").append(XMLHandler.openTag(XML_TAG_INFO)).append(Const.CR);
+  retval.append("    ").append(XMLHandler.addTagValue("name",name));
+  retval.append("    ").append(XMLHandler.addTagValue("description",description));
+  retval.append("    ").append(XMLHandler.addTagValue("extended_description",extended_description));
+  retval.append("    ").append(XMLHandler.addTagValue("trans_version",trans_version));
+  if (trans_status >= 0) {
+    retval.append("    ").append(XMLHandler.addTagValue("trans_status",trans_status));
+  }
+  retval.append("    ").append(XMLHandler.addTagValue("directory",directory != null ? directory.getPath() : RepositoryDirectory.DIRECTORY_SEPARATOR));
+  retval.append("    <log>").append(Const.CR);
+  retval.append("      ").append(XMLHandler.addTagValue("read",readStep == null ? "" : readStep.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("write",writeStep == null ? "" : writeStep.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("input",inputStep == null ? "" : inputStep.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("output",outputStep == null ? "" : outputStep.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("update",updateStep == null ? "" : updateStep.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("rejected",rejectedStep == null ? "" : rejectedStep.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("connection",logConnection == null ? "" : logConnection.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("table",logTable));
+  retval.append("      ").append(XMLHandler.addTagValue("use_batchid",useBatchId));
+  retval.append("      ").append(XMLHandler.addTagValue("use_logfield",logfieldUsed));
+  retval.append("    </log>").append(Const.CR);
+  retval.append("    <maxdate>").append(Const.CR);
+  retval.append("      ").append(XMLHandler.addTagValue("connection",maxDateConnection == null ? "" : maxDateConnection.getName()));
+  retval.append("      ").append(XMLHandler.addTagValue("table",maxDateTable));
+  retval.append("      ").append(XMLHandler.addTagValue("field",maxDateField));
+  retval.append("      ").append(XMLHandler.addTagValue("offset",maxDateOffset));
+  retval.append("      ").append(XMLHandler.addTagValue("maxdiff",maxDateDifference));
+  retval.append("    </maxdate>").append(Const.CR);
+  retval.append("    ").append(XMLHandler.addTagValue("size_rowset",sizeRowset));
+  retval.append("    ").append(XMLHandler.addTagValue("sleep_time_empty",sleepTimeEmpty));
+  retval.append("    ").append(XMLHandler.addTagValue("sleep_time_full",sleepTimeFull));
+  retval.append("    ").append(XMLHandler.addTagValue("unique_connections",usingUniqueConnections));
+  retval.append("    ").append(XMLHandler.addTagValue("feedback_shown",feedbackShown));
+  retval.append("    ").append(XMLHandler.addTagValue("feedback_size",feedbackSize));
+  retval.append("    ").append(XMLHandler.addTagValue("using_thread_priorities",usingThreadPriorityManagment));
+  retval.append("    ").append(XMLHandler.addTagValue("shared_objects_file",sharedObjectsFile));
+  retval.append("    ").append(XMLHandler.openTag(XML_TAG_DEPENDENCIES)).append(Const.CR);
+  for (int i=0; i < nrDependencies(); i++) {
+    TransDependency td=getDependency(i);
+    retval.append(td.getXML());
+  }
+  retval.append("    ").append(XMLHandler.closeTag(XML_TAG_DEPENDENCIES)).append(Const.CR);
+  retval.append("    ").append(XMLHandler.openTag(XML_TAG_PARTITIONSCHEMAS)).append(Const.CR);
+  for (int i=0; i < partitionSchemas.size(); i++) {
+    PartitionSchema partitionSchema=(PartitionSchema)partitionSchemas.get(i);
+    retval.append(partitionSchema.getXML());
+  }
+  retval.append("    ").append(XMLHandler.closeTag(XML_TAG_PARTITIONSCHEMAS)).append(Const.CR);
+  retval.append("    ").append(XMLHandler.openTag(XML_TAG_SLAVESERVERS)).append(Const.CR);
+  for (int i=0; i < slaveServers.size(); i++) {
+    SlaveServer slaveServer=(SlaveServer)slaveServers.get(i);
+    retval.append("         ").append(slaveServer.getXML()).append(Const.CR);
+  }
+  retval.append("    ").append(XMLHandler.closeTag(XML_TAG_SLAVESERVERS)).append(Const.CR);
+  retval.append("    ").append(XMLHandler.openTag(XML_TAG_CLUSTERSCHEMAS)).append(Const.CR);
+  for (int i=0; i < clusterSchemas.size(); i++) {
+    ClusterSchema clusterSchema=(ClusterSchema)clusterSchemas.get(i);
+    retval.append(clusterSchema.getXML());
+  }
+  retval.append("    ").append(XMLHandler.closeTag(XML_TAG_CLUSTERSCHEMAS)).append(Const.CR);
+  retval.append("  ").append(XMLHandler.addTagValue("modified_user",modifiedUser));
+  retval.append("  ").append(XMLHandler.addTagValue("modified_date",modifiedDate));
+  retval.append("  ").append(XMLHandler.closeTag(XML_TAG_INFO)).append(Const.CR);
+  retval.append("  ").append(XMLHandler.openTag(XML_TAG_NOTEPADS)).append(Const.CR);
+  if (notes != null)   for (int i=0; i < nrNotes(); i++) {
+    NotePadMeta ni=getNote(i);
+    retval.append(ni.getXML());
+  }
+  retval.append("  ").append(XMLHandler.closeTag(XML_TAG_NOTEPADS)).append(Const.CR);
+  for (int i=0; i < nrDatabases(); i++) {
+    DatabaseMeta dbMeta=getDatabase(i);
+    if (props != null && props.areOnlyUsedConnectionsSavedToXML()) {
+      if (isDatabaseConnectionUsed(dbMeta))       retval.append(dbMeta.getXML());
+    }
+ else {
+      retval.append(dbMeta.getXML());
+    }
+  }
+  retval.append("  ").append(XMLHandler.openTag(XML_TAG_ORDER)).append(Const.CR);
+  for (int i=0; i < nrTransHops(); i++) {
+    TransHopMeta transHopMeta=getTransHop(i);
+    retval.append(transHopMeta.getXML());
+  }
+  retval.append("  ").append(XMLHandler.closeTag(XML_TAG_ORDER)).append(Const.CR);
+  for (int i=0; i < nrSteps(); i++) {
+    StepMeta stepMeta=getStep(i);
+    retval.append(stepMeta.getXML());
+  }
+  retval.append("  ").append(XMLHandler.openTag(XML_TAG_STEP_ERROR_HANDLING)).append(Const.CR);
+  for (int i=0; i < nrSteps(); i++) {
+    StepMeta stepMeta=getStep(i);
+    if (stepMeta.getStepErrorMeta() != null) {
+      retval.append(stepMeta.getStepErrorMeta().getXML());
+    }
+  }
+  retval.append("  ").append(XMLHandler.closeTag(XML_TAG_STEP_ERROR_HANDLING)).append(Const.CR);
+  retval.append("</").append(XML_TAG + ">").append(Const.CR);
+  return retval.toString();
+}

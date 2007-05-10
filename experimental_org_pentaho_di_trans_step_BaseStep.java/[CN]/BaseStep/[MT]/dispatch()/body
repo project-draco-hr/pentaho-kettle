@@ -1,0 +1,146 @@
+{
+  if (transMeta == null) {
+    return;
+  }
+  StepMeta stepMeta=transMeta.findStep(stepname);
+  if (log.isDetailed())   logDetailed(Messages.getString("BaseStep.Log.StartingBuffersAllocation"));
+  int nrInput=transMeta.findNrPrevSteps(stepMeta,true);
+  int nrOutput=transMeta.findNrNextSteps(stepMeta);
+  inputRowSets=Collections.synchronizedList(new ArrayList());
+  outputRowSets=Collections.synchronizedList(new ArrayList());
+  errorRowSet=null;
+  prevSteps=new StepMeta[nrInput];
+  nextSteps=new StepMeta[nrOutput];
+  in_handling=0;
+  logDetailed(Messages.getString("BaseStep.Log.StepInfo",String.valueOf(nrInput),String.valueOf(nrOutput)));
+  for (int i=0; i < nrInput; i++) {
+    prevSteps[i]=transMeta.findPrevStep(stepMeta,i,true);
+    logDetailed(Messages.getString("BaseStep.Log.GotPreviousStep",stepname,String.valueOf(i),prevSteps[i].getName()));
+    int prevCopies=prevSteps[i].getCopies();
+    int nextCopies=stepMeta.getCopies();
+    logDetailed(Messages.getString("BaseStep.Log.InputRowInfo",String.valueOf(prevCopies),String.valueOf(nextCopies)));
+    int nrCopies;
+    int dispatchType;
+    if (prevCopies == 1 && nextCopies == 1) {
+      dispatchType=Trans.TYPE_DISP_1_1;
+      nrCopies=1;
+    }
+ else {
+      if (prevCopies == 1 && nextCopies > 1) {
+        dispatchType=Trans.TYPE_DISP_1_N;
+        nrCopies=1;
+      }
+ else {
+        if (prevCopies > 1 && nextCopies == 1) {
+          dispatchType=Trans.TYPE_DISP_N_1;
+          nrCopies=prevCopies;
+        }
+ else {
+          if (prevCopies == nextCopies) {
+            dispatchType=Trans.TYPE_DISP_N_N;
+            nrCopies=1;
+          }
+ else {
+            dispatchType=Trans.TYPE_DISP_N_M;
+            nrCopies=prevCopies;
+          }
+        }
+      }
+    }
+    for (int c=0; c < nrCopies; c++) {
+      RowSet rowSet=null;
+switch (dispatchType) {
+case Trans.TYPE_DISP_1_1:
+        rowSet=trans.findRowSet(prevSteps[i].getName(),0,stepname,0);
+      break;
+case Trans.TYPE_DISP_1_N:
+    rowSet=trans.findRowSet(prevSteps[i].getName(),0,stepname,getCopy());
+  break;
+case Trans.TYPE_DISP_N_1:
+rowSet=trans.findRowSet(prevSteps[i].getName(),c,stepname,0);
+break;
+case Trans.TYPE_DISP_N_N:
+rowSet=trans.findRowSet(prevSteps[i].getName(),getCopy(),stepname,getCopy());
+break;
+case Trans.TYPE_DISP_N_M:
+rowSet=trans.findRowSet(prevSteps[i].getName(),c,stepname,getCopy());
+break;
+}
+if (rowSet != null) {
+inputRowSets.add(rowSet);
+logDetailed(Messages.getString("BaseStep.Log.FoundInputRowset",rowSet.getName()));
+}
+ else {
+logError(Messages.getString("BaseStep.Log.UnableToFindInputRowset"));
+setErrors(1);
+stopAll();
+return;
+}
+}
+}
+for (int i=0; i < nrOutput; i++) {
+nextSteps[i]=transMeta.findNextStep(stepMeta,i);
+int prevCopies=stepMeta.getCopies();
+int nextCopies=nextSteps[i].getCopies();
+logDetailed(Messages.getString("BaseStep.Log.OutputRowInfo",String.valueOf(prevCopies),String.valueOf(nextCopies)));
+int nrCopies;
+int dispatchType;
+if (prevCopies == 1 && nextCopies == 1) {
+dispatchType=Trans.TYPE_DISP_1_1;
+nrCopies=1;
+}
+ else {
+if (prevCopies == 1 && nextCopies > 1) {
+dispatchType=Trans.TYPE_DISP_1_N;
+nrCopies=nextCopies;
+}
+ else {
+if (prevCopies > 1 && nextCopies == 1) {
+dispatchType=Trans.TYPE_DISP_N_1;
+nrCopies=1;
+}
+ else {
+if (prevCopies == nextCopies) {
+dispatchType=Trans.TYPE_DISP_N_N;
+nrCopies=1;
+}
+ else {
+dispatchType=Trans.TYPE_DISP_N_M;
+nrCopies=nextCopies;
+}
+}
+}
+}
+for (int c=0; c < nrCopies; c++) {
+RowSet rowSet=null;
+switch (dispatchType) {
+case Trans.TYPE_DISP_1_1:
+rowSet=trans.findRowSet(stepname,0,nextSteps[i].getName(),0);
+break;
+case Trans.TYPE_DISP_1_N:
+rowSet=trans.findRowSet(stepname,0,nextSteps[i].getName(),c);
+break;
+case Trans.TYPE_DISP_N_1:
+rowSet=trans.findRowSet(stepname,getCopy(),nextSteps[i].getName(),0);
+break;
+case Trans.TYPE_DISP_N_N:
+rowSet=trans.findRowSet(stepname,getCopy(),nextSteps[i].getName(),getCopy());
+break;
+case Trans.TYPE_DISP_N_M:
+rowSet=trans.findRowSet(stepname,getCopy(),nextSteps[i].getName(),c);
+break;
+}
+if (rowSet != null) {
+outputRowSets.add(rowSet);
+logDetailed(Messages.getString("BaseStep.Log.FoundOutputRowset",rowSet.getName()));
+}
+ else {
+logError(Messages.getString("BaseStep.Log.UnableToFindOutputRowset"));
+setErrors(1);
+stopAll();
+return;
+}
+}
+}
+logDetailed(Messages.getString("BaseStep.Log.FinishedDispatching"));
+}

@@ -1,0 +1,49 @@
+{
+  if (data.firstselect) {
+    data.firstselect=false;
+    data.fieldnrs=new int[meta.getSelectName().length];
+    data.outputMeta=new RowMeta();
+    for (int i=0; i < data.fieldnrs.length; i++) {
+      data.fieldnrs[i]=rowMeta.indexOfValue(meta.getSelectName()[i]);
+      if (data.fieldnrs[i] < 0) {
+        logError(Messages.getString("SelectValues.Log.CouldNotFindField",meta.getSelectName()[i]));
+        setErrors(1);
+        stopAll();
+        return null;
+      }
+      ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.fieldnrs[i]);
+      if (!Const.isEmpty(meta.getSelectRename()[i])) {
+        valueMeta.setName(meta.getSelectRename()[i]);
+      }
+      if (meta.getSelectLength()[i] != -2)       valueMeta.setLength(meta.getSelectLength()[i]);
+      if (meta.getSelectPrecision()[i] != -2)       valueMeta.setPrecision(meta.getSelectPrecision()[i]);
+      rowMeta.addValueMeta(valueMeta);
+    }
+    int cnt[]=new int[meta.getSelectName().length];
+    for (int i=0; i < meta.getSelectName().length; i++) {
+      cnt[i]=0;
+      for (int j=0; j < meta.getSelectName().length; j++) {
+        String one=Const.NVL(meta.getSelectRename()[i],meta.getSelectName()[i]);
+        String two=Const.NVL(meta.getSelectRename()[j],meta.getSelectName()[j]);
+        if (one.equals(two))         cnt[i]++;
+        if (cnt[i] > 1) {
+          logError(Messages.getString("SelectValues.Log.FieldCouldNotSpecifiedMoreThanTwice",one));
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+      }
+    }
+  }
+  Object[] outputData=new Object[data.fieldnrs.length];
+  for (int i=0; i < data.fieldnrs.length; i++) {
+    if (data.fieldnrs[i] < rowMeta.size()) {
+      ValueMetaInterface valueMeta=data.outputMeta.getValueMeta(i);
+      outputData[i]=valueMeta.cloneValueData(rowData[data.fieldnrs[i]]);
+    }
+ else {
+      if (log.isDetailed())       logDetailed(Messages.getString("SelectValues.Log.MixingStreamWithDifferentFields"));
+    }
+  }
+  return outputData;
+}

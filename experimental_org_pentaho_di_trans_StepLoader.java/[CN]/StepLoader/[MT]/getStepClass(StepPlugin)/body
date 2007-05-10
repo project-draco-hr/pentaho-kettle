@@ -1,0 +1,58 @@
+{
+  if (sp != null) {
+    try {
+      Class cl=null;
+switch (sp.getType()) {
+case StepPlugin.TYPE_NATIVE:
+{
+          cl=Class.forName(sp.getClassname());
+        }
+      break;
+case StepPlugin.TYPE_PLUGIN:
+{
+      String jarfiles[]=sp.getJarfiles();
+      URL urls[]=new URL[jarfiles.length];
+      for (int i=0; i < jarfiles.length; i++) {
+        File jarfile=new File(jarfiles[i]);
+        urls[i]=jarfile.toURL();
+      }
+      ClassLoader classLoader=getClass().getClassLoader();
+      URLClassLoader ucl=null;
+      if (sp.isSeparateClassloaderNeeded()) {
+        ucl=new KettleURLClassLoader(urls,classLoader,sp.getDescription());
+      }
+ else {
+        ucl=(URLClassLoader)classLoaders.get(sp.getID());
+        if (ucl == null) {
+          ucl=new KettleURLClassLoader(urls,classLoader,sp.getDescription());
+          classLoaders.put(sp.getID(),ucl);
+        }
+      }
+      cl=ucl.loadClass(sp.getClassname());
+    }
+  break;
+default :
+throw new KettleStepLoaderException(Messages.getString("StepLoader.RuntimeError.UnknownPluginType.TRANS0004") + sp.getType());
+}
+return (StepMetaInterface)cl.newInstance();
+}
+ catch (ClassNotFoundException e) {
+throw new KettleStepLoaderException(Messages.getString("StepLoader.RuntimeError.ClassNotFound.TRANS0005"),e);
+}
+catch (InstantiationException e) {
+throw new KettleStepLoaderException(Messages.getString("StepLoader.RuntimeError.UnableToInstantiateClass.TRANS0006"),e);
+}
+catch (IllegalAccessException e) {
+throw new KettleStepLoaderException(Messages.getString("StepLoader.RuntimeError.IllegalAccessToClass.TRANS0007"),e);
+}
+catch (MalformedURLException e) {
+throw new KettleStepLoaderException(Messages.getString("StepLoader.RuntimeError.MalformedURL.TRANS0008"),e);
+}
+catch (Throwable e) {
+throw new KettleStepLoaderException(Messages.getString("StepLoader.RuntimeError.UnExpectedErrorLoadingClass.TRANS0009"),e);
+}
+}
+ else {
+throw new KettleStepLoaderException(Messages.getString("StepLoader.RuntimeError.NoValidStepOrPlugin.TRANS0010"));
+}
+}

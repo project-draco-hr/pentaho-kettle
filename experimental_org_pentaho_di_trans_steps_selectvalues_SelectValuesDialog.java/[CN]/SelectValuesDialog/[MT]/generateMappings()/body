@@ -1,0 +1,102 @@
+{
+  if (!bPreviousFieldsLoaded) {
+    MessageDialog.openError(shell,Messages.getString("SelectValuesDialog.ColumnInfo.Loading"),Messages.getString("SelectValuesDialog.ColumnInfo.Loading"));
+    return;
+  }
+  if ((wRemove.getItemCount() > 0) || (wMeta.getItemCount() > 0)) {
+    for (int i=0; i < wRemove.getItemCount(); i++) {
+      String[] columns=wRemove.getItem(i);
+      for (int a=0; a < columns.length; a++) {
+        if (columns[a].length() > 0) {
+          MessageDialog.openError(shell,Messages.getString("SelectValuesDialog.DoMapping.NoDeletOrMetaTitle"),Messages.getString("SelectValuesDialog.DoMapping.NoDeletOrMeta"));
+          return;
+        }
+      }
+    }
+    for (int i=0; i < wMeta.getItemCount(); i++) {
+      String[] columns=wMeta.getItem(i);
+      for (int a=0; a < columns.length; a++) {
+        String col=columns[a];
+        if (col.length() > 0) {
+          MessageDialog.openError(shell,Messages.getString("SelectValuesDialog.DoMapping.NoDeletOrMetaTitle"),Messages.getString("SelectValuesDialog.DoMapping.NoDeletOrMeta"));
+          return;
+        }
+      }
+    }
+  }
+  RowMetaInterface nextStepRequiredFields=null;
+  StepMeta stepMeta=new StepMeta(stepname,input);
+  StepMeta[] nextSteps=transMeta.getNextSteps(stepMeta);
+  if (nextSteps.length == 0 || nextSteps.length > 1) {
+    MessageDialog.openError(shell,Messages.getString("SelectValuesDialog.DoMapping.NoNextStepTitle"),Messages.getString("SelectValuesDialog.DoMapping.NoNextStep"));
+    return;
+  }
+  StepMeta outputStepMeta=nextSteps[0];
+  StepMetaInterface stepMetaInterface=outputStepMeta.getStepMetaInterface();
+  try {
+    nextStepRequiredFields=stepMetaInterface.getRequiredFields();
+  }
+ catch (  KettleException e) {
+    log.logError(toString(),Messages.getString("SelectValuesDialog.DoMapping.UnableToFindOutput"));
+    nextStepRequiredFields=new RowMeta();
+  }
+  String[] inputNames=new String[prevFields.size()];
+  for (int i=0; i < prevFields.size(); i++) {
+    ValueMetaInterface value=prevFields.getValueMeta(i);
+    inputNames[i]=value.getName() + EnterMappingDialog.STRING_ORIGIN_SEPARATOR + value.getOrigin()+ ")";
+  }
+  String[] outputNames=new String[nextStepRequiredFields.size()];
+  for (int i=0; i < nextStepRequiredFields.size(); i++) {
+    outputNames[i]=nextStepRequiredFields.getValueMeta(i).getName();
+  }
+  String[] selectName=new String[wFields.getItemCount()];
+  String[] selectRename=new String[wFields.getItemCount()];
+  for (int i=0; i < wFields.getItemCount(); i++) {
+    selectName[i]=wFields.getItem(i,1);
+    selectRename[i]=wFields.getItem(i,2);
+  }
+  ArrayList mappings=new ArrayList();
+  StringBuffer missingFields=new StringBuffer();
+  for (int i=0; i < selectName.length; i++) {
+    String valueName=selectName[i];
+    String valueRename=selectRename[i];
+    int inIndex=prevFields.indexOfValue(valueName);
+    if (inIndex < 0) {
+      missingFields.append(Const.CR + "   " + valueName+ " --> "+ valueRename);
+      continue;
+    }
+    if (null == valueRename || valueRename.equals("")) {
+      valueRename=valueName;
+    }
+    int outIndex=nextStepRequiredFields.indexOfValue(valueRename);
+    if (outIndex < 0) {
+      missingFields.append(Const.CR + "   " + valueName+ " --> "+ valueRename);
+      continue;
+    }
+    SourceToTargetMapping mapping=new SourceToTargetMapping(inIndex,outIndex);
+    mappings.add(mapping);
+  }
+  if (missingFields.length() > 0) {
+    boolean goOn=MessageDialog.openConfirm(shell,Messages.getString("SelectValuesDialog.DoMapping.SomeFieldsNotFoundTitle"),Messages.getString("SelectValuesDialog.DoMapping.SomeFieldsNotFound",missingFields.toString()));
+    if (!goOn) {
+      return;
+    }
+  }
+  EnterMappingDialog d=new EnterMappingDialog(SelectValuesDialog.this.shell,inputNames,outputNames,mappings);
+  mappings=d.open();
+  if (null != mappings) {
+    wFields.table.removeAll();
+    wFields.table.setItemCount(mappings.size());
+    for (int i=0; i < mappings.size(); i++) {
+      SourceToTargetMapping mapping=(SourceToTargetMapping)mappings.get(i);
+      TableItem item=wFields.table.getItem(i);
+      item.setText(1,prevFields.getValueMeta(mapping.getSourcePosition()).getName());
+      item.setText(2,outputNames[mapping.getTargetPosition()]);
+      item.setText(3,"-1");
+      item.setText(4,"-1");
+    }
+    wFields.setRowNums();
+    wFields.optWidth(true);
+    wTabFolder.setSelection(0);
+  }
+}

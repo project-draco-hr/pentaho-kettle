@@ -1,0 +1,71 @@
+{
+  if (data.firstmetadata) {
+    data.firstmetadata=false;
+    data.metanrs=new int[meta.getMetaName().length];
+    data.outputMeta=(RowMetaInterface)rowMeta.clone();
+    for (int i=0; i < data.metanrs.length; i++) {
+      data.metanrs[i]=rowMeta.indexOfValue(meta.getMetaName()[i]);
+      if (data.metanrs[i] < 0) {
+        logError(Messages.getString("SelectValues.Log.CouldNotFindField",meta.getMetaName()[i]));
+        setErrors(1);
+        stopAll();
+        return null;
+      }
+    }
+    int cnt[]=new int[meta.getMetaName().length];
+    for (int i=0; i < meta.getMetaName().length; i++) {
+      cnt[i]=0;
+      for (int j=0; j < meta.getMetaName().length; j++) {
+        if (meta.getMetaName()[i].equals(meta.getMetaName()[j]))         cnt[i]++;
+        if (cnt[i] > 1) {
+          logError(Messages.getString("SelectValues.Log.FieldCouldNotSpecifiedMoreThanTwice2",meta.getMetaName()[i]));
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+      }
+    }
+    for (int i=0; i < data.metanrs.length; i++) {
+      ValueMetaInterface v=data.outputMeta.getValueMeta(data.metanrs[i]);
+      if (!Const.isEmpty(meta.getMetaRename()[i]))       v.setName(meta.getMetaRename()[i]);
+      if (meta.getMetaType()[i] != ValueMetaInterface.TYPE_NONE) {
+        v.setType(meta.getMetaType()[i]);
+        v.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+      }
+      if (meta.getMetaLength()[i] != -2)       v.setLength(meta.getMetaLength()[i]);
+      if (meta.getMetaPrecision()[i] != -2)       v.setPrecision(meta.getMetaPrecision()[i]);
+    }
+  }
+  for (int i=0; i < data.metanrs.length; i++) {
+    if (meta.getMetaType()[i] != ValueMetaInterface.TYPE_NONE) {
+      ValueMetaInterface fromMeta=rowMeta.getValueMeta(data.metanrs[i]);
+      ValueMetaInterface toMeta=data.outputMeta.getValueMeta(data.metanrs[i]);
+switch (toMeta.getType()) {
+case ValueMetaInterface.TYPE_STRING:
+        rowData[data.metanrs[i]]=fromMeta.getString(rowData[data.metanrs[i]]);
+      break;
+case ValueMetaInterface.TYPE_NUMBER:
+    rowData[data.metanrs[i]]=fromMeta.getNumber(rowData[data.metanrs[i]]);
+  break;
+case ValueMetaInterface.TYPE_INTEGER:
+rowData[data.metanrs[i]]=fromMeta.getInteger(rowData[data.metanrs[i]]);
+break;
+case ValueMetaInterface.TYPE_DATE:
+rowData[data.metanrs[i]]=fromMeta.getDate(rowData[data.metanrs[i]]);
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+rowData[data.metanrs[i]]=fromMeta.getBigNumber(rowData[data.metanrs[i]]);
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+rowData[data.metanrs[i]]=fromMeta.getBoolean(rowData[data.metanrs[i]]);
+break;
+case ValueMetaInterface.TYPE_BINARY:
+rowData[data.metanrs[i]]=fromMeta.getBinary(rowData[data.metanrs[i]]);
+break;
+default :
+throw new KettleValueException("Unable to convert data type of value '" + fromMeta + "' to data type "+ toMeta.getType());
+}
+}
+}
+return rowData;
+}
