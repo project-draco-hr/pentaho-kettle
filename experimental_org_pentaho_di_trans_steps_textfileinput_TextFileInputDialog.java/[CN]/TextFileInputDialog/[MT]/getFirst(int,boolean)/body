@@ -1,22 +1,24 @@
 {
-  TextFileInputMeta info=new TextFileInputMeta();
-  getInfo(info);
-  FileInputList textFileList=info.getTextFileList();
+  TextFileInputMeta meta=new TextFileInputMeta();
+  getInfo(meta);
+  FileInputList textFileList=meta.getTextFileList();
   InputStream fi=null;
   ZipInputStream zi=null;
   GZIPInputStream gzi=null;
   InputStream f=null;
+  StringBuffer lineStringBuffer=new StringBuffer(256);
+  int fileFormatType=meta.getFileFormatTypeNr();
   ArrayList retval=new ArrayList();
   if (textFileList.nrOfFiles() > 0) {
     FileObject file=textFileList.getFile(0);
     try {
       fi=file.getContent().getInputStream();
-      if (info.getFileCompression().equals("Zip")) {
+      if (meta.getFileCompression().equals("Zip")) {
         zi=new ZipInputStream(fi);
         zi.getNextEntry();
         f=zi;
       }
- else       if (info.getFileCompression().equals("GZip")) {
+ else       if (meta.getFileCompression().equals("GZip")) {
         gzi=new GZIPInputStream(fi);
         f=gzi;
       }
@@ -24,39 +26,39 @@
         f=fi;
       }
       InputStreamReader reader;
-      if (info.getEncoding() != null && info.getEncoding().length() > 0) {
-        reader=new InputStreamReader(f,info.getEncoding());
+      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+        reader=new InputStreamReader(f,meta.getEncoding());
       }
  else {
         reader=new InputStreamReader(f);
       }
       String firstlines="";
       int linenr=0;
-      int maxnr=nrlines + (info.hasHeader() ? info.getNrHeaderLines() : 0);
+      int maxnr=nrlines + (meta.hasHeader() ? meta.getNrHeaderLines() : 0);
       if (skipHeaders) {
-        if (info.isLayoutPaged() && info.getNrLinesDocHeader() > 0) {
+        if (meta.isLayoutPaged() && meta.getNrLinesDocHeader() > 0) {
           int skipped=0;
-          String line=TextFileInput.getLine(log,reader,wFormat.getText());
-          while (line != null && skipped < info.getNrLinesDocHeader() - 1) {
+          String line=TextFileInput.getLine(log,reader,fileFormatType,lineStringBuffer);
+          while (line != null && skipped < meta.getNrLinesDocHeader() - 1) {
             skipped++;
-            line=TextFileInput.getLine(log,reader,wFormat.getText());
+            line=TextFileInput.getLine(log,reader,fileFormatType,lineStringBuffer);
           }
         }
-        if (info.hasHeader() && info.getNrHeaderLines() > 0) {
+        if (meta.hasHeader() && meta.getNrHeaderLines() > 0) {
           int skipped=0;
-          String line=TextFileInput.getLine(log,reader,wFormat.getText());
-          while (line != null && skipped < info.getNrHeaderLines() - 1) {
+          String line=TextFileInput.getLine(log,reader,fileFormatType,lineStringBuffer);
+          while (line != null && skipped < meta.getNrHeaderLines() - 1) {
             skipped++;
-            line=TextFileInput.getLine(log,reader,wFormat.getText());
+            line=TextFileInput.getLine(log,reader,fileFormatType,lineStringBuffer);
           }
         }
       }
-      String line=TextFileInput.getLine(log,reader,wFormat.getText());
+      String line=TextFileInput.getLine(log,reader,fileFormatType,lineStringBuffer);
       while (line != null && (linenr < maxnr || nrlines == 0)) {
         retval.add(line);
         firstlines+=line + Const.CR;
         linenr++;
-        line=TextFileInput.getLine(log,reader,wFormat.getText());
+        line=TextFileInput.getLine(log,reader,fileFormatType,lineStringBuffer);
       }
     }
  catch (    Exception e) {
@@ -64,11 +66,11 @@
     }
  finally {
       try {
-        if (info.getFileCompression().equals("Zip") && zi != null) {
+        if (meta.getFileCompression().equals("Zip") && zi != null) {
           zi.closeEntry();
           zi.close();
         }
- else         if (info.getFileCompression().equals("GZip") && gzi != null) {
+ else         if (meta.getFileCompression().equals("GZip") && gzi != null) {
           gzi.close();
         }
         f.close();
