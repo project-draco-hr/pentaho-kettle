@@ -1,0 +1,68 @@
+{
+  meta=(CalculatorMeta)smi;
+  data=(CalculatorData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    data.tempRowMeta=meta.getTemporaryFields();
+    data.tempData=new Object[data.tempRowMeta.size()];
+    data.keyNrs=new int[data.outputRowMeta.size()];
+    for (int i=0; i < meta.getCalculation().length; i++) {
+      CalculatorMetaFunction function=meta.getCalculation()[i];
+      if (!Const.isEmpty(function.getFieldName())) {
+        data.keyNrs[i]=data.outputRowMeta.indexOfValue(function.getFieldName());
+        if (data.keyNrs[i] < 0) {
+          data.keyNrs[i]=data.tempRowMeta.indexOfValue(function.getFieldName());
+          if (data.keyNrs[i] < 0) {
+            throw new KettleStepException("Unable to find the specified fieldname '" + function.getFieldName() + " for calculation #"+ (i + 1));
+          }
+        }
+      }
+ else {
+        throw new KettleStepException("There is no name specified for calculated field #" + (i + 1));
+      }
+      if (!Const.isEmpty(function.getFieldA())) {
+        data.keyNrsA[i]=data.outputRowMeta.indexOfValue(function.getFieldA());
+        if (data.keyNrsA[i] < 0) {
+          data.keyNrsA[i]=data.tempRowMeta.indexOfValue(function.getFieldA());
+          if (data.keyNrsA[i] < 0) {
+            throw new KettleStepException("Unable to find the first argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
+          }
+        }
+      }
+ else {
+        throw new KettleStepException("There is no first argument specified for calculated field #" + (i + 1));
+      }
+      if (!Const.isEmpty(function.getFieldB())) {
+        data.keyNrsB[i]=data.outputRowMeta.indexOfValue(function.getFieldB());
+        if (data.keyNrsB[i] < 0) {
+          data.keyNrsB[i]=data.tempRowMeta.indexOfValue(function.getFieldB());
+          if (data.keyNrsB[i] < 0) {
+            throw new KettleStepException("Unable to find the second argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
+          }
+        }
+      }
+      if (!Const.isEmpty(function.getFieldC())) {
+        data.keyNrsC[i]=data.outputRowMeta.indexOfValue(function.getFieldC());
+        if (data.keyNrsC[i] < 0) {
+          data.keyNrsC[i]=data.tempRowMeta.indexOfValue(function.getFieldC());
+          if (data.keyNrsC[i] < 0) {
+            throw new KettleStepException("Unable to find the third argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
+          }
+        }
+      }
+    }
+  }
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Read row #" + linesRead + " : "+ r);
+  Object[] row=calcFields(getInputRowMeta(),data.outputRowMeta,r);
+  putRow(data.outputRowMeta,row);
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Wrote row #" + linesWritten + " : "+ r);
+  if (checkFeedback(linesRead))   logBasic("Linenr " + linesRead);
+  return true;
+}
