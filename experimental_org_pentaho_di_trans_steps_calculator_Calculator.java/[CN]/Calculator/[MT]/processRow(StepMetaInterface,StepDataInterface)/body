@@ -10,16 +10,17 @@
     first=false;
     data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null);
-    data.tempRowMeta=meta.getTemporaryFields();
-    data.tempData=new Object[data.tempRowMeta.size()];
-    data.keyNrs=new int[data.outputRowMeta.size()];
+    data.calcRowMeta=meta.getAllFields(getInputRowMeta());
+    data.fieldIndexes=new FieldIndexes[meta.getCalculation().length];
+    List tempIndexes=new ArrayList();
     for (int i=0; i < meta.getCalculation().length; i++) {
       CalculatorMetaFunction function=meta.getCalculation()[i];
+      data.fieldIndexes[i]=new FieldIndexes();
       if (!Const.isEmpty(function.getFieldName())) {
-        data.keyNrs[i]=data.outputRowMeta.indexOfValue(function.getFieldName());
-        if (data.keyNrs[i] < 0) {
-          data.keyNrs[i]=data.tempRowMeta.indexOfValue(function.getFieldName());
-          if (data.keyNrs[i] < 0) {
+        data.fieldIndexes[i].indexName=data.outputRowMeta.indexOfValue(function.getFieldName());
+        if (data.fieldIndexes[i].indexName < 0) {
+          data.fieldIndexes[i].indexName=data.tempRowMeta.indexOfValue(function.getFieldName());
+          if (data.fieldIndexes[i].indexName < 0) {
             throw new KettleStepException("Unable to find the specified fieldname '" + function.getFieldName() + " for calculation #"+ (i + 1));
           }
         }
@@ -28,10 +29,10 @@
         throw new KettleStepException("There is no name specified for calculated field #" + (i + 1));
       }
       if (!Const.isEmpty(function.getFieldA())) {
-        data.keyNrsA[i]=data.outputRowMeta.indexOfValue(function.getFieldA());
-        if (data.keyNrsA[i] < 0) {
-          data.keyNrsA[i]=data.tempRowMeta.indexOfValue(function.getFieldA());
-          if (data.keyNrsA[i] < 0) {
+        data.fieldIndexes[i].indexA=data.outputRowMeta.indexOfValue(function.getFieldA());
+        if (data.fieldIndexes[i].indexA < 0) {
+          data.fieldIndexes[i].indexA=data.tempRowMeta.indexOfValue(function.getFieldA());
+          if (data.fieldIndexes[i].indexA < 0) {
             throw new KettleStepException("Unable to find the first argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
           }
         }
@@ -40,23 +41,30 @@
         throw new KettleStepException("There is no first argument specified for calculated field #" + (i + 1));
       }
       if (!Const.isEmpty(function.getFieldB())) {
-        data.keyNrsB[i]=data.outputRowMeta.indexOfValue(function.getFieldB());
-        if (data.keyNrsB[i] < 0) {
-          data.keyNrsB[i]=data.tempRowMeta.indexOfValue(function.getFieldB());
-          if (data.keyNrsB[i] < 0) {
+        data.fieldIndexes[i].indexB=data.outputRowMeta.indexOfValue(function.getFieldB());
+        if (data.fieldIndexes[i].indexB < 0) {
+          data.fieldIndexes[i].indexB=data.tempRowMeta.indexOfValue(function.getFieldB());
+          if (data.fieldIndexes[i].indexB < 0) {
             throw new KettleStepException("Unable to find the second argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
           }
         }
       }
       if (!Const.isEmpty(function.getFieldC())) {
-        data.keyNrsC[i]=data.outputRowMeta.indexOfValue(function.getFieldC());
-        if (data.keyNrsC[i] < 0) {
-          data.keyNrsC[i]=data.tempRowMeta.indexOfValue(function.getFieldC());
-          if (data.keyNrsC[i] < 0) {
+        data.fieldIndexes[i].indexC=data.outputRowMeta.indexOfValue(function.getFieldC());
+        if (data.fieldIndexes[i].indexC < 0) {
+          data.fieldIndexes[i].indexC=data.tempRowMeta.indexOfValue(function.getFieldC());
+          if (data.fieldIndexes[i].indexC < 0) {
             throw new KettleStepException("Unable to find the third argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
           }
         }
       }
+      if (function.isRemovedFromResult()) {
+        tempIndexes.add(new Integer(getInputRowMeta().size() + i));
+      }
+    }
+    data.tempIndexes=new int[tempIndexes.size()];
+    for (int i=0; i < data.tempIndexes.length; i++) {
+      data.tempIndexes[i]=((Integer)tempIndexes.get(i)).intValue();
     }
   }
   if (log.isRowLevel())   log.logRowlevel(toString(),"Read row #" + linesRead + " : "+ r);
