@@ -1,0 +1,85 @@
+{
+  RowMetaInterface rowMeta=new RowMeta();
+  Object[] rowData=new Object[meta.getFieldName().length];
+  for (int i=0; i < meta.getFieldName().length; i++) {
+    int valtype=ValueMeta.getType(meta.getFieldType()[i]);
+    if (meta.getFieldName()[i] != null) {
+      ValueMetaInterface value=new ValueMeta(meta.getFieldName()[i],valtype);
+      value.setLength(meta.getFieldLength()[i]);
+      value.setPrecision(meta.getFieldPrecision()[i]);
+      String stringValue=meta.getValue()[i];
+      if (stringValue == null || stringValue.length() == 0) {
+        rowData[i]=null;
+        if (value.getType() == ValueMetaInterface.TYPE_NONE) {
+          String message=Messages.getString("Constant.CheckResult.SpecifyTypeError",value.getName(),stringValue);
+          remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,message,null));
+        }
+      }
+ else {
+switch (value.getType()) {
+case ValueMetaInterface.TYPE_NUMBER:
+          try {
+            if (meta.getFieldFormat()[i] != null || meta.getDecimal()[i] != null || meta.getGroup()[i] != null || meta.getCurrency()[i] != null) {
+              if (meta.getFieldFormat()[i] != null && meta.getFieldFormat()[i].length() >= 1)               data.df.applyPattern(meta.getFieldFormat()[i]);
+              if (meta.getDecimal()[i] != null && meta.getDecimal()[i].length() >= 1)               data.dfs.setDecimalSeparator(meta.getDecimal()[i].charAt(0));
+              if (meta.getGroup()[i] != null && meta.getGroup()[i].length() >= 1)               data.dfs.setGroupingSeparator(meta.getGroup()[i].charAt(0));
+              if (meta.getCurrency()[i] != null && meta.getCurrency()[i].length() >= 1)               data.dfs.setCurrencySymbol(meta.getCurrency()[i]);
+              data.df.setDecimalFormatSymbols(data.dfs);
+            }
+            rowData[i]=new Double(data.nf.parse(stringValue).doubleValue());
+          }
+ catch (          Exception e) {
+            String message=Messages.getString("Constant.BuildRow.Error.Parsing.Number",value.getName(),stringValue,e.toString());
+            remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,message,null));
+          }
+        break;
+case ValueMetaInterface.TYPE_STRING:
+      rowData[i]=stringValue;
+    break;
+case ValueMetaInterface.TYPE_DATE:
+  try {
+    if (meta.getFieldFormat()[i] != null) {
+      data.daf.applyPattern(meta.getFieldFormat()[i]);
+      data.daf.setDateFormatSymbols(data.dafs);
+    }
+    rowData[i]=data.daf.parse(stringValue);
+  }
+ catch (  Exception e) {
+    String message=Messages.getString("Constant.BuildRow.Error.Parsing.Date",value.getName(),stringValue,e.toString());
+    remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,message,null));
+  }
+break;
+case ValueMetaInterface.TYPE_INTEGER:
+try {
+rowData[i]=new Long(Long.parseLong(stringValue));
+}
+ catch (Exception e) {
+String message=Messages.getString("Constant.BuildRow.Error.Parsing.Integer",value.getName(),stringValue,e.toString());
+remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,message,null));
+}
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+try {
+rowData[i]=new BigDecimal(stringValue);
+}
+ catch (Exception e) {
+String message=Messages.getString("Constant.BuildRow.Error.Parsing.BigNumber",value.getName(),stringValue,e.toString());
+remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,message,null));
+}
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+rowData[i]=new Boolean("Y".equalsIgnoreCase(stringValue) || "TRUE".equalsIgnoreCase(stringValue));
+break;
+case ValueMetaInterface.TYPE_BINARY:
+rowData[i]=stringValue.getBytes();
+break;
+default :
+String message=Messages.getString("Constant.CheckResult.SpecifyTypeError",value.getName(),stringValue);
+remarks.add(new CheckResult(CheckResult.TYPE_RESULT_ERROR,message,null));
+}
+}
+rowMeta.addValueMeta(value);
+}
+}
+return new RowMetaAndData(rowMeta,rowData);
+}
