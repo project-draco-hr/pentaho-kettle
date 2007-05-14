@@ -1,0 +1,37 @@
+{
+  meta=(AddSequenceMeta)smi;
+  data=(AddSequenceData)sdi;
+  if (super.init(smi,sdi)) {
+    if (meta.isDatabaseUsed()) {
+      data.setDb(new Database(meta.getDatabase()));
+      try {
+        data.getDb().connect(getPartitionID());
+        logBasic(Messages.getString("AddSequence.Log.ConnectedDB"));
+        return true;
+      }
+ catch (      KettleDatabaseException dbe) {
+        logError(Messages.getString("AddSequence.Log.CouldNotConnectToDB") + dbe.getMessage());
+      }
+    }
+ else     if (meta.isCounterUsed()) {
+      if (meta.getCounterName() != null) {
+        data.setLookup("@@sequence:" + meta.getCounterName());
+      }
+ else {
+        data.setLookup("@@sequence:" + meta.getValuename());
+      }
+      if (getTransMeta().getCounters() != null) {
+        Hashtable counters=getTransMeta().getCounters();
+        counters.put(data.getLookup(),new Long(meta.getStartAt()));
+        return true;
+      }
+ else {
+        logError(Messages.getString("AddSequence.Log.TransformationCountersHashtableNotAllocated"));
+      }
+    }
+ else {
+      logError(Messages.getString("AddSequence.Log.NeedToSelectSequence"));
+    }
+  }
+  return false;
+}
