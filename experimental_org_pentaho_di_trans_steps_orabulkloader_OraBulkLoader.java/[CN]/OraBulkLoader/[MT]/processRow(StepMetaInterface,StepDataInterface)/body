@@ -1,0 +1,45 @@
+{
+  meta=(OraBulkLoaderMeta)smi;
+  data=(OraBulkLoaderData)sdi;
+  try {
+    Object[] r=getRow();
+    if (r == null) {
+      setOutputDone();
+      if (!preview) {
+        if (output != null) {
+          try {
+            output.close();
+          }
+ catch (          IOException e) {
+            throw new KettleException("Error while closing output",e);
+          }
+          output=null;
+        }
+        String loadMethod=meta.getLoadMethod();
+        if (OraBulkLoaderMeta.METHOD_AUTO_END.equals(loadMethod)) {
+          execute(meta,true);
+        }
+      }
+      return false;
+    }
+    if (!preview) {
+      if (first) {
+        first=false;
+        createControlFile(StringUtil.environmentSubstitute(meta.getControlFile()),r,meta);
+        output=new OraBulkDataOutput(meta);
+        output.open(sqlldrProcess);
+      }
+      output.writeLine(getInputRowMeta(),r);
+    }
+    putRow(getInputRowMeta(),r);
+    linesOutput++;
+  }
+ catch (  KettleException e) {
+    logError(Messages.getString("OraBulkLoader.Log.ErrorInStep") + e.getMessage());
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  return true;
+}
