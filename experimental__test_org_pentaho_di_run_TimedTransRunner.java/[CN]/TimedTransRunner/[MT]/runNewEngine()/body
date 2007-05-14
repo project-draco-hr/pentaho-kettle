@@ -1,13 +1,20 @@
 {
   if (StepLoader.getInstance().getPluginList().size() == 0)   StepLoader.getInstance().read();
   TransMeta transMeta=new TransMeta(filename);
-  long startTime=System.currentTimeMillis();
   Trans trans=new Trans(LogWriter.getInstance(),transMeta);
-  trans.execute(null);
+  trans.prepareExecution(null);
+  if (!Const.isEmpty(newRowListenerStep)) {
+    BaseStep baseStep=trans.findRunThread(newRowListenerStep);
+    if (baseStep != null) {
+      baseStep.addRowListener(newRowListener);
+    }
+  }
+  long startTime=System.currentTimeMillis();
+  trans.startThreads();
   trans.waitUntilFinished();
   long stopTime=System.currentTimeMillis();
   newResult=trans.getResult();
   newRunTime=(double)(stopTime - startTime) / 1000;
   newSpeed=(double)records / (newRunTime);
-  System.out.println("V3 results: records=" + records + ", runtime="+ newRunTime+ ", speed="+ newSpeed);
+  printStats("V3 results",records,newRunTime,newSpeed);
 }

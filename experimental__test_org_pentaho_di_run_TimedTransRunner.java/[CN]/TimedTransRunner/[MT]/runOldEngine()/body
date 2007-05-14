@@ -4,13 +4,20 @@
   System.out.println();
   System.out.println("Name of transformation: " + transMeta.getName());
   System.out.println("Transformation description: " + Const.NVL(transMeta.getDescription(),""));
-  long startTime=System.currentTimeMillis();
   be.ibridge.kettle.trans.Trans trans=new be.ibridge.kettle.trans.Trans(LogWriter.getInstance(),transMeta);
-  trans.execute(null);
+  trans.prepareExecution(null);
+  if (!Const.isEmpty(oldRowListenerStep)) {
+    be.ibridge.kettle.trans.step.BaseStep baseStep=trans.findRunThread(oldRowListenerStep);
+    if (baseStep != null) {
+      baseStep.addRowListener(oldRowListener);
+    }
+  }
+  long startTime=System.currentTimeMillis();
+  trans.startThreads();
   trans.waitUntilFinished();
   long stopTime=System.currentTimeMillis();
   oldResult=trans.getResult();
   oldRunTime=(double)(stopTime - startTime) / 1000;
   oldSpeed=(double)records / (oldRunTime);
-  System.out.println("V2 results: records=" + records + ", runtime="+ oldRunTime+ ", speed="+ oldSpeed);
+  printStats("V2 results",records,oldRunTime,oldSpeed);
 }
