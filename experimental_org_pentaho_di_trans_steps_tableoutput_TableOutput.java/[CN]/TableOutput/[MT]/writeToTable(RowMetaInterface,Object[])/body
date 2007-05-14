@@ -1,0 +1,150 @@
+{
+  Object[] outputRowData=r;
+  if (r == null) {
+    if (log.isDetailed())     logDetailed("Last line inserted: stop");
+    return null;
+  }
+  PreparedStatement insertStatement=null;
+  String tableName=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  boolean rowIsSafe=false;
+  int[] updateCounts=null;
+  List exceptionsList=null;
+  boolean batchProblem=false;
+  Object generatedKey=null;
+  if (meta.isTableNameInField()) {
+    if (data.indexOfTableNameField < 0) {
+      data.indexOfTableNameField=rowMeta.indexOfValue(meta.getTableNameField());
+      if (data.indexOfTableNameField < 0) {
+        String message="Unable to find table name field [" + meta.getTableNameField() + "] in input row";
+        log.logError(toString(),message);
+        throw new KettleStepException(message);
+      }
+      if (!meta.isTableNameInTable()) {
+        data.insertRowMeta.removeValueMeta(data.indexOfTableNameField);
+      }
+    }
+    tableName=rowMeta.getString(r,data.indexOfTableNameField);
+  }
+ else   if (meta.isPartitioningEnabled() && (meta.isPartitioningDaily() || meta.isPartitioningMonthly()) && (meta.getPartitioningField() != null && meta.getPartitioningField().length() > 0)) {
+    if (data.indexOfPartitioningField < 0) {
+      data.indexOfPartitioningField=rowMeta.indexOfValue(meta.getPartitioningField());
+      if (data.indexOfPartitioningField < 0) {
+        throw new KettleStepException("Unable to find field [" + meta.getPartitioningField() + "] in the input row!");
+      }
+      if (meta.isPartitioningDaily()) {
+        data.dateFormater=new SimpleDateFormat("yyyyMMdd");
+      }
+ else {
+        data.dateFormater=new SimpleDateFormat("yyyyMM");
+      }
+    }
+    ValueMetaInterface partitioningValue=rowMeta.getValueMeta(data.indexOfPartitioningField);
+    if (!partitioningValue.isDate() || r[data.indexOfPartitioningField] == null) {
+      throw new KettleStepException("Sorry, the partitioning field needs to contain a data value and can't be empty!");
+    }
+    Object partitioningValueData=rowMeta.getDate(r,data.indexOfPartitioningField);
+    tableName=StringUtil.environmentSubstitute(meta.getTablename()) + "_" + data.dateFormater.format((Date)partitioningValueData);
+  }
+ else {
+    tableName=data.tableName;
+  }
+  if (Const.isEmpty(tableName)) {
+    throw new KettleStepException("The tablename is not defined (empty)");
+  }
+  String schemaTable=data.db.getDatabaseMeta().getQuotedSchemaTableCombination(meta.getSchemaName(),tableName);
+  insertStatement=(PreparedStatement)data.preparedStatements.get(schemaTable);
+  if (insertStatement == null) {
+    String sql=data.db.getInsertStatement(StringUtil.environmentSubstitute(meta.getSchemaName()),tableName,data.insertRowMeta);
+    if (log.isDetailed())     logDetailed("Prepared statement : " + sql);
+    insertStatement=data.db.prepareSQL(sql,meta.isReturningGeneratedKeys());
+    data.preparedStatements.put(schemaTable,insertStatement);
+  }
+  try {
+    data.db.setValues(data.insertRowMeta,r,insertStatement);
+    rowIsSafe=data.db.insertRow(insertStatement,data.batchMode);
+    if (meta.isReturningGeneratedKeys()) {
+      Object[] extraKeys=data.db.getGeneratedKeys(insertStatement);
+      if (!Const.isEmpty(extraKeys)) {
+        generatedKey=(Long)extraKeys[0];
+      }
+ else {
+        throw new KettleStepException("No generated keys while \"return generated keys\" is active!");
+      }
+    }
+  }
+ catch (  KettleDatabaseBatchException be) {
+    errorMessage=be.toString();
+    batchProblem=true;
+    sendToErrorRow=true;
+    updateCounts=be.getUpdateCounts();
+    exceptionsList=be.getExceptionsList();
+    if (getStepMeta().isDoingErrorHandling()) {
+      data.db.clearBatch(insertStatement);
+      data.db.commit();
+    }
+ else {
+      data.db.clearBatch(insertStatement);
+      data.db.rollback();
+      throw new KettleException("Error batch inserting rows into table [" + tableName + "]",be);
+    }
+  }
+catch (  KettleDatabaseException dbe) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=dbe.toString();
+    }
+ else {
+      if (meta.ignoreErrors()) {
+        if (data.warnings < 20) {
+          logBasic("WARNING: Couldn't insert row into table: " + r + Const.CR+ dbe.getMessage());
+        }
+ else         if (data.warnings == 20) {
+          logBasic("FINAL WARNING (no more then 20 displayed): Couldn't insert row into table: " + r + Const.CR+ dbe.getMessage());
+        }
+        data.warnings++;
+      }
+ else {
+        setErrors(getErrors() + 1);
+        data.db.rollback();
+        throw new KettleException("Error inserting row into table [" + tableName + "] with values: "+ r,dbe);
+      }
+    }
+  }
+  if (generatedKey != null) {
+    outputRowData=RowDataUtil.addValueData(outputRowData,generatedKey);
+  }
+  if (data.batchMode) {
+    if (sendToErrorRow) {
+      if (batchProblem) {
+        data.batchBuffer.add(outputRowData);
+        outputRowData=null;
+        processBatchException(errorMessage,updateCounts,exceptionsList);
+      }
+ else {
+        putError(data.outputRowMeta,outputRowData,1L,errorMessage,null,"TOP001");
+        outputRowData=null;
+      }
+    }
+ else {
+      data.batchBuffer.add(r);
+      outputRowData=null;
+      if (rowIsSafe) {
+        for (int i=0; i < data.batchBuffer.size(); i++) {
+          Object[] row=(Object[])data.batchBuffer.get(i);
+          putRow(data.outputRowMeta,row);
+          linesOutput++;
+        }
+        data.batchBuffer.clear();
+      }
+    }
+  }
+ else {
+    if (sendToErrorRow) {
+      putError(data.outputRowMeta,outputRowData,1,errorMessage,null,"TOP001");
+      outputRowData=null;
+    }
+  }
+  return outputRowData;
+}
