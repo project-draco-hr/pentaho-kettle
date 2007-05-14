@@ -1,0 +1,97 @@
+{
+  int i, f;
+  int smallest;
+  Object[] r1, r2;
+  Object[] retval;
+  if (data.files.size() > 0 && (data.dis.size() == 0 || data.fis.size() == 0)) {
+    logBasic("Opening " + data.files.size() + " tmp-files...");
+    try {
+      for (f=0; f < data.files.size() && !isStopped(); f++) {
+        FileObject fileObject=(FileObject)data.files.get(f);
+        String filename=KettleVFS.getFilename(fileObject);
+        if (log.isDetailed())         logDetailed("Opening tmp-file: [" + filename + "]");
+        InputStream fi=fileObject.getContent().getInputStream();
+        DataInputStream di;
+        data.fis.add(fi);
+        if (meta.getCompress()) {
+          GZIPInputStream gzfi=new GZIPInputStream(new BufferedInputStream(fi));
+          di=new DataInputStream(gzfi);
+          data.gzis.add(gzfi);
+        }
+ else {
+          di=new DataInputStream(fi);
+        }
+        data.dis.add(di);
+        int buffersize=di.readInt();
+        if (log.isDetailed())         logDetailed("[" + filename + "] expecting "+ buffersize+ " rows...");
+        if (buffersize > 0) {
+          data.rowbuffer.add(data.outputRowMeta.readData(di));
+        }
+      }
+    }
+ catch (    Exception e) {
+      logError("Error reading back tmp-files : " + e.toString());
+      logError(Const.getStackTracker(e));
+    }
+  }
+  if (data.files.size() == 0) {
+    if (data.buffer.size() > 0) {
+      retval=(Object[])data.buffer.get(0);
+      data.buffer.remove(0);
+    }
+ else {
+      retval=null;
+    }
+  }
+ else {
+    if (data.rowbuffer.size() == 0) {
+      retval=null;
+    }
+ else {
+      if (log.isRowLevel()) {
+        for (i=0; i < data.rowbuffer.size() && !isStopped(); i++) {
+          Object[] b=(Object[])data.rowbuffer.get(i);
+          logRowlevel("--BR#" + i + ": "+ data.outputRowMeta.getString(b));
+        }
+      }
+      smallest=0;
+      r1=(Object[])data.rowbuffer.get(smallest);
+      for (f=1; f < data.rowbuffer.size() && !isStopped(); f++) {
+        r2=(Object[])data.rowbuffer.get(f);
+        if (r2 != null && data.outputRowMeta.compare(r1,r2,data.fieldnrs) < 0) {
+          smallest=f;
+          r1=(Object[])data.rowbuffer.get(smallest);
+        }
+      }
+      retval=r1;
+      data.rowbuffer.remove(smallest);
+      if (log.isRowLevel())       logRowlevel("Smallest row selected on [" + smallest + "] : "+ retval);
+      FileObject file=(FileObject)data.files.get(smallest);
+      DataInputStream di=(DataInputStream)data.dis.get(smallest);
+      InputStream fi=(InputStream)data.fis.get(smallest);
+      GZIPInputStream gzfi=(meta.getCompress()) ? (GZIPInputStream)data.gzis.get(smallest) : null;
+      try {
+        data.rowbuffer.add(smallest,data.outputRowMeta.readData(di));
+      }
+ catch (      KettleFileException fe) {
+        try {
+          di.close();
+          fi.close();
+          if (gzfi != null)           gzfi.close();
+          file.delete();
+        }
+ catch (        IOException e) {
+          logError("Unable to close/delete file #" + smallest + " --> "+ file.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+        data.files.remove(smallest);
+        data.dis.remove(smallest);
+        data.fis.remove(smallest);
+        if (gzfi != null)         data.gzis.remove(smallest);
+      }
+    }
+  }
+  return retval;
+}

@@ -1,0 +1,42 @@
+{
+  if (r != null) {
+    data.buffer.add(r);
+  }
+  if (data.files.size() == 0 && r == null) {
+    quickSort(data.buffer);
+  }
+  if (data.buffer.size() == meta.getSortSize() || (data.files.size() > 0 && r == null && data.buffer.size() > 0)) {
+    quickSort(data.buffer);
+    DataOutputStream dos;
+    GZIPOutputStream gzos;
+    int p;
+    try {
+      FileObject fileObject=KettleVFS.createTempFile(meta.getPrefix(),".tmp",StringUtil.environmentSubstitute(meta.getDirectory()));
+      data.files.add(fileObject);
+      OutputStream outputStream=fileObject.getContent().getOutputStream();
+      if (meta.getCompress()) {
+        gzos=new GZIPOutputStream(new BufferedOutputStream(outputStream));
+        dos=new DataOutputStream(gzos);
+      }
+ else {
+        dos=new DataOutputStream(outputStream);
+        gzos=null;
+      }
+      dos.writeInt(data.buffer.size());
+      for (p=0; p < data.buffer.size(); p++) {
+        rowMeta.writeData(dos,(Object[])data.buffer.get(p));
+      }
+      dos.close();
+      if (gzos != null) {
+        gzos.close();
+      }
+      outputStream.close();
+    }
+ catch (    Exception e) {
+      logError("Error processing temp-file: " + e.toString());
+      return false;
+    }
+    data.buffer.clear();
+  }
+  return true;
+}

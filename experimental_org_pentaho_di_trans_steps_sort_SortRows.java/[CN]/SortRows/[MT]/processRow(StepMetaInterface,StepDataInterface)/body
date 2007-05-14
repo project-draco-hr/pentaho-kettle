@@ -1,0 +1,36 @@
+{
+  boolean err=true;
+  int i;
+  Object[] r=getRow();
+  if (first && r != null) {
+    first=false;
+    data.fieldnrs=new int[meta.getFieldName().length];
+    for (i=0; i < meta.getFieldName().length; i++) {
+      data.fieldnrs[i]=getInputRowMeta().indexOfValue(meta.getFieldName()[i]);
+      if (data.fieldnrs[i] < 0) {
+        logError("Sort field [" + meta.getFieldName()[i] + "] not found!");
+        setOutputDone();
+        return false;
+      }
+    }
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+  }
+  err=addBuffer(getInputRowMeta(),r);
+  if (!err) {
+    setOutputDone();
+    return false;
+  }
+  if (r == null) {
+    r=getBuffer();
+    while (r != null && !isStopped()) {
+      if (log.isRowLevel())       logRowlevel("Read row: " + r.toString());
+      putRow(data.outputRowMeta,r);
+      r=getBuffer();
+    }
+    setOutputDone();
+    return false;
+  }
+  if (checkFeedback(linesRead))   logBasic("Linenr " + linesRead);
+  return true;
+}
