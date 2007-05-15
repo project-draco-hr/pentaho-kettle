@@ -1,0 +1,211 @@
+{
+  final int cond_nr=getNrSubcondition(screen);
+  if (mPop != null && !mPop.isDisposed()) {
+    mPop.dispose();
+  }
+switch (area) {
+case AREA_NOT:
+{
+      mPop=new Menu(widget);
+      MenuItem miNegate=new MenuItem(mPop,SWT.CASCADE);
+      miNegate.setText("Negate condition");
+      miNegate.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          active_condition.negate();
+          widget.redraw();
+          setModified();
+        }
+      }
+);
+      setMenu(mPop);
+    }
+  break;
+case AREA_BACKGROUND:
+case AREA_ICON_ADD:
+{
+  mPop=new Menu(widget);
+  MenuItem miAdd=new MenuItem(mPop,SWT.CASCADE);
+  miAdd.setText("Add condition");
+  miAdd.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      addCondition();
+    }
+  }
+);
+  setMenu(mPop);
+}
+break;
+case AREA_SUBCONDITION:
+{
+mPop=new Menu(widget);
+MenuItem miEdit=new MenuItem(mPop,SWT.CASCADE);
+miEdit.setText("Edit condition");
+miEdit.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  editCondition(cond_nr);
+  setModified();
+  widget.redraw();
+}
+}
+);
+MenuItem miDel=new MenuItem(mPop,SWT.CASCADE);
+miDel.setText("Delete condition");
+miDel.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  removeCondition(cond_nr);
+  setModified();
+  widget.redraw();
+}
+}
+);
+final Condition sub=active_condition.getCondition(cond_nr);
+if (sub.getLeftValuename() != null) {
+MenuItem miAdd=new MenuItem(mPop,SWT.CASCADE);
+miAdd.setText("add sub-condition");
+miAdd.addSelectionListener(new SelectionAdapter(){
+  public void widgetSelected(  SelectionEvent e){
+    Condition c=new Condition();
+    c.setOperator(Condition.OPERATOR_AND);
+    sub.addCondition(c);
+    setModified();
+    widget.redraw();
+  }
+}
+);
+}
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miCopy=new MenuItem(mPop,SWT.CASCADE);
+miCopy.setText("Copy to clipboard");
+miCopy.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  Condition c=active_condition.getCondition(cond_nr);
+  String xml=c.getXML();
+  GUIResource.getInstance().toClipboard(xml);
+  widget.redraw();
+}
+}
+);
+MenuItem miPasteBef=new MenuItem(mPop,SWT.CASCADE);
+miPasteBef.setText("Paste from clipboard (before this condition)");
+miPasteBef.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  String xml=GUIResource.getInstance().fromClipboard();
+  try {
+    Document d=XMLHandler.loadXMLString(xml);
+    Node condNode=XMLHandler.getSubNode(d,"condition");
+    if (condNode != null) {
+      Condition c=new Condition(condNode);
+      active_condition.addCondition(cond_nr,c);
+      widget.redraw();
+    }
+ else {
+      new ErrorDialog(shell,"Error","No condition found in the XML",new KettleXMLException("No condition found in XML:" + Const.CR + Const.CR+ xml));
+    }
+  }
+ catch (  KettleXMLException ex) {
+    new ErrorDialog(shell,"Error","Error pasting condition",ex);
+  }
+}
+}
+);
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miPasteAft=new MenuItem(mPop,SWT.CASCADE);
+miPasteAft.setText("Paste from clipboard (after this condition)");
+miPasteAft.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  String xml=GUIResource.getInstance().fromClipboard();
+  try {
+    Document d=XMLHandler.loadXMLString(xml);
+    Node condNode=XMLHandler.getSubNode(d,"condition");
+    if (condNode != null) {
+      Condition c=new Condition(condNode);
+      active_condition.addCondition(cond_nr + 1,c);
+      widget.redraw();
+    }
+ else {
+      new ErrorDialog(shell,"Error","No condition found in the XML",new KettleXMLException("No condition found in XML:" + Const.CR + Const.CR+ xml));
+    }
+  }
+ catch (  KettleXMLException ex) {
+    new ErrorDialog(shell,"Error","Error pasting condition",ex);
+  }
+}
+}
+);
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miMoveSub=new MenuItem(mPop,SWT.CASCADE);
+miMoveSub.setText("Move condition to subcondition (-->)");
+miMoveSub.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  Condition down=active_condition.getCondition(cond_nr);
+  Condition c=new Condition();
+  c.setOperator(down.getOperator());
+  down.setOperator(Condition.OPERATOR_NONE);
+  active_condition.setCondition(cond_nr,c);
+  c.addCondition(down);
+  widget.redraw();
+}
+}
+);
+MenuItem miMoveParent=new MenuItem(mPop,SWT.CASCADE);
+miMoveParent.setText("Move condition to parent (<--)");
+if (getLevel() == 0) miMoveParent.setEnabled(false);
+miMoveParent.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  Condition up=active_condition.getCondition(cond_nr);
+  active_condition.removeCondition(cond_nr);
+  Condition parent=(Condition)parents.get(getLevel() - 1);
+  parent.addCondition(up);
+  goUp();
+  widget.redraw();
+}
+}
+);
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miMoveDown=new MenuItem(mPop,SWT.CASCADE);
+miMoveDown.setText("Move condition down");
+if (cond_nr >= active_condition.nrConditions() - 1) miMoveDown.setEnabled(false);
+miMoveDown.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  Condition down=active_condition.getCondition(cond_nr);
+  active_condition.removeCondition(cond_nr);
+  active_condition.addCondition(cond_nr + 1,down);
+  widget.redraw();
+}
+}
+);
+MenuItem miMoveUp=new MenuItem(mPop,SWT.CASCADE);
+miMoveUp.setText("Move condition up");
+if (cond_nr == 0) miMoveUp.setEnabled(false);
+miMoveUp.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  Condition up=active_condition.getCondition(cond_nr);
+  active_condition.removeCondition(cond_nr);
+  active_condition.addCondition(cond_nr - 1,up);
+  widget.redraw();
+}
+}
+);
+setMenu(mPop);
+}
+break;
+case AREA_OPERATOR:
+{
+Menu mPop=new Menu(widget);
+MenuItem miDown=new MenuItem(mPop,SWT.CASCADE);
+miDown.setText("move down");
+miDown.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+setModified();
+widget.redraw();
+}
+}
+);
+setMenu(mPop);
+}
+break;
+default :
+setMenu(null);
+break;
+}
+}
