@@ -1,0 +1,49 @@
+{
+  meta=(TextFileOutputMeta)smi;
+  data=(TextFileOutputData)sdi;
+  boolean result=true;
+  boolean bEndedLineWrote=false;
+  Object[] r=getRow();
+  if ((r == null && data.outputRowMeta != null && meta.isFooterEnabled()) || (r != null && linesOutput > 0 && meta.getSplitEvery() > 0 && ((linesOutput + 1) % meta.getSplitEvery()) == 0)) {
+    if (r != null && first) {
+      first=false;
+      data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null);
+    }
+    if (data.outputRowMeta != null) {
+      if (meta.isFooterEnabled()) {
+        writeHeader();
+      }
+    }
+    if (r == null) {
+      writeEndedLine();
+      bEndedLineWrote=true;
+    }
+    closeFile();
+    if (r != null) {
+      if (!openNewFile()) {
+        logError("Unable to open new file (split #" + data.splitnr + "...");
+        setErrors(1);
+        return false;
+      }
+      if (meta.isHeaderEnabled() && data.outputRowMeta != null)       if (writeHeader())       linesOutput++;
+    }
+  }
+  if (r == null) {
+    if (false == bEndedLineWrote) {
+      writeEndedLine();
+      bEndedLineWrote=true;
+    }
+    setOutputDone();
+    return false;
+  }
+  result=writeRowToFile(data.outputRowMeta,r);
+  if (!result) {
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+  putRow(data.outputRowMeta,r);
+  if (checkFeedback(linesOutput))   logBasic("linenr " + linesOutput);
+  return result;
+}
