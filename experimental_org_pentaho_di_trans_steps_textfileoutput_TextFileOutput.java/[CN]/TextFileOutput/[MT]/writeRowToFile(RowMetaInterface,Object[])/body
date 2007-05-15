@@ -1,25 +1,5 @@
 {
   try {
-    if (first) {
-      first=false;
-      if (!meta.isFileAppended() && (meta.isHeaderEnabled() || meta.isFooterEnabled())) {
-        if (meta.isHeaderEnabled() && data.outputRowMeta != null) {
-          if (writeHeader()) {
-            return false;
-          }
-        }
-      }
-      data.fieldnrs=new int[meta.getOutputFields().length];
-      for (int i=0; i < meta.getOutputFields().length; i++) {
-        data.fieldnrs[i]=rowMeta.indexOfValue(meta.getOutputFields()[i].getName());
-        if (data.fieldnrs[i] < 0) {
-          logError("Field [" + meta.getOutputFields()[i].getName() + "] couldn't be found in the input stream!");
-          setErrors(1);
-          stopAll();
-          return false;
-        }
-      }
-    }
     if (meta.getOutputFields() == null || meta.getOutputFields().length == 0) {
       for (int i=0; i < rowMeta.size(); i++) {
         if (i > 0 && meta.getSeparator() != null && meta.getSeparator().length() > 0) {
@@ -27,7 +7,7 @@
         }
         ValueMetaInterface v=rowMeta.getValueMeta(i);
         Object valueData=r[i];
-        if (!writeField(v,valueData,-1))         return false;
+        writeField(v,valueData,-1);
       }
       data.writer.write(meta.getNewline().toCharArray());
     }
@@ -36,15 +16,13 @@
         if (i > 0 && meta.getSeparator() != null && meta.getSeparator().length() > 0)         data.writer.write(meta.getSeparator().toCharArray());
         ValueMetaInterface v=rowMeta.getValueMeta(data.fieldnrs[i]);
         Object valueData=r[i];
-        if (!writeField(v,valueData,i))         return false;
+        writeField(v,valueData,i);
       }
       data.writer.write(meta.getNewline().toCharArray());
     }
     linesOutput++;
   }
  catch (  Exception e) {
-    logError("Error writing line :" + e.toString());
-    return false;
+    throw new KettleStepException("Error writing line",e);
   }
-  return true;
 }

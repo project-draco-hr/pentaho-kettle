@@ -4,12 +4,24 @@
   boolean result=true;
   boolean bEndedLineWrote=false;
   Object[] r=getRow();
-  if ((r == null && data.outputRowMeta != null && meta.isFooterEnabled()) || (r != null && linesOutput > 0 && meta.getSplitEvery() > 0 && ((linesOutput + 1) % meta.getSplitEvery()) == 0)) {
-    if (r != null && first) {
-      first=false;
-      data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
-      meta.getFields(data.outputRowMeta,getStepname(),null);
+  if (r != null && first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    if (!meta.isFileAppended() && (meta.isHeaderEnabled() || meta.isFooterEnabled())) {
+      if (meta.isHeaderEnabled() && data.outputRowMeta != null) {
+        writeHeader();
+      }
     }
+    data.fieldnrs=new int[meta.getOutputFields().length];
+    for (int i=0; i < meta.getOutputFields().length; i++) {
+      data.fieldnrs[i]=data.outputRowMeta.indexOfValue(meta.getOutputFields()[i].getName());
+      if (data.fieldnrs[i] < 0) {
+        throw new KettleStepException("Field [" + meta.getOutputFields()[i].getName() + "] couldn't be found in the input stream!");
+      }
+    }
+  }
+  if ((r == null && data.outputRowMeta != null && meta.isFooterEnabled()) || (r != null && linesOutput > 0 && meta.getSplitEvery() > 0 && ((linesOutput + 1) % meta.getSplitEvery()) == 0)) {
     if (data.outputRowMeta != null) {
       if (meta.isFooterEnabled()) {
         writeHeader();
@@ -37,12 +49,7 @@
     setOutputDone();
     return false;
   }
-  result=writeRowToFile(data.outputRowMeta,r);
-  if (!result) {
-    setErrors(1);
-    stopAll();
-    return false;
-  }
+  writeRowToFile(data.outputRowMeta,r);
   putRow(data.outputRowMeta,r);
   if (checkFeedback(linesOutput))   logBasic("linenr " + linesOutput);
   return result;
