@@ -1,0 +1,49 @@
+{
+  meta=(StreamLookupMeta)smi;
+  data=(StreamLookupData)sdi;
+  if (data.readLookupValues) {
+    data.readLookupValues=false;
+    logBasic(Messages.getString("StreamLookup.Log.ReadingLookupValuesFromStep") + meta.getLookupFromStep() + "]");
+    if (readLookupValues()) {
+      logBasic(Messages.getString("StreamLookup.Log.ReadValuesInMemory",data.look.size() + ""));
+    }
+ else {
+      logError(Messages.getString("StreamLookup.Log.UnableToReadDataFromLookupStream"));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+  }
+  Object[] r=getRow();
+  if (r == null) {
+    if (log.isDetailed())     logDetailed(Messages.getString("StreamLookup.Log.StoppedProcessingWithEmpty",linesRead + ""));
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.keynrs=new int[meta.getKeystream().length];
+    data.lookupMeta=new RowMeta();
+    for (int i=0; i < meta.getKeystream().length; i++) {
+      data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getKeystream()[i]);
+      if (data.keynrs[i] < 0) {
+        throw new KettleStepException(Messages.getString("StreamLookup.Log.FieldNotFound",meta.getKeystream()[i],"" + getInputRowMeta().getString(r)));
+      }
+ else {
+        if (log.isDetailed())         logDetailed(Messages.getString("StreamLookup.Log.FieldInfo",meta.getKeystream()[i],"" + data.keynrs[i]));
+      }
+      data.lookupMeta.addValueMeta((ValueMetaInterface)getInputRowMeta().getValueMeta(data.keynrs[i]).clone());
+    }
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),data.infoMeta);
+    handleNullIf();
+  }
+  Object[] outputRow=lookupValues(getInputRowMeta(),r);
+  if (outputRow == null) {
+    setOutputDone();
+    return false;
+  }
+  putRow(data.outputRowMeta,outputRow);
+  if (checkFeedback(linesRead))   logBasic(Messages.getString("StreamLookup.Log.LineNumber") + linesRead);
+  return true;
+}

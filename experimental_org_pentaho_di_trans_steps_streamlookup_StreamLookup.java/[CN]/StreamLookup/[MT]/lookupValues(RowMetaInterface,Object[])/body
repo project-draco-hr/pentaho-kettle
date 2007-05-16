@@ -1,0 +1,37 @@
+{
+  if (stopped)   return null;
+  Object[] lu=new Object[data.keynrs.length];
+  for (int i=0; i < meta.getKeystream().length; i++) {
+    lu[i]=row[data.keynrs[i]];
+  }
+  if (data.keyTypes != null) {
+    for (int i=0; i < data.lookupMeta.size(); i++) {
+      ValueMetaInterface inputValue=data.lookupMeta.getValueMeta(i);
+      ValueMetaInterface lookupValue=data.keyTypes.getValueMeta(i);
+      if (inputValue.getType() != lookupValue.getType()) {
+        try {
+          lu[i]=inputValue.convertData(lookupValue,lu[i]);
+        }
+ catch (        KettleValueException e) {
+          throw new KettleStepException("Error converting data while looking up value",e);
+        }
+      }
+    }
+  }
+  Object[] add;
+  try {
+    if (meta.getKeystream().length > 0) {
+      add=getFromCache(data.lookupMeta,lu);
+    }
+ else {
+      throw new KettleStepException(Messages.getString("StreamLookup.Log.GotRowWithoutKeys"));
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleStepException(e);
+  }
+  if (add == null) {
+    add=new Object[meta.getValue().length];
+  }
+  return RowDataUtil.addRowData(row,add);
+}
