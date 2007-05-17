@@ -1,0 +1,32 @@
+{
+  String url=determineUrl(outputRowMeta,row);
+  try {
+    logDetailed("Connecting to : [" + url + "]");
+    HttpClient httpclient=new HttpClient();
+    HttpMethod method=new GetMethod(url);
+    try {
+      int result=httpclient.executeMethod(method);
+      log.logDebug(toString(),"Response status code: " + result);
+      InputStream inputStream=method.getResponseBodyAsStream();
+      StringBuffer bodyBuffer=new StringBuffer();
+      int c;
+      while ((c=inputStream.read()) != -1)       bodyBuffer.append((char)c);
+      inputStream.close();
+      String body=bodyBuffer.toString();
+      log.logDebug(toString(),"Response body: " + body);
+      Object[] outputRow=new Object[outputRowMeta.size()];
+      int idx=0;
+      for (; idx < outputRow.length; idx++) {
+        outputRow[idx]=row[idx];
+      }
+      outputRow[idx]=body;
+      return outputRow;
+    }
+  finally {
+      method.releaseConnection();
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to get result from specified URL :" + url,e);
+  }
+}
