@@ -1,0 +1,94 @@
+{
+  Object[] outputRow=new Object[data.outputRowMeta.size()];
+  for (int i=0; i < inputRowMeta.size(); i++) {
+    outputRow[i]=row[i];
+  }
+  Object[] lookupRow=new Object[data.lookupMeta.size()];
+  int lookupIndex=0;
+  for (int i=0; i < meta.getStreamKeyField1().length; i++) {
+    if (data.keynrs[i] >= 0) {
+      ValueMetaInterface input=inputRowMeta.getValueMeta(data.keynrs[i]);
+      ValueMetaInterface value=data.lookupMeta.getValueMeta(lookupIndex);
+      lookupRow[lookupIndex]=row[data.keynrs[i]];
+      if (value.getType() != data.keytypes[i]) {
+        lookupRow[lookupIndex]=value.convertData(input,lookupRow[lookupIndex]);
+      }
+      lookupIndex++;
+    }
+    if (data.keynrs2[i] >= 0) {
+      ValueMetaInterface input=inputRowMeta.getValueMeta(data.keynrs2[i]);
+      ValueMetaInterface value=data.lookupMeta.getValueMeta(lookupIndex);
+      lookupRow[lookupIndex]=row[data.keynrs2[i]];
+      if (value.getType() != data.keytypes[i]) {
+        lookupRow[lookupIndex]=value.convertData(input,lookupRow[lookupIndex]);
+      }
+      lookupIndex++;
+    }
+  }
+  Object[] add=null;
+  boolean cache_now=false;
+  if (meta.isCached()) {
+    TimedRow timedRow=(TimedRow)data.look.get(new RowMetaAndData(data.lookupMeta,lookupRow));
+    if (timedRow != null) {
+      add=timedRow.getRow();
+    }
+  }
+ else   add=null;
+  if (add == null) {
+    if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseLookup.Log.AddedValuesToLookupRow1") + meta.getStreamKeyField1().length + Messages.getString("DatabaseLookup.Log.AddedValuesToLookupRow2")+ data.lookupMeta.getString(lookupRow));
+    data.db.setValuesLookup(data.lookupMeta,lookupRow);
+    add=data.db.getLookup(meta.isFailingOnMultipleResults());
+    cache_now=true;
+  }
+  if (add == null) {
+    if (meta.isEatingRowOnLookupFailure()) {
+      return null;
+    }
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(getInputRowMeta(),row,1L,"No lookup found",null,"DBL001");
+      return null;
+    }
+    if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseLookup.Log.NoResultsFoundAfterLookup"));
+    add=new Object[data.returnMeta.size()];
+    for (int i=0; i < meta.getReturnValueField().length; i++) {
+      if (data.nullif[i] != null) {
+        add[i]=data.nullif[i];
+      }
+ else {
+        add[i]=null;
+      }
+    }
+  }
+ else {
+    if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseLookup.Log.FoundResultsAfterLookup") + add);
+    int types[]=meta.getReturnValueDefaultType();
+    for (int i=0; i < types.length; i++) {
+      ValueMetaInterface returned=data.db.getReturnRowMeta().getValueMeta(i);
+      ValueMetaInterface expected=data.returnMeta.getValueMeta(i);
+      if (returned != null && types[i] > 0 && types[i] != returned.getType()) {
+        add[i]=expected.convertData(returned,add[i]);
+      }
+    }
+  }
+  if (meta.isCached() && cache_now) {
+    data.look.put(new RowMetaAndData(data.lookupMeta,lookupRow),new TimedRow(add));
+    if (meta.getCacheSize() > 0 && data.look.size() > meta.getCacheSize()) {
+      long last_date=-1L;
+      Enumeration elem=data.look.elements();
+      TimedRow smallest=null;
+      while (elem.hasMoreElements()) {
+        TimedRow r=(TimedRow)elem.nextElement();
+        long time=r.getLogtime();
+        if (last_date < 0 || time < last_date) {
+          last_date=time;
+          smallest=r;
+        }
+      }
+      if (smallest != null)       data.look.remove(smallest);
+    }
+  }
+  for (int i=0; i < add.length; i++) {
+    outputRow[inputRowMeta.size() + i]=add[i];
+  }
+  return outputRow;
+}

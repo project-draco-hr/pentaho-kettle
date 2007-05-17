@@ -1,0 +1,43 @@
+{
+  try {
+    String dtype;
+    String csize;
+    String con=XMLHandler.getTagValue(stepnode,"connection");
+    databaseMeta=DatabaseMeta.findDatabase(databases,con);
+    cached="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"cache"));
+    csize=XMLHandler.getTagValue(stepnode,"cache_size");
+    cacheSize=Const.toInt(csize,0);
+    schemaName=XMLHandler.getTagValue(stepnode,"lookup","schema");
+    tablename=XMLHandler.getTagValue(stepnode,"lookup","table");
+    Node lookup=XMLHandler.getSubNode(stepnode,"lookup");
+    int nrkeys=XMLHandler.countNodes(lookup,"key");
+    int nrvalues=XMLHandler.countNodes(lookup,"value");
+    allocate(nrkeys,nrvalues);
+    for (int i=0; i < nrkeys; i++) {
+      Node knode=XMLHandler.getSubNodeByNr(lookup,"key",i);
+      streamKeyField1[i]=XMLHandler.getTagValue(knode,"name");
+      tableKeyField[i]=XMLHandler.getTagValue(knode,"field");
+      keyCondition[i]=XMLHandler.getTagValue(knode,"condition");
+      if (keyCondition[i] == null)       keyCondition[i]="=";
+      streamKeyField2[i]=XMLHandler.getTagValue(knode,"name2");
+    }
+    for (int i=0; i < nrvalues; i++) {
+      Node vnode=XMLHandler.getSubNodeByNr(lookup,"value",i);
+      returnValueField[i]=XMLHandler.getTagValue(vnode,"name");
+      returnValueNewName[i]=XMLHandler.getTagValue(vnode,"rename");
+      if (returnValueNewName[i] == null)       returnValueNewName[i]=returnValueField[i];
+      returnValueDefault[i]=XMLHandler.getTagValue(vnode,"default");
+      dtype=XMLHandler.getTagValue(vnode,"type");
+      returnValueDefaultType[i]=ValueMeta.getType(dtype);
+      if (returnValueDefaultType[i] < 0) {
+        returnValueDefaultType[i]=ValueMetaInterface.TYPE_STRING;
+      }
+    }
+    orderByClause=XMLHandler.getTagValue(lookup,"orderby");
+    failingOnMultipleResults="Y".equalsIgnoreCase(XMLHandler.getTagValue(lookup,"fail_on_multiple"));
+    eatingRowOnLookupFailure="Y".equalsIgnoreCase(XMLHandler.getTagValue(lookup,"eat_row_on_failure"));
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException(Messages.getString("DatabaseLookupMeta.ERROR0001.UnableToLoadStepFromXML"),e);
+  }
+}
