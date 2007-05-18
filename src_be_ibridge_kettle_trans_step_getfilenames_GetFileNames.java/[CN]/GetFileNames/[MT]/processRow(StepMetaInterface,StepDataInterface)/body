@@ -3,24 +3,61 @@
     setOutputDone();
     return false;
   }
-  Row r=new Row();
-  FileObject file=data.files.getFile(data.filenr);
-  Value filename=new Value("filename",KettleVFS.getFilename(file));
-  filename.setLength(500,-1);
-  r.addValue(filename);
-  Value short_filename=new Value("short_filename",file.getName().getBaseName());
-  short_filename.setLength(500,-1);
-  r.addValue(short_filename);
   try {
-    Value path=new Value("path",KettleVFS.getFilename(file.getParent()));
-    path.setLength(500,-1);
-    r.addValue(path);
+    Row r=new Row();
+    FileObject file=data.files.getFile(data.filenr);
+    if (meta.getFilterFileType().equals("all_files") || (meta.getFilterFileType().equals("only_files") && file.getType() == FileType.FILE) || meta.getFilterFileType().equals("only_folders") && file.getType() == FileType.FOLDER) {
+      Value filename=new Value("filename",KettleVFS.getFilename(file));
+      filename.setLength(500,-1);
+      r.addValue(filename);
+      Value short_filename=new Value("short_filename",file.getName().getBaseName());
+      short_filename.setLength(500,-1);
+      r.addValue(short_filename);
+      try {
+        Value path=new Value("path",KettleVFS.getFilename(file.getParent()));
+        path.setLength(500,-1);
+        r.addValue(path);
+        Value type=new Value("type",file.getType().toString());
+        type.setLength(500,-1);
+        r.addValue(type);
+        Value exists=new Value("exists",file.exists());
+        r.addValue(exists);
+        Value ishidden=new Value("ishidden",file.isHidden());
+        r.addValue(ishidden);
+        Value isreadable=new Value("isreadable",file.isReadable());
+        r.addValue(isreadable);
+        Value iswriteable=new Value("iswriteable",file.isWriteable());
+        r.addValue(iswriteable);
+        Value isattached=new Value("isattached",file.isAttached());
+        r.addValue(isattached);
+        Date ladate=new Date(file.getContent().getLastModifiedTime());
+        Value lastmodifiedtime=new Value("lastmodifiedtime",ladate.toString());
+        r.addValue(lastmodifiedtime);
+        Value size=new Value("size","");
+        if (file.getType().equals(FileType.FILE)) {
+          size=new Value("size",file.getContent().getSize());
+        }
+        r.addValue(size);
+      }
+ catch (      IOException e) {
+        throw new KettleException(e);
+      }
+      Value extension=new Value("extension",file.getName().getExtension());
+      extension.setLength(500,-1);
+      r.addValue(extension);
+      Value uri=new Value("uri",file.getName().getURI());
+      uri.setLength(500,-1);
+      r.addValue(uri);
+      Value rooturi=new Value("rooturi",file.getName().getRootURI());
+      uri.setLength(500,-1);
+      r.addValue(rooturi);
+      putRow(r);
+    }
   }
- catch (  IOException e) {
-    throw new KettleException(e);
+ catch (  Exception e) {
+    log.logError(toString(),"Error exception: " + e.getMessage());
   }
   data.filenr++;
-  putRow(r);
   if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
   return true;
 }
