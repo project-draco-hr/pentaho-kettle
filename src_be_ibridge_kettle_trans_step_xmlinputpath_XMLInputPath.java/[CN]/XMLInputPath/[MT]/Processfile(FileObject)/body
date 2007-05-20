@@ -1,0 +1,111 @@
+{
+  try {
+    String encodage="UTF-8";
+    if (!Const.isEmpty(meta.getEncoding())) {
+      encodage=meta.getEncoding();
+    }
+    javax.xml.parsers.DocumentBuilder builder=javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder();
+    org.w3c.dom.Document document=builder.parse(new org.xml.sax.InputSource(new java.io.InputStreamReader(new java.io.FileInputStream(KettleVFS.getFilename(file)),encodage)));
+    javax.xml.xpath.XPath xpath=javax.xml.xpath.XPathFactory.newInstance().newXPath();
+    NodeList widgetNodes=(NodeList)xpath.evaluate(meta.getRealLoopXPath(),document,javax.xml.xpath.XPathConstants.NODESET);
+    if (log.isDetailed())     logDetailed(widgetNodes.getLength() + Messages.getString("XMLInputPath.Log.LoopOccurences1") + KettleVFS.getFilename(file)+ " "+ Messages.getString("XMLInputPath.Log.LoopOccurences2"));
+    for (int itFileInputXML_1=0; itFileInputXML_1 < widgetNodes.getLength(); itFileInputXML_1++) {
+      if ((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) {
+        Row row=buildEmptyRow();
+        for (int i=0; i < meta.getInputFields().length; i++) {
+          XMLInputPathField XMLInputPathField=meta.getInputFields()[i];
+          String XPathValue=XMLInputPathField.getRealXPath();
+          String Element_Type=XMLInputPathField.getElementTypeCode();
+          String valueNode=getValueXML(widgetNodes,itFileInputXML_1,xpath,XPathValue,Element_Type);
+          Value v=row.getValue(i);
+          v.setValue(valueNode);
+switch (XMLInputPathField.getTrimType()) {
+case XMLInputPathField.TYPE_TRIM_LEFT:
+            v.ltrim();
+          break;
+case XMLInputPathField.TYPE_TRIM_RIGHT:
+        v.rtrim();
+      break;
+case XMLInputPathField.TYPE_TRIM_BOTH:
+    v.trim();
+  break;
+default :
+break;
+}
+switch (XMLInputPathField.getType()) {
+case Value.VALUE_TYPE_STRING:
+break;
+case Value.VALUE_TYPE_NUMBER:
+if (XMLInputPathField.getFormat() != null && XMLInputPathField.getFormat().length() > 0) {
+if (XMLInputPathField.getDecimalSymbol() != null && XMLInputPathField.getDecimalSymbol().length() > 0) {
+if (XMLInputPathField.getGroupSymbol() != null && XMLInputPathField.getGroupSymbol().length() > 0) {
+  if (XMLInputPathField.getCurrencySymbol() != null && XMLInputPathField.getCurrencySymbol().length() > 0) {
+    v.str2num(XMLInputPathField.getFormat(),XMLInputPathField.getDecimalSymbol(),XMLInputPathField.getGroupSymbol(),XMLInputPathField.getCurrencySymbol());
+  }
+ else {
+    v.str2num(XMLInputPathField.getFormat(),XMLInputPathField.getDecimalSymbol(),XMLInputPathField.getGroupSymbol());
+  }
+}
+ else {
+  v.str2num(XMLInputPathField.getFormat(),XMLInputPathField.getDecimalSymbol());
+}
+}
+ else {
+v.str2num(XMLInputPathField.getFormat());
+}
+}
+ else {
+v.str2num();
+}
+v.setLength(XMLInputPathField.getLength(),XMLInputPathField.getPrecision());
+break;
+case Value.VALUE_TYPE_INTEGER:
+v.setValue(v.getInteger());
+v.setLength(XMLInputPathField.getLength(),XMLInputPathField.getPrecision());
+break;
+case Value.VALUE_TYPE_BIGNUMBER:
+v.setValue(v.getBigNumber());
+v.setLength(XMLInputPathField.getLength(),XMLInputPathField.getPrecision());
+break;
+case Value.VALUE_TYPE_DATE:
+if (XMLInputPathField.getFormat() != null && XMLInputPathField.getFormat().length() > 0) {
+v.str2dat(XMLInputPathField.getFormat());
+}
+ else {
+v.setValue(v.getDate());
+}
+break;
+case Value.VALUE_TYPE_BOOLEAN:
+v.setValue(v.getBoolean());
+break;
+default :
+break;
+}
+if (XMLInputPathField.isRepeated()) {
+if (v.isNull() && data.previousRow != null) {
+Value previous=data.previousRow.getValue(i);
+v.setValue(previous);
+}
+}
+}
+if (meta.includeFilename() && meta.getFilenameField() != null && meta.getFilenameField().length() > 0) {
+Value fn=new Value(meta.getRealFilenameField(),KettleVFS.getFilename(file));
+row.addValue(fn);
+}
+if (meta.includeRowNumber() && meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
+Value fn=new Value(meta.getRealRowNumberField(),data.rownr);
+row.addValue(fn);
+}
+data.previousRow=new Row(row);
+data.rownr++;
+if (log.isRowLevel()) logRowlevel(Messages.getString("XMLInputPath.Log.ReadRow",row.toString()));
+putRow(row);
+}
+}
+}
+ catch (Exception e) {
+logError(Messages.getString("XMLInputPath.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+stopAll();
+setErrors(1);
+}
+}
