@@ -1,0 +1,146 @@
+{
+  int i;
+  boolean error_found=false;
+  String error_message="";
+  boolean first;
+  CheckResult cr;
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    try {
+      db.connect();
+      if (!Const.isEmpty(tableName)) {
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+        RowMetaInterface tableFields=db.getTableFields(schemaTable);
+        if (tableFields != null) {
+          if (prev != null && prev.size() > 0) {
+            first=true;
+            boolean warning_found=false;
+            for (i=0; i < keyStream.length; i++) {
+              String strfield=keyStream[i];
+              ValueMetaInterface strvalue=prev.searchValueMeta(strfield);
+              if (strvalue == null) {
+                if (first) {
+                  first=false;
+                  error_message+=Messages.getString("DimensionLookupMeta.CheckResult.KeyhasProblem") + Const.CR;
+                }
+                error_found=true;
+                error_message+="\t\t" + keyField + Messages.getString("DimensionLookupMeta.CheckResult.KeyNotPresentInStream")+ Const.CR;
+              }
+ else {
+                String dimfield=keyLookup[i];
+                ValueMetaInterface dimvalue=tableFields.searchValueMeta(dimfield);
+                if (dimvalue == null) {
+                  if (first) {
+                    first=false;
+                    error_message+=Messages.getString("DimensionLookupMeta.CheckResult.KeyhasProblem2") + Const.CR;
+                  }
+                  error_found=true;
+                  error_message+="\t\t" + dimfield + Messages.getString("DimensionLookupMeta.CheckResult.KeyNotPresentInDimensiontable")+ schemaTable+ ")"+ Const.CR;
+                }
+ else {
+                  if (strvalue.getType() != dimvalue.getType()) {
+                    if (first) {
+                      first=false;
+                      error_message+=Messages.getString("DimensionLookupMeta.CheckResult.KeyhasProblem3") + Const.CR;
+                    }
+                    warning_found=true;
+                    error_message+="\t\t" + strfield + " ("+ strvalue.getOrigin()+ Messages.getString("DimensionLookupMeta.CheckResult.KeyNotTheSameTypeAs")+ dimfield+ " ("+ schemaTable+ ")"+ Const.CR;
+                    error_message+=Messages.getString("DimensionLookupMeta.CheckResult.WarningInfoInDBConversion");
+                  }
+                }
+              }
+            }
+            if (error_found) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else             if (warning_found) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,error_message,stepinfo);
+            }
+ else {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DimensionLookupMeta.CheckResult.AllKeysFieldsFound"),stepinfo);
+            }
+            remarks.add(cr);
+            error_found=false;
+            for (i=0; i < fieldLookup.length; i++) {
+              String lufield=fieldLookup[i];
+              if (lufield != null && lufield.length() > 0) {
+                ValueMetaInterface v=tableFields.searchValueMeta(lufield);
+                if (v == null) {
+                  if (first) {
+                    first=false;
+                    error_message+=Messages.getString("DimensionLookupMeta.CheckResult.FieldsToRetrieveNotExistInDimension") + Const.CR;
+                  }
+                  error_found=true;
+                  error_message+="\t\t" + lufield + Const.CR;
+                }
+              }
+            }
+            if (error_found) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DimensionLookupMeta.CheckResult.AllFieldsToRetrieveFound"),stepinfo);
+            }
+            remarks.add(cr);
+            if (tableFields.indexOfValue(keyField) < 0) {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.TechnicalKeyNotFound",keyField) + Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.TechnicalKeyFound",keyField) + Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+            if (tableFields.indexOfValue(versionField) < 0) {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.VersionFieldNotFound",versionField) + Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.VersionFieldFound",versionField) + Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+            if (tableFields.indexOfValue(dateFrom) < 0) {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.StartOfDaterangeFieldNotFound",dateFrom) + Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.StartOfDaterangeFieldFound",dateFrom) + Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+            if (tableFields.indexOfValue(dateTo) < 0) {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.EndOfDaterangeFieldNotFound",dateTo) + Const.CR;
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            }
+ else {
+              error_message=Messages.getString("DimensionLookupMeta.CheckResult.EndOfDaterangeFieldFound",dateTo);
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepinfo);
+            }
+            remarks.add(cr);
+          }
+ else {
+            error_message=Messages.getString("DimensionLookupMeta.CheckResult.CouldNotReadFieldsFromPreviousStep") + Const.CR;
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+            remarks.add(cr);
+          }
+        }
+ else {
+          error_message=Messages.getString("DimensionLookupMeta.CheckResult.CouldNotReadTableInfo");
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("DimensionLookupMeta.CheckResult.CouldNotConnectDB") + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+      remarks.add(cr);
+    }
+  }
+ else {
+    error_message=Messages.getString("DimensionLookupMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+}

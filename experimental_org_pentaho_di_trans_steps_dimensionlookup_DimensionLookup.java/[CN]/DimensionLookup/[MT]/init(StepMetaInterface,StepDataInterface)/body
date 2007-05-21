@@ -1,0 +1,26 @@
+{
+  meta=(DimensionLookupMeta)smi;
+  data=(DimensionLookupData)sdi;
+  if (super.init(smi,sdi)) {
+    data.min_date=meta.getMinDate();
+    data.max_date=meta.getMaxDate();
+    data.db=new Database(meta.getDatabaseMeta());
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      logBasic(Messages.getString("DimensionLookup.Log.ConnectedToDB"));
+      data.db.setCommit(meta.getCommitSize());
+      return true;
+    }
+ catch (    KettleException ke) {
+      logError(Messages.getString("DimensionLookup.Log.ErrorOccurredInProcessing") + ke.getMessage());
+    }
+  }
+  return false;
+}

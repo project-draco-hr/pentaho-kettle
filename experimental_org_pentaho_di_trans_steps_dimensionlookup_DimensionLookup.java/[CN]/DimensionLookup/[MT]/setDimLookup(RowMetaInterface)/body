@@ -1,0 +1,47 @@
+{
+  DatabaseMeta databaseMeta=meta.getDatabaseMeta();
+  data.returnRowMeta=new RowMeta();
+  data.lookupRowMeta=new RowMeta();
+  String sql="SELECT " + databaseMeta.quoteField(meta.getKeyField()) + ", "+ databaseMeta.quoteField(meta.getVersionField());
+  data.returnRowMeta.addValueMeta(new ValueMeta(meta.getKeyField(),ValueMetaInterface.TYPE_INTEGER));
+  data.returnRowMeta.addValueMeta(new ValueMeta(meta.getVersionField(),ValueMetaInterface.TYPE_INTEGER));
+  if (!Const.isEmpty(meta.getFieldLookup())) {
+    for (int i=0; i < meta.getFieldLookup().length; i++) {
+      if (!Const.isEmpty(meta.getFieldLookup()[i])) {
+        sql+=", " + databaseMeta.quoteField(meta.getFieldLookup()[i]);
+        ValueMetaInterface valueMeta=(ValueMetaInterface)rowMeta.getValueMeta(data.fieldnrs[i]).clone();
+        if (!Const.isEmpty(meta.getFieldStream()[i]) && !meta.getFieldLookup()[i].equals(meta.getFieldStream()[i])) {
+          sql+=" AS " + databaseMeta.quoteField(meta.getFieldStream()[i]);
+          valueMeta.setName(meta.getFieldStream()[i]);
+        }
+        data.returnRowMeta.addValueMeta(valueMeta);
+      }
+    }
+  }
+  if (meta.getCacheSize() >= 0) {
+    sql+=", " + databaseMeta.quoteField(meta.getDateFrom()) + ", "+ databaseMeta.quoteField(meta.getDateTo());
+    data.returnRowMeta.addValueMeta(new ValueMeta(meta.getDateFrom(),ValueMetaInterface.TYPE_DATE));
+    data.returnRowMeta.addValueMeta(new ValueMeta(meta.getDateTo(),ValueMetaInterface.TYPE_DATE));
+  }
+  sql+=" FROM " + data.schemaTable + " WHERE ";
+  for (int i=0; i < meta.getKeyLookup().length; i++) {
+    if (i != 0)     sql+=" AND ";
+    sql+=databaseMeta.quoteField(meta.getKeyLookup()[i]) + " = ? ";
+    data.lookupRowMeta.addValueMeta(rowMeta.getValueMeta(data.keynrs[i]));
+  }
+  sql+=" AND ? >= " + databaseMeta.quoteField(meta.getDateField()) + " AND ? < "+ databaseMeta.quoteField(meta.getDateTo());
+  try {
+    log.logDetailed(toString(),"Dimension Lookup setting preparedStatement to [" + sql + "]");
+    data.prepStatementLookup=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql));
+    if (databaseMeta.supportsSetMaxRows()) {
+      data.prepStatementLookup.setMaxRows(1);
+    }
+    if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL) {
+      data.prepStatementLookup.setFetchSize(0);
+    }
+    log.logDetailed(toString(),"Finished preparing dimension lookup statement.");
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Unable to prepare dimension lookup",ex);
+  }
+}

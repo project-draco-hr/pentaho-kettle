@@ -1,0 +1,28 @@
+{
+  if (data.prepStatementDimensionUpdate == null) {
+    data.dimensionUpdateRowMeta=new RowMeta();
+    String sql="UPDATE " + data.schemaTable + Const.CR+ "SET ";
+    for (int i=0; i < meta.getFieldLookup().length; i++) {
+      if (i > 0)       sql+=", ";
+ else       sql+="  ";
+      sql+=meta.getDatabaseMeta().quoteField(meta.getFieldLookup()[i]) + " = ?" + Const.CR;
+      data.dimensionUpdateRowMeta.addValueMeta(rowMeta.getValueMeta(data.keynrs[i]));
+    }
+    sql+="WHERE  " + meta.getDatabaseMeta().quoteField(meta.getKeyField()) + " = ?";
+    data.dimensionUpdateRowMeta.addValueMeta(new ValueMeta(meta.getKeyField(),ValueMetaInterface.TYPE_INTEGER));
+    try {
+      if (log.isDebug())       log.logDebug(toString(),"Preparing statement: [" + sql + "]");
+      data.prepStatementDimensionUpdate=data.db.getConnection().prepareStatement(meta.getDatabaseMeta().stripCR(sql));
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Couldn't prepare statement :" + Const.CR + sql,ex);
+    }
+  }
+  Object[] dimensionUpdateRow=new Object[data.dimensionUpdateRowMeta.size()];
+  for (int i=0; i < data.fieldnrs.length; i++) {
+    dimensionUpdateRow[i]=row[data.fieldnrs[i]];
+  }
+  dimensionUpdateRow[data.fieldnrs.length]=dimkey;
+  data.db.setValues(data.dimensionUpdateRowMeta,dimensionUpdateRow,data.prepStatementDimensionUpdate);
+  data.db.insertRow(data.prepStatementDimensionUpdate);
+}

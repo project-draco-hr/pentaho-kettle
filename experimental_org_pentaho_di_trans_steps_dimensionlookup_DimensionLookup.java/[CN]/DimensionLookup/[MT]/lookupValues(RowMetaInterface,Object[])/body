@@ -1,0 +1,166 @@
+{
+  Object[] outputRow=new Object[data.outputRowMeta.size()];
+  Object[] lookupRow=new Object[data.lookupRowMeta.size()];
+  Object[] returnRow=null;
+  Long technicalKey;
+  Long valueVersion;
+  Date valueDate=null;
+  Date valueDateFrom=null;
+  Date valueDateTo=null;
+  if (data.valueDateNow == null && meta.getDateField() != null && data.datefieldnr >= 0) {
+    data.valueDateNow=rowMeta.getDate(row,data.datefieldnr);
+  }
+  for (int i=0; i < meta.getKeyStream().length; i++) {
+    try {
+      lookupRow[i]=row[data.keynrs[i]];
+    }
+ catch (    Exception e) {
+      throw new KettleStepException(Messages.getString("DimensionLookup.Exception.ErrorDetectedInGettingKey",i + "",data.keynrs[i] + "/" + rowMeta.size(),row.toString()));
+    }
+  }
+  if (data.datefieldnr >= 0)   valueDate=rowMeta.getDate(row,data.datefieldnr);
+ else   valueDate=data.valueDateNow;
+  lookupRow[meta.getKeyStream().length]=valueDate;
+  if (log.isDebug())   logDebug(Messages.getString("DimensionLookup.Log.LookupRow") + data.lookupRowMeta.getString(lookupRow));
+  if (meta.getCacheSize() >= 0) {
+    returnRow=getFromCache(lookupRow,valueDate);
+  }
+  if (returnRow == null) {
+    data.db.setValues(data.lookupRowMeta,lookupRow);
+    returnRow=data.db.getLookup();
+    linesInput++;
+    if (returnRow != null && meta.getCacheSize() >= 0) {
+      addToCache(lookupRow,returnRow);
+    }
+  }
+  if (!meta.isUpdate()) {
+    if (returnRow == null) {
+      returnRow=new Object[data.returnRowMeta.size()];
+      returnRow[0]=data.notFoundTk;
+      if (meta.getCacheSize() >= 0) {
+        returnRow[returnRow.length - 2]=data.min_date;
+        returnRow[returnRow.length - 1]=data.max_date;
+      }
+    }
+ else {
+    }
+  }
+ else {
+    if (returnRow == null) {
+      if (log.isRowLevel())       logRowlevel(Messages.getString("DimensionLookup.Log.NoDimensionEntryFound") + data.lookupRowMeta.getString(lookupRow) + ")");
+      valueDateFrom=data.min_date;
+      valueDateTo=data.max_date;
+      valueVersion=new Long(1L);
+      technicalKey=null;
+switch (getTechKeyCreation()) {
+case CREATION_METHOD_TABLEMAX:
+        technicalKey=new Long(0L);
+      data.db.getNextValue(getTransMeta().getCounters(),meta.getSchemaName(),meta.getTableName(),meta.getKeyField());
+    break;
+case CREATION_METHOD_AUTOINC:
+  technicalKey=new Long(0L);
+break;
+case CREATION_METHOD_SEQUENCE:
+technicalKey=data.db.getNextSequenceValue(meta.getSchemaName(),meta.getSequenceName(),meta.getKeyField());
+if (technicalKey != null && log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.FoundNextSequence") + technicalKey.toString());
+break;
+}
+technicalKey=dimInsert(getInputRowMeta(),row,technicalKey,true,valueVersion,valueDateFrom,valueDateTo);
+linesOutput++;
+returnRow=new Object[data.returnRowMeta.size()];
+int returnIndex=0;
+returnRow[returnIndex]=technicalKey;
+returnIndex++;
+if (meta.getCacheSize() >= 0) {
+Object[] values=getCacheValues(rowMeta,row,technicalKey,valueVersion,valueDateFrom,valueDateTo);
+addToCache(lookupRow,values);
+}
+if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.AddedDimensionEntry") + data.returnRowMeta.getString(returnRow));
+}
+ else {
+if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.DimensionEntryFound") + data.returnRowMeta.getString(returnRow));
+technicalKey=data.returnRowMeta.getInteger(returnRow,0);
+valueVersion=data.returnRowMeta.getInteger(returnRow,1);
+valueDateFrom=meta.getMinDate();
+valueDateTo=meta.getMaxDate();
+int cmp;
+boolean insert=false;
+boolean identical=true;
+boolean punch=false;
+for (int i=0; i < meta.getFieldStream().length; i++) {
+ValueMetaInterface v1=rowMeta.getValueMeta(data.fieldnrs[i]);
+Object valueData1=row[data.fieldnrs[i]];
+ValueMetaInterface v2=data.returnRowMeta.getValueMeta(i + 2);
+Object valueData2=returnRow[i + 2];
+cmp=v1.compare(valueData1,v2,valueData2);
+if (cmp != 0) identical=false;
+if (cmp != 0 && meta.getFieldUpdate()[i] == DimensionLookupMeta.TYPE_UPDATE_DIM_INSERT) {
+insert=true;
+}
+if (cmp != 0 && meta.getFieldUpdate()[i] == DimensionLookupMeta.TYPE_UPDATE_DIM_PUNCHTHROUGH) {
+punch=true;
+}
+logRowlevel(Messages.getString("DimensionLookup.Log.ComparingValues","" + v1,"" + v2,String.valueOf(cmp),String.valueOf(identical),String.valueOf(insert),String.valueOf(punch)));
+}
+if (!insert) {
+if (!identical) {
+if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.UpdateRowWithValues") + row);
+dimUpdate(rowMeta,row,technicalKey);
+linesUpdated++;
+if (meta.getCacheSize() >= 0) {
+Object[] values=getCacheValues(rowMeta,row,technicalKey,valueVersion,valueDateFrom,valueDateTo);
+addToCache(lookupRow,values);
+}
+}
+ else {
+if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.SkipLine"));
+linesSkipped++;
+}
+}
+ else {
+if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.InsertNewVersion") + technicalKey.toString());
+valueDateFrom=data.valueDateNow;
+valueDateTo=data.max_date;
+if (meta.getDatabaseMeta().supportsAutoinc() && isAutoIncrement()) {
+technicalKey=new Long(0L);
+}
+ else if (meta.getDatabaseMeta().supportsSequences() && meta.getSequenceName() != null && meta.getSequenceName().length() > 0) {
+technicalKey=data.db.getNextSequenceValue(meta.getSchemaName(),meta.getSequenceName(),meta.getKeyField());
+if (technicalKey != null && log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.FoundNextSequence2") + technicalKey.toString());
+}
+ else {
+technicalKey=data.db.getNextValue(getTransMeta().getCounters(),meta.getSchemaName(),meta.getTableName(),meta.getKeyField());
+}
+dimInsert(rowMeta,row,technicalKey,false,valueVersion,valueDateFrom,valueDateTo);
+linesOutput++;
+if (meta.getCacheSize() >= 0) {
+Object[] values=getCacheValues(rowMeta,row,technicalKey,valueVersion,valueDateFrom,valueDateTo);
+addToCache(lookupRow,values);
+}
+}
+if (punch) {
+dimPunchThrough(rowMeta,row);
+linesUpdated++;
+}
+returnRow=new Object[data.returnRowMeta.size()];
+returnRow[0]=technicalKey;
+if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.TechnicalKey") + technicalKey);
+}
+}
+if (log.isRowLevel()) logRowlevel(Messages.getString("DimensionLookup.Log.AddValuesToRow") + data.returnRowMeta.getString(returnRow));
+for (int i=0; i < rowMeta.size(); i++) outputRow[i]=row[i];
+int outputIndex=rowMeta.size();
+int inputIndex=0;
+outputRow[outputIndex]=returnRow[inputIndex];
+outputIndex++;
+inputIndex++;
+if (meta.getCacheSize() >= 0 && !meta.isUpdate()) {
+inputIndex+=2;
+}
+while (inputIndex < returnRow.length) {
+outputRow[outputIndex]=returnRow[inputIndex];
+outputIndex++;
+inputIndex++;
+}
+return outputRow;
+}

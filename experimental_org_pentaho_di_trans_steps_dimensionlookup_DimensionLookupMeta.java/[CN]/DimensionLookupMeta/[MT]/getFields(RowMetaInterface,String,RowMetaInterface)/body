@@ -1,0 +1,41 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  ValueMetaInterface v=new ValueMeta(keyField,ValueMetaInterface.TYPE_INTEGER);
+  if (keyRename != null && keyRename.length() > 0)   v.setName(keyRename);
+  v.setLength(9);
+  v.setPrecision(0);
+  v.setOrigin(name);
+  row.addValueMeta(v);
+  if (!update && fieldLookup.length > 0) {
+    try {
+      if (databaseMeta != null) {
+        Database db=new Database(databaseMeta);
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+        RowMetaInterface extraFields=db.getTableFields(schemaTable);
+        for (int i=0; i < fieldLookup.length; i++) {
+          v=extraFields.searchValueMeta(fieldLookup[i]);
+          if (v == null) {
+            String message=Messages.getString("DimensionLookupMeta.Exception.UnableToFindReturnField",fieldLookup[i]);
+            log.logError(toString(),message);
+            throw new KettleStepException(message);
+          }
+          if (fieldStream[i] != null && fieldStream[i].length() > 0) {
+            v.setName(fieldStream[i]);
+          }
+          v.setOrigin(name);
+          row.addValueMeta(v);
+        }
+      }
+ else {
+        String message=Messages.getString("DimensionLookupMeta.Exception.UnableToRetrieveDataTypeOfReturnField");
+        log.logError(toString(),message);
+        throw new KettleStepException(message);
+      }
+    }
+ catch (    Exception e) {
+      String message=Messages.getString("DimensionLookupMeta.Exception.UnableToRetrieveDataTypeOfReturnField2");
+      log.logError(toString(),message);
+      throw new KettleStepException(message,e);
+    }
+  }
+}

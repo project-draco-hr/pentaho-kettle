@@ -1,0 +1,43 @@
+{
+  if (data.prepStatementPunchThrough == null) {
+    data.punchThroughRowMeta=new RowMeta();
+    String sql_upd="UPDATE " + data.schemaTable + Const.CR;
+    sql_upd+="SET ";
+    boolean first=true;
+    for (int i=0; i < meta.getFieldLookup().length; i++) {
+      if (meta.getFieldUpdate()[i] == DimensionLookupMeta.TYPE_UPDATE_DIM_PUNCHTHROUGH) {
+        if (!first)         sql_upd+=", ";
+ else         sql_upd+="  ";
+        first=false;
+        sql_upd+=meta.getFieldLookup()[i] + " = ?" + Const.CR;
+        data.punchThroughRowMeta.addValueMeta(rowMeta.getValueMeta(data.fieldnrs[i]));
+      }
+    }
+    sql_upd+="WHERE ";
+    for (int i=0; i < meta.getKeyLookup().length; i++) {
+      if (i > 0)       sql_upd+="AND   ";
+      sql_upd+=meta.getKeyLookup()[i] + " = ?" + Const.CR;
+      data.punchThroughRowMeta.addValueMeta(rowMeta.getValueMeta(data.keynrs[i]));
+    }
+    try {
+      data.prepStatementPunchThrough=data.db.getConnection().prepareStatement(meta.getDatabaseMeta().stripCR(sql_upd));
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Unable to prepare dimension punchThrough update statement : " + Const.CR + sql_upd,ex);
+    }
+  }
+  Object[] punchThroughRow=new Object[data.punchThroughRowMeta.size()];
+  int punchIndex=0;
+  for (int i=0; i < meta.getFieldLookup().length; i++) {
+    if (meta.getFieldUpdate()[i] == DimensionLookupMeta.TYPE_UPDATE_DIM_PUNCHTHROUGH) {
+      punchThroughRow[punchIndex]=row[data.fieldnrs[i]];
+      punchIndex++;
+    }
+  }
+  for (int i=0; i < data.keynrs.length; i++) {
+    punchThroughRow[punchIndex]=row[data.keynrs[i]];
+    punchIndex++;
+  }
+  data.db.setValues(data.punchThroughRowMeta,punchThroughRow,data.prepStatementPunchThrough);
+  data.db.insertRow(data.prepStatementPunchThrough);
+}

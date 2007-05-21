@@ -1,0 +1,108 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  SQLStatement retval=new SQLStatement(stepMeta.getName(),databaseMeta,null);
+  if (update) {
+    log.logDebug(toString(),Messages.getString("DimensionLookupMeta.Log.Update"));
+    if (databaseMeta != null) {
+      if (prev != null && prev.size() > 0) {
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+        if (!Const.isEmpty(schemaTable)) {
+          Database db=new Database(databaseMeta);
+          try {
+            db.connect();
+            String sql="";
+            RowMetaInterface fields=new RowMeta();
+            ValueMetaInterface vkeyfield=new ValueMeta(keyField,ValueMetaInterface.TYPE_INTEGER);
+            vkeyfield.setLength(10);
+            fields.addValueMeta(vkeyfield);
+            ValueMetaInterface vversion=new ValueMeta(versionField,ValueMetaInterface.TYPE_INTEGER);
+            vversion.setLength(5);
+            fields.addValueMeta(vversion);
+            ValueMetaInterface vdatefrom=new ValueMeta(dateFrom,ValueMetaInterface.TYPE_DATE);
+            fields.addValueMeta(vdatefrom);
+            ValueMetaInterface vdateto=new ValueMeta(dateTo,ValueMetaInterface.TYPE_DATE);
+            fields.addValueMeta(vdateto);
+            String errors="";
+            for (int i=0; i < keyLookup.length; i++) {
+              ValueMetaInterface vprev=prev.searchValueMeta(keyStream[i]);
+              if (vprev != null) {
+                ValueMetaInterface field=(ValueMetaInterface)vprev.clone();
+                field.setName(keyLookup[i]);
+                fields.addValueMeta(field);
+              }
+ else {
+                if (errors.length() > 0)                 errors+=", ";
+                errors+=keyStream[i];
+              }
+            }
+            for (int i=0; i < fieldLookup.length; i++) {
+              ValueMetaInterface vprev=prev.searchValueMeta(fieldStream[i]);
+              if (vprev != null) {
+                ValueMetaInterface field=(ValueMetaInterface)vprev.clone();
+                field.setName(fieldLookup[i]);
+                fields.addValueMeta(field);
+              }
+ else {
+                if (errors.length() > 0)                 errors+=", ";
+                errors+=fieldStream[i];
+              }
+            }
+            if (errors.length() > 0) {
+              retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.UnableToFindFields") + errors);
+            }
+            log.logDebug(toString(),Messages.getString("DimensionLookupMeta.Log.GetDDLForTable") + schemaTable + "] : "+ fields.toStringMeta());
+            sql+=db.getDDL(schemaTable,fields,(sequenceName != null && sequenceName.length() != 0) ? null : keyField,autoIncrement,null,true);
+            log.logDebug(toString(),"sql =" + sql);
+            String idx_fields[]=null;
+            if (!Const.isEmpty(keyLookup)) {
+              idx_fields=new String[keyLookup.length];
+              for (int i=0; i < keyLookup.length; i++) {
+                idx_fields[i]=keyLookup[i];
+              }
+            }
+ else {
+              retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.NoKeyFieldsSpecified"));
+            }
+            if (!Const.isEmpty(idx_fields) && !db.checkIndexExists(schemaName,tableName,idx_fields)) {
+              String indexname="idx_" + tableName + "_lookup";
+              sql+=db.getCreateIndexStatement(schemaName,tableName,indexname,idx_fields,false,false,false,true);
+            }
+            idx_fields=new String[]{keyField};
+            if (!Const.isEmpty(keyField)) {
+              if (!db.checkIndexExists(schemaName,tableName,idx_fields)) {
+                String indexname="idx_" + tableName + "_tk";
+                sql+=db.getCreateIndexStatement(schemaName,tableName,indexname,idx_fields,true,false,true,true);
+              }
+            }
+ else {
+              retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.TechnicalKeyFieldRequired"));
+            }
+            if (CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && !Const.isEmpty(sequenceName)) {
+              if (!db.checkSequenceExists(schemaName,sequenceName)) {
+                sql+=db.getCreateSequenceStatement(schemaName,sequenceName,1L,1L,-1L,true);
+              }
+            }
+            if (sql.length() == 0)             retval.setSQL(null);
+ else             retval.setSQL(sql);
+          }
+ catch (          KettleDatabaseException dbe) {
+            retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.ErrorOccurred") + dbe.getMessage());
+          }
+ finally {
+            db.disconnect();
+          }
+        }
+ else {
+          retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.NoTableDefinedOnConnection"));
+        }
+      }
+ else {
+        retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.NotReceivingAnyFields"));
+      }
+    }
+ else {
+      retval.setError(Messages.getString("DimensionLookupMeta.ReturnValue.NoConnectionDefiendInStep"));
+    }
+  }
+  return retval;
+}

@@ -1,0 +1,75 @@
+{
+  meta=(DimensionLookupMeta)smi;
+  data=(DimensionLookupData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.schemaTable=meta.getDatabaseMeta().getQuotedSchemaTableCombination(meta.getSchemaName(),meta.getTableName());
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    determineTechKeyCreation();
+    if (getCopy() == 0)     checkDimZero();
+    setDimLookup(getInputRowMeta());
+    data.keynrs=new int[meta.getKeyStream().length];
+    for (int i=0; i < meta.getKeyStream().length; i++) {
+      data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getKeyStream()[i]);
+      if (data.keynrs[i] < 0) {
+        throw new KettleStepException(Messages.getString("DimensionLookup.Exception.KeyFieldNotFound",meta.getKeyStream()[i]));
+      }
+    }
+    if (meta.isUpdate()) {
+      data.fieldnrs=new int[meta.getFieldStream().length];
+      for (int i=0; meta.getFieldStream() != null && i < meta.getFieldStream().length; i++) {
+        data.fieldnrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
+      }
+    }
+    if (meta.getDateField() != null && meta.getDateField().length() > 0) {
+      data.datefieldnr=getInputRowMeta().indexOfValue(meta.getDateField());
+    }
+ else {
+      data.datefieldnr=-1;
+    }
+    data.notFoundTk=new Long((long)meta.getDatabaseMeta().getNotFoundTK(isAutoIncrement()));
+    if (meta.getDateField() != null && data.datefieldnr >= 0) {
+      data.valueDateNow=getInputRowMeta().getDate(r,data.datefieldnr);
+    }
+ else {
+      data.valueDateNow=new Date(System.currentTimeMillis());
+    }
+    if (meta.getCacheSize() >= 0) {
+      data.cacheKeyRowMeta=new RowMeta();
+      for (int i=0; i < data.keynrs.length; i++) {
+        ValueMetaInterface key=getInputRowMeta().getValueMeta(data.keynrs[i]);
+        data.cacheKeyRowMeta.addValueMeta((ValueMetaInterface)key.clone());
+      }
+      data.cache=new ByteArrayHashIndex(meta.getCacheSize() > 0 ? meta.getCacheSize() : 5000,data.cacheKeyRowMeta);
+      data.cacheValueRowMeta=new RowMeta();
+      data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getKeyField(),ValueMetaInterface.TYPE_INTEGER));
+      data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getVersionField(),ValueMetaInterface.TYPE_INTEGER));
+      for (int i=0; i < data.fieldnrs.length; i++) {
+        ValueMetaInterface v=getInputRowMeta().getValueMeta(data.fieldnrs[i]);
+        data.cacheValueRowMeta.addValueMeta(v);
+      }
+      data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getDateFrom(),ValueMetaInterface.TYPE_DATE));
+      data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getDateTo(),ValueMetaInterface.TYPE_DATE));
+    }
+  }
+  try {
+    Object[] outputRow=lookupValues(getInputRowMeta(),r);
+    putRow(data.outputRowMeta,outputRow);
+    if (checkFeedback(linesRead))     logBasic(Messages.getString("DimensionLookup.Log.LineNumber") + linesRead);
+  }
+ catch (  KettleException e) {
+    logError(Messages.getString("DimensionLookup.Log.StepCanNotContinueForErrors",e.getMessage()));
+    logError(Const.getStackTracker(e));
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  return true;
+}
