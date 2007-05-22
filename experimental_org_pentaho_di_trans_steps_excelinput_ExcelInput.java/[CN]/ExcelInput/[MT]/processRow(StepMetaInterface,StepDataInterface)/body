@@ -1,0 +1,62 @@
+{
+  meta=(ExcelInputMeta)smi;
+  data=(ExcelInputData)sdi;
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    if (meta.isAcceptingFilenames()) {
+      data.files.getFiles().clear();
+      int idx=-1;
+      RowMetaAndData fileRow=getRowFrom(meta.getAcceptingStepName());
+      while (fileRow != null) {
+        if (idx < 0) {
+          idx=fileRow.getRowMeta().indexOfValue(meta.getAcceptingField());
+          if (idx < 0) {
+            logError("The filename field [" + meta.getAcceptingField() + "] could not be found in the input rows.");
+            setErrors(1);
+            stopAll();
+            return false;
+          }
+        }
+        String fileValue=fileRow.getRowMeta().getString(fileRow.getData(),idx);
+        try {
+          data.files.addFile(KettleVFS.getFileObject(fileValue));
+        }
+ catch (        IOException e) {
+          throw new KettleException("Unexpected error creating file object for " + fileValue,e);
+        }
+        fileRow=getRowFrom(meta.getAcceptingStepName());
+      }
+    }
+    handleMissingFiles();
+  }
+  if (data.filenr >= data.files.nrOfFiles()) {
+    if (log.isDetailed())     logDetailed("No more files to be processes! (" + data.filenr + " files done)");
+    setOutputDone();
+    return false;
+  }
+  if (meta.getRowLimit() > 0 && data.rownr > meta.getRowLimit()) {
+    if (log.isDetailed())     logDetailed("Row limit of [" + meta.getRowLimit() + "] reached: stop processing.");
+    setOutputDone();
+    return false;
+  }
+  Object[] r=getRowFromWorkbooks();
+  if (r != null) {
+    if (data.previousRow != null) {
+      for (int i=0; i < meta.getField().length; i++) {
+        ValueMetaInterface valueMeta=data.outputRowMeta.getValueMeta(i);
+        Object valueData=r[i];
+        if (valueMeta.isNull(valueData) && meta.getField()[i].isRepeated()) {
+          r[i]=data.previousRow[i];
+        }
+      }
+    }
+    data.previousRow=data.outputRowMeta.cloneRow(r);
+    putRow(data.outputRowMeta,r);
+    return true;
+  }
+ else {
+    return true;
+  }
+}

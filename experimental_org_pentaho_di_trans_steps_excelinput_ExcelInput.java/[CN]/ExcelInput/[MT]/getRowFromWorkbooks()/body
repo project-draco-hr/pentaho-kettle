@@ -1,0 +1,76 @@
+{
+  Object[] retval=null;
+  try {
+    if (data.workbook == null) {
+      data.file=data.files.getFile(data.filenr);
+      data.filename=KettleVFS.getFilename(data.file);
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),toString());
+      resultFile.setComment("File was read by an Excel input step");
+      addResultFile(resultFile);
+      if (log.isDetailed())       logDetailed("Opening workbook #" + data.filenr + " : "+ data.filename);
+      WorkbookSettings ws=new WorkbookSettings();
+      if (!Const.isEmpty(meta.getEncoding())) {
+        ws.setEncoding(meta.getEncoding());
+      }
+      data.workbook=Workbook.getWorkbook(data.file.getContent().getInputStream(),ws);
+      data.errorHandler.handleFile(data.file);
+      data.sheetnr=0;
+    }
+    boolean nextsheet=false;
+    if (log.isDebug())     logDetailed("Get sheet #" + data.filenr + "."+ data.sheetnr);
+    String sheetName=meta.getSheetName()[data.sheetnr];
+    Sheet sheet=data.workbook.getSheet(sheetName);
+    if (sheet != null) {
+      if (data.rownr < 0) {
+        data.rownr=meta.getStartRow()[data.sheetnr];
+        if (meta.startsWithHeader()) {
+          data.rownr++;
+        }
+      }
+      data.colnr=meta.getStartColumn()[data.sheetnr];
+      try {
+        Cell line[]=sheet.getRow(data.rownr);
+        int lineNr=++data.rownr;
+        if (!data.filePlayList.isProcessingNeeded(data.file,lineNr,sheetName)) {
+          retval=null;
+        }
+ else {
+          if (log.isRowLevel())           logRowlevel("Get line #" + lineNr + " from sheet #"+ data.filenr+ "."+ data.sheetnr);
+          if (log.isRowLevel())           logRowlevel("Read line with " + line.length + " cells");
+          ExcelInputRow excelInputRow=new ExcelInputRow(sheet.getName(),lineNr,line);
+          Object[] r=fillRow(data.colnr,excelInputRow);
+          if (log.isRowLevel())           logRowlevel("Converted line to row #" + lineNr + " : "+ data.outputRowMeta.getString(r));
+          boolean isEmpty=isLineEmpty(line);
+          if (!isEmpty || !meta.ignoreEmptyRows()) {
+            retval=r;
+          }
+          if (isEmpty && meta.stopOnEmpty()) {
+            nextsheet=true;
+          }
+        }
+      }
+ catch (      ArrayIndexOutOfBoundsException e) {
+        if (log.isRowLevel())         logRowlevel("Out of index error: move to next sheet!");
+        nextsheet=true;
+      }
+    }
+ else {
+      nextsheet=true;
+    }
+    if (nextsheet) {
+      data.sheetnr++;
+      data.rownr=-1;
+      data.previousRow=null;
+      if (data.sheetnr >= meta.getSheetName().length) {
+        jumpToNextFile();
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError("Error processing row from Excel file [" + data.filename + "] : "+ e.toString());
+    setErrors(1);
+    stopAll();
+    return null;
+  }
+  return retval;
+}

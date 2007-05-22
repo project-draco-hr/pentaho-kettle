@@ -1,0 +1,128 @@
+{
+  Object[] r=new Object[data.outputRowMeta.size()];
+  boolean errorHandled=false;
+  for (int i=startcolumn; i < excelInputRow.cells.length && i - startcolumn < r.length; i++) {
+    Cell cell=excelInputRow.cells[i];
+    int rowcolumn=i - startcolumn;
+    ValueMetaInterface targetMeta=data.outputRowMeta.getValueMeta(rowcolumn);
+    ValueMetaInterface sourceMeta=null;
+    try {
+      checkType(cell,targetMeta);
+    }
+ catch (    KettleException ex) {
+      if (!meta.isErrorIgnored())       throw ex;
+      logBasic("Warning processing [" + targetMeta + "] from Excel file ["+ data.filename+ "] : "+ ex.getMessage());
+      if (!errorHandled) {
+        data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
+        errorHandled=true;
+      }
+      if (meta.isErrorLineSkipped()) {
+        return null;
+      }
+    }
+    CellType cellType=cell.getType();
+    if (CellType.BOOLEAN.equals(cellType) || CellType.BOOLEAN_FORMULA.equals(cellType)) {
+      r[rowcolumn]=new Boolean(((BooleanCell)cell).getValue());
+      sourceMeta=data.valueMetaBoolean;
+    }
+ else {
+      if (CellType.DATE.equals(cellType) || CellType.DATE_FORMULA.equals(cellType)) {
+        Date date=((DateCell)cell).getDate();
+        long time=date.getTime();
+        int offset=TimeZone.getDefault().getOffset(time);
+        r[rowcolumn]=new Date(time - offset);
+        sourceMeta=data.valueMetaDate;
+      }
+ else {
+        if (CellType.LABEL.equals(cellType) || CellType.STRING_FORMULA.equals(cellType)) {
+          String string=((LabelCell)cell).getString();
+switch (meta.getField()[rowcolumn].getTrimType()) {
+case ExcelInputMeta.TYPE_TRIM_LEFT:
+            string=ValueDataUtil.leftTrim(string);
+          break;
+case ExcelInputMeta.TYPE_TRIM_RIGHT:
+        string=ValueDataUtil.rightTrim(string);
+      break;
+case ExcelInputMeta.TYPE_TRIM_BOTH:
+    string=ValueDataUtil.trim(string);
+  break;
+default :
+break;
+}
+r[rowcolumn]=string;
+sourceMeta=data.valueMetaString;
+}
+ else {
+if (CellType.NUMBER.equals(cellType) || CellType.NUMBER_FORMULA.equals(cellType)) {
+r[rowcolumn]=new Double(((NumberCell)cell).getValue());
+sourceMeta=data.valueMetaNumber;
+}
+ else {
+if (log.isDetailed()) logDetailed("Unknown type : " + cell.getType().toString() + " : ["+ cell.getContents()+ "]");
+r[rowcolumn]=null;
+}
+}
+}
+}
+ExcelInputField field=meta.getField()[rowcolumn];
+try {
+if (sourceMeta != null && sourceMeta.getType() != targetMeta.getType() && r[rowcolumn] != null) {
+ValueMetaInterface sourceMetaCopy=(ValueMetaInterface)sourceMeta.clone();
+sourceMetaCopy.setConversionMask(field.getFormat());
+sourceMetaCopy.setGroupingSymbol(field.getGroupSymbol());
+sourceMetaCopy.setDecimalSymbol(field.getDecimalSymbol());
+sourceMetaCopy.setCurrencySymbol(field.getCurrencySymbol());
+switch (targetMeta.getType()) {
+case ValueMetaInterface.TYPE_NUMBER:
+case ValueMetaInterface.TYPE_INTEGER:
+switch (field.getType()) {
+case ValueMetaInterface.TYPE_DATE:
+ValueMetaInterface valueMetaNumber=new ValueMeta("num",ValueMetaInterface.TYPE_NUMBER);
+valueMetaNumber.setConversionMask("#");
+Object string=sourceMetaCopy.convertData(valueMetaNumber,r[rowcolumn]);
+r[rowcolumn]=targetMeta.convertData(sourceMetaCopy,string);
+break;
+default :
+r[rowcolumn]=targetMeta.convertData(sourceMeta,r[rowcolumn]);
+break;
+}
+break;
+default :
+r[rowcolumn]=targetMeta.convertData(sourceMeta,r[rowcolumn]);
+}
+}
+}
+ catch (KettleException ex) {
+if (!meta.isErrorIgnored()) throw ex;
+logBasic("Warning processing [" + targetMeta + "] from Excel file ["+ data.filename+ "] : "+ ex.toString());
+if (!errorHandled) {
+data.errorHandler.handleLineError(excelInputRow.rownr,excelInputRow.sheetName);
+errorHandled=true;
+}
+if (meta.isErrorLineSkipped()) {
+return null;
+}
+ else {
+r[rowcolumn]=null;
+}
+}
+}
+int rowIndex=meta.getField().length;
+if (!Const.isEmpty(meta.getFileField())) {
+r[rowIndex]=data.filename;
+rowIndex++;
+}
+if (!Const.isEmpty(meta.getSheetField())) {
+r[rowIndex]=excelInputRow.sheetName;
+rowIndex++;
+}
+if (!Const.isEmpty(meta.getSheetRowNumberField())) {
+r[rowIndex]=new Long(data.rownr);
+rowIndex++;
+}
+if (!Const.isEmpty(meta.getRowNumberField())) {
+r[rowIndex]=new Long(linesWritten + 1);
+rowIndex++;
+}
+return r;
+}
