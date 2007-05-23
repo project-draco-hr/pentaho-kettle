@@ -1,0 +1,127 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    try {
+      db.connect();
+      if (!Const.isEmpty(tablename)) {
+        boolean first=true;
+        boolean error_found=false;
+        error_message="";
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tablename);
+        RowMetaInterface r=db.getTableFields(schemaTable);
+        if (r != null) {
+          for (int i=0; i < keyLookup.length; i++) {
+            String lufield=keyLookup[i];
+            ValueMetaInterface v=r.searchValueMeta(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("CombinationLookupMeta.CheckResult.MissingCompareFields") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("CombinationLookupMeta.CheckResult.AllFieldsFound"),stepMeta);
+          }
+          remarks.add(cr);
+          if (r.indexOfValue(technicalKeyField) < 0) {
+            error_message=Messages.getString("CombinationLookupMeta.CheckResult.TechnicalKeyNotFound",technicalKeyField) + Const.CR;
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            error_message=Messages.getString("CombinationLookupMeta.CheckResult.TechnicalKeyFound",technicalKeyField) + Const.CR;
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepMeta);
+          }
+          remarks.add(cr);
+        }
+ else {
+          error_message=Messages.getString("CombinationLookupMeta.CheckResult.CouldNotReadTableInfo");
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < keyField.length; i++) {
+          ValueMetaInterface v=prev.searchValueMeta(keyField[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("CombinationLookupMeta.CheckResult.MissingFields") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + keyField[i] + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("CombinationLookupMeta.CheckResult.AllFieldsFoundInInputStream"),stepMeta);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message=Messages.getString("CombinationLookupMeta.CheckResult.CouldNotReadFields") + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        remarks.add(cr);
+      }
+      if (databaseMeta.supportsSequences() && CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation())) {
+        if (Const.isEmpty(sequenceFrom)) {
+          error_message+=Messages.getString("CombinationLookupMeta.CheckResult.ErrorNoSequenceName") + "!";
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+ else {
+          if (db.checkSequenceExists(sequenceFrom)) {
+            error_message=Messages.getString("CombinationLookupMeta.CheckResult.ReadingSequenceOK",sequenceFrom);
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,error_message,stepMeta);
+            remarks.add(cr);
+          }
+ else {
+            error_message+=Messages.getString("CombinationLookupMeta.CheckResult.ErrorReadingSequence") + sequenceFrom + "!";
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+            remarks.add(cr);
+          }
+        }
+      }
+      if (techKeyCreation != null) {
+        if (!(CREATION_METHOD_AUTOINC.equals(techKeyCreation) || CREATION_METHOD_SEQUENCE.equals(techKeyCreation) || CREATION_METHOD_TABLEMAX.equals(techKeyCreation))) {
+          error_message+=Messages.getString("CombinationLookupMeta.CheckResult.ErrorTechKeyCreation") + ": " + techKeyCreation+ "!";
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("CombinationLookupMeta.CheckResult.ErrorOccurred") + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message=Messages.getString("CombinationLookupMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("CombinationLookupMeta.CheckResult.ReceivingInfoFromOtherSteps"),stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("CombinationLookupMeta.CheckResult.NoInputReceived"),stepMeta);
+    remarks.add(cr);
+  }
+}

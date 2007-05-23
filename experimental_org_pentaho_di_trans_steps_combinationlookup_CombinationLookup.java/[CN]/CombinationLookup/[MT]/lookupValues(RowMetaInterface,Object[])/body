@@ -1,0 +1,69 @@
+{
+  Long val_key=null;
+  Long val_hash=null;
+  Object[] hashRow=null;
+  Object[] lookupRow=new Object[data.lookupRowMeta.size()];
+  int lookupIndex=0;
+  if (meta.useHash() || meta.getCacheSize() >= 0) {
+    hashRow=new Object[data.hashRowMeta.size()];
+    for (int i=0; i < meta.getKeyField().length; i++) {
+      hashRow[i]=row[data.keynrs[i]];
+    }
+    val_hash=new Long(data.hashRowMeta.hashCode(hashRow));
+    if (meta.useHash()) {
+      lookupRow[lookupIndex]=val_hash;
+      lookupIndex++;
+    }
+  }
+  for (int i=0; i < meta.getKeyField().length; i++) {
+    lookupRow[lookupIndex]=row[data.keynrs[i]];
+    lookupIndex++;
+    lookupRow[lookupIndex]=row[data.keynrs[i]];
+    lookupIndex++;
+  }
+  val_key=lookupInCache(data.hashRowMeta,hashRow);
+  if (val_key == null) {
+    data.db.setValues(data.lookupRowMeta,lookupRow,data.prepStatementLookup);
+    Object[] add=data.db.getLookup(data.prepStatementLookup);
+    linesInput++;
+    if (add == null) {
+switch (getTechKeyCreation()) {
+case CREATION_METHOD_TABLEMAX:
+        val_key=data.db.getNextValue(getTransMeta().getCounters(),meta.getSchemaName(),meta.getTablename(),meta.getTechnicalKeyField());
+      break;
+case CREATION_METHOD_AUTOINC:
+    val_key=new Long(0);
+  break;
+case CREATION_METHOD_SEQUENCE:
+val_key=data.db.getNextSequenceValue(meta.getSchemaName(),meta.getSequenceFrom(),meta.getTechnicalKeyField());
+if (val_key != null && log.isRowLevel()) logRowlevel(Messages.getString("CombinationLookup.Log.FoundNextSequenceValue") + val_key.toString());
+break;
+}
+val_key=combiInsert(rowMeta,row,val_key,val_hash);
+linesOutput++;
+if (log.isRowLevel()) log.logRowlevel(toString(),Messages.getString("CombinationLookup.Log.AddedDimensionEntry") + val_key);
+addToCache(data.hashRowMeta,hashRow,val_key);
+}
+ else {
+val_key=(Long)add[0];
+addToCache(data.hashRowMeta,hashRow,val_key);
+}
+}
+Object[] outputRow=new Object[data.outputRowMeta.size()];
+int outputIndex=0;
+if (meta.replaceFields()) {
+for (int i=0; i < rowMeta.size(); i++) {
+if (!data.removeField[i]) {
+outputRow[outputIndex]=row[i];
+outputIndex++;
+}
+}
+}
+ else {
+for (outputIndex=0; outputIndex < rowMeta.size(); outputIndex++) {
+outputRow[outputIndex]=row[outputIndex];
+}
+}
+outputRow[outputIndex]=val_key;
+return outputRow;
+}

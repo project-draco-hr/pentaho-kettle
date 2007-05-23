@@ -1,0 +1,45 @@
+{
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    data.schemaTable=meta.getDatabaseMeta().getQuotedSchemaTableCombination(meta.getSchemaName(),meta.getTablename());
+    determineTechKeyCreation();
+    data.keynrs=new int[meta.getKeyField().length];
+    for (int i=0; i < meta.getKeyField().length; i++) {
+      data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getKeyField()[i]);
+      if (data.keynrs[i] < 0) {
+        throw new KettleStepException(Messages.getString("CombinationLookup.Exception.FieldNotFound",meta.getKeyField()[i]));
+      }
+    }
+    data.removeField=new boolean[getInputRowMeta().size()];
+    for (int i=0; i < getInputRowMeta().size(); i++) {
+      ValueMetaInterface valueMeta=getInputRowMeta().getValueMeta(i);
+      int idx=Const.indexOfString(valueMeta.getName(),meta.getKeyField());
+      data.removeField[i]=idx >= 0;
+    }
+    data.hashRowMeta=new RowMeta();
+    for (int i=0; i < meta.getKeyField().length; i++) {
+      data.hashRowMeta.addValueMeta(getInputRowMeta().getValueMeta(data.keynrs[i]));
+    }
+    setCombiLookup(getInputRowMeta());
+  }
+  try {
+    Object[] outputRow=lookupValues(getInputRowMeta(),r);
+    putRow(data.outputRowMeta,outputRow);
+    if (checkFeedback(linesRead))     logBasic(Messages.getString("CombinationLookup.Log.LineNumber") + linesRead);
+  }
+ catch (  KettleException e) {
+    logError(Messages.getString("CombinationLookup.Log.ErrorInStepRunning") + e.getMessage());
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  return true;
+}

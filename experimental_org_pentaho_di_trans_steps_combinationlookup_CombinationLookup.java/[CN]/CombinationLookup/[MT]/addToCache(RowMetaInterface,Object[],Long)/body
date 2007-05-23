@@ -1,0 +1,37 @@
+{
+  data.cache.put(new RowMetaAndData(rowMeta,row),tk);
+  int tenPercent=meta.getCacheSize() / 10;
+  if (meta.getCacheSize() > 0 && data.cache.size() > meta.getCacheSize() + tenPercent) {
+    List keys=new ArrayList(data.cache.keySet());
+    int sizeBefore=keys.size();
+    List samples=new ArrayList();
+    int stepsize=keys.size() / 5;
+    if (stepsize < 1)     stepsize=1;
+    for (int i=0; i < keys.size(); i+=stepsize) {
+      RowMetaAndData key=(RowMetaAndData)keys.get(i);
+      Long value=(Long)data.cache.get(key);
+      if (value != null) {
+        samples.add(value);
+      }
+    }
+    Collections.sort(samples);
+    if (samples.size() > 1) {
+      data.smallestCacheKey=((Long)samples.get(1)).longValue();
+    }
+ else {
+      data.smallestCacheKey=((Long)samples.get(0)).longValue();
+    }
+    for (int i=0; i < keys.size(); i++) {
+      RowMetaAndData key=(RowMetaAndData)keys.get(i);
+      Long value=(Long)data.cache.get(key);
+      if (value != null) {
+        if (value.longValue() <= data.smallestCacheKey) {
+          data.cache.remove(key);
+        }
+      }
+    }
+    int sizeAfter=data.cache.size();
+    logDetailed("Reduced the lookup cache from " + sizeBefore + " to "+ sizeAfter+ " rows.");
+  }
+  if (log.isRowLevel())   logRowlevel("Cache store: key=" + rowMeta.getString(row) + "    key="+ tk);
+}

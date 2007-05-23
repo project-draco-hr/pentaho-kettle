@@ -1,0 +1,49 @@
+{
+  DatabaseMeta databaseMeta=meta.getDatabaseMeta();
+  String sql="";
+  boolean comma;
+  data.lookupRowMeta=new RowMeta();
+  sql+="SELECT " + databaseMeta.quoteField(meta.getTechnicalKeyField()) + Const.CR;
+  sql+="FROM " + data.schemaTable + Const.CR;
+  sql+="WHERE ";
+  comma=false;
+  if (meta.useHash()) {
+    sql+=databaseMeta.quoteField(meta.getHashField()) + " = ? " + Const.CR;
+    comma=true;
+    data.lookupRowMeta.addValueMeta(new ValueMeta(meta.getHashField(),ValueMetaInterface.TYPE_INTEGER));
+  }
+ else {
+    sql+="( ( ";
+  }
+  for (int i=0; i < meta.getKeyField().length; i++) {
+    if (comma) {
+      sql+=" AND ( ( ";
+    }
+ else {
+      comma=true;
+    }
+    sql+=databaseMeta.quoteField(meta.getKeyField()[i]) + " = ? ) OR ( " + databaseMeta.quoteField(meta.getKeyField()[i]);
+    data.lookupRowMeta.addValueMeta(inputRowMeta.getValueMeta(data.keynrs[i]));
+    sql+=" IS NULL AND ";
+    if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_DB2) {
+      sql+="CAST(? AS VARCHAR(256)) IS NULL";
+    }
+ else {
+      sql+="? IS NULL";
+    }
+    data.lookupRowMeta.addValueMeta(inputRowMeta.getValueMeta(data.keynrs[i]));
+    sql+=" ) )";
+    sql+=Const.CR;
+  }
+  try {
+    String sqlStatement=sql.toString();
+    if (log.isDebug())     log.logDebug(toString(),"preparing combi-lookup statement:" + Const.CR + sqlStatement);
+    data.prepStatementLookup=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sqlStatement));
+    if (databaseMeta.supportsSetMaxRows()) {
+      data.prepStatementLookup.setMaxRows(1);
+    }
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Unable to prepare combi-lookup statement",ex);
+  }
+}

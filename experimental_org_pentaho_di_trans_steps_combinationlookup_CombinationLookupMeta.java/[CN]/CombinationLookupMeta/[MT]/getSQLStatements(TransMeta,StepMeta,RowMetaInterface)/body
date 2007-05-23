@@ -1,0 +1,144 @@
+{
+  SQLStatement retval=new SQLStatement(stepMeta.getName(),databaseMeta,null);
+  int i;
+  if (databaseMeta != null) {
+    if (prev != null && prev.size() > 0) {
+      if (!Const.isEmpty(tablename)) {
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tablename);
+        Database db=new Database(databaseMeta);
+        try {
+          boolean doHash=false;
+          String cr_table=null;
+          db.connect();
+          RowMetaInterface fields=new RowMeta();
+          ValueMetaInterface vkeyfield=new ValueMeta(technicalKeyField,ValueMetaInterface.TYPE_INTEGER);
+          vkeyfield.setLength(10);
+          vkeyfield.setPrecision(0);
+          ValueMetaInterface vhashfield=null;
+          if (useHash && !Const.isEmpty(hashField)) {
+            vhashfield=new ValueMeta(hashField,ValueMetaInterface.TYPE_INTEGER);
+            vhashfield.setLength(15);
+            vhashfield.setPrecision(0);
+            doHash=true;
+          }
+          if (!db.checkTableExists(schemaTable)) {
+            fields.addValueMeta(vkeyfield);
+            if (keyField != null && keyLookup != null) {
+              int cnt=keyField.length;
+              for (i=0; i < cnt; i++) {
+                String error_field="";
+                ValueMetaInterface v=prev.searchValueMeta(keyField[i]);
+                if (v != null) {
+                  String name=keyLookup[i];
+                  ValueMetaInterface newValue=(ValueMetaInterface)v.clone();
+                  newValue.setName(name);
+                  if (name.equals(vkeyfield.getName()) || (doHash == true && name.equals(vhashfield.getName()))) {
+                    error_field+=name;
+                  }
+                  if (error_field.length() > 0) {
+                    retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NameCollision",error_field));
+                  }
+ else {
+                    fields.addValueMeta(newValue);
+                  }
+                }
+              }
+            }
+            if (doHash == true) {
+              fields.addValueMeta(vhashfield);
+            }
+          }
+ else {
+            RowMetaInterface tabFields=db.getTableFields(schemaTable);
+            databaseMeta.quoteReservedWords(tabFields);
+            if (tabFields.searchValueMeta(vkeyfield.getName()) == null) {
+              fields.addValueMeta(vkeyfield);
+            }
+            int cnt=tabFields.size();
+            for (i=0; i < cnt; i++) {
+              ValueMetaInterface v=tabFields.getValueMeta(i);
+              fields.addValueMeta(v);
+            }
+            String keyLookup[]=getKeyLookup();
+            String keyField[]=getKeyField();
+            if (keyField != null && keyLookup != null) {
+              cnt=keyField.length;
+              for (i=0; i < cnt; i++) {
+                ValueMetaInterface v=prev.searchValueMeta(keyField[i]);
+                if (v != null) {
+                  ValueMetaInterface newValue=(ValueMetaInterface)v.clone();
+                  newValue.setName(keyLookup[i]);
+                  if (tabFields.searchValueMeta(newValue.getName()) == null) {
+                    fields.addValueMeta(newValue);
+                  }
+                }
+              }
+            }
+            if (doHash == true && tabFields.searchValueMeta(vhashfield.getName()) == null) {
+              fields.addValueMeta(vhashfield);
+            }
+          }
+          cr_table=db.getDDL(schemaTable,fields,(CREATION_METHOD_SEQUENCE.equals(getTechKeyCreation()) && sequenceFrom != null && sequenceFrom.length() != 0) ? null : technicalKeyField,CREATION_METHOD_AUTOINC.equals(getTechKeyCreation()),null,true);
+          String cr_index="";
+          String cr_uniq_index="";
+          String idx_fields[]=null;
+          if (useHash) {
+            if (hashField != null && hashField.length() > 0) {
+              idx_fields=new String[]{hashField};
+            }
+ else {
+              retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NotHashFieldSpecified"));
+            }
+          }
+ else {
+            if (!Const.isEmpty(keyLookup)) {
+              int nrfields=keyLookup.length;
+              if (nrfields > 32 && databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) {
+                nrfields=32;
+              }
+              idx_fields=new String[nrfields];
+              for (i=0; i < nrfields; i++)               idx_fields[i]=keyLookup[i];
+            }
+ else {
+              retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NotFieldsSpecified"));
+            }
+          }
+          if (!Const.isEmpty(technicalKeyField)) {
+            String techKeyArr[]=new String[]{technicalKeyField};
+            if (!db.checkIndexExists(schemaName,tablename,techKeyArr)) {
+              String indexname="idx_" + tablename + "_pk";
+              cr_uniq_index=db.getCreateIndexStatement(schemaName,tablename,indexname,techKeyArr,true,true,false,true);
+              cr_uniq_index+=Const.CR;
+            }
+          }
+          if (!Const.isEmpty(idx_fields) && !db.checkIndexExists(schemaName,tablename,idx_fields)) {
+            String indexname="idx_" + tablename + "_lookup";
+            cr_index=db.getCreateIndexStatement(schemaName,tablename,indexname,idx_fields,false,false,false,true);
+            cr_index+=Const.CR;
+          }
+          String cr_seq="";
+          if (databaseMeta.supportsSequences() && !Const.isEmpty(sequenceFrom)) {
+            if (!db.checkSequenceExists(schemaName,sequenceFrom)) {
+              cr_seq+=db.getCreateSequenceStatement(schemaName,sequenceFrom,1L,1L,-1L,true);
+              cr_seq+=Const.CR;
+            }
+          }
+          retval.setSQL(cr_table + cr_uniq_index + cr_index+ cr_seq);
+        }
+ catch (        KettleException e) {
+          retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.ErrorOccurred") + Const.CR + e.getMessage());
+        }
+      }
+ else {
+        retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NotTableDefined"));
+      }
+    }
+ else {
+      retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NotReceivingField"));
+    }
+  }
+ else {
+    retval.setError(Messages.getString("CombinationLookupMeta.ReturnValue.NotConnectionDefined"));
+  }
+  return retval;
+}

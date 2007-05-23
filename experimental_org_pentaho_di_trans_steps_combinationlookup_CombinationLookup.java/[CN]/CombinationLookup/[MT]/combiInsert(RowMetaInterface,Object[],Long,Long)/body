@@ -1,0 +1,117 @@
+{
+  String debug="Combination insert";
+  DatabaseMeta databaseMeta=meta.getDatabaseMeta();
+  try {
+    if (data.prepStatementInsert == null) {
+      debug="First: construct prepared statement";
+      data.insertRowMeta=new RowMeta();
+      String sql="";
+      sql+="INSERT INTO " + data.schemaTable + ("( ");
+      boolean comma=false;
+      if (!isAutoIncrement()) {
+        sql+=databaseMeta.quoteField(meta.getTechnicalKeyField());
+        data.insertRowMeta.addValueMeta(new ValueMeta(meta.getTechnicalKeyField(),ValueMetaInterface.TYPE_INTEGER));
+        comma=true;
+      }
+ else       if (databaseMeta.needsPlaceHolder()) {
+        sql+="0";
+        data.insertRowMeta.addValueMeta(new ValueMeta(meta.getTechnicalKeyField(),ValueMetaInterface.TYPE_INTEGER));
+        comma=true;
+      }
+      if (meta.useHash()) {
+        if (comma)         sql+=", ";
+        sql+=databaseMeta.quoteField(meta.getHashField());
+        data.insertRowMeta.addValueMeta(new ValueMeta(meta.getHashField(),ValueMetaInterface.TYPE_INTEGER));
+        comma=true;
+      }
+      for (int i=0; i < meta.getKeyLookup().length; i++) {
+        if (comma)         sql+=", ";
+        sql+=databaseMeta.quoteField(meta.getKeyLookup()[i]);
+        data.insertRowMeta.addValueMeta(rowMeta.getValueMeta(data.keynrs[i]));
+        comma=true;
+      }
+      sql+=") VALUES (";
+      comma=false;
+      if (!isAutoIncrement()) {
+        sql+='?';
+        comma=true;
+      }
+      if (meta.useHash()) {
+        if (comma)         sql+=',';
+        sql+='?';
+        comma=true;
+      }
+      for (int i=0; i < meta.getKeyLookup().length; i++) {
+        if (comma)         sql+=',';
+ else         comma=true;
+        sql+='?';
+      }
+      sql+=" )";
+      String sqlStatement=sql.toString();
+      try {
+        debug="First: prepare statement";
+        if (isAutoIncrement()) {
+          log.logDetailed(toString(),"SQL with return keys: " + sqlStatement);
+          data.prepStatementInsert=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sqlStatement),Statement.RETURN_GENERATED_KEYS);
+        }
+ else {
+          log.logDetailed(toString(),"SQL without return keys: " + sqlStatement);
+          data.prepStatementInsert=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sqlStatement));
+        }
+      }
+ catch (      SQLException ex) {
+        throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sqlStatement,ex);
+      }
+catch (      Exception ex) {
+        throw new KettleDatabaseException("Unable to prepare combi insert statement : " + Const.CR + sqlStatement,ex);
+      }
+    }
+    debug="Create new insert row rins";
+    Object[] insertRow=new Object[data.insertRowMeta.size()];
+    int insertIndex=0;
+    if (!isAutoIncrement()) {
+      insertRow[insertIndex]=val_key;
+      insertIndex++;
+    }
+    if (meta.useHash()) {
+      insertRow[insertIndex]=val_crc;
+      insertIndex++;
+    }
+    for (int i=0; i < data.keynrs.length; i++) {
+      insertRow[insertIndex]=row[data.keynrs[i]];
+      insertIndex++;
+    }
+    if (log.isRowLevel())     log.logRowlevel(toString(),"rins=" + data.insertRowMeta.getString(insertRow));
+    debug="Set values on insert";
+    data.db.setValues(data.insertRowMeta,insertRow,data.prepStatementInsert);
+    debug="Insert row";
+    data.db.insertRow(data.prepStatementInsert);
+    debug="Retrieve key";
+    if (isAutoIncrement()) {
+      ResultSet keys=null;
+      try {
+        keys=data.prepStatementInsert.getGeneratedKeys();
+        if (keys.next())         val_key=new Long(keys.getLong(1));
+ else {
+          throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + meta.getTechnicalKeyField() + ", no fields in resultset");
+        }
+      }
+ catch (      SQLException ex) {
+        throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + meta.getTechnicalKeyField(),ex);
+      }
+ finally {
+        try {
+          if (keys != null)           keys.close();
+        }
+ catch (        SQLException ex) {
+          throw new KettleDatabaseException("Unable to retrieve auto-increment of combi insert key : " + meta.getTechnicalKeyField(),ex);
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    log.logError(toString(),Const.getStackTracker(e));
+    throw new KettleDatabaseException("Unexpected error in combination insert in part [" + debug + "] : "+ e.toString(),e);
+  }
+  return val_key;
+}
