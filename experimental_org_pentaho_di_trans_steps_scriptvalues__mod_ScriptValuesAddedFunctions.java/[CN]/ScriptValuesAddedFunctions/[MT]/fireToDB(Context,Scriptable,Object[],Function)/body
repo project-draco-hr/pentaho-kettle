@@ -1,0 +1,43 @@
+{
+  Object oRC=new Object();
+  if (ArgList.length == 2) {
+    try {
+      Object scmO=actualObject.get("_step_",actualObject);
+      ScriptValuesMod scm=(ScriptValuesMod)Context.toType(scmO,ScriptValuesMod.class);
+      String strDBName=Context.toString(ArgList[0]);
+      String strSQL=Context.toString(ArgList[1]);
+      DatabaseMeta ci=DatabaseMeta.findDatabase(scm.getTransMeta().getDatabases(),strDBName);
+      Database db=new Database(ci);
+      db.setQueryLimit(0);
+      try {
+        db.connect();
+        ResultSet rs=db.openQuery(strSQL);
+        ResultSetMetaData resultSetMetaData=rs.getMetaData();
+        int columnCount=resultSetMetaData.getColumnCount();
+        if (rs != null) {
+          List list=new ArrayList();
+          while (rs.next()) {
+            Object[] objRow=new Object[columnCount];
+            for (int i=0; i < columnCount; i++) {
+              objRow[i]=rs.getObject(i + 1);
+            }
+            list.add(objRow);
+          }
+          Object[][] resultArr=new Object[list.size()][];
+          list.toArray(resultArr);
+          db.disconnect();
+          return resultArr;
+        }
+      }
+ catch (      Exception er) {
+        throw Context.reportRuntimeError(er.toString());
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+ else {
+    throw Context.reportRuntimeError("The function call fireToDB is not valid.");
+  }
+  return oRC;
+}

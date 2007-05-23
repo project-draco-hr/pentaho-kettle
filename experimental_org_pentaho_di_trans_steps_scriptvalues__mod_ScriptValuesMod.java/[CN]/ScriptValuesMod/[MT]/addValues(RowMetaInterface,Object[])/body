@@ -1,0 +1,147 @@
+{
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    determineUsedFields(rowMeta);
+    data.cx=Context.enter();
+    data.cx.setOptimizationLevel(9);
+    data.scope=data.cx.initStandardObjects(null,true);
+    bFirstRun=true;
+    Scriptable jsvalue=Context.toObject(this,data.scope);
+    data.scope.put("_step_",data.scope,jsvalue);
+    for (int i=0; i < meta.getNumberOfJSScripts(); i++) {
+      Scriptable jsR=Context.toObject(jsScripts[i].getScript(),data.scope);
+      data.scope.put(jsScripts[i].getScriptName(),data.scope,jsR);
+    }
+    data.scope.put("_TransformationName_",data.scope,new String(this.getName()));
+    try {
+      Scriptable jsrow=Context.toObject(row,data.scope);
+      data.scope.put("row",data.scope,jsrow);
+      for (int i=0; i < data.fields_used.length; i++) {
+        ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.fields_used[i]);
+        Object valueData=row[data.fields_used[i]];
+        Value val=valueMeta.createOriginalValue(valueData);
+        Scriptable jsarg=Context.toObject(val,data.scope);
+        data.scope.put(val.getName(),data.scope,jsarg);
+      }
+      try {
+        if (meta.getAddClasses() != null) {
+          for (int i=0; i < meta.getAddClasses().length; i++) {
+            Object jsOut=Context.javaToJS(meta.getAddClasses()[i].getAddObject(),data.scope);
+            ScriptableObject.putProperty(data.scope,meta.getAddClasses()[i].getJSName(),jsOut);
+          }
+        }
+      }
+ catch (      Exception e) {
+        throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.CouldNotAttachAdditionalScripts"),e);
+      }
+      try {
+        Context.javaToJS(ScriptValuesAddedFunctions.class,data.scope);
+        ((ScriptableObject)data.scope).defineFunctionProperties(ScriptValuesAddedFunctions.jsFunctionList,ScriptValuesAddedFunctions.class,ScriptableObject.DONTENUM);
+      }
+ catch (      Exception ex) {
+        throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.CouldNotAddDefaultFunctions"),ex);
+      }
+      ;
+      try {
+        data.scope.put("SKIP_TRANSFORMATION",data.scope,new Integer(SKIP_TRANSFORMATION));
+        data.scope.put("ABORT_TRANSFORMATION",data.scope,new Integer(ABORT_TRANSFORMATION));
+        data.scope.put("ERROR_TRANSFORMATION",data.scope,new Integer(ERROR_TRANSFORMATION));
+        data.scope.put("CONTINUE_TRANSFORMATION",data.scope,new Integer(CONTINUE_TRANSFORMATION));
+      }
+ catch (      Exception ex) {
+        throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.CouldNotAddDefaultConstants"),ex);
+      }
+      ;
+      try {
+        if (strStartScript != null && strStartScript.length() > 0) {
+          Script startScript=data.cx.compileString(strStartScript,"trans_Start",1,null);
+          startScript.exec(data.cx,data.scope);
+          if (log.isDetailed())           logDetailed(("Start Script found!"));
+        }
+ else {
+          if (log.isDetailed())           logDetailed(("No starting Script found!"));
+        }
+      }
+ catch (      Exception es) {
+        throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.ErrorProcessingStartScript"),es);
+      }
+      data.script=data.cx.compileString(strTransformScript,"script",1,null);
+    }
+ catch (    Exception e) {
+      throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.CouldNotCompileJavascript"),e);
+    }
+  }
+  Object[] outputRow=new Object[data.outputRowMeta.size()];
+  for (int i=0; i < rowMeta.size(); i++) {
+    outputRow[i]=row[i];
+  }
+  int outputIndex=rowMeta.size();
+  try {
+    try {
+      Scriptable jsrow=Context.toObject(row,data.scope);
+      data.scope.put("row",data.scope,jsrow);
+      for (int i=0; i < data.fields_used.length; i++) {
+        ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.fields_used[i]);
+        Object valueData=row[data.fields_used[i]];
+        Value val=valueMeta.createOriginalValue(valueData);
+        Scriptable jsarg=Context.toObject(val,data.scope);
+        data.scope.put(val.getName(),data.scope,jsarg);
+      }
+    }
+ catch (    Exception e) {
+      throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.UnexpectedeError"),e);
+    }
+    data.script.exec(data.cx,data.scope);
+    if (bFirstRun) {
+      bFirstRun=false;
+      Object tran_stat=data.scope.get("trans_Status",data.scope);
+      if (tran_stat != ScriptableObject.NOT_FOUND) {
+        bWithTransStat=true;
+        if (log.isDetailed())         logDetailed(("tran_Status found. Checking transformation status while script execution."));
+      }
+ else {
+        if (log.isDetailed())         logDetailed(("No tran_Status found. Transformation status checking not available."));
+        bWithTransStat=false;
+      }
+    }
+    if (bWithTransStat) {
+      iTranStat=(int)Context.toNumber(data.scope.get("trans_Status",data.scope));
+    }
+ else {
+      iTranStat=CONTINUE_TRANSFORMATION;
+    }
+    if (iTranStat == CONTINUE_TRANSFORMATION) {
+      bRC=true;
+      for (int i=0; i < meta.getName().length; i++) {
+        Object result=data.scope.get(meta.getName()[i],data.scope);
+        outputRow[outputIndex]=getValueFromJScript(result,i);
+        outputIndex++;
+      }
+    }
+ else {
+switch (iTranStat) {
+case SKIP_TRANSFORMATION:
+        bRC=true;
+      break;
+case ABORT_TRANSFORMATION:
+    if (data.cx != null)     Context.exit();
+  stopAll();
+setOutputDone();
+bRC=false;
+break;
+case ERROR_TRANSFORMATION:
+if (data.cx != null) Context.exit();
+setErrors(1);
+stopAll();
+bRC=false;
+break;
+}
+}
+}
+ catch (Exception e) {
+throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.JavascriptError"),e);
+}
+return outputRow;
+}

@@ -1,0 +1,40 @@
+{
+  meta=(ScriptValuesMetaMod)smi;
+  data=(ScriptValuesDataMod)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    try {
+      if (strEndScript != null && strEndScript.length() > 0) {
+        Script endScript=data.cx.compileString(strEndScript,"trans_End",1,null);
+        endScript.exec(data.cx,data.scope);
+        if (log.isDetailed())         logDetailed(("End Script found!"));
+      }
+ else {
+        if (log.isDetailed())         logDetailed(("No end Script found!"));
+      }
+    }
+ catch (    Exception e) {
+      logError(Messages.getString("ScriptValuesMod.Log.UnexpectedeError") + " : " + e.toString());
+      logError(Messages.getString("ScriptValuesMod.Log.ErrorStackTrace") + Const.CR + Const.getStackTracker(e));
+      setErrors(1);
+      stopAll();
+    }
+    if (data.cx != null)     Context.exit();
+    setOutputDone();
+    return false;
+  }
+  try {
+    Object[] outputRow=addValues(getInputRowMeta(),r);
+    putRow(data.outputRowMeta,outputRow);
+  }
+ catch (  KettleValueException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(getInputRowMeta(),r,1,e.getMessage(),null,"SCR-001");
+    }
+ else {
+      throw (e);
+    }
+  }
+  if (checkFeedback(linesRead))   logBasic(Messages.getString("ScriptValuesMod.Log.LineNumber") + linesRead);
+  return bRC;
+}
