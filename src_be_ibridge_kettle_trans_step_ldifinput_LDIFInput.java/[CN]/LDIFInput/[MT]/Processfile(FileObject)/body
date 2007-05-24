@@ -1,0 +1,104 @@
+{
+  try {
+    LDIF InputLDIF=new LDIF(KettleVFS.getFilename(file));
+    for (LDIFRecord recordLDIF=InputLDIF.nextRecord(); recordLDIF != null; recordLDIF=InputLDIF.nextRecord()) {
+      LDIFContent contentLDIF=recordLDIF.getContent();
+      if (((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) && (contentLDIF.getType() == LDIFContent.ATTRIBUTE_CONTENT)) {
+        Row row=buildEmptyRow();
+        LDIFAttributeContent attrContentLDIF=(LDIFAttributeContent)contentLDIF;
+        LDAPAttribute[] attributes_LDIF=attrContentLDIF.getAttributes();
+        for (int i=0; i < meta.getInputFields().length; i++) {
+          LDIFInputField xmlInputField=meta.getInputFields()[i];
+          String AttributValue=xmlInputField.getRealAttribut();
+          Value v=row.getValue(i);
+          v.setValue(GetValue(attributes_LDIF,AttributValue));
+switch (xmlInputField.getTrimType()) {
+case XMLInputField.TYPE_TRIM_LEFT:
+            v.ltrim();
+          break;
+case XMLInputField.TYPE_TRIM_RIGHT:
+        v.rtrim();
+      break;
+case XMLInputField.TYPE_TRIM_BOTH:
+    v.trim();
+  break;
+default :
+break;
+}
+switch (xmlInputField.getType()) {
+case Value.VALUE_TYPE_STRING:
+break;
+case Value.VALUE_TYPE_NUMBER:
+if (xmlInputField.getFormat() != null && xmlInputField.getFormat().length() > 0) {
+if (xmlInputField.getDecimalSymbol() != null && xmlInputField.getDecimalSymbol().length() > 0) {
+if (xmlInputField.getGroupSymbol() != null && xmlInputField.getGroupSymbol().length() > 0) {
+  if (xmlInputField.getCurrencySymbol() != null && xmlInputField.getCurrencySymbol().length() > 0) {
+    v.str2num(xmlInputField.getFormat(),xmlInputField.getDecimalSymbol(),xmlInputField.getGroupSymbol(),xmlInputField.getCurrencySymbol());
+  }
+ else {
+    v.str2num(xmlInputField.getFormat(),xmlInputField.getDecimalSymbol(),xmlInputField.getGroupSymbol());
+  }
+}
+ else {
+  v.str2num(xmlInputField.getFormat(),xmlInputField.getDecimalSymbol());
+}
+}
+ else {
+v.str2num(xmlInputField.getFormat());
+}
+}
+ else {
+v.str2num();
+}
+v.setLength(xmlInputField.getLength(),xmlInputField.getPrecision());
+break;
+case Value.VALUE_TYPE_INTEGER:
+v.setValue(v.getInteger());
+v.setLength(xmlInputField.getLength(),xmlInputField.getPrecision());
+break;
+case Value.VALUE_TYPE_BIGNUMBER:
+v.setValue(v.getBigNumber());
+v.setLength(xmlInputField.getLength(),xmlInputField.getPrecision());
+break;
+case Value.VALUE_TYPE_DATE:
+if (xmlInputField.getFormat() != null && xmlInputField.getFormat().length() > 0) {
+v.str2dat(xmlInputField.getFormat());
+}
+ else {
+v.setValue(v.getDate());
+}
+break;
+case Value.VALUE_TYPE_BOOLEAN:
+v.setValue(v.getBoolean());
+break;
+default :
+break;
+}
+if (meta.getInputFields()[i].isRepeated()) {
+if (v.isNull() && data.previousRow != null) {
+Value previous=data.previousRow.getValue(i);
+v.setValue(previous);
+}
+}
+}
+if (meta.includeFilename() && meta.getFilenameField() != null && meta.getFilenameField().length() > 0) {
+Value fn=new Value(meta.getFilenameField(),KettleVFS.getFilename(data.file));
+row.addValue(fn);
+}
+if (meta.includeRowNumber() && meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
+Value fn=new Value(meta.getRowNumberField(),data.rownr);
+row.addValue(fn);
+}
+data.previousRow=new Row(row);
+data.rownr++;
+if (log.isRowLevel()) logRowlevel(Messages.getString("LDIFInput.Log.ReadRow",row.toString()));
+putRow(row);
+}
+}
+}
+ catch (Exception e) {
+logError(Messages.getString("LDIFInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+stopAll();
+setErrors(1);
+}
+}
