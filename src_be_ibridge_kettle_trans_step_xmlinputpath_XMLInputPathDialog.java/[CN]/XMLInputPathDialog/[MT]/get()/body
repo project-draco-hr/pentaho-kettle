@@ -1,0 +1,41 @@
+{
+  try {
+    XMLInputPathMeta meta=new XMLInputPathMeta();
+    getInfo(meta);
+    XMLInputPathField field=new XMLInputPathField();
+    if (!checkLoopXPath(meta))     return;
+    FileInputList inputList=meta.getFiles();
+    wFields.removeAll();
+    if (inputList.getFiles().size() > 0) {
+      String encodage="UTF-8";
+      if (!Const.isEmpty(meta.getEncoding())) {
+        encodage=meta.getEncoding();
+      }
+      javax.xml.parsers.DocumentBuilder builder=javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder();
+      org.w3c.dom.Document document=builder.parse(new org.xml.sax.InputSource(new java.io.InputStreamReader(new java.io.FileInputStream(KettleVFS.getFilename(inputList.getFile(0))),encodage)));
+      javax.xml.xpath.XPath xpath=javax.xml.xpath.XPathFactory.newInstance().newXPath();
+      NodeList widgetNodes=(NodeList)xpath.evaluate(meta.getRealLoopXPath(),document,javax.xml.xpath.XPathConstants.NODESET);
+      if (widgetNodes.getLength() > 0) {
+        Node widgetNode=widgetNodes.item(0);
+        for (int i=0; i < widgetNode.getChildNodes().getLength(); i++) {
+          TableItem item=new TableItem(wFields.table,SWT.NONE);
+          item.setText(1,widgetNode.getChildNodes().item(i).getNodeName());
+          item.setText(2,widgetNode.getChildNodes().item(i).getNodeName());
+          item.setText(3,field.ElementTypeDesc[0]);
+        }
+        for (int i=0; i < widgetNode.getAttributes().getLength(); i++) {
+          TableItem item=new TableItem(wFields.table,SWT.NONE);
+          item.setText(1,widgetNode.getAttributes().item(i).getNodeName());
+          item.setText(2,widgetNode.getAttributes().item(i).getNodeName());
+          item.setText(3,field.ElementTypeDesc[1]);
+        }
+      }
+    }
+    wFields.removeEmptyRows();
+    wFields.setRowNums();
+    wFields.optWidth(true);
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,Messages.getString("XMLInputPathDialog.ErrorParsingData.DialogTitle"),Messages.getString("XMLInputDialog.ErrorParsingData.DialogMessage"),e);
+  }
+}
