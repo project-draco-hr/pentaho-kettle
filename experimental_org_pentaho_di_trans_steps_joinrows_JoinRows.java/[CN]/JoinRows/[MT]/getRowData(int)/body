@@ -1,0 +1,76 @@
+{
+  data.restart[filenr]=false;
+  Object[] rowData=null;
+  if (filenr == 0) {
+    RowMetaAndData row=getRowFrom(0);
+    if (row != null) {
+      rowData=row.getData();
+      data.fileRowMeta[0]=row.getRowMeta();
+    }
+ else {
+      rowData=null;
+    }
+    if (log.isRowLevel())     logRowlevel(Messages.getString("JoinRows.Log.ReadRowFromStream") + (rowData == null ? "<null>" : rowData.toString()));
+  }
+ else {
+    if (data.cache[filenr] == null) {
+      if (data.dataInputStream[filenr] == null) {
+        try {
+          data.fileInputStream[filenr]=new FileInputStream(data.file[filenr]);
+          data.dataInputStream[filenr]=new DataInputStream(data.fileInputStream[filenr]);
+        }
+ catch (        FileNotFoundException fnfe) {
+          logError(Messages.getString("JoinRows.Log.UnableToFindOrOpenTemporaryFile") + data.file[filenr] + "] : "+ fnfe.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+      }
+      if (data.size[filenr] == 0) {
+        logBasic(Messages.getString("JoinRows.Log.NoRowsComingFromStep") + data.rs[filenr].getOriginStepName() + "]");
+        return null;
+      }
+      try {
+        rowData=data.fileRowMeta[filenr].readData(data.dataInputStream[filenr]);
+      }
+ catch (      KettleFileException e) {
+        logError(Messages.getString("JoinRows.Log.UnableToReadDataFromTempFile") + filenr + " ["+ data.file[filenr]+ "]");
+        setErrors(1);
+        stopAll();
+        return null;
+      }
+      if (log.isRowLevel())       logRowlevel(Messages.getString("JoinRows.Log.ReadRowFromFile") + filenr + " : "+ rowData);
+      data.position[filenr]++;
+      if (data.position[filenr] >= data.size[filenr]) {
+        try {
+          data.dataInputStream[filenr].close();
+          data.fileInputStream[filenr].close();
+          data.dataInputStream[filenr]=null;
+          data.fileInputStream[filenr]=null;
+          data.position[filenr]=0;
+          data.restart[filenr]=true;
+        }
+ catch (        IOException ioe) {
+          logError(Messages.getString("JoinRows.Log.UnableToCloseInputStream") + data.file[filenr] + "] : "+ ioe.toString());
+          setErrors(1);
+          stopAll();
+          return null;
+        }
+      }
+    }
+ else {
+      if (data.size[filenr] == 0) {
+        logBasic(Messages.getString("JoinRows.Log.NoRowsComingFromStep") + data.rs[filenr].getOriginStepName() + "]");
+        return null;
+      }
+      rowData=(Object[])data.cache[filenr].get(data.position[data.filenr]);
+      rowData=data.fileRowMeta[filenr].cloneRow(rowData);
+      data.position[filenr]++;
+      if (data.position[filenr] >= data.size[filenr]) {
+        data.position[filenr]=0;
+        data.restart[filenr]=true;
+      }
+    }
+  }
+  return rowData;
+}

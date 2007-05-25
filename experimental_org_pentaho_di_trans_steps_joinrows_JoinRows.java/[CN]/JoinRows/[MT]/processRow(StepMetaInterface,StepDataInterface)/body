@@ -1,0 +1,88 @@
+{
+  meta=(JoinRowsMeta)smi;
+  data=(JoinRowsData)sdi;
+  if (data.caching) {
+    if (data.filenr >= data.file.length) {
+      data.caching=false;
+      data.filenr=0;
+      return true;
+    }
+    if (data.dataOutputStream[data.filenr] == null) {
+      try {
+        data.fileOutputStream[data.filenr]=new FileOutputStream(data.file[data.filenr]);
+        data.dataOutputStream[data.filenr]=new DataOutputStream(data.fileOutputStream[data.filenr]);
+      }
+ catch (      FileNotFoundException fnfe) {
+        logError(Messages.getString("JoinRows.Log.UnableToOpenOutputstream") + data.file[data.filenr].toString() + "] : "+ fnfe.toString());
+        stopAll();
+        setErrors(1);
+        return false;
+      }
+    }
+    String fromStep=data.rs[data.filenr].getOriginStepName();
+    RowMetaAndData r=getRowFrom(fromStep);
+    if (r != null) {
+      if (data.fileRowMeta[data.filenr] == null) {
+        data.fileRowMeta[data.filenr]=(RowMetaInterface)r.getRowMeta().clone();
+      }
+      data.fileRowMeta[data.filenr].writeData(data.dataOutputStream[data.filenr],r.getData());
+      data.size[data.filenr]++;
+      if (log.isRowLevel())       logRowlevel(r.toString());
+      if (data.size[data.filenr] <= meta.getCacheSize()) {
+        if (data.cache[data.filenr] == null)         data.cache[data.filenr]=new ArrayList();
+        data.cache[data.filenr].add(r.getData());
+      }
+ else {
+        if (log.isDetailed())         logDetailed(Messages.getString("JoinRows.Log.RowsFound",meta.getCacheSize() + "",data.rs[data.filenr].getOriginStepName()));
+        data.cache[data.filenr]=null;
+      }
+    }
+ else {
+      try {
+        data.dataOutputStream[data.filenr].close();
+        data.fileOutputStream[data.filenr].close();
+        data.dataOutputStream[data.filenr]=null;
+        data.fileOutputStream[data.filenr]=null;
+      }
+ catch (      IOException ioe) {
+        logError(Messages.getString("JoinRows.Log.ErrorInClosingOutputStream") + data.filenr + " : ["+ data.file[data.filenr].toString()+ "] : "+ ioe.toString());
+      }
+      data.filenr++;
+    }
+  }
+ else {
+    data.joinrow[data.filenr]=getRowData(data.filenr);
+    if (data.joinrow[data.filenr] == null) {
+      setOutputDone();
+      return false;
+    }
+    if (data.filenr >= data.file.length - 1) {
+      if (data.outputRowMeta == null) {
+        data.outputRowMeta=createOutputRowMeta(data.fileRowMeta);
+      }
+      Object[] sum=new Object[data.outputRowMeta.size()];
+      int sumIndex=0;
+      for (int f=0; f <= data.filenr; f++) {
+        for (int c=0; c < data.fileRowMeta[f].size(); c++) {
+          sum[sumIndex]=data.joinrow[f][c];
+          sumIndex++;
+        }
+      }
+      if (meta.getCondition() != null && !meta.getCondition().isEmpty()) {
+        if (meta.getCondition().evaluate(data.outputRowMeta,sum)) {
+          putRow(data.outputRowMeta,sum);
+        }
+      }
+ else {
+        putRow(data.outputRowMeta,sum);
+      }
+      while (data.restart[data.filenr]) {
+        data.filenr--;
+      }
+    }
+ else {
+      data.filenr++;
+    }
+  }
+  return true;
+}

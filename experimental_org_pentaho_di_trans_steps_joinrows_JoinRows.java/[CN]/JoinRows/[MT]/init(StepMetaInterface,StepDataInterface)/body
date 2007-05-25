@@ -1,0 +1,48 @@
+{
+  meta=(JoinRowsMeta)smi;
+  data=(JoinRowsData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      data.caching=true;
+      data.filenr=1;
+      for (int i=0; i < inputRowSets.size(); i++) {
+        RowSet rs=(RowSet)inputRowSets.get(i);
+        if (rs.getOriginStepName().equalsIgnoreCase(meta.getMainStepname())) {
+          RowSet zero=(RowSet)inputRowSets.get(0);
+          inputRowSets.set(0,rs);
+          inputRowSets.set(i,zero);
+        }
+      }
+      data.file=new File[inputRowSets.size()];
+      data.fileInputStream=new FileInputStream[inputRowSets.size()];
+      data.dataInputStream=new DataInputStream[inputRowSets.size()];
+      data.size=new int[inputRowSets.size()];
+      data.fileRowMeta=new RowMetaInterface[inputRowSets.size()];
+      data.joinrow=new Object[inputRowSets.size()][];
+      data.rs=new RowSet[inputRowSets.size()];
+      data.cache=new ArrayList[inputRowSets.size()];
+      data.position=new int[inputRowSets.size()];
+      data.fileOutputStream=new FileOutputStream[inputRowSets.size()];
+      data.dataOutputStream=new DataOutputStream[inputRowSets.size()];
+      data.restart=new boolean[inputRowSets.size()];
+      for (int i=1; i < inputRowSets.size(); i++) {
+        String directoryName=StringUtil.environmentSubstitute(meta.getDirectory());
+        data.file[i]=File.createTempFile(meta.getPrefix(),".tmp",new File(directoryName));
+        data.file[i].deleteOnExit();
+        data.size[i]=0;
+        data.rs[i]=(RowSet)inputRowSets.get(i);
+        data.cache[i]=null;
+        data.position[i]=0;
+        data.dataInputStream[i]=null;
+        data.dataOutputStream[i]=null;
+        data.joinrow[i]=null;
+        data.restart[i]=false;
+      }
+      return true;
+    }
+ catch (    IOException e) {
+      logError(Messages.getString("JoinRows.Log.ErrorCreatingTemporaryFiles") + e.toString());
+    }
+  }
+  return false;
+}
