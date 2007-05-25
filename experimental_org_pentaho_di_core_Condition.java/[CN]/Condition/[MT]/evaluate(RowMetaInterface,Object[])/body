@@ -1,14 +1,9 @@
 {
-  String debug="Start of evaluate";
   boolean retval=false;
-  LogWriter log=LogWriter.getInstance();
   try {
     if (isAtomic()) {
-      debug="Atomic : get fieldnrs left value";
-      if (left_valuename != null && left_valuename.length() > 0 && left_fieldnr < 0)       left_fieldnr=rowMeta.indexOfValue(left_valuename);
-      debug="Atomic : get fieldnrs right value";
-      if (right_valuename != null && right_valuename.length() > 0 && right_fieldnr < 0)       right_fieldnr=rowMeta.indexOfValue(right_valuename);
-      debug="Atomic : get fieldnrs left field";
+      if (left_valuename != null && left_valuename.length() > 0 && left_fieldnr < -1)       left_fieldnr=rowMeta.indexOfValue(left_valuename);
+      if (right_valuename != null && right_valuename.length() > 0 && right_fieldnr < -1)       right_fieldnr=rowMeta.indexOfValue(right_valuename);
       ValueMetaInterface fieldMeta=null;
       Object field=null;
       if (left_fieldnr >= 0) {
@@ -18,7 +13,6 @@
           throw new KettleException("Unable to find field [" + left_valuename + "] in the input row!");
         }
       }
-      debug="Atomic : get fieldnrs right exact";
       ValueMetaInterface fieldMeta2=right_exact != null ? right_exact.getValueMeta() : null;
       Object field2=right_exact != null ? right_exact.getValueData() : null;
       if (field2 == null && right_fieldnr >= 0) {
@@ -34,7 +28,6 @@
       if (field2 == null && function != FUNC_NULL && function != FUNC_NOT_NULL) {
         throw new KettleException("Unable to find value for field [" + right_valuename + "] in the input row!");
       }
-      if (log.isDebug())       debug="Atomic : evaluate (function=" + Condition.functions[function] + ")";
 switch (function) {
 case FUNC_EQUAL:
         retval=(fieldMeta.compare(field,fieldMeta2,field2) == 0);
@@ -84,15 +77,12 @@ break;
 default :
 break;
 }
-debug="Atomic: optionally negate";
 if (isNegated()) retval=!retval;
 }
  else {
-debug="Composite : get first";
 Condition cb0=(Condition)list.get(0);
 retval=cb0.evaluate(rowMeta,r);
 for (int i=1; i < list.size(); i++) {
-debug="Composite : evaluate #" + i;
 Condition cb=(Condition)list.get(i);
 boolean cmp=cb.evaluate(rowMeta,r);
 switch (cb.getOperator()) {
@@ -115,12 +105,11 @@ default :
 break;
 }
 }
-debug="Composite: optionally negate";
 if (isNegated()) retval=!retval;
 }
 }
  catch (Exception e) {
-throw new RuntimeException("Unexpected error evaluation condition [" + toString() + "] in part ["+ debug+ "]",e);
+throw new RuntimeException("Unexpected error evaluation condition [" + toString() + "]",e);
 }
 return retval;
 }
