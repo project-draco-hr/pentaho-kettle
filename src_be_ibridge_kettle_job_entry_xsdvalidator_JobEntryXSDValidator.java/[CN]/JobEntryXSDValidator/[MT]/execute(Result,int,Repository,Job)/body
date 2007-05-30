@@ -1,0 +1,57 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  String realxmlfilename=getRealxmlfilename();
+  String realxsdfilename=getRealxsdfilename();
+  FileObject xmlfile=null;
+  FileObject xsdfile=null;
+  try {
+    if (xmlfilename != null && xsdfilename != null) {
+      xmlfile=KettleVFS.getFileObject(realxmlfilename);
+      xsdfile=KettleVFS.getFileObject(realxsdfilename);
+      if (xmlfile.exists() && xsdfile.exists()) {
+        SchemaFactory factorytXSDValidator_1=SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
+        File XSDFile=new File(KettleVFS.getFilename(xsdfile));
+        Schema SchematXSD=factorytXSDValidator_1.newSchema(XSDFile);
+        Validator XSDValidator=SchematXSD.newValidator();
+        File xmlfiletXSDValidator_1=new File(KettleVFS.getFilename(xmlfile));
+        Source sourcetXSDValidator_1=new StreamSource(xmlfiletXSDValidator_1);
+        XSDValidator.validate(sourcetXSDValidator_1);
+        result.setResult(true);
+      }
+ else {
+        if (!xmlfile.exists()) {
+          log.logError(toString(),Messages.getString("JobEntryXSDValidator.FileDoesNotExist1.Label") + realxmlfilename + Messages.getString("JobEntryXSDValidator.FileDoesNotExist2.Label"));
+        }
+        if (!xsdfile.exists()) {
+          log.logError(toString(),Messages.getString("JobEntryXSDValidator.FileDoesNotExist1.Label") + realxsdfilename + Messages.getString("JobEntryXSDValidator.FileDoesNotExist2.Label"));
+        }
+        result.setResult(false);
+        result.setNrErrors(1);
+      }
+    }
+ else {
+      log.logError(toString(),Messages.getString("JobEntryXSDValidator.AllFilesNotNull.Label"));
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+  }
+ catch (  SAXException ex) {
+    log.logError(toString(),"Error :" + ex.getMessage());
+  }
+catch (  Exception e) {
+    log.logError(toString(),Messages.getString("JobEntryXSDValidator.ErrorXSDValidator.Label") + Messages.getString("JobEntryXSDValidator.ErrorXML1.Label") + realxmlfilename+ Messages.getString("JobEntryXSDValidator.ErrorXML2.Label")+ Messages.getString("JobEntryXSDValidator.ErrorXSD1.Label")+ realxsdfilename+ Messages.getString("JobEntryXSDValidator.ErrorXSD2.Label")+ e.getMessage());
+    result.setResult(false);
+    result.setNrErrors(1);
+  }
+ finally {
+    try {
+      if (xmlfile != null)       xmlfile.close();
+      if (xsdfile != null)       xsdfile.close();
+    }
+ catch (    IOException e) {
+    }
+  }
+  return result;
+}
