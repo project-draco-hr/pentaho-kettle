@@ -8,40 +8,107 @@
     while ((rowCount++ < Long.MAX_VALUE) && ((rw=t.getNextRow()) != null)) {
       Row row=buildEmptyRow();
       for (int i=0; i < meta.getInputFields().length; i++) {
+        AccessInputField accessInputField=meta.getInputFields()[i];
         Object obj=rw.get(meta.getInputFields()[i].getAttribut());
         Value v=row.getValue(i);
         v.setValue(String.valueOf(obj));
-        if (meta.getInputFields()[i].isRepeated()) {
-          if (v.isNull() && data.previousRow != null) {
-            Value previous=data.previousRow.getValue(i);
-            v.setValue(previous);
-          }
-        }
-      }
-      if (meta.includeFilename() && meta.getFilenameField() != null && meta.getFilenameField().length() > 0) {
-        Value fn=new Value(meta.getFilenameField(),KettleVFS.getFilename(data.file));
-        row.addValue(fn);
-      }
-      if (meta.includeRowNumber() && meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
-        Value fn=new Value(meta.getRowNumberField(),data.rownr);
-        row.addValue(fn);
-      }
-      data.previousRow=new Row(row);
-      data.rownr++;
-      if (log.isRowLevel())       logRowlevel(Messages.getString("AccessInput.Log.ReadRow",row.toString()));
-      putRow(row);
-    }
-  }
- catch (  Exception e) {
-    logError(Messages.getString("AccessInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
-    stopAll();
-    setErrors(1);
-  }
+switch (accessInputField.getTrimType()) {
+case AccessInputField.TYPE_TRIM_LEFT:
+          v.ltrim();
+        break;
+case AccessInputField.TYPE_TRIM_RIGHT:
+      v.rtrim();
+    break;
+case AccessInputField.TYPE_TRIM_BOTH:
+  v.trim();
+break;
+default :
+break;
+}
+switch (accessInputField.getType()) {
+case Value.VALUE_TYPE_STRING:
+break;
+case Value.VALUE_TYPE_NUMBER:
+if (accessInputField.getFormat() != null && accessInputField.getFormat().length() > 0) {
+if (accessInputField.getDecimalSymbol() != null && accessInputField.getDecimalSymbol().length() > 0) {
+if (accessInputField.getGroupSymbol() != null && accessInputField.getGroupSymbol().length() > 0) {
+if (accessInputField.getCurrencySymbol() != null && accessInputField.getCurrencySymbol().length() > 0) {
+  v.str2num(accessInputField.getFormat(),accessInputField.getDecimalSymbol(),accessInputField.getGroupSymbol(),accessInputField.getCurrencySymbol());
+}
+ else {
+  v.str2num(accessInputField.getFormat(),accessInputField.getDecimalSymbol(),accessInputField.getGroupSymbol());
+}
+}
+ else {
+v.str2num(accessInputField.getFormat(),accessInputField.getDecimalSymbol());
+}
+}
+ else {
+v.str2num(accessInputField.getFormat());
+}
+}
+ else {
+v.str2num();
+}
+v.setLength(accessInputField.getLength(),accessInputField.getPrecision());
+break;
+case Value.VALUE_TYPE_INTEGER:
+v.setValue(v.getInteger());
+v.setLength(accessInputField.getLength(),accessInputField.getPrecision());
+break;
+case Value.VALUE_TYPE_BIGNUMBER:
+v.setValue(v.getBigNumber());
+v.setLength(accessInputField.getLength(),accessInputField.getPrecision());
+break;
+case Value.VALUE_TYPE_DATE:
+if (accessInputField.getFormat() != null && accessInputField.getFormat().length() > 0) {
+v.str2dat(accessInputField.getFormat());
+}
+ else {
+v.setValue(v.getDate());
+}
+break;
+case Value.VALUE_TYPE_BOOLEAN:
+v.setValue(v.getBoolean());
+break;
+default :
+break;
+}
+if (meta.getInputFields()[i].isRepeated()) {
+if (v.isNull() && data.previousRow != null) {
+Value previous=data.previousRow.getValue(i);
+v.setValue(previous);
+}
+}
+}
+if (meta.includeFilename() && meta.getFilenameField() != null && meta.getFilenameField().length() > 0) {
+Value fn=new Value(meta.getFilenameField(),KettleVFS.getFilename(data.file));
+row.addValue(fn);
+}
+if (meta.includeTablename() && meta.gettablenameField() != null && meta.gettablenameField().length() > 0) {
+Value fn=new Value(meta.gettablenameField(),meta.getRealTableName());
+row.addValue(fn);
+}
+if (meta.includeRowNumber() && meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
+Value fn=new Value(meta.getRowNumberField(),data.rownr);
+row.addValue(fn);
+}
+data.previousRow=new Row(row);
+data.rownr++;
+if (log.isRowLevel()) logRowlevel(Messages.getString("AccessInput.Log.ReadRow",row.toString()));
+putRow(row);
+}
+}
+ catch (Exception e) {
+logError(Messages.getString("AccessInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+stopAll();
+setErrors(1);
+}
  finally {
-    try {
-      if (d != null)       d.close();
-    }
- catch (    Exception e) {
-    }
-  }
+try {
+if (d != null) d.close();
+}
+ catch (Exception e) {
+}
+}
 }
