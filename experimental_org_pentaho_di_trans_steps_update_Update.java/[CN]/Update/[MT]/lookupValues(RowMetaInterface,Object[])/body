@@ -1,0 +1,82 @@
+{
+  Object[] outputRow=row;
+  if (!Const.isEmpty(meta.getIgnoreFlagField())) {
+    outputRow=new Object[data.outputRowMeta.size()];
+    for (int i=0; i < rowMeta.size(); i++) {
+      outputRow[i]=row[i];
+    }
+  }
+  Object[] lookupRow=new Object[data.lookupParameterRowMeta.size()];
+  int lookupIndex=0;
+  for (int i=0; i < meta.getKeyStream().length; i++) {
+    if (data.keynrs[i] >= 0) {
+      lookupRow[lookupIndex]=row[data.keynrs[i]];
+      lookupIndex++;
+    }
+    if (data.keynrs2[i] >= 0) {
+      lookupRow[lookupIndex]=row[data.keynrs2[i]];
+      lookupIndex++;
+    }
+  }
+  data.db.setValues(data.lookupParameterRowMeta,lookupRow,data.prepStatementLookup);
+  if (log.isDebug())   logDebug(Messages.getString("Update.Log.ValuesSetForLookup",data.lookupParameterRowMeta.getString(lookupRow),rowMeta.getString(row)));
+  Object[] add=data.db.getLookup(data.prepStatementLookup);
+  linesInput++;
+  if (add == null) {
+    if (!meta.isErrorIgnored()) {
+      if (getStepMeta().isDoingErrorHandling()) {
+        outputRow=null;
+        if (data.stringErrorKeyNotFound == null) {
+          data.stringErrorKeyNotFound=Messages.getString("Update.Exception.KeyCouldNotFound") + data.lookupParameterRowMeta.getString(lookupRow);
+          data.stringFieldnames="";
+          for (int i=0; i < data.lookupParameterRowMeta.size(); i++) {
+            if (i > 0)             data.stringFieldnames+=", ";
+            data.stringFieldnames+=data.lookupParameterRowMeta.getValueMeta(i).getName();
+          }
+        }
+        putError(rowMeta,row,1L,data.stringErrorKeyNotFound,data.stringFieldnames,"UPD001");
+      }
+ else {
+        throw new KettleDatabaseException(Messages.getString("Update.Exception.KeyCouldNotFound") + data.lookupParameterRowMeta.getString(lookupRow));
+      }
+    }
+ else {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("Update.Log.KeyCouldNotFound") + data.lookupParameterRowMeta.getString(lookupRow));
+      if (!Const.isEmpty(meta.getIgnoreFlagField())) {
+        outputRow[rowMeta.size()]=new Boolean(false);
+      }
+    }
+  }
+ else {
+    if (log.isRowLevel())     logRowlevel(Messages.getString("Update.Log.FoundRow") + add.toString());
+    boolean update=false;
+    for (int i=0; i < data.valuenrs.length; i++) {
+      ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.valuenrs[i]);
+      Object rowvalue=row[data.valuenrs[i]];
+      Object retvalue=add[i];
+      if (valueMeta.compare(rowvalue,retvalue) != 0) {
+        update=true;
+      }
+    }
+    if (update) {
+      Object[] updateRow=new Object[data.updateParameterRowMeta.size()];
+      for (int i=0; i < data.valuenrs.length; i++) {
+        updateRow[i]=row[data.valuenrs[i]];
+      }
+      for (int i=0; i < lookupRow.length; i++) {
+        updateRow[data.valuenrs.length + i]=lookupRow[i];
+      }
+      if (log.isRowLevel())       logRowlevel(Messages.getString("Update.Log.UpdateRow") + data.lookupParameterRowMeta.getString(lookupRow));
+      data.db.setValues(data.updateParameterRowMeta,updateRow,data.prepStatementUpdate);
+      data.db.insertRow(data.prepStatementUpdate);
+      linesUpdated++;
+    }
+ else {
+      linesSkipped++;
+    }
+    if (!Const.isEmpty(meta.getIgnoreFlagField())) {
+      row[rowMeta.size()]=new Boolean(true);
+    }
+  }
+  return outputRow;
+}

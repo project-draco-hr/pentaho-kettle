@@ -1,0 +1,37 @@
+{
+  data.lookupParameterRowMeta=new RowMeta();
+  data.lookupReturnRowMeta=new RowMeta();
+  DatabaseMeta databaseMeta=meta.getDatabaseMeta();
+  String sql="SELECT ";
+  for (int i=0; i < meta.getUpdateLookup().length; i++) {
+    if (i != 0)     sql+=", ";
+    sql+=databaseMeta.quoteField(meta.getUpdateLookup()[i]);
+    data.lookupReturnRowMeta.addValueMeta(rowMeta.searchValueMeta(meta.getUpdateStream()[i]));
+  }
+  sql+=" FROM " + data.schemaTable + " WHERE ";
+  for (int i=0; i < meta.getKeyLookup().length; i++) {
+    if (i != 0)     sql+=" AND ";
+    sql+=databaseMeta.quoteField(meta.getKeyLookup()[i]);
+    if ("BETWEEN".equalsIgnoreCase(meta.getKeyCondition()[i])) {
+      sql+=" BETWEEN ? AND ? ";
+      data.lookupParameterRowMeta.addValueMeta(rowMeta.searchValueMeta(meta.getKeyStream()[i]));
+      data.lookupParameterRowMeta.addValueMeta(rowMeta.searchValueMeta(meta.getKeyStream2()[i]));
+    }
+ else {
+      if ("IS NULL".equalsIgnoreCase(meta.getKeyCondition()[i]) || "IS NOT NULL".equalsIgnoreCase(meta.getKeyCondition()[i])) {
+        sql+=" " + meta.getKeyCondition()[i] + " ";
+      }
+ else {
+        sql+=" " + meta.getKeyCondition()[i] + " ? ";
+        data.lookupParameterRowMeta.addValueMeta(rowMeta.searchValueMeta(meta.getKeyStream()[i]));
+      }
+    }
+  }
+  try {
+    log.logDetailed(toString(),"Setting preparedStatement to [" + sql + "]");
+    data.prepStatementLookup=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql));
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Unable to prepare statement for SQL statement [" + sql + "]",ex);
+  }
+}
