@@ -1,6 +1,8 @@
 {
   meta=(DatabaseJoinMeta)smi;
   data=(DatabaseJoinData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
   Row r=getRow();
   if (r == null) {
     setOutputDone();
@@ -11,11 +13,21 @@
     if (checkFeedback(linesRead))     logBasic(Messages.getString("DatabaseJoin.Log.LineNumber") + linesRead);
   }
  catch (  KettleException e) {
-    logError(Messages.getString("DatabaseJoin.Log.ErrorInStepRunning") + e.getMessage());
-    setErrors(1);
-    stopAll();
-    setOutputDone();
-    return false;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("DatabaseJoin.Log.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(r,1,errorMessage,null,"TOP001");
+      r.setIgnore();
+    }
   }
   return true;
 }
