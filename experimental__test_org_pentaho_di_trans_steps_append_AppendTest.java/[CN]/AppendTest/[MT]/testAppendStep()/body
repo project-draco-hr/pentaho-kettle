@@ -1,0 +1,66 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  EnvUtil.environmentInit();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("Appendtest");
+  StepLoader steploader=StepLoader.getInstance();
+  String injectorStepname1="injector step 1";
+  InjectorMeta im1=new InjectorMeta();
+  String injectorPid1=steploader.getStepPluginID(im1);
+  StepMeta injectorStep1=new StepMeta(injectorPid1,injectorStepname1,(StepMetaInterface)im1);
+  transMeta.addStep(injectorStep1);
+  String injectorStepname2="injector step 2";
+  InjectorMeta im2=new InjectorMeta();
+  String injectorPid2=steploader.getStepPluginID(im2);
+  StepMeta injectorStep2=new StepMeta(injectorPid2,injectorStepname2,(StepMetaInterface)im2);
+  transMeta.addStep(injectorStep2);
+  String appendName="append step";
+  AppendMeta am=new AppendMeta();
+  am.setHeadStepMeta(injectorStep1);
+  am.setTailStepMeta(injectorStep2);
+  String appendPid=steploader.getStepPluginID(am);
+  StepMeta append=new StepMeta(appendPid,appendName,(StepMetaInterface)am);
+  transMeta.addStep(append);
+  TransHopMeta hi2=new TransHopMeta(injectorStep1,append);
+  transMeta.addTransHop(hi2);
+  TransHopMeta hi3=new TransHopMeta(injectorStep2,append);
+  transMeta.addTransHop(hi3);
+  String dummyStepname1="dummy step 1";
+  DummyTransMeta dm1=new DummyTransMeta();
+  String dummyPid1=steploader.getStepPluginID(dm1);
+  StepMeta dummyStep1=new StepMeta(dummyPid1,dummyStepname1,(StepMetaInterface)dm1);
+  transMeta.addStep(dummyStep1);
+  TransHopMeta hi4=new TransHopMeta(append,dummyStep1);
+  transMeta.addTransHop(hi4);
+  Trans trans=new Trans(log,transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(appendName,0);
+  RowStepCollector blockingRc=new RowStepCollector();
+  si.addRowListener(blockingRc);
+  si=trans.getStepInterface(dummyStepname1,0);
+  RowStepCollector dummyRc1=new RowStepCollector();
+  si.addRowListener(dummyRc1);
+  RowProducer rp1=trans.addRowProducer(injectorStepname1,0);
+  RowProducer rp2=trans.addRowProducer(injectorStepname2,0);
+  trans.startThreads();
+  List inputList2=createData2();
+  Iterator it2=inputList2.iterator();
+  while (it2.hasNext()) {
+    RowMetaAndData rm=(RowMetaAndData)it2.next();
+    rp2.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp2.finished();
+  List inputList1=createData1();
+  Iterator it1=inputList1.iterator();
+  while (it1.hasNext()) {
+    RowMetaAndData rm=(RowMetaAndData)it1.next();
+    rp1.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp1.finished();
+  trans.waitUntilFinished();
+  ArrayList expectedList=new ArrayList();
+  expectedList.addAll(inputList1);
+  expectedList.addAll(inputList2);
+  List resultRows1=dummyRc1.getRowsRead();
+  checkRows(resultRows1,expectedList);
+}
