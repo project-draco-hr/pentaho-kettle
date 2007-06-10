@@ -1,0 +1,30 @@
+{
+  DatabaseMeta databaseMeta=meta.getDatabaseMeta();
+  data.deleteParameterRowMeta=new RowMeta();
+  String sql="DELETE FROM " + data.schemaTable + Const.CR;
+  sql+="WHERE ";
+  for (int i=0; i < meta.getKeyLookup().length; i++) {
+    if (i != 0)     sql+="AND   ";
+    sql+=databaseMeta.quoteField(meta.getKeyLookup()[i]);
+    if ("BETWEEN".equalsIgnoreCase(meta.getKeyCondition()[i])) {
+      sql+=" BETWEEN ? AND ? ";
+      data.deleteParameterRowMeta.addValueMeta(rowMeta.searchValueMeta(meta.getKeyStream()[i]));
+      data.deleteParameterRowMeta.addValueMeta(rowMeta.searchValueMeta(meta.getKeyStream2()[i]));
+    }
+ else     if ("IS NULL".equalsIgnoreCase(meta.getKeyCondition()[i]) || "IS NOT NULL".equalsIgnoreCase(meta.getKeyCondition()[i])) {
+      sql+=" " + meta.getKeyCondition()[i] + " ";
+    }
+ else {
+      sql+=" " + meta.getKeyCondition()[i] + " ? ";
+      data.deleteParameterRowMeta.addValueMeta(rowMeta.searchValueMeta(meta.getKeyStream()[i]));
+    }
+  }
+  try {
+    String s=sql.toString();
+    log.logDetailed(toString(),"Setting delete preparedStatement to [" + s + "]");
+    data.prepStatementDelete=data.db.getConnection().prepareStatement(databaseMeta.stripCR(s));
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Unable to prepare statement for SQL statement [" + sql + "]",ex);
+  }
+}

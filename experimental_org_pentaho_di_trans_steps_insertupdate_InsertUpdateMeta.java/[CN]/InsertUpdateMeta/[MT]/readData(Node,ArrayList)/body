@@ -1,0 +1,42 @@
+{
+  try {
+    String csize;
+    int nrkeys, nrvalues;
+    String con=XMLHandler.getTagValue(stepnode,"connection");
+    databaseMeta=DatabaseMeta.findDatabase(databases,con);
+    csize=XMLHandler.getTagValue(stepnode,"commit");
+    commitSize=Const.toInt(csize,0);
+    schemaName=XMLHandler.getTagValue(stepnode,"lookup","schema");
+    tableName=XMLHandler.getTagValue(stepnode,"lookup","table");
+    updateBypassed="Y".equalsIgnoreCase(XMLHandler.getTagValue(stepnode,"update_bypassed"));
+    Node lookup=XMLHandler.getSubNode(stepnode,"lookup");
+    nrkeys=XMLHandler.countNodes(lookup,"key");
+    nrvalues=XMLHandler.countNodes(lookup,"value");
+    allocate(nrkeys,nrvalues);
+    for (int i=0; i < nrkeys; i++) {
+      Node knode=XMLHandler.getSubNodeByNr(lookup,"key",i);
+      keyStream[i]=XMLHandler.getTagValue(knode,"name");
+      keyLookup[i]=XMLHandler.getTagValue(knode,"field");
+      keyCondition[i]=XMLHandler.getTagValue(knode,"condition");
+      if (keyCondition[i] == null)       keyCondition[i]="=";
+      keyStream2[i]=XMLHandler.getTagValue(knode,"name2");
+    }
+    for (int i=0; i < nrvalues; i++) {
+      Node vnode=XMLHandler.getSubNodeByNr(lookup,"value",i);
+      updateLookup[i]=XMLHandler.getTagValue(vnode,"name");
+      updateStream[i]=XMLHandler.getTagValue(vnode,"rename");
+      if (updateStream[i] == null)       updateStream[i]=updateLookup[i];
+      String updateValue=XMLHandler.getTagValue(vnode,"update");
+      if (updateValue == null) {
+        update[i]=Boolean.TRUE;
+      }
+ else {
+        if (updateValue.equalsIgnoreCase("Y"))         update[i]=Boolean.TRUE;
+ else         update[i]=Boolean.FALSE;
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException(Messages.getString("InsertUpdateMeta.Exception.UnableToReadStepInfoFromXML"),e);
+  }
+}
