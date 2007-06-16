@@ -1,0 +1,58 @@
+{
+  int theType=dis.readInt();
+  newValue(theType);
+  int nameLength=dis.readInt();
+  StringBuffer nameBuffer=new StringBuffer();
+  for (int i=0; i < nameLength; i++)   nameBuffer.append(dis.readChar());
+  setName(new String(nameBuffer));
+  setLength(dis.readInt(),dis.readInt());
+  setNull(dis.readBoolean());
+  if (!isNull()) {
+switch (getType()) {
+case VALUE_TYPE_STRING:
+      int stringLength=dis.readInt();
+    if (stringLength < 0) {
+      setValue((String)null);
+    }
+ else {
+      byte chars[]=new byte[stringLength];
+      dis.readFully(chars);
+      setValue(new String(chars,Const.XML_ENCODING));
+    }
+  break;
+case VALUE_TYPE_BIGNUMBER:
+int bnLength=dis.readInt();
+if (bnLength < 0) {
+setValue((BigDecimal)null);
+}
+ else {
+StringBuffer buffer=new StringBuffer();
+for (int i=0; i < bnLength; i++) buffer.append(dis.readChar());
+setValue(buffer.toString());
+try {
+  convertString(VALUE_TYPE_BIGNUMBER);
+}
+ catch (KettleValueException e) {
+  throw new IOException("Unable to convert String to BigNumber while reading from data input stream [" + getString() + "]");
+}
+}
+break;
+case VALUE_TYPE_DATE:
+if (dis.readBoolean()) {
+setValue(new Date(dis.readLong()));
+}
+break;
+case VALUE_TYPE_NUMBER:
+setValue(dis.readDouble());
+break;
+case VALUE_TYPE_INTEGER:
+setValue(dis.readLong());
+break;
+case VALUE_TYPE_BOOLEAN:
+setValue(dis.readBoolean());
+break;
+default :
+break;
+}
+}
+}
