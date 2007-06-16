@@ -1,0 +1,57 @@
+{
+  try {
+    this.filename=createFilename(sharedObjectsFile);
+    this.objectsMap=new Hashtable();
+    FileObject file=KettleVFS.getFileObject(filename);
+    if (file.exists()) {
+      LogWriter.getInstance().logDetailed("SharedObjects","Reading the shared objects file [" + file + "]");
+      Document document=XMLHandler.loadXMLFile(file);
+      Node sharedObjectsNode=XMLHandler.getSubNode(document,XML_TAG);
+      if (sharedObjectsNode != null) {
+        List privateSlaveServers=new ArrayList();
+        ArrayList privateDatabases=new ArrayList();
+        NodeList childNodes=sharedObjectsNode.getChildNodes();
+        for (int i=0; i < childNodes.getLength(); i++) {
+          Node node=childNodes.item(i);
+          String nodeName=node.getNodeName();
+          SharedObjectInterface isShared=null;
+          if (nodeName.equals(DatabaseMeta.XML_TAG)) {
+            isShared=new DatabaseMeta(node);
+            privateDatabases.add(isShared);
+          }
+ else           if (nodeName.equals(SlaveServer.XML_TAG)) {
+            isShared=new SlaveServer(node);
+            privateSlaveServers.add(isShared);
+          }
+          if (isShared != null) {
+            isShared.setShared(true);
+            storeObject(isShared);
+          }
+        }
+        for (int i=0; i < childNodes.getLength(); i++) {
+          Node node=childNodes.item(i);
+          String nodeName=node.getNodeName();
+          SharedObjectInterface isShared=null;
+          if (nodeName.equals(StepMeta.XML_TAG)) {
+            StepMeta stepMeta=new StepMeta(node,privateDatabases,null);
+            stepMeta.setDraw(false);
+            isShared=stepMeta;
+          }
+ else           if (nodeName.equals(PartitionSchema.XML_TAG)) {
+            isShared=new PartitionSchema(node);
+          }
+ else           if (nodeName.equals(ClusterSchema.XML_TAG)) {
+            isShared=new ClusterSchema(node,privateSlaveServers);
+          }
+          if (isShared != null) {
+            isShared.setShared(true);
+            storeObject(isShared);
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException("Unexpected problem reading shared objects from XML file",e);
+  }
+}
