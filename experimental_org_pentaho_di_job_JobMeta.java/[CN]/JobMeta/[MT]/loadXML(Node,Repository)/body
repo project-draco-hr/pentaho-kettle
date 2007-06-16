@@ -1,0 +1,106 @@
+{
+  Props props=null;
+  if (Props.isInitialized())   props=Props.getInstance();
+  try {
+    clear();
+    name=XMLHandler.getTagValue(jobnode,"name");
+    description=XMLHandler.getTagValue(jobnode,"description");
+    extended_description=XMLHandler.getTagValue(jobnode,"extended_description");
+    job_version=XMLHandler.getTagValue(jobnode,"job_version");
+    job_status=Const.toInt(XMLHandler.getTagValue(jobnode,"job_status"),-1);
+    created_user=XMLHandler.getTagValue(jobnode,"created_user");
+    String createDate=XMLHandler.getTagValue(jobnode,"created_date");
+    if (createDate != null) {
+      created_date=XMLHandler.stringToDate(createDate);
+    }
+    modifiedUser=XMLHandler.getTagValue(jobnode,"modified_user");
+    String modDate=XMLHandler.getTagValue(jobnode,"modified_date");
+    if (modDate != null) {
+      modifiedDate=XMLHandler.stringToDate(modDate);
+    }
+    try {
+      sharedObjectsFile=XMLHandler.getTagValue(jobnode,"shared_objects_file");
+      readSharedObjects(rep);
+    }
+ catch (    Exception e) {
+      LogWriter.getInstance().logError(toString(),Messages.getString("JobMeta.ErrorReadingSharedObjects.Message",e.toString()));
+      LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
+    }
+    int nr=XMLHandler.countNodes(jobnode,"connection");
+    for (int i=0; i < nr; i++) {
+      Node dbnode=XMLHandler.getSubNodeByNr(jobnode,"connection",i);
+      DatabaseMeta dbcon=new DatabaseMeta(dbnode);
+      DatabaseMeta exist=findDatabase(dbcon.getName());
+      if (exist == null) {
+        addDatabase(dbcon);
+      }
+ else {
+        boolean askOverwrite=Props.isInitialized() ? props.askAboutReplacingDatabaseConnections() : false;
+        boolean overwrite=Props.isInitialized() ? props.replaceExistingDatabaseConnections() : true;
+        if (askOverwrite) {
+          if (props.getDisplay() != null) {
+            Shell shell=props.getDisplay().getActiveShell();
+            MessageDialogWithToggle md=new MessageDialogWithToggle(shell,"Warning",null,Messages.getString("JobMeta.Dialog.ConnectionExistsOverWrite.Message",dbcon.getName()),MessageDialog.WARNING,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},1,Messages.getString("JobMeta.Dialog.ConnectionExistsOverWrite.DontShowAnyMoreMessage"),!props.askAboutReplacingDatabaseConnections());
+            int idx=md.open();
+            props.setAskAboutReplacingDatabaseConnections(!md.getToggleState());
+            overwrite=((idx & 0xFF) == 0);
+          }
+        }
+        if (overwrite) {
+          int idx=indexOfDatabase(exist);
+          removeDatabase(idx);
+          addDatabase(idx,dbcon);
+        }
+      }
+    }
+    String logcon=XMLHandler.getTagValue(jobnode,"logconnection");
+    logconnection=findDatabase(logcon);
+    logTable=XMLHandler.getTagValue(jobnode,"logtable");
+    useBatchId="Y".equalsIgnoreCase(XMLHandler.getTagValue(jobnode,"use_batchid"));
+    batchIdPassed="Y".equalsIgnoreCase(XMLHandler.getTagValue(jobnode,"pass_batchid"));
+    logfieldUsed="Y".equalsIgnoreCase(XMLHandler.getTagValue(jobnode,"use_logfield"));
+    Node entriesnode=XMLHandler.getSubNode(jobnode,"entries");
+    int tr=XMLHandler.countNodes(entriesnode,"entry");
+    for (int i=0; i < tr; i++) {
+      Node entrynode=XMLHandler.getSubNodeByNr(entriesnode,"entry",i);
+      JobEntryCopy je=new JobEntryCopy(entrynode,databases,rep);
+      JobEntryCopy prev=findJobEntry(je.getName(),0,true);
+      if (prev != null) {
+        if (je.getNr() == 0) {
+          int idx=indexOfJobEntry(prev);
+          removeJobEntry(idx);
+        }
+ else         if (je.getNr() > 0) {
+          je.setEntry(prev.getEntry());
+          prev=findJobEntry(je.getName(),je.getNr(),true);
+          if (prev != null) {
+            int idx=indexOfJobEntry(prev);
+            removeJobEntry(idx);
+          }
+        }
+      }
+      addJobEntry(je);
+    }
+    Node hopsnode=XMLHandler.getSubNode(jobnode,"hops");
+    int ho=XMLHandler.countNodes(hopsnode,"hop");
+    for (int i=0; i < ho; i++) {
+      Node hopnode=XMLHandler.getSubNodeByNr(hopsnode,"hop",i);
+      JobHopMeta hi=new JobHopMeta(hopnode,this);
+      jobhops.add(hi);
+    }
+    Node notepadsnode=XMLHandler.getSubNode(jobnode,"notepads");
+    int nrnotes=XMLHandler.countNodes(notepadsnode,"notepad");
+    for (int i=0; i < nrnotes; i++) {
+      Node notepadnode=XMLHandler.getSubNodeByNr(notepadsnode,"notepad",i);
+      NotePadMeta ni=new NotePadMeta(notepadnode);
+      notes.add(ni);
+    }
+    clearChanged();
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException(Messages.getString("JobMeta.Exception.UnableToLoadJobFromXMLNode"),e);
+  }
+ finally {
+    setInternalKettleVariables();
+  }
+}

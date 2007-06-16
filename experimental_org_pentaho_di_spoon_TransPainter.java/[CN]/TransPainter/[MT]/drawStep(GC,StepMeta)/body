@@ -1,0 +1,64 @@
+{
+  if (stepMeta == null)   return;
+  Point pt=stepMeta.getLocation();
+  int x, y;
+  if (pt != null) {
+    x=pt.x;
+    y=pt.y;
+  }
+ else {
+    x=50;
+    y=50;
+  }
+  Point screen=real2screen(x,y,offset);
+  String name=stepMeta.getName();
+  if (stepMeta.isSelected())   gc.setLineWidth(linewidth + 2);
+ else   gc.setLineWidth(linewidth);
+  gc.setBackground(red);
+  gc.setForeground(black);
+  gc.fillRectangle(screen.x,screen.y,iconsize,iconsize);
+  String steptype=stepMeta.getStepID();
+  Image im=(Image)images.get(steptype);
+  if (im != null) {
+    org.eclipse.swt.graphics.Rectangle bounds=im.getBounds();
+    gc.drawImage(im,0,0,bounds.width,bounds.height,screen.x,screen.y,iconsize,iconsize);
+  }
+  gc.setBackground(background);
+  gc.drawRectangle(screen.x - 1,screen.y - 1,iconsize + 1,iconsize + 1);
+  Point namePosition=getNamePosition(gc,name,screen,iconsize);
+  if (shadowsize > 0) {
+    gc.setForeground(lightGray);
+    gc.drawText(name,namePosition.x + shadowsize,namePosition.y + shadowsize,SWT.DRAW_TRANSPARENT);
+  }
+  gc.setForeground(black);
+  gc.drawText(name,namePosition.x,namePosition.y,SWT.DRAW_TRANSPARENT);
+  boolean clustered=false;
+  boolean partitioned=false;
+  StepPartitioningMeta meta=stepMeta.getStepPartitioningMeta();
+  if (stepMeta.isPartitioned() && meta != null) {
+    partitioned=true;
+    String message="P";
+    PartitionSchema schema=meta.getPartitionSchema();
+    if (schema != null) {
+      if (schema.getPartitionIDs() != null && schema.getPartitionIDs().length > 0) {
+        message+="x" + schema.getPartitionIDs().length;
+      }
+    }
+    gc.setBackground(background);
+    gc.setForeground(black);
+    gc.drawText(message,screen.x - 5,screen.y - 5);
+  }
+  if (stepMeta.getClusterSchema() != null) {
+    clustered=true;
+    String message="C";
+    message+="x" + stepMeta.getClusterSchema().findNrSlaves();
+    gc.setBackground(background);
+    gc.setForeground(black);
+    gc.drawText(message,screen.x - 5 + iconsize,screen.y - 5);
+  }
+  if (stepMeta.getCopies() > 1 && !partitioned && !clustered) {
+    gc.setBackground(background);
+    gc.setForeground(black);
+    gc.drawText("x" + stepMeta.getCopies(),screen.x - 5,screen.y - 5);
+  }
+}

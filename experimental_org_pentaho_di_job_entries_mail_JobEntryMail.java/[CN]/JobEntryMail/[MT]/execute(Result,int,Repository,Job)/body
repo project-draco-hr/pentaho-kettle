@@ -1,0 +1,264 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  File masterZipfile=null;
+  Properties props=new Properties();
+  if (Const.isEmpty(server)) {
+    log.logError(toString(),"Unable to send the mail because the mail-server (SMTP host) is not specified");
+    result.setNrErrors(1L);
+    result.setResult(false);
+    return result;
+  }
+  String protocol="smtp";
+  if (usingSecureAuthentication) {
+    protocol="smtps";
+  }
+  props.put("mail." + protocol + ".host",StringUtil.environmentSubstitute(server));
+  if (!Const.isEmpty(port))   props.put("mail." + protocol + ".port",StringUtil.environmentSubstitute(port));
+  boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
+  if (debug)   props.put("mail.debug","true");
+  if (usingAuthentication) {
+    props.put("mail." + protocol + ".auth","true");
+  }
+  Session session=Session.getInstance(props);
+  session.setDebug(debug);
+  try {
+    Message msg=new MimeMessage(session);
+    String email_address=StringUtil.environmentSubstitute(replyAddress);
+    if (!Const.isEmpty(email_address)) {
+      msg.setFrom(new InternetAddress(email_address));
+    }
+ else {
+      throw new MessagingException("reply e-mail address is not filled in");
+    }
+    String destinations[]=StringUtil.environmentSubstitute(destination).split(" ");
+    InternetAddress[] address=new InternetAddress[destinations.length];
+    for (int i=0; i < destinations.length; i++)     address[i]=new InternetAddress(destinations[i]);
+    msg.setRecipients(Message.RecipientType.TO,address);
+    if (!Const.isEmpty(destinationCc)) {
+      String destinationsCc[]=StringUtil.environmentSubstitute(destinationCc).split(" ");
+      InternetAddress[] addressCc=new InternetAddress[destinationsCc.length];
+      for (int i=0; i < destinationsCc.length; i++)       addressCc[i]=new InternetAddress(destinationsCc[i]);
+      msg.setRecipients(Message.RecipientType.CC,addressCc);
+    }
+    if (!Const.isEmpty(destinationBCc)) {
+      String destinationsBCc[]=StringUtil.environmentSubstitute(destinationBCc).split(" ");
+      InternetAddress[] addressBCc=new InternetAddress[destinationsBCc.length];
+      for (int i=0; i < destinationsBCc.length; i++)       addressBCc[i]=new InternetAddress(destinationsBCc[i]);
+      msg.setRecipients(Message.RecipientType.BCC,addressBCc);
+    }
+    if (!Const.isEmpty(StringUtil.environmentSubstitute(subject))) {
+      msg.setSubject(StringUtil.environmentSubstitute(subject));
+    }
+    msg.setSentDate(new Date());
+    StringBuffer messageText=new StringBuffer();
+    if (comment != null) {
+      messageText.append(StringUtil.environmentSubstitute(comment)).append(Const.CR).append(Const.CR);
+    }
+    if (!onlySendComment) {
+      messageText.append("Job:").append(Const.CR);
+      messageText.append("-----").append(Const.CR);
+      messageText.append("Name       : ").append(parentJob.getJobMeta().getName()).append(Const.CR);
+      messageText.append("Directory  : ").append(parentJob.getJobMeta().getDirectory()).append(Const.CR);
+      messageText.append("JobEntry   : ").append(getName()).append(Const.CR);
+      messageText.append(Const.CR);
+    }
+    if (includeDate) {
+      Value date=new Value("date",new Date());
+      messageText.append("Message date: ").append(date.toString()).append(Const.CR).append(Const.CR);
+    }
+    if (!onlySendComment && result != null) {
+      messageText.append("Previous result:").append(Const.CR);
+      messageText.append("-----------------").append(Const.CR);
+      messageText.append("Job entry nr         : ").append(result.getEntryNr()).append(Const.CR);
+      messageText.append("Errors               : ").append(result.getNrErrors()).append(Const.CR);
+      messageText.append("Lines read           : ").append(result.getNrLinesRead()).append(Const.CR);
+      messageText.append("Lines written        : ").append(result.getNrLinesWritten()).append(Const.CR);
+      messageText.append("Lines input          : ").append(result.getNrLinesInput()).append(Const.CR);
+      messageText.append("Lines output         : ").append(result.getNrLinesOutput()).append(Const.CR);
+      messageText.append("Lines updated        : ").append(result.getNrLinesUpdated()).append(Const.CR);
+      messageText.append("Script exit status   : ").append(result.getExitStatus()).append(Const.CR);
+      messageText.append("Result               : ").append(result.getResult()).append(Const.CR);
+      messageText.append(Const.CR);
+    }
+    if (!onlySendComment && (!Const.isEmpty(StringUtil.environmentSubstitute(contactPerson)) || !Const.isEmpty(StringUtil.environmentSubstitute(contactPhone)))) {
+      messageText.append("Contact information :").append(Const.CR);
+      messageText.append("---------------------").append(Const.CR);
+      messageText.append("Person to contact : ").append(StringUtil.environmentSubstitute(contactPerson)).append(Const.CR);
+      messageText.append("Telephone number  : ").append(StringUtil.environmentSubstitute(contactPhone)).append(Const.CR);
+      messageText.append(Const.CR);
+    }
+    if (!onlySendComment) {
+      JobTracker jobTracker=parentJob.getJobTracker();
+      if (jobTracker != null) {
+        messageText.append("Path to this job entry:").append(Const.CR);
+        messageText.append("------------------------").append(Const.CR);
+        addBacktracking(jobTracker,messageText);
+      }
+    }
+    Multipart parts=new MimeMultipart();
+    MimeBodyPart part1=new MimeBodyPart();
+    if (useHTML) {
+      if (!Const.isEmpty(getEncoding())) {
+        part1.setContent(messageText.toString(),"text/html; " + "charset=" + getEncoding());
+      }
+ else {
+        part1.setContent(messageText.toString(),"text/html; " + "charset=ISO-8859-1");
+      }
+    }
+ else     part1.setText(messageText.toString());
+    parts.addBodyPart(part1);
+    if (includingFiles && result != null) {
+      List resultFiles=result.getResultFilesList();
+      if (resultFiles != null && resultFiles.size() > 0) {
+        if (!zipFiles) {
+          for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
+            ResultFile resultFile=(ResultFile)iter.next();
+            FileObject file=resultFile.getFile();
+            if (file != null && file.exists()) {
+              boolean found=false;
+              for (int i=0; i < fileType.length; i++) {
+                if (fileType[i] == resultFile.getType())                 found=true;
+              }
+              if (found) {
+                MimeBodyPart files=new MimeBodyPart();
+                URLDataSource fds=new URLDataSource(file.getURL());
+                files.setDataHandler(new DataHandler(fds));
+                files.setFileName(file.getName().getBaseName());
+                parts.addBodyPart(files);
+                log.logBasic(toString(),"Added file '" + fds.getName() + "' to the mail message.");
+              }
+            }
+          }
+        }
+ else {
+          masterZipfile=new File(System.getProperty("java.io.tmpdir") + Const.FILE_SEPARATOR + StringUtil.environmentSubstitute(zipFilename));
+          ZipOutputStream zipOutputStream=null;
+          try {
+            zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
+            for (Iterator iter=resultFiles.iterator(); iter.hasNext(); ) {
+              ResultFile resultFile=(ResultFile)iter.next();
+              boolean found=false;
+              for (int i=0; i < fileType.length; i++) {
+                if (fileType[i] == resultFile.getType())                 found=true;
+              }
+              if (found) {
+                FileObject file=resultFile.getFile();
+                ZipEntry zipEntry=new ZipEntry(file.getName().getBaseName());
+                zipOutputStream.putNextEntry(zipEntry);
+                BufferedInputStream inputStream=new BufferedInputStream(file.getContent().getInputStream());
+                int c;
+                while ((c=inputStream.read()) >= 0) {
+                  zipOutputStream.write(c);
+                }
+                inputStream.close();
+                zipOutputStream.closeEntry();
+                log.logBasic(toString(),"Added file '" + file.getName().getURI() + "' to the mail message in a zip archive.");
+              }
+            }
+          }
+ catch (          Exception e) {
+            log.logError(toString(),"Error zipping attachement files into file [" + masterZipfile.getPath() + "] : "+ e.toString());
+            log.logError(toString(),Const.getStackTracker(e));
+            result.setNrErrors(1);
+          }
+ finally {
+            if (zipOutputStream != null) {
+              try {
+                zipOutputStream.finish();
+                zipOutputStream.close();
+              }
+ catch (              IOException e) {
+                log.logError(toString(),"Unable to close attachement zip file archive : " + e.toString());
+                log.logError(toString(),Const.getStackTracker(e));
+                result.setNrErrors(1);
+              }
+            }
+          }
+          if (result.getNrErrors() == 0) {
+            MimeBodyPart files=new MimeBodyPart();
+            FileDataSource fds=new FileDataSource(masterZipfile);
+            files.setDataHandler(new DataHandler(fds));
+            files.setFileName(fds.getName());
+            parts.addBodyPart(files);
+          }
+        }
+      }
+    }
+    msg.setContent(parts);
+    Transport transport=null;
+    try {
+      transport=session.getTransport(protocol);
+      if (usingAuthentication) {
+        if (!Const.isEmpty(port)) {
+          transport.connect(StringUtil.environmentSubstitute(Const.NVL(server,"")),Integer.parseInt(StringUtil.environmentSubstitute(Const.NVL(port,""))),StringUtil.environmentSubstitute(Const.NVL(authenticationUser,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationPassword,"")));
+        }
+ else {
+          transport.connect(StringUtil.environmentSubstitute(Const.NVL(server,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationUser,"")),StringUtil.environmentSubstitute(Const.NVL(authenticationPassword,"")));
+        }
+      }
+ else {
+        transport.connect();
+      }
+      transport.sendMessage(msg,msg.getAllRecipients());
+    }
+  finally {
+      if (transport != null)       transport.close();
+    }
+  }
+ catch (  IOException e) {
+    log.logError(toString(),"Problem while sending message: " + e.toString());
+    result.setNrErrors(1);
+  }
+catch (  MessagingException mex) {
+    log.logError(toString(),"Problem while sending message: " + mex.toString());
+    result.setNrErrors(1);
+    Exception ex=mex;
+    do {
+      if (ex instanceof SendFailedException) {
+        SendFailedException sfex=(SendFailedException)ex;
+        Address[] invalid=sfex.getInvalidAddresses();
+        if (invalid != null) {
+          log.logError(toString(),"    ** Invalid Addresses");
+          for (int i=0; i < invalid.length; i++) {
+            log.logError(toString(),"         " + invalid[i]);
+            result.setNrErrors(1);
+          }
+        }
+        Address[] validUnsent=sfex.getValidUnsentAddresses();
+        if (validUnsent != null) {
+          log.logError(toString(),"    ** ValidUnsent Addresses");
+          for (int i=0; i < validUnsent.length; i++) {
+            log.logError(toString(),"         " + validUnsent[i]);
+            result.setNrErrors(1);
+          }
+        }
+        Address[] validSent=sfex.getValidSentAddresses();
+        if (validSent != null) {
+          for (int i=0; i < validSent.length; i++) {
+            log.logError(toString(),"         " + validSent[i]);
+            result.setNrErrors(1);
+          }
+        }
+      }
+      if (ex instanceof MessagingException) {
+        ex=((MessagingException)ex).getNextException();
+      }
+ else {
+        ex=null;
+      }
+    }
+ while (ex != null);
+  }
+ finally {
+    if (masterZipfile != null && masterZipfile.exists()) {
+      masterZipfile.delete();
+    }
+  }
+  if (result.getNrErrors() > 0) {
+    result.setResult(false);
+  }
+ else {
+    result.setResult(true);
+  }
+  return result;
+}

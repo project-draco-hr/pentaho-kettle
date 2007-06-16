@@ -1,0 +1,172 @@
+{
+  result.setEntryNr(nr);
+  LogWriter logwriter=log;
+  Log4jFileAppender appender=null;
+  int backupLogLevel=log.getLogLevel();
+  if (setLogfile) {
+    try {
+      appender=LogWriter.createFileAppender(StringUtil.environmentSubstitute(getLogFilename()),true);
+    }
+ catch (    KettleException e) {
+      log.logError(toString(),"Unable to open file appender for file [" + getLogFilename() + "] : "+ e.toString());
+      log.logError(toString(),Const.getStackTracker(e));
+      result.setNrErrors(1);
+      result.setResult(false);
+      return result;
+    }
+    log.addAppender(appender);
+    log.setLogLevel(loglevel);
+    logwriter=LogWriter.getInstance(StringUtil.environmentSubstitute(getLogFilename()),true,loglevel);
+  }
+  try {
+    if (parentJob.getJobMeta() != null) {
+      parentJob.getJobMeta().setInternalKettleVariables();
+    }
+    JobMeta jobMeta=null;
+    boolean fromRepository=rep != null && !Const.isEmpty(jobname) && directory != null;
+    boolean fromXMLFile=!Const.isEmpty(filename);
+    if (fromRepository) {
+      log.logDetailed(toString(),"Loading job from repository : [" + directory + " : "+ StringUtil.environmentSubstitute(jobname)+ "]");
+      jobMeta=new JobMeta(logwriter,rep,StringUtil.environmentSubstitute(jobname),directory);
+    }
+ else     if (fromXMLFile) {
+      log.logDetailed(toString(),"Loading job from XML file : [" + StringUtil.environmentSubstitute(filename) + "]");
+      jobMeta=new JobMeta(logwriter,StringUtil.environmentSubstitute(filename),rep);
+    }
+    if (jobMeta == null) {
+      throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
+    }
+    if (fromRepository) {
+      log.logBasic(toString(),"Starting job, loaded from repository : [" + directory + " : "+ StringUtil.environmentSubstitute(jobname)+ "]");
+    }
+ else     if (fromXMLFile) {
+      log.logDetailed(toString(),"Starting job, loaded from XML file : [" + StringUtil.environmentSubstitute(filename) + "]");
+    }
+    int iteration=0;
+    String args1[]=arguments;
+    if (args1 == null || args1.length == 0) {
+      args1=parentJob.getJobMeta().getArguments();
+    }
+    String args[]=null;
+    if (args1 != null) {
+      args=new String[args1.length];
+      for (int idx=0; idx < args1.length; idx++) {
+        args[idx]=StringUtil.environmentSubstitute(args1[idx]);
+      }
+    }
+    RowMetaAndData resultRow=null;
+    boolean first=true;
+    List rows=result.getRows();
+    while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
+      first=false;
+      if (rows != null && execPerRow) {
+        resultRow=(RowMetaAndData)rows.get(iteration);
+      }
+ else {
+        resultRow=null;
+      }
+      Job job=new Job(logwriter,StepLoader.getInstance(),rep,jobMeta);
+      job.beginProcessing();
+      parentJob.getJobTracker().addJobTracker(job.getJobTracker());
+      job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
+      job.setParentJob(parentJob);
+      LocalVariables localVariables=LocalVariables.getInstance();
+      localVariables.createKettleVariables(job.getName(),parentJob.getName(),false);
+      if (parentJob.getJobMeta().isBatchIdPassed()) {
+        job.setPassedBatchId(parentJob.getBatchId());
+      }
+      if (execPerRow) {
+        if (argFromPrevious) {
+          args=null;
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getString(i,null);
+            }
+          }
+        }
+ else {
+          ArrayList newList=new ArrayList();
+          newList.add(resultRow);
+          job.setSourceRows(newList);
+        }
+      }
+ else {
+        if (argFromPrevious) {
+          args=null;
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getString(i,null);
+            }
+          }
+        }
+ else {
+          job.setSourceRows(result.getRows());
+        }
+      }
+      job.getJobMeta().setArguments(args);
+      JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr);
+      Thread jobRunnerThread=new Thread(runner);
+      jobRunnerThread.setName(Const.NVL(job.getJobMeta().getName(),job.getJobMeta().getFilename()));
+      jobRunnerThread.start();
+      try {
+        while (!runner.isFinished() && !parentJob.isStopped()) {
+          try {
+            Thread.sleep(100);
+          }
+ catch (          InterruptedException e) {
+          }
+        }
+        if (parentJob.isStopped()) {
+          job.stopAll();
+          runner.waitUntilFinished();
+          job.endProcessing("stop",new Result());
+        }
+ else {
+          job.endProcessing("end",runner.getResult());
+        }
+      }
+ catch (      KettleException je) {
+        log.logError(toString(),"Unable to open job entry job with name [" + getName() + "] : "+ Const.CR+ je.toString());
+        result.setNrErrors(1);
+      }
+      Result oneResult=runner.getResult();
+      if (iteration == 0) {
+        result.clear();
+      }
+      result.add(oneResult);
+      if (oneResult.getResult() == false) {
+        result.setNrErrors(result.getNrErrors() + 1);
+      }
+      iteration++;
+    }
+  }
+ catch (  KettleException ke) {
+    log.logError(toString(),"Error running job entry 'job' : " + ke.toString());
+    log.logError(toString(),Const.getStackTracker(ke));
+    result.setResult(false);
+    result.setNrErrors(1L);
+  }
+  if (setLogfile) {
+    if (appender != null) {
+      log.removeAppender(appender);
+      appender.close();
+      try {
+        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,KettleVFS.getFileObject(appender.getFile().getAbsolutePath()),parentJob.getJobname(),getName());
+        result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+      }
+ catch (      IOException e) {
+        log.logError(toString(),"Error getting file object from file [" + appender.getFile() + "] : "+ e.toString());
+      }
+    }
+    log.setLogLevel(backupLogLevel);
+  }
+  if (result.getNrErrors() > 0) {
+    result.setResult(false);
+  }
+ else {
+    result.setResult(true);
+  }
+  return result;
+}

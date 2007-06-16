@@ -1,0 +1,46 @@
+{
+  if (showChangedWarning()) {
+    if (rep == null || importfile) {
+      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+      dialog.setFilterExtensions(Const.STRING_JOB_FILTER_EXT);
+      dialog.setFilterNames(Const.getJobFilterNames());
+      String fname=dialog.open();
+      if (fname != null) {
+        try {
+          jobMeta=new JobMeta(log,fname,rep);
+          props.addLastFile(LastUsedFile.FILE_TYPE_JOB,fname,null,false,null);
+        }
+ catch (        KettleXMLException xe) {
+          jobMeta.clear();
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+          mb.setMessage(Messages.getString("Chef.Dialog.ErrorOpeningJob.Message") + fname + Const.CR+ xe.getMessage());
+          mb.setText(Messages.getString("Chef.Dialog.ErrorOpeningJob.Title"));
+          mb.open();
+        }
+        saveSettings();
+        addMenuLast();
+        refreshGraph();
+        refreshTree(true);
+        setUndoMenu();
+      }
+    }
+ else {
+      SelectObjectDialog sod=new SelectObjectDialog(shell,rep);
+      String fname=sod.open();
+      RepositoryDirectory repdir=sod.getDirectory();
+      if (fname != null && repdir != null) {
+        JobLoadProgressDialog jlpd=new JobLoadProgressDialog(shell,rep,fname,repdir);
+        JobMeta jobInfo=jlpd.open();
+        if (jobInfo != null) {
+          jobMeta=jobInfo;
+          props.addLastFile(LastUsedFile.FILE_TYPE_JOB,fname,repdir.getPath(),true,rep.getName());
+          saveSettings();
+          addMenuLast();
+        }
+        refreshGraph();
+        refreshTree(true);
+        setUndoMenu();
+      }
+    }
+  }
+}

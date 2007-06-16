@@ -1,0 +1,230 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  result.setEntryNr(nr);
+  LogWriter logwriter=log;
+  Log4jFileAppender appender=null;
+  int backupLogLevel=log.getLogLevel();
+  if (setLogfile) {
+    try {
+      appender=LogWriter.createFileAppender(StringUtil.environmentSubstitute(getLogFilename()),true);
+    }
+ catch (    KettleException e) {
+      log.logError(toString(),"Unable to open file appender for file [" + getLogFilename() + "] : "+ e.toString());
+      log.logError(toString(),Const.getStackTracker(e));
+      result.setNrErrors(1);
+      result.setResult(false);
+      return result;
+    }
+    log.addAppender(appender);
+    log.setLogLevel(loglevel);
+  }
+  log.logBasic(toString(),"Opening filename : [" + StringUtil.environmentSubstitute(getFilename()) + "]");
+  if (!Const.isEmpty(getFilename())) {
+    log.logBasic(toString(),"Opening transformation: [" + StringUtil.environmentSubstitute(getFilename()) + "]");
+  }
+ else {
+    log.logBasic(toString(),"Opening transformation: [" + StringUtil.environmentSubstitute(getTransname()) + "] in directory ["+ directory.getPath()+ "]");
+  }
+  TransMeta transMeta=getTransMeta(rep);
+  int iteration=0;
+  String args1[]=arguments;
+  if (args1 == null || args1.length == 0) {
+    args1=parentJob.getJobMeta().getArguments();
+  }
+  String args[]=null;
+  if (args1 != null) {
+    args=new String[args1.length];
+    for (int idx=0; idx < args1.length; idx++) {
+      args[idx]=StringUtil.environmentSubstitute(args1[idx]);
+    }
+  }
+  RowMetaAndData resultRow=null;
+  boolean first=true;
+  List rows=result.getRows();
+  while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0) && !parentJob.isStopped()) {
+    first=false;
+    if (rows != null && execPerRow) {
+      resultRow=(RowMetaAndData)rows.get(iteration);
+    }
+ else {
+      resultRow=null;
+    }
+    try {
+      log.logDetailed(toString(),"Starting transformation...(file=" + getFilename() + ", name="+ getName()+ "), repinfo="+ getDescription());
+      transMeta.setPreviousResult(result);
+      if (clearResultRows) {
+        transMeta.getPreviousResult().setRows(new ArrayList());
+      }
+      if (clearResultFiles) {
+        transMeta.getPreviousResult().getResultFiles().clear();
+      }
+      if (execPerRow) {
+        if (argFromPrevious) {
+          args=null;
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getString(i,null);
+            }
+          }
+        }
+ else {
+          ArrayList newList=new ArrayList();
+          newList.add(resultRow);
+          transMeta.getPreviousResult().getRows().addAll(newList);
+        }
+      }
+ else {
+        if (argFromPrevious) {
+          args=null;
+          if (resultRow != null) {
+            args=new String[resultRow.size()];
+            for (int i=0; i < resultRow.size(); i++) {
+              args[i]=resultRow.getString(i,null);
+            }
+          }
+        }
+ else {
+        }
+      }
+      if (clustering) {
+        TransExecutionConfiguration executionConfiguration=new TransExecutionConfiguration();
+        executionConfiguration.setClusterPosting(true);
+        executionConfiguration.setClusterPreparing(true);
+        executionConfiguration.setClusterStarting(true);
+        executionConfiguration.setClusterShowingTransformation(false);
+        executionConfiguration.setSafeModeEnabled(false);
+        TransSplitter transSplitter=Trans.executeClustered(transMeta,executionConfiguration);
+        SlaveServer[] slaveServers=transSplitter.getSlaveTargets();
+        TransMeta[] slaves=transSplitter.getSlaves();
+        SlaveServer masterServer=transSplitter.getMasterServer();
+        TransMeta master=transSplitter.getMaster();
+        boolean allFinished=false;
+        long errors=0L;
+        while (!allFinished && !parentJob.isStopped() && errors == 0) {
+          allFinished=true;
+          errors=0L;
+          for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
+            try {
+              SlaveServerTransStatus transStatus=slaveServers[s].getTransStatus(slaves[s].getName());
+              if (transStatus.isRunning())               allFinished=false;
+              errors+=transStatus.getNrStepErrors();
+            }
+ catch (            Exception e) {
+              errors+=1;
+              log.logError(toString(),"Unable to contact slave server '" + slaveServers[s].getName() + "' to check slave transformation : "+ e.toString());
+            }
+          }
+          if (allFinished && errors == 0) {
+            try {
+              SlaveServerTransStatus transStatus=masterServer.getTransStatus(master.getName());
+              if (transStatus.isRunning())               allFinished=false;
+              errors+=transStatus.getNrStepErrors();
+            }
+ catch (            Exception e) {
+              errors+=1;
+              log.logError(toString(),"Unable to contact slave server '" + masterServer.getName() + "' to check master transformation : "+ e.toString());
+            }
+          }
+          if (parentJob.isStopped() || errors != 0) {
+            for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
+              try {
+                WebResult webResult=slaveServers[s].stopTransformation(slaves[s].getName());
+                if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+                  log.logError(toString(),"Unable to stop slave transformation '" + slaves[s].getName() + "' : "+ webResult.getMessage());
+                }
+              }
+ catch (              Exception e) {
+                errors+=1;
+                log.logError(toString(),"Unable to contact slave server '" + slaveServers[s].getName() + "' to stop transformation : "+ e.toString());
+              }
+            }
+            try {
+              WebResult webResult=masterServer.stopTransformation(master.getName());
+              if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+                log.logError(toString(),"Unable to stop master transformation '" + masterServer.getName() + "' : "+ webResult.getMessage());
+              }
+            }
+ catch (            Exception e) {
+              errors+=1;
+              log.logError(toString(),"Unable to contact master server '" + masterServer.getName() + "' to stop the master : "+ e.toString());
+            }
+          }
+          if (!allFinished) {
+            log.logDetailed(toString(),"Clustered transformation is still running, waiting 10 seconds...");
+            try {
+              Thread.sleep(10000);
+            }
+ catch (            Exception e) {
+            }
+          }
+        }
+        result.setNrErrors(errors);
+      }
+ else {
+        Trans trans=new Trans(logwriter,transMeta);
+        if (parentJob.getJobMeta().isBatchIdPassed()) {
+          trans.setPassedBatchId(parentJob.getPassedBatchId());
+        }
+        trans.setParentJob(parentJob);
+        if (!trans.execute(args)) {
+          log.logError(toString(),"Unable to prepare for execution of the transformation");
+          result.setNrErrors(1);
+        }
+ else {
+          while (!trans.isFinished() && !parentJob.isStopped() && trans.getErrors() == 0) {
+            try {
+              Thread.sleep(100);
+            }
+ catch (            InterruptedException e) {
+            }
+          }
+          if (parentJob.isStopped() || trans.getErrors() != 0) {
+            trans.stopAll();
+            trans.waitUntilFinished();
+            trans.endProcessing("stop");
+            result.setNrErrors(1);
+          }
+ else {
+            trans.endProcessing("end");
+          }
+          Result newResult=trans.getResult();
+          result.clear();
+          result.add(newResult);
+          result.setRows(newResult.getRows());
+          if (setLogfile) {
+            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,KettleVFS.getFileObject(getLogFilename()),parentJob.getName(),toString());
+            result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      log.logError(toString(),"Unable to open transformation: " + e.getMessage());
+      log.logError(toString(),Const.getStackTracker(e));
+      result.setNrErrors(1);
+    }
+    iteration++;
+  }
+  if (setLogfile) {
+    if (appender != null) {
+      log.removeAppender(appender);
+      appender.close();
+      try {
+        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,KettleVFS.getFileObject(appender.getFile().getAbsolutePath()),parentJob.getJobname(),getName());
+        result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+      }
+ catch (      IOException e) {
+        log.logError(toString(),"Error getting file object from file [" + appender.getFile() + "] : "+ e.toString());
+      }
+    }
+    log.setLogLevel(backupLogLevel);
+  }
+  if (result.getNrErrors() == 0) {
+    result.setResult(true);
+  }
+ else {
+    result.setResult(false);
+  }
+  return result;
+}

@@ -1,0 +1,223 @@
+{
+  this.log=log;
+  this.rep=rep;
+  if (d != null) {
+    display=d;
+    destroy=false;
+  }
+ else {
+    display=new Display();
+    destroy=true;
+  }
+  shell=new Shell(display);
+  shell.setText(APPL_TITLE);
+  FormLayout layout=new FormLayout();
+  layout.marginWidth=0;
+  layout.marginHeight=0;
+  shell.setLayout(layout);
+  transformationMap=new Hashtable();
+  jobMap=new Hashtable();
+  tabMap=new Hashtable();
+  if (ti != null) {
+    addTransformation(ti);
+  }
+  if (!Props.isInitialized()) {
+    log.logDetailed(toString(),Messages.getString("Spoon.Log.LoadProperties"));
+    Props.init(display,Props.TYPE_PROPERTIES_SPOON);
+  }
+  props=Props.getInstance();
+  loadSettings();
+  executionConfiguration=new TransExecutionConfiguration();
+  variables=new RowMetaAndData(new RowMeta(),new Object[]{});
+  shell.setImage(GUIResource.getInstance().getImageSpoon());
+  cursor_hourglass=new Cursor(display,SWT.CURSOR_WAIT);
+  cursor_hand=new Cursor(display,SWT.CURSOR_HAND);
+  defKeys=new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      TransMeta transMeta=getActiveTransformation();
+      JobMeta jobMeta=getActiveJob();
+      UndoInterface undoInterface=getActiveUndoInterface();
+      SpoonLog spoonLog=getActiveSpoonLog();
+      boolean ctrl=((e.stateMask & SWT.CONTROL) != 0);
+      boolean alt=((e.stateMask & SWT.ALT) != 0);
+      if (e.keyCode == SWT.ESC && !ctrl && !alt) {
+        if (transMeta != null) {
+          transMeta.unselectAll();
+          refreshGraph();
+        }
+        if (jobMeta != null) {
+          jobMeta.unselectAll();
+          refreshGraph();
+        }
+      }
+      ;
+      if (e.keyCode == SWT.F3 && !ctrl && !alt) {
+        createDatabaseWizard();
+      }
+      if (e.keyCode == SWT.F4 && !ctrl && !alt) {
+        copyTableWizard();
+      }
+      if (e.keyCode == SWT.F4 && ctrl && !alt) {
+        closeFile();
+      }
+      if (e.keyCode == SWT.F5 && !ctrl && !alt) {
+        refreshGraph();
+        refreshTree();
+      }
+      if (e.keyCode == SWT.F6 && !ctrl && !alt) {
+        showLastImpactAnalyses(transMeta);
+      }
+      if (e.keyCode == SWT.F7 && !ctrl && !alt) {
+        showLastTransCheck();
+      }
+      if (e.keyCode == SWT.F8 && !ctrl && !alt) {
+        if (spoonLog != null) {
+          spoonLog.showPreview();
+        }
+      }
+      if (e.keyCode == SWT.F9 && !ctrl && !alt) {
+        executeFile(true,false,false,false,null);
+      }
+      if (e.keyCode == SWT.F10 && !ctrl && !alt) {
+        executeFile(true,false,false,true,null);
+      }
+      if (e.keyCode == SWT.F10 && ctrl && !alt) {
+        ripDBWizard();
+      }
+      if (e.keyCode == SWT.F11 && !ctrl && !alt) {
+        checkTrans(transMeta);
+      }
+      if (e.character == 1 && ctrl && !alt) {
+        if (transMeta != null) {
+          transMeta.selectAll();
+          refreshGraph();
+        }
+        if (jobMeta != null) {
+          jobMeta.selectAll();
+          refreshGraph();
+        }
+      }
+      ;
+      if (e.character == 4 && ctrl && !alt) {
+        closeRepository();
+      }
+      ;
+      if (e.character == 5 && ctrl && !alt) {
+        exploreRepository();
+      }
+      ;
+      if (e.character == 6 && ctrl && !alt) {
+        searchMetaData();
+      }
+      ;
+      if (e.character == 9 && ctrl && !alt) {
+        openFile(true);
+      }
+      ;
+      if (e.character == 9 && ctrl && alt) {
+        if (transMeta != null) {
+          copyTransformationImage(transMeta);
+        }
+      }
+      if (e.character == 10 && ctrl && !alt) {
+        editJobProperties(jobMeta);
+      }
+      ;
+      if (e.character == 10 && ctrl && alt) {
+        getVariables();
+      }
+      ;
+      if (e.character == 11 && ctrl && !alt) {
+        if (transMeta != null) {
+          createKettleArchive(transMeta);
+        }
+      }
+      ;
+      if (e.character == 12 && ctrl && !alt) {
+        showVariables();
+      }
+      ;
+      if (e.character == 14 && ctrl && !alt) {
+        newFile();
+      }
+      if (e.character == 15 && ctrl && !alt) {
+        openFile(false);
+      }
+      if (e.character == 16 && ctrl && !alt) {
+        printFile();
+      }
+      if (e.character == 17 && ctrl && !alt) {
+        analyseImpact(transMeta);
+      }
+      if (e.character == 18 && ctrl && !alt) {
+        openRepository();
+      }
+      ;
+      if (e.character == 19 && ctrl && !alt) {
+        saveFile();
+      }
+      if (e.character == 19 && ctrl && alt) {
+        executeFile(false,true,false,false,null);
+      }
+      if (e.character == 20 && ctrl && !alt) {
+        editTransformationProperties(transMeta);
+      }
+      if (e.character == 21 && ctrl && !alt) {
+        executeFile(false,false,true,false,null);
+      }
+      if (e.character == 25 && ctrl && !alt) {
+        redoAction(undoInterface);
+      }
+      if (e.character == 26 && ctrl && !alt) {
+        undoAction(undoInterface);
+      }
+    }
+  }
+;
+  modKeys=new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      shift=(e.keyCode == SWT.SHIFT);
+      control=(e.keyCode == SWT.CONTROL);
+    }
+    public void keyReleased(    KeyEvent e){
+      shift=(e.keyCode == SWT.SHIFT);
+      control=(e.keyCode == SWT.CONTROL);
+    }
+  }
+;
+  addBar();
+  FormData fdBar=new FormData();
+  fdBar.left=new FormAttachment(0,0);
+  fdBar.top=new FormAttachment(0,0);
+  tBar.setLayoutData(fdBar);
+  sashform=new SashForm(shell,SWT.HORIZONTAL);
+  props.setLook(sashform);
+  FormData fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(tBar,0);
+  fdSash.bottom=new FormAttachment(100,0);
+  fdSash.right=new FormAttachment(100,0);
+  sashform.setLayoutData(fdSash);
+  WindowProperty winprop=props.getScreen(APPL_TITLE);
+  if (winprop != null)   winprop.setShell(shell);
+ else {
+    shell.pack();
+    shell.setMaximized(true);
+  }
+  addMenu();
+  addTree();
+  addCoreObjectsExpandBar();
+  addTabs();
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      e.doit=quitFile();
+    }
+  }
+);
+  shell.addKeyListener(defKeys);
+  shell.addKeyListener(modKeys);
+  if (props.showWelcomePageOnStartup()) {
+    showWelcomePage();
+  }
+  shell.layout();
+}

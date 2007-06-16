@@ -1,0 +1,86 @@
+{
+  if (wRepository.getItemCount() != 0) {
+    int idx=wRepository.getSelectionIndex();
+    if (idx >= 0) {
+      repinfo=input.getRepository(idx);
+      Repository rep=new Repository(log,repinfo,userinfo);
+      try {
+        rep.connect(getClass().getName());
+      }
+ catch (      KettleException ke) {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage(Messages.getString("RepositoriesDialog.Dialog.RepositoryUnableToConnect.Message1") + Const.CR + ke.getSuperMessage());
+        mb.setText(Messages.getString("RepositoriesDialog.Dialog.RepositoryUnableToConnect.Title"));
+        mb.open();
+        return;
+      }
+      try {
+        userinfo=new UserInfo(rep,wUsername.getText(),wPassword.getText());
+        props.setLastRepository(repinfo.getName());
+        props.setLastRepositoryLogin(wUsername.getText());
+      }
+ catch (      KettleException e) {
+        userinfo=null;
+        repinfo=null;
+        if (!(e instanceof KettleDatabaseException)) {
+          new ErrorDialog(shell,Messages.getString("RepositoriesDialog.Dialog.UnexpectedError.Title"),Messages.getString("RepositoriesDialog.Dialog.UnexpectedError.Message"),e);
+        }
+      }
+ finally {
+        rep.disconnect();
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage(Messages.getString("RepositoriesDialog.Dialog.PleaseSelectARepsitory.Message"));
+      mb.setText(Messages.getString("RepositoriesDialog.Dialog.PleaseSelectARepsitory.Title"));
+      mb.open();
+      return;
+    }
+  }
+  input.writeData();
+  if (userinfo == null) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage(Messages.getString("RepositoriesDialog.Dialog.IncorrectUserPassword.Message"));
+    mb.setText(Messages.getString("RepositoriesDialog.Dialog.IncorrectUserPassword.Title"));
+    mb.open();
+  }
+ else {
+    boolean ok=true;
+    String mess="";
+    for (int i=0; i < toolsPermissions.length; i++) {
+switch (toolsPermissions[i]) {
+case PermissionMeta.TYPE_PERMISSION_TRANSFORMATION:
+        ok=ok && userinfo.useTransformations();
+      mess+=mess.length() > 0 ? ", " : "";
+    mess+="Spoon";
+  break;
+case PermissionMeta.TYPE_PERMISSION_SCHEMA:
+ok=ok && userinfo.useSchemas();
+mess+=mess.length() > 0 ? ", " : "";
+mess+="Menu";
+break;
+case PermissionMeta.TYPE_PERMISSION_JOB:
+ok=ok && userinfo.useJobs();
+mess+=mess.length() > 0 ? ", " : "";
+mess+="Chef";
+break;
+default :
+break;
+}
+}
+if (!ok) {
+int idx=mess.lastIndexOf(',');
+if (idx > 0) mess=mess.substring(0,idx) + "and" + mess.substring(idx + 1);
+MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+mb.setMessage(Messages.getString("RepositoriesDialog.Dialog.NoPermissions.Message") + mess);
+mb.setText(Messages.getString("RepositoriesDialog.Dialog.NoPermissions.Title"));
+mb.open();
+userinfo=null;
+repinfo=null;
+}
+ else {
+dispose();
+}
+}
+}

@@ -1,0 +1,78 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Log4jFileAppender appender=null;
+  int backupLogLevel=log.getLogLevel();
+  if (setLogfile) {
+    try {
+      appender=LogWriter.createFileAppender(StringUtil.environmentSubstitute(getLogFilename()),true);
+    }
+ catch (    KettleException e) {
+      log.logError(toString(),"Unable to open file appender for file [" + getLogFilename() + "] : "+ e.toString());
+      log.logError(toString(),Const.getStackTracker(e));
+      result.setNrErrors(1);
+      result.setResult(false);
+      return result;
+    }
+    log.addAppender(appender);
+    log.setLogLevel(loglevel);
+  }
+  result.setEntryNr(nr);
+  int iteration=0;
+  String args[]=arguments;
+  RowMetaAndData resultRow=null;
+  boolean first=true;
+  List rows=result.getRows();
+  log.logDetailed(toString(),"Found " + (rows != null ? rows.size() : 0) + " previous result rows");
+  while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
+    first=false;
+    if (rows != null && execPerRow) {
+      resultRow=(RowMetaAndData)rows.get(iteration);
+    }
+ else {
+      resultRow=null;
+    }
+    List cmdRows=null;
+    if (execPerRow) {
+      if (argFromPrevious) {
+        if (resultRow != null) {
+          args=new String[resultRow.size()];
+          for (int i=0; i < resultRow.size(); i++) {
+            args[i]=resultRow.getString(i,null);
+          }
+        }
+      }
+ else {
+        ArrayList newList=new ArrayList();
+        newList.add(resultRow);
+        cmdRows=newList;
+      }
+    }
+ else {
+      if (argFromPrevious) {
+        args=null;
+        if (resultRow != null) {
+          args=new String[resultRow.size()];
+          for (int i=0; i < resultRow.size(); i++) {
+            args[i]=resultRow.getString(i,null);
+          }
+        }
+ else {
+          cmdRows=rows;
+        }
+      }
+ else {
+        cmdRows=rows;
+      }
+    }
+    executeShell(result,cmdRows,args);
+    iteration++;
+  }
+  if (setLogfile) {
+    if (appender != null) {
+      log.removeAppender(appender);
+      appender.close();
+    }
+    log.setLogLevel(backupLogLevel);
+  }
+  return result;
+}

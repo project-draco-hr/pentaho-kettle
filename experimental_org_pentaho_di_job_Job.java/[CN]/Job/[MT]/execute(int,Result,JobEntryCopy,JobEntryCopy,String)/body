@@ -1,0 +1,61 @@
+{
+  Result res=null;
+  if (stopped) {
+    res=new Result(nr);
+    res.stopped=true;
+    return res;
+  }
+  log.logDetailed(toString(),"exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (startpoint != null ? startpoint.toString() : "null")+ ")");
+  JobEntryInterface jei=startpoint.getEntry();
+  JobEntryResult jerBefore=new JobEntryResult(null,Messages.getString("Job.Comment.JobStarted"),reason,startpoint);
+  jobTracker.addJobTracker(new JobTracker(jobMeta,jerBefore));
+  Result prevResult=null;
+  if (prev_result != null) {
+    prevResult=(Result)prev_result.clone();
+  }
+ else {
+    prevResult=new Result();
+  }
+  ClassLoader cl=Thread.currentThread().getContextClassLoader();
+  Thread.currentThread().setContextClassLoader(jei.getClass().getClassLoader());
+  Result result=((JobEntryInterface)jei.clone()).execute(prevResult,nr,rep,this);
+  Thread.currentThread().setContextClassLoader(cl);
+  addErrors((int)result.getNrErrors());
+  JobEntryResult jerAfter=new JobEntryResult(result,Messages.getString("Job.Comment.JobFinished"),null,startpoint);
+  jobTracker.addJobTracker(new JobTracker(jobMeta,jerAfter));
+  int nrNext=jobMeta.findNrNextChefGraphEntries(startpoint);
+  for (int i=0; i < nrNext && !isStopped(); i++) {
+    JobEntryCopy nextEntry=jobMeta.findNextChefGraphEntry(startpoint,i);
+    JobHopMeta hi=jobMeta.findJobHop(startpoint,nextEntry);
+    String nextComment=null;
+    if (hi.isUnconditional()) {
+      nextComment=Messages.getString("Job.Comment.FollowedUnconditional");
+    }
+ else {
+      if (result.getResult()) {
+        nextComment=Messages.getString("Job.Comment.FollowedSuccess");
+      }
+ else {
+        nextComment=Messages.getString("Job.Comment.FollowedFailure");
+      }
+    }
+    if (hi.isUnconditional() || (startpoint.evaluates() && (!(hi.getEvaluation() ^ result.getResult())))) {
+      log.logBasic(jobMeta.toString(),"Starting entry [" + nextEntry.getName() + "]");
+      if (nextEntry.resetErrorsBeforeExecution()) {
+        result.setNrErrors(0);
+      }
+      try {
+        res=execute(nr + 1,result,nextEntry,startpoint,nextComment);
+      }
+ catch (      Throwable e) {
+        log.logError(toString(),Const.getStackTracker(e));
+        throw new KettleException("Unexpected error occurred while launching entry [" + nextEntry.toString() + "]",e);
+      }
+      log.logBasic(jobMeta.toString(),"Finished jobentry [" + nextEntry.getName() + "] (result="+ res.getResult()+ ")");
+    }
+  }
+  if (res == null) {
+    res=prevResult;
+  }
+  return res;
+}

@@ -1,0 +1,51 @@
+{
+  currentDate=new Date();
+  logDate=new Date();
+  startDate=Const.MIN_DATE;
+  endDate=currentDate;
+  resetErrors();
+  DatabaseMeta logcon=jobMeta.getLogConnection();
+  if (logcon != null && !Const.isEmpty(jobMeta.getLogTable())) {
+    Database ldb=new Database(logcon);
+    try {
+      ldb.connect();
+      Object[] lastr=ldb.getLastLogDate(jobMeta.getLogTable(),jobMeta.getName(),true,Messages.getString("Job.Status.End"));
+      if (!Const.isEmpty(lastr)) {
+        Date last;
+        try {
+          last=ldb.getReturnRowMeta().getDate(lastr,0);
+        }
+ catch (        KettleValueException e) {
+          throw new KettleJobException("Conversion error after getting last logdate from " + jobMeta.getLogTable(),e);
+        }
+        if (last != null) {
+          startDate=last;
+        }
+      }
+      depDate=currentDate;
+      Long id_batch=new Long(1);
+      if (jobMeta.isBatchIdUsed()) {
+        ldb.getNextValue(null,jobMeta.getLogTable(),"ID_JOB");
+        setBatchId(id_batch.longValue());
+        if (getPassedBatchId() <= 0) {
+          setPassedBatchId(id_batch.longValue());
+        }
+      }
+      ldb.writeLogRecord(jobMeta.getLogTable(),jobMeta.isBatchIdUsed(),getBatchId(),true,jobMeta.getName(),Messages.getString("Job.Status.Start"),0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,null);
+      ldb.disconnect();
+    }
+ catch (    KettleDatabaseException dbe) {
+      addErrors(1);
+      throw new KettleJobException("Unable to begin processing by logging start in logtable " + jobMeta.getLogTable(),dbe);
+    }
+ finally {
+      ldb.disconnect();
+    }
+  }
+  if (jobMeta.isLogfieldUsed()) {
+    stringAppender=LogWriter.createStringAppender();
+    log.addAppender(stringAppender);
+    stringAppender.setBuffer(new StringBuffer("START" + Const.CR));
+  }
+  return true;
+}

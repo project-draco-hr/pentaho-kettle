@@ -1,0 +1,47 @@
+{
+  final ProgressMonitorDialog pmd=new ProgressMonitorDialog(shell);
+  IRunnableWithProgress op=new IRunnableWithProgress(){
+    public void run(    IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+      LocalVariables.getInstance().createKettleVariables(Thread.currentThread().getName(),parentThread.getName(),true);
+      try {
+        transMeta.checkSteps(remarks,onlySelected,monitor);
+      }
+ catch (      Exception e) {
+        throw new InvocationTargetException(e,Messages.getString("AnalyseImpactProgressDialog.RuntimeError.ErrorCheckingTransformation.Exception",e.toString()));
+      }
+    }
+  }
+;
+  try {
+    Runnable run=new Runnable(){
+      public void run(){
+        IProgressMonitor monitor=pmd.getProgressMonitor();
+        while (pmd.getShell() == null || (!pmd.getShell().isDisposed() && !monitor.isCanceled())) {
+          try {
+            Thread.sleep(250);
+          }
+ catch (          InterruptedException e) {
+          }
+          ;
+        }
+        if (monitor.isCanceled()) {
+          try {
+            transMeta.cancelQueries();
+          }
+ catch (          Exception e) {
+          }
+          ;
+        }
+      }
+    }
+;
+    new Thread(run).start();
+    pmd.run(true,true,op);
+  }
+ catch (  InvocationTargetException e) {
+    new ErrorDialog(shell,Messages.getString("CheckTransProgressDialog.Dialog.ErrorCheckingTransformation.Title"),Messages.getString("CheckTransProgressDialog.Dialog.ErrorCheckingTransformation.Message"),e);
+  }
+catch (  InterruptedException e) {
+    new ErrorDialog(shell,Messages.getString("CheckTransProgressDialog.Dialog.ErrorCheckingTransformation.Title"),Messages.getString("CheckTransProgressDialog.Dialog.ErrorCheckingTransformation.Message"),e);
+  }
+}

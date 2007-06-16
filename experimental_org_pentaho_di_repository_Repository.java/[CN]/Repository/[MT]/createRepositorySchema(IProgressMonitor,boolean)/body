@@ -1,0 +1,1152 @@
+{
+  RowMetaInterface table;
+  String sql;
+  String tablename;
+  String indexname;
+  String keyfield[];
+  String user[], pass[], code[], desc[], prof[];
+  int KEY=9;
+  log.logBasic(toString(),"Starting to create or modify the repository tables...");
+  String message=(upgrade ? "Upgrading " : "Creating") + " the Kettle repository...";
+  if (monitor != null)   monitor.beginTask(message,31);
+  setAutoCommit(true);
+  table=new RowMeta();
+  tablename="R_REPOSITORY_LOG";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_REPOSITORY_LOG",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("REP_VERSION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("LOG_DATE",ValueMetaInterface.TYPE_DATE));
+  table.addValueMeta(new ValueMeta("LOG_USER",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("OPERATION_DESC",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_REPOSITORY_LOG",false);
+  if (sql != null && sql.length() > 0) {
+    try {
+      if (log.isDetailed())       log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+      database.execStatements(sql);
+      if (log.isDetailed())       log.logDetailed(toString(),"Created/altered table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to create or modify table " + tablename,dbe);
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  insertLogEntry((upgrade ? "Upgrade" : "Creation") + " of the Kettle repository");
+  table=new RowMeta();
+  tablename="R_VERSION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_VERSION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("MAJOR_VERSION",ValueMetaInterface.TYPE_INTEGER,3,0));
+  table.addValueMeta(new ValueMeta("MINOR_VERSION",ValueMetaInterface.TYPE_INTEGER,3,0));
+  table.addValueMeta(new ValueMeta("UPGRADE_DATE",ValueMetaInterface.TYPE_DATE,0,0));
+  table.addValueMeta(new ValueMeta("IS_UPGRADE",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_VERSION",false);
+  if (sql != null && sql.length() > 0) {
+    try {
+      if (log.isDetailed())       log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+      database.execStatements(sql);
+      if (log.isDetailed())       log.logDetailed(toString(),"Created/altered table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to create or modify table " + tablename,dbe);
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  try {
+    Object[] data=new Object[]{new Long(getNextID(tablename,"ID_VERSION")),new Long(REQUIRED_MAJOR_VERSION),new Long(REQUIRED_MINOR_VERSION),new Date(),new Boolean(upgrade)};
+    database.execStatement("INSERT INTO R_VERSION VALUES(?, ?, ?, ?, ?)",table,data);
+  }
+ catch (  KettleException e) {
+    throw new KettleException("Unable to insert new version log record into " + tablename,e);
+  }
+  boolean ok_database_type=true;
+  table=new RowMeta();
+  tablename="R_DATABASE_TYPE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_DATABASE_TYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_DATABASE_TYPE",false);
+  if (sql != null && sql.length() > 0) {
+    try {
+      if (log.isDetailed())       log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+      database.execStatements(sql);
+      if (log.isDetailed())       log.logDetailed(toString(),"Created/altered table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to create or modify table " + tablename,dbe);
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_database_type) {
+    code=DatabaseMeta.getDBTypeDescList();
+    desc=DatabaseMeta.getDBTypeDescLongList();
+    database.prepareInsert(table,tablename);
+    for (int i=1; i < code.length; i++) {
+      RowMetaAndData lookup=null;
+      if (upgrade)       lookup=database.getOneRow("SELECT ID_DATABASE_TYPE FROM " + tablename + " WHERE "+ database.getDatabaseMeta().quoteField("CODE")+ " = '"+ code[i]+ "'");
+      if (lookup == null) {
+        long nextid=getNextDatabaseTypeID();
+        Object[] tableData=new Object[]{new Long(nextid),code[i],desc[i]};
+        database.setValuesInsert(table,tableData);
+        database.insertRow();
+      }
+    }
+    try {
+      database.closeInsert();
+      if (log.isDetailed())       log.logDetailed(toString(),"Populated table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to close insert after populating table " + tablename,dbe);
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  boolean ok_database_contype=true;
+  table=new RowMeta();
+  tablename="R_DATABASE_CONTYPE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_DATABASE_CONTYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_DATABASE_CONTYPE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_database_contype) {
+    code=DatabaseMeta.dbAccessTypeCode;
+    desc=DatabaseMeta.dbAccessTypeDesc;
+    database.prepareInsert(table,tablename);
+    for (int i=0; i < code.length; i++) {
+      RowMetaAndData lookup=null;
+      if (upgrade)       lookup=database.getOneRow("SELECT ID_DATABASE_CONTYPE FROM " + tablename + " WHERE "+ database.getDatabaseMeta().quoteField("CODE")+ " = '"+ code[i]+ "'");
+      if (lookup == null) {
+        long nextid=getNextDatabaseConnectionTypeID();
+        Object[] tableData=new Object[]{new Long(nextid),code[i],desc[i]};
+        database.setValuesInsert(table,tableData);
+        database.insertRow();
+      }
+    }
+    try {
+      database.closeInsert();
+      if (log.isDetailed())       log.logDetailed(toString(),"Populated table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to close insert after populating table " + tablename,dbe);
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_NOTE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_NOTE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("VALUE_STR",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_X",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_Y",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_WIDTH",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_HEIGHT",ValueMetaInterface.TYPE_INTEGER,6,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_NOTE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_DATABASE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_DATABASE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE_TYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE_CONTYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("HOST_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DATABASE_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("PORT",ValueMetaInterface.TYPE_INTEGER,7,0));
+  table.addValueMeta(new ValueMeta("USERNAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("PASSWORD",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("SERVERNAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DATA_TBS",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("INDEX_TBS",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_DATABASE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_DATABASE_ATTRIBUTE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_DATABASE_ATTRIBUTE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("VALUE_STR",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_DATABASE_ATTRIBUTE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+    try {
+      indexname="IDX_" + tablename.substring(2) + "_AK";
+      keyfield=new String[]{"ID_DIRECTORY_PARENT","DIRECTORY_NAME"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,true,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_DIRECTORY";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_DIRECTORY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DIRECTORY_PARENT",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("DIRECTORY_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_DIRECTORY",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+    try {
+      indexname="IDX_" + tablename.substring(2) + "_AK";
+      keyfield=new String[]{"ID_DIRECTORY_PARENT","DIRECTORY_NAME"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,true,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANSFORMATION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DIRECTORY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  table.addValueMeta(new ValueMeta("EXTENDED_DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  table.addValueMeta(new ValueMeta("TRANS_VERSION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("TRANS_STATUS",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_READ",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_WRITE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_INPUT",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_OUTPUT",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_UPDATE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE_LOG",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("TABLE_NAME_LOG",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("USE_BATCHID",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("USE_LOGFIELD",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE_MAXDATE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("TABLE_NAME_MAXDATE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("FIELD_NAME_MAXDATE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("OFFSET_MAXDATE",ValueMetaInterface.TYPE_NUMBER,12,2));
+  table.addValueMeta(new ValueMeta("DIFF_MAXDATE",ValueMetaInterface.TYPE_NUMBER,12,2));
+  table.addValueMeta(new ValueMeta("CREATED_USER",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("CREATED_DATE",ValueMetaInterface.TYPE_DATE,20,0));
+  table.addValueMeta(new ValueMeta("MODIFIED_USER",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("MODIFIED_DATE",ValueMetaInterface.TYPE_DATE,20,0));
+  table.addValueMeta(new ValueMeta("SIZE_ROWSET",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_TRANSFORMATION",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  database.execStatement("UPDATE " + tablename + " SET ID_DIRECTORY=0 WHERE ID_DIRECTORY IS NULL");
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_ATTRIBUTE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANS_ATTRIBUTE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NR",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("VALUE_NUM",ValueMetaInterface.TYPE_INTEGER,18,0));
+  table.addValueMeta(new ValueMeta("VALUE_STR",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_TRANS_ATTRIBUTE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+    try {
+      indexname="IDX_TRANS_ATTRIBUTE_LOOKUP";
+      keyfield=new String[]{"ID_TRANSFORMATION","CODE","NR"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,true,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_DEPENDENCY";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_DEPENDENCY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("TABLE_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("FIELD_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_DEPENDENCY",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_PARTITION_SCHEMA";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_PARTITION_SCHEMA",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_PARTITION_SCHEMA",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_PARTITION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_PARTITION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_PARTITION_SCHEMA",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("PARTITION_ID",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_PARTITION",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_PARTITION_SCHEMA";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANS_PARTITION_SCHEMA",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_PARTITION_SCHEMA",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_TRANS_PARTITION_SCHEMA",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_CLUSTER";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_CLUSTER",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("BASE_PORT",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("SOCKETS_BUFFER_SIZE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("SOCKETS_FLUSH_INTERVAL",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("SOCKETS_COMPRESSED",ValueMetaInterface.TYPE_BOOLEAN,0,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_CLUSTER",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_SLAVE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_SLAVE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("HOST_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("PORT",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("USERNAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("PASSWORD",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("PROXY_HOST_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("PROXY_PORT",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("NON_PROXY_HOSTS",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("MASTER",ValueMetaInterface.TYPE_BOOLEAN));
+  sql=database.getDDL(tablename,table,null,false,"ID_SLAVE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_CLUSTER_SLAVE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_CLUSTER_SLAVE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_CLUSTER",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_SLAVE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_CLUSTER_SLAVE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_SLAVE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANS_SLAVE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_SLAVE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_TRANS_SLAVE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_CLUSTER";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANS_CLUSTER",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_CLUSTER",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_TRANS_CLUSTER",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_SLAVE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANS_SLAVE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_SLAVE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_TRANS_SLAVE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_HOP";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANS_HOP",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_FROM",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_TO",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ENABLED",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_TRANS_HOP",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_STEP_CONDITION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_CONDITION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,null,false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_CONDITION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_CONDITION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_CONDITION_PARENT",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NEGATED",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("OPERATOR",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("LEFT_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("CONDITION_FUNCTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("RIGHT_NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("ID_VALUE_RIGHT",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_CONDITION",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  tablename="R_VALUE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table=new RowMeta();
+  table.addValueMeta(new ValueMeta("ID_VALUE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("VALUE_TYPE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("VALUE_STR",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("IS_NULL",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_VALUE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  boolean ok_step_type=true;
+  table=new RowMeta();
+  tablename="R_STEP_TYPE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_STEP_TYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("HELPTEXT",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_STEP_TYPE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_step_type) {
+    updateStepTypes();
+    if (log.isDetailed())     log.logDetailed(toString(),"Populated table " + tablename);
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_STEP";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_STEP",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  table.addValueMeta(new ValueMeta("ID_STEP_TYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("DISTRIBUTE",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("COPIES",ValueMetaInterface.TYPE_INTEGER,3,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_X",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_Y",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("GUI_DRAW",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_STEP",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  tablename="R_STEP_ATTRIBUTE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table=new RowMeta();
+  table.addValueMeta(new ValueMeta("ID_STEP_ATTRIBUTE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NR",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("VALUE_NUM",ValueMetaInterface.TYPE_INTEGER,18,0));
+  table.addValueMeta(new ValueMeta("VALUE_STR",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_STEP_ATTRIBUTE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+    try {
+      indexname="IDX_" + tablename.substring(2) + "_LOOKUP";
+      keyfield=new String[]{"ID_STEP","CODE","NR"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,true,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  tablename="R_STEP_DATABASE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table=new RowMeta();
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_STEP",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,null,false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+    try {
+      indexname="IDX_" + tablename.substring(2) + "_LU1";
+      keyfield=new String[]{"ID_TRANSFORMATION"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,false,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+    try {
+      indexname="IDX_" + tablename.substring(2) + "_LU2";
+      keyfield=new String[]{"ID_DATABASE"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,false,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_TRANS_NOTE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_TRANSFORMATION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_NOTE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,null,false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  boolean ok_loglevel=true;
+  tablename="R_LOGLEVEL";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table=new RowMeta();
+  table.addValueMeta(new ValueMeta("ID_LOGLEVEL",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_LOGLEVEL",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_loglevel) {
+    code=LogWriter.logLevelDescription;
+    desc=LogWriter.log_level_desc_long;
+    database.prepareInsert(table,tablename);
+    for (int i=1; i < code.length; i++) {
+      RowMetaAndData lookup=null;
+      if (upgrade)       lookup=database.getOneRow("SELECT ID_LOGLEVEL FROM " + tablename + " WHERE "+ database.getDatabaseMeta().quoteField("CODE")+ " = '"+ code[i]+ "'");
+      if (lookup == null) {
+        long nextid=getNextLoglevelID();
+        RowMetaAndData tableData=new RowMetaAndData();
+        tableData.addValue(new ValueMeta("ID_LOGLEVEL",ValueMetaInterface.TYPE_INTEGER),new Long(nextid));
+        tableData.addValue(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING),code[i]);
+        tableData.addValue(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING),desc[i]);
+        database.setValuesInsert(tableData.getRowMeta(),tableData.getData());
+        database.insertRow();
+      }
+    }
+    try {
+      database.closeInsert();
+      if (log.isDetailed())       log.logDetailed(toString(),"Populated table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to close insert after populating table " + tablename,dbe);
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_LOG";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_LOG",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("ID_LOGLEVEL",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("LOGTYPE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("FILENAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("FILEEXTENTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("ADD_DATE",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("ADD_TIME",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE_LOG",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("TABLE_NAME_LOG",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_LOG",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_JOB";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_JOB",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DIRECTORY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  table.addValueMeta(new ValueMeta("EXTENDED_DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  table.addValueMeta(new ValueMeta("JOB_VERSION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("JOB_STATUS",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_DATABASE_LOG",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("TABLE_NAME_LOG",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("CREATED_USER",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("CREATED_DATE",ValueMetaInterface.TYPE_DATE,20,0));
+  table.addValueMeta(new ValueMeta("MODIFIED_USER",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("MODIFIED_DATE",ValueMetaInterface.TYPE_DATE,20,0));
+  table.addValueMeta(new ValueMeta("USE_BATCH_ID",ValueMetaInterface.TYPE_BOOLEAN,0,0));
+  table.addValueMeta(new ValueMeta("PASS_BATCH_ID",ValueMetaInterface.TYPE_BOOLEAN,0,0));
+  table.addValueMeta(new ValueMeta("USE_LOGFIELD",ValueMetaInterface.TYPE_BOOLEAN,0,0));
+  table.addValueMeta(new ValueMeta("SHARED_FILE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_JOB",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  boolean ok_jobentry_type=true;
+  table=new RowMeta();
+  tablename="R_JOBENTRY_TYPE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY_TYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_JOBENTRY_TYPE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_jobentry_type) {
+    updateJobEntryTypes();
+    if (log.isDetailed())     log.logDetailed(toString(),"Populated table " + tablename);
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_JOBENTRY";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOB",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY_TYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_JOBENTRY",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_JOBENTRY_COPY";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY_COPY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOB",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY_TYPE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NR",ValueMetaInterface.TYPE_INTEGER,4,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_X",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("GUI_LOCATION_Y",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("GUI_DRAW",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("PARALLEL",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_JOBENTRY_COPY",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_JOBENTRY_ATTRIBUTE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY_ATTRIBUTE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOB",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NR",ValueMetaInterface.TYPE_INTEGER,6,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("VALUE_NUM",ValueMetaInterface.TYPE_NUMBER,13,2));
+  table.addValueMeta(new ValueMeta("VALUE_STR",ValueMetaInterface.TYPE_STRING,REP_STRING_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_JOBENTRY_ATTRIBUTE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+    try {
+      indexname="IDX_" + tablename.substring(2) + "_LOOKUP";
+      keyfield=new String[]{"ID_JOBENTRY_ATTRIBUTE","CODE","NR"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,true,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_JOB_HOP";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_JOB_HOP",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOB",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY_COPY_FROM",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_JOBENTRY_COPY_TO",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ENABLED",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("EVALUATION",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  table.addValueMeta(new ValueMeta("UNCONDITIONAL",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_JOB_HOP",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  table=new RowMeta();
+  tablename="R_JOB_NOTE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_JOB",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_NOTE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,null,false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (monitor != null)   monitor.worked(1);
+  Map profiles=new Hashtable();
+  boolean ok_profile=true;
+  tablename="R_PROFILE";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table=new RowMeta();
+  table.addValueMeta(new ValueMeta("ID_PROFILE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_PROFILE",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_profile) {
+    code=new String[]{"Administrator","User","Read-only"};
+    desc=new String[]{"Administrator profile, manage users","Normal user, all tools","Read-only users"};
+    database.prepareInsert(table,tablename);
+    for (int i=0; i < code.length; i++) {
+      RowMetaAndData lookup=null;
+      if (upgrade)       lookup=database.getOneRow("SELECT ID_PROFILE FROM " + tablename + " WHERE "+ database.getDatabaseMeta().quoteField("NAME")+ " = '"+ code[i]+ "'");
+      if (lookup == null) {
+        long nextid=getNextProfileID();
+        RowMetaAndData tableData=new RowMetaAndData();
+        tableData.addValue(new ValueMeta("ID_PROFILE",ValueMetaInterface.TYPE_INTEGER),new Long(nextid));
+        tableData.addValue(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING),code[i]);
+        tableData.addValue(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING),desc[i]);
+        database.setValuesInsert(tableData);
+        database.insertRow();
+        if (log.isDetailed())         log.logDetailed(toString(),"Inserted new row into table " + tablename + " : "+ table);
+        profiles.put(code[i],new Long(nextid));
+      }
+    }
+    try {
+      database.closeInsert();
+      if (log.isDetailed())       log.logDetailed(toString(),"Populated table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to close insert after populating table " + tablename,dbe);
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  Map users=new Hashtable();
+  boolean ok_user=true;
+  table=new RowMeta();
+  tablename="R_USER";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_USER",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_PROFILE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("LOGIN",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("PASSWORD",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("ENABLED",ValueMetaInterface.TYPE_BOOLEAN,1,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_USER",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_user) {
+    user=new String[]{"admin","guest"};
+    pass=new String[]{"admin","guest"};
+    code=new String[]{"Administrator","Guest account"};
+    desc=new String[]{"User manager","Read-only guest account"};
+    prof=new String[]{"Administrator","Read-only"};
+    database.prepareInsert(table,tablename);
+    for (int i=0; i < user.length; i++) {
+      RowMetaAndData lookup=null;
+      if (upgrade)       lookup=database.getOneRow("SELECT ID_USER FROM " + tablename + " WHERE "+ database.getDatabaseMeta().quoteField("LOGIN")+ " = '"+ user[i]+ "'");
+      if (lookup == null) {
+        long nextid=getNextUserID();
+        String password=Encr.encryptPassword(pass[i]);
+        Long profileID=(Long)profiles.get(prof[i]);
+        long id_profile=-1L;
+        if (profileID != null)         id_profile=profileID.longValue();
+        RowMetaAndData tableData=new RowMetaAndData();
+        tableData.addValue(new ValueMeta("ID_USER",ValueMetaInterface.TYPE_INTEGER),new Long(nextid));
+        tableData.addValue(new ValueMeta("ID_PROFILE",ValueMetaInterface.TYPE_INTEGER),new Long(id_profile));
+        tableData.addValue(new ValueMeta("LOGIN",ValueMetaInterface.TYPE_STRING),user[i]);
+        tableData.addValue(new ValueMeta("PASSWORD",ValueMetaInterface.TYPE_STRING),password);
+        tableData.addValue(new ValueMeta("NAME",ValueMetaInterface.TYPE_STRING),code[i]);
+        tableData.addValue(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING),desc[i]);
+        tableData.addValue(new ValueMeta("ENABLED",ValueMetaInterface.TYPE_BOOLEAN),new Boolean(true));
+        database.setValuesInsert(tableData);
+        database.insertRow();
+        users.put(user[i],new Long(nextid));
+      }
+    }
+    try {
+      database.closeInsert();
+      if (log.isDetailed())       log.logDetailed(toString(),"Populated table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to close insert after populating table " + tablename,dbe);
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  Map permissions=new Hashtable();
+  boolean ok_permission=true;
+  table=new RowMeta();
+  tablename="R_PERMISSION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_PERMISSION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  table.addValueMeta(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING,REP_STRING_CODE_LENGTH,0));
+  sql=database.getDDL(tablename,table,null,false,"ID_PERMISSION",false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_permission) {
+    code=PermissionMeta.permissionTypeCode;
+    desc=PermissionMeta.permissionTypeDesc;
+    database.prepareInsert(table,tablename);
+    for (int i=1; i < code.length; i++) {
+      RowMetaAndData lookup=null;
+      if (upgrade)       lookup=database.getOneRow("SELECT ID_PERMISSION FROM " + tablename + " WHERE "+ database.getDatabaseMeta().quoteField("CODE")+ " = '"+ code[i]+ "'");
+      if (lookup == null) {
+        long nextid=getNextPermissionID();
+        RowMetaAndData tableData=new RowMetaAndData();
+        tableData.addValue(new ValueMeta("ID_PERMISSION",ValueMetaInterface.TYPE_INTEGER),new Long(nextid));
+        tableData.addValue(new ValueMeta("CODE",ValueMetaInterface.TYPE_STRING),code[i]);
+        tableData.addValue(new ValueMeta("DESCRIPTION",ValueMetaInterface.TYPE_STRING),desc[i]);
+        database.setValuesInsert(tableData);
+        database.insertRow();
+        if (log.isDetailed())         log.logDetailed(toString(),"Inserted new row into table " + tablename + " : "+ table);
+        permissions.put(code[i],new Long(nextid));
+      }
+    }
+    try {
+      database.closeInsert();
+      if (log.isDetailed())       log.logDetailed(toString(),"Populated table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to close insert after populating table " + tablename,dbe);
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  boolean ok_profile_permission=true;
+  table=new RowMeta();
+  tablename="R_PROFILE_PERMISSION";
+  if (monitor != null)   monitor.subTask("Checking table " + tablename);
+  table.addValueMeta(new ValueMeta("ID_PROFILE",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  table.addValueMeta(new ValueMeta("ID_PERMISSION",ValueMetaInterface.TYPE_INTEGER,KEY,0));
+  sql=database.getDDL(tablename,table,null,false,null,false);
+  if (sql != null && sql.length() > 0) {
+    if (log.isDetailed())     log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+    database.execStatements(sql);
+    if (log.isDetailed())     log.logDetailed(toString(),"Created or altered table " + tablename);
+    try {
+      indexname="IDX_" + tablename.substring(2) + "_PK";
+      keyfield=new String[]{"ID_PROFILE","ID_PERMISSION"};
+      if (!database.checkIndexExists(tablename,keyfield)) {
+        sql=database.getCreateIndexStatement(tablename,indexname,keyfield,false,true,false,false);
+        if (log.isDetailed())         log.logDetailed(toString(),"executing SQL statements: " + Const.CR + sql);
+        database.execStatements(sql);
+        if (log.isDetailed())         log.logDetailed(toString(),"Created lookup index " + indexname + " on "+ tablename);
+      }
+    }
+ catch (    KettleException kdbe) {
+    }
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),"Table " + tablename + " is OK.");
+  }
+  if (ok_profile_permission) {
+    database.prepareInsert(table,tablename);
+    Long profileID=(Long)profiles.get("Administrator");
+    long id_profile=-1L;
+    if (profileID != null)     id_profile=profileID.longValue();
+    if (log.isDetailed())     log.logDetailed(toString(),"Administrator profile id = " + id_profile);
+    String perms[]=new String[]{PermissionMeta.permissionTypeCode[PermissionMeta.TYPE_PERMISSION_ADMIN],PermissionMeta.permissionTypeCode[PermissionMeta.TYPE_PERMISSION_TRANSFORMATION],PermissionMeta.permissionTypeCode[PermissionMeta.TYPE_PERMISSION_JOB],PermissionMeta.permissionTypeCode[PermissionMeta.TYPE_PERMISSION_SCHEMA]};
+    for (int i=0; i < perms.length; i++) {
+      Long permissionID=(Long)permissions.get(perms[i]);
+      long id_permission=-1L;
+      if (permissionID != null)       id_permission=permissionID.longValue();
+      if (log.isDetailed())       log.logDetailed(toString(),"Permission id for '" + perms[i] + "' = "+ id_permission);
+      RowMetaAndData lookup=null;
+      if (upgrade) {
+        String lookupSQL="SELECT ID_PROFILE FROM " + tablename + " WHERE ID_PROFILE="+ id_profile+ " AND ID_PERMISSION="+ id_permission;
+        if (log.isDetailed())         log.logDetailed(toString(),"Executing SQL: " + lookupSQL);
+        lookup=database.getOneRow(lookupSQL);
+      }
+      if (lookup == null) {
+        String insertSQL="INSERT INTO " + tablename + "(ID_PROFILE, ID_PERMISSION) VALUES("+ id_profile+ ","+ id_permission+ ")";
+        database.execStatement(insertSQL);
+        if (log.isDetailed())         log.logDetailed(toString(),"insertSQL = [" + insertSQL + "]");
+      }
+ else {
+        if (log.isDetailed())         log.logDetailed(toString(),"Found id_profile=" + id_profile + ", id_permission="+ id_permission);
+      }
+    }
+    profileID=(Long)profiles.get("User");
+    id_profile=-1L;
+    if (profileID != null)     id_profile=profileID.longValue();
+    if (log.isDetailed())     log.logDetailed(toString(),"User profile id = " + id_profile);
+    perms=new String[]{PermissionMeta.permissionTypeCode[PermissionMeta.TYPE_PERMISSION_TRANSFORMATION],PermissionMeta.permissionTypeCode[PermissionMeta.TYPE_PERMISSION_JOB],PermissionMeta.permissionTypeCode[PermissionMeta.TYPE_PERMISSION_SCHEMA]};
+    for (int i=0; i < perms.length; i++) {
+      Long permissionID=(Long)permissions.get(perms[i]);
+      long id_permission=-1L;
+      if (permissionID != null)       id_permission=permissionID.longValue();
+      RowMetaAndData lookup=null;
+      if (upgrade)       lookup=database.getOneRow("SELECT ID_PROFILE FROM " + tablename + " WHERE ID_PROFILE="+ id_profile+ " AND ID_PERMISSION="+ id_permission);
+      if (lookup == null) {
+        RowMetaAndData tableData=new RowMetaAndData();
+        tableData.addValue(new ValueMeta("ID_PROFILE",ValueMetaInterface.TYPE_INTEGER),new Long(id_profile));
+        tableData.addValue(new ValueMeta("ID_PERMISSION",ValueMetaInterface.TYPE_INTEGER),new Long(id_permission));
+        database.setValuesInsert(tableData);
+        database.insertRow();
+      }
+    }
+    try {
+      database.closeInsert();
+      if (log.isDetailed())       log.logDetailed(toString(),"Populated table " + tablename);
+    }
+ catch (    KettleException dbe) {
+      throw new KettleException("Unable to close insert after populating table " + tablename,dbe);
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  if (monitor != null)   monitor.done();
+  log.logBasic(toString(),(upgrade ? "Upgraded" : "Created") + " " + repositoryTableNames.length+ " repository tables.");
+}

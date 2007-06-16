@@ -1,0 +1,33 @@
+{
+  try {
+    log.logBasic(toString(),"edit job graph entry: " + je.getName());
+    JobEntryCopy before=(JobEntryCopy)je.clone_deep();
+    boolean entry_changed=false;
+    JobEntryInterface jei=je.getEntry();
+    if (jei.isSpecial()) {
+      JobEntrySpecial special=(JobEntrySpecial)jei;
+      if (special.isDummy())       return;
+    }
+    JobEntryDialogInterface d=jei.getDialog(shell,jei,jobMeta,je.getName(),rep);
+    if (d != null) {
+      if (d.open() != null) {
+        entry_changed=true;
+      }
+      if (entry_changed) {
+        JobEntryCopy after=(JobEntryCopy)je.clone();
+        addUndoChange(jobMeta,new JobEntryCopy[]{before},new JobEntryCopy[]{after},new int[]{jobMeta.indexOfJobEntry(je)});
+        refreshGraph();
+        refreshTree();
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+      mb.setMessage(Messages.getString("Spoon.Dialog.JobEntryCanNotBeChanged.Message"));
+      mb.setText(Messages.getString("Spoon.Dialog.JobEntryCanNotBeChanged.Title"));
+      mb.open();
+    }
+  }
+ catch (  Exception e) {
+    if (!shell.isDisposed())     new ErrorDialog(shell,Messages.getString("Spoon.ErrorDialog.ErrorEditingJobEntry.Title"),Messages.getString("Spoon.ErrorDialog.ErrorEditingJobEntry.Message"),e);
+  }
+}

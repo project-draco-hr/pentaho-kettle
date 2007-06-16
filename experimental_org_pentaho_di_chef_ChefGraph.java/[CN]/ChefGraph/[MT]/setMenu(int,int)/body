@@ -1,0 +1,393 @@
+{
+  final int mousex=x;
+  final int mousey=y;
+  if (mPop != null && !mPop.isDisposed()) {
+    MenuItem[] items=mPop.getItems();
+    for (int i=0; i < items.length; i++) {
+      items[i].dispose();
+    }
+  }
+ else {
+    mPop=new Menu(this);
+  }
+  final JobEntryCopy jobEntry=jobMeta.getChefGraphEntry(x,y,iconsize);
+  if (jobEntry != null) {
+    MenuItem miNewHop=null;
+    int sels=jobMeta.nrSelected();
+    if (sels == 2) {
+      miNewHop=new MenuItem(mPop,SWT.CASCADE);
+      miNewHop.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.NewHop"));
+    }
+    final JobEntryInterface entry=jobEntry.getEntry();
+switch (jobEntry.getType()) {
+case JobEntryInterface.TYPE_JOBENTRY_TRANSFORMATION:
+{
+        MenuItem miLaunch=new MenuItem(mPop,SWT.CASCADE);
+        miLaunch.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.LaunchSpoon"));
+        miLaunch.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            openTransformation((JobEntryTrans)entry);
+          }
+        }
+);
+      }
+    break;
+case JobEntryInterface.TYPE_JOBENTRY_JOB:
+{
+    MenuItem miLaunch=new MenuItem(mPop,SWT.CASCADE);
+    miLaunch.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.LaunchChef"));
+    miLaunch.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        launchChef((JobEntryJob)entry);
+      }
+    }
+);
+  }
+break;
+default :
+break;
+}
+MenuItem miEditStep=new MenuItem(mPop,SWT.CASCADE);
+miEditStep.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.Edit"));
+MenuItem miEditDesc=new MenuItem(mPop,SWT.CASCADE);
+miEditDesc.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.EditDescription"));
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miDupeStep=new MenuItem(mPop,SWT.CASCADE);
+miDupeStep.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.Duplicate"));
+MenuItem miCopy=new MenuItem(mPop,SWT.CASCADE);
+miCopy.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.CopyToClipboard"));
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miPopAD=new MenuItem(mPop,SWT.CASCADE);
+miPopAD.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute"));
+Menu mPopAD=new Menu(miPopAD);
+MenuItem miPopALeft=new MenuItem(mPopAD,SWT.CASCADE);
+miPopALeft.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute.Left"));
+MenuItem miPopARight=new MenuItem(mPopAD,SWT.CASCADE);
+miPopARight.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute.Right"));
+MenuItem miPopATop=new MenuItem(mPopAD,SWT.CASCADE);
+miPopATop.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute.Top"));
+MenuItem miPopABottom=new MenuItem(mPopAD,SWT.CASCADE);
+miPopABottom.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute.Bottom"));
+new MenuItem(mPopAD,SWT.SEPARATOR);
+MenuItem miPopDHoriz=new MenuItem(mPopAD,SWT.CASCADE);
+miPopDHoriz.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute.Horizontally"));
+MenuItem miPopDVertic=new MenuItem(mPopAD,SWT.CASCADE);
+miPopDVertic.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute.Vertically"));
+new MenuItem(mPopAD,SWT.SEPARATOR);
+MenuItem miPopSSnap=new MenuItem(mPopAD,SWT.CASCADE);
+miPopSSnap.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.AllignDistribute.SnapToGrid") + Const.GRID_SIZE + ")\tALT-HOME");
+miPopAD.setMenu(mPopAD);
+miPopALeft.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+allignleft();
+}
+}
+);
+miPopARight.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+allignright();
+}
+}
+);
+miPopATop.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+alligntop();
+}
+}
+);
+miPopABottom.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+allignbottom();
+}
+}
+);
+miPopDHoriz.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+distributehorizontal();
+}
+}
+);
+miPopDVertic.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+distributevertical();
+}
+}
+);
+miPopSSnap.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+snaptogrid(Const.GRID_SIZE);
+}
+}
+);
+if (sels <= 1) {
+miPopAD.setEnabled(false);
+}
+if (sels == 2) {
+miNewHop.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+selected_entries=null;
+newHop();
+}
+}
+);
+}
+miEditStep.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+selected_entries=null;
+editEntry(jobEntry);
+}
+}
+);
+miEditDesc.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+String title=Messages.getString("ChefGraph.Dialog.EditDescription.Title");
+String message=Messages.getString("ChefGraph.Dialog.EditDescription.Message");
+EnterTextDialog dd=new EnterTextDialog(shell,title,message,jobEntry.getDescription());
+String des=dd.open();
+if (des != null) jobEntry.setDescription(des);
+}
+}
+);
+miDupeStep.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+spoon.dupeJobEntry(jobMeta,jobEntry);
+}
+}
+);
+miCopy.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+spoon.copyJobEntries(jobMeta,jobMeta.getSelectedEntries());
+}
+}
+);
+if (jobMeta.isEntryUsedInHops(jobEntry)) {
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miDetach=new MenuItem(mPop,SWT.CASCADE);
+miDetach.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Detach"));
+miDetach.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+detach(jobEntry);
+jobMeta.unselectAll();
+}
+}
+);
+}
+if (jobEntry.isDrawn() && !jobMeta.isEntryUsedInHops(jobEntry)) {
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miHide=new MenuItem(mPop,SWT.CASCADE);
+miHide.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.Hide"));
+miHide.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+jobEntry.setDrawn(false);
+if (jobEntry.getNr() > 0) {
+  int ind=jobMeta.indexOfJobEntry(jobEntry);
+  jobMeta.removeJobEntry(ind);
+  spoon.addUndoDelete(jobMeta,new JobEntryCopy[]{jobEntry},new int[]{ind});
+}
+redraw();
+}
+}
+);
+}
+if (jobEntry.isDrawn()) {
+MenuItem miDelete=new MenuItem(mPop,SWT.CASCADE);
+miDelete.setText(Messages.getString("ChefGraph.PopupMenu.JobEntry.Delete"));
+miDelete.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+spoon.deleteJobEntryCopies(jobMeta,jobEntry);
+redraw();
+}
+}
+);
+}
+canvas.setMenu(mPop);
+}
+ else {
+final JobHopMeta hi=findJobHop(x,y);
+if (hi != null) {
+MenuItem miPopEval=new MenuItem(mPop,SWT.CASCADE);
+miPopEval.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Evaluation"));
+if (mPopAD != null && !mPopAD.isDisposed()) {
+mPopAD.dispose();
+}
+mPopAD=new Menu(miPopEval);
+MenuItem miPopEvalUncond=new MenuItem(mPopAD,SWT.CASCADE | SWT.CHECK);
+miPopEvalUncond.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Evaluation.Unconditional"));
+miPopEvalUncond.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent arg0){
+hi.setUnconditional();
+spoon.refreshGraph();
+}
+}
+);
+MenuItem miPopEvalTrue=new MenuItem(mPopAD,SWT.CASCADE | SWT.CHECK);
+miPopEvalTrue.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Evaluation.FollowWhenOK"));
+miPopEvalTrue.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent arg0){
+hi.setConditional();
+hi.setEvaluation(true);
+spoon.refreshGraph();
+}
+}
+);
+MenuItem miPopEvalFalse=new MenuItem(mPopAD,SWT.CASCADE | SWT.CHECK);
+miPopEvalFalse.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Evaluation.FollowWhenFailed"));
+miPopEvalFalse.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent arg0){
+hi.setConditional();
+hi.setEvaluation(false);
+spoon.refreshGraph();
+}
+}
+);
+if (hi.isUnconditional()) {
+miPopEvalUncond.setSelection(true);
+miPopEvalTrue.setSelection(false);
+miPopEvalFalse.setSelection(false);
+}
+ else {
+if (hi.getEvaluation()) {
+miPopEvalUncond.setSelection(false);
+miPopEvalTrue.setSelection(true);
+miPopEvalFalse.setSelection(false);
+}
+ else {
+miPopEvalUncond.setSelection(false);
+miPopEvalTrue.setSelection(false);
+miPopEvalFalse.setSelection(true);
+}
+}
+if (!hi.from_entry.evaluates()) {
+miPopEvalTrue.setEnabled(false);
+miPopEvalFalse.setEnabled(false);
+}
+if (!hi.from_entry.isUnconditional()) {
+miPopEvalUncond.setEnabled(false);
+}
+miPopEval.setMenu(mPopAD);
+MenuItem miFlipHop=new MenuItem(mPop,SWT.CASCADE);
+miFlipHop.setText(Messages.getString("ChefGraph.PopupMenu.Hop.FlipDirection"));
+MenuItem miDisHop=new MenuItem(mPop,SWT.CASCADE);
+if (hi.isEnabled()) miDisHop.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Disable"));
+ else miDisHop.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Enable"));
+MenuItem miDelHop=new MenuItem(mPop,SWT.CASCADE);
+miDelHop.setText(Messages.getString("ChefGraph.PopupMenu.Hop.Delete"));
+miFlipHop.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+selrect=null;
+JobEntryCopy dummy=hi.from_entry;
+hi.from_entry=hi.to_entry;
+hi.to_entry=dummy;
+if (jobMeta.hasLoop(hi.from_entry)) {
+  spoon.refreshGraph();
+  MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
+  mb.setMessage(Messages.getString("ChefGraph.Dialog.HopFlipCausesLoop.Message"));
+  mb.setText(Messages.getString("ChefGraph.Dialog.HopFlipCausesLoop.Title"));
+  mb.open();
+  dummy=hi.from_entry;
+  hi.from_entry=hi.to_entry;
+  hi.to_entry=dummy;
+  spoon.refreshGraph();
+}
+ else {
+  hi.setChanged();
+  spoon.refreshGraph();
+  spoon.refreshTree();
+  spoon.setShellText();
+}
+}
+}
+);
+miDisHop.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+selrect=null;
+hi.setEnabled(!hi.isEnabled());
+spoon.refreshGraph();
+spoon.refreshTree();
+}
+}
+);
+miDelHop.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+selrect=null;
+int idx=jobMeta.indexOfJobHop(hi);
+jobMeta.removeJobHop(idx);
+spoon.refreshTree();
+spoon.refreshGraph();
+}
+}
+);
+canvas.setMenu(mPop);
+}
+ else {
+final NotePadMeta ni=jobMeta.getNote(x,y);
+if (ni != null) {
+MenuItem miNoteEdit=new MenuItem(mPop,SWT.CASCADE);
+miNoteEdit.setText(Messages.getString("ChefGraph.PopupMenu.Note.Edit"));
+MenuItem miNoteDel=new MenuItem(mPop,SWT.CASCADE);
+miNoteDel.setText(Messages.getString("ChefGraph.PopupMenu.Note.Delete"));
+miNoteEdit.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  selrect=null;
+  editNote(ni);
+}
+}
+);
+miNoteDel.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  selrect=null;
+  int idx=jobMeta.indexOfNote(ni);
+  if (idx >= 0) {
+    jobMeta.removeNote(idx);
+    spoon.addUndoDelete(jobMeta,new NotePadMeta[]{ni},new int[]{idx});
+  }
+  redraw();
+}
+}
+);
+canvas.setMenu(mPop);
+}
+ else {
+MenuItem miNoteNew=new MenuItem(mPop,SWT.CASCADE);
+miNoteNew.setText(Messages.getString("ChefGraph.PopupMenu.Note.New"));
+miNoteNew.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  selrect=null;
+  String title=Messages.getString("ChefGraph.Dialog.EditNote.Title");
+  String message=Messages.getString("ChefGraph.Dialog.EditNote.Message");
+  EnterTextDialog dd=new EnterTextDialog(shell,title,message,"");
+  String n=dd.open();
+  if (n != null) {
+    NotePadMeta npi=new NotePadMeta(n,lastclick.x,lastclick.y,Const.NOTE_MIN_SIZE,Const.NOTE_MIN_SIZE);
+    jobMeta.addNote(npi);
+    spoon.addUndoNew(jobMeta,new NotePadMeta[]{npi},new int[]{jobMeta.indexOfNote(npi)});
+    redraw();
+  }
+}
+}
+);
+MenuItem miPasteStep=new MenuItem(mPop,SWT.CASCADE);
+miPasteStep.setText(Messages.getString("ChefGraph.PopupMenu.PasteStepFromClipboard"));
+final String clipcontent=spoon.fromClipboard();
+if (clipcontent == null) miPasteStep.setEnabled(false);
+miPasteStep.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  Point loc=new Point(mousex,mousey);
+  spoon.pasteXML(jobMeta,clipcontent,loc);
+}
+}
+);
+new MenuItem(mPop,SWT.SEPARATOR);
+MenuItem miSettings=new MenuItem(mPop,SWT.NONE);
+miSettings.setText(Messages.getString("ChefGraph.PopupMenu.Settings"));
+miSettings.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+  spoon.editJobProperties(jobMeta);
+}
+}
+);
+canvas.setMenu(mPop);
+}
+}
+}
+}

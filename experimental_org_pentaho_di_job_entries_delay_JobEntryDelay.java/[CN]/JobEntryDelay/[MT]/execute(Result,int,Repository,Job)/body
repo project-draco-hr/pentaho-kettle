@@ -1,0 +1,46 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  int Multiple;
+  String Waitscale;
+  if (scaletime == 0) {
+    Multiple=1000;
+    Waitscale=Messages.getString("JobEval.SScaleTime.Label");
+  }
+ else   if (scaletime == 1) {
+    Multiple=60000;
+    Waitscale=Messages.getString("JobEval.MnScaleTime.Label");
+  }
+ else {
+    Multiple=3600000;
+    Waitscale=Messages.getString("JobEval.HrScaleTime.Label");
+  }
+  try {
+    long timeStart=System.currentTimeMillis() / Multiple;
+    long iMaximumTimeout=Const.toInt(getMaximumTimeout(),Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0));
+    if (log.isDetailed()) {
+      log.logDetailed(toString(),Messages.getString("JobEval.LetsWaitFor.Label") + iMaximumTimeout + " "+ Waitscale+ "...");
+    }
+    boolean continueLoop=true;
+    if (iMaximumTimeout < 0) {
+      iMaximumTimeout=Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0);
+      log.logBasic(toString(),Messages.getString("JobEval.MaximunTimeReseted.Label") + iMaximumTimeout + " "+ Waitscale);
+    }
+    while (continueLoop && !parentJob.isStopped()) {
+      long now=System.currentTimeMillis() / Multiple;
+      if ((iMaximumTimeout > 0) && (now >= (timeStart + iMaximumTimeout))) {
+        if (log.isDetailed()) {
+          log.logDetailed(toString(),Messages.getString("JobEval.WaitTimeIsElapsed.Label"));
+        }
+        continueLoop=false;
+        result.setResult(true);
+      }
+    }
+  }
+ catch (  Exception e) {
+    result.setResult(false);
+    log.logError(toString(),"Error  : " + e.getMessage());
+  }
+  return result;
+}

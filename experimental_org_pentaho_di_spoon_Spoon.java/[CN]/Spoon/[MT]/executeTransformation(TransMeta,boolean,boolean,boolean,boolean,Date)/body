@@ -1,0 +1,40 @@
+{
+  if (transMeta == null)   return;
+  executionConfiguration.setExecutingLocally(local);
+  executionConfiguration.setExecutingRemotely(remote);
+  executionConfiguration.setExecutingClustered(cluster);
+  executionConfiguration.getUsedVariables(transMeta);
+  executionConfiguration.getUsedArguments(transMeta,arguments);
+  executionConfiguration.setReplayDate(replayDate);
+  executionConfiguration.setLocalPreviewing(preview);
+  executionConfiguration.setLogLevel(log.getLogLevel());
+  TransExecutionConfigurationDialog dialog=new TransExecutionConfigurationDialog(shell,executionConfiguration,transMeta);
+  if (dialog.open()) {
+    addSpoonLog(transMeta,!executionConfiguration.isLocalPreviewing());
+    SpoonLog spoonLog=getActiveSpoonLog();
+    if (executionConfiguration.isExecutingLocally()) {
+      if (executionConfiguration.isLocalPreviewing()) {
+        spoonLog.preview(executionConfiguration);
+      }
+ else {
+        spoonLog.start(executionConfiguration);
+      }
+    }
+ else     if (executionConfiguration.isExecutingRemotely()) {
+      if (executionConfiguration.getRemoteServer() != null) {
+        sendXMLToSlaveServer(transMeta,executionConfiguration);
+        addSpoonSlave(executionConfiguration.getRemoteServer());
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+        mb.setMessage(Messages.getString("Spoon.Dialog.NoRemoteServerSpecified.Message"));
+        mb.setText(Messages.getString("Spoon.Dialog.NoRemoteServerSpecified.Title"));
+        mb.open();
+      }
+    }
+ else     if (executionConfiguration.isExecutingClustered()) {
+      splitTrans(transMeta,executionConfiguration.isClusterShowingTransformation(),executionConfiguration.isClusterPosting(),executionConfiguration.isClusterPreparing(),executionConfiguration.isClusterStarting());
+    }
+  }
+  arguments=executionConfiguration.getArgumentStrings();
+}

@@ -1,0 +1,35 @@
+{
+  if (monitor != null)   monitor.beginTask(Messages.getString("JobMeta.Monitor.GettingSQLNeededForThisJob"),nrJobEntries() + 1);
+  ArrayList stats=new ArrayList();
+  for (int i=0; i < nrJobEntries(); i++) {
+    JobEntryCopy copy=getJobEntry(i);
+    if (monitor != null)     monitor.subTask(Messages.getString("JobMeta.Monitor.GettingSQLForJobEntryCopy") + copy + "]");
+    ArrayList list=copy.getEntry().getSQLStatements(repository);
+    stats.addAll(list);
+    if (monitor != null)     monitor.worked(1);
+  }
+  if (monitor != null)   monitor.subTask(Messages.getString("JobMeta.Monitor.GettingSQLStatementsForJobLogTables"));
+  if (logconnection != null && logTable != null && logTable.length() > 0) {
+    Database db=new Database(logconnection);
+    try {
+      db.connect();
+      RowMetaInterface fields=Database.getJobLogrecordFields(useBatchId,logfieldUsed);
+      String sql=db.getDDL(logTable,fields);
+      if (sql != null && sql.length() > 0) {
+        SQLStatement stat=new SQLStatement(Messages.getString("JobMeta.SQLFeedback.ThisJob"),logconnection,sql);
+        stats.add(stat);
+      }
+    }
+ catch (    KettleDatabaseException dbe) {
+      SQLStatement stat=new SQLStatement(Messages.getString("JobMeta.SQLFeedback.ThisJob"),logconnection,null);
+      stat.setError(Messages.getString("JobMeta.SQLFeedback.ErrorObtainingJobLogTableInfo") + dbe.getMessage());
+      stats.add(stat);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+  if (monitor != null)   monitor.worked(1);
+  if (monitor != null)   monitor.done();
+  return stats;
+}

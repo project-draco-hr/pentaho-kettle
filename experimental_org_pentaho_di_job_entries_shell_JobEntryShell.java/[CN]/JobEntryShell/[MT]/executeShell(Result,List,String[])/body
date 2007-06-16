@@ -1,0 +1,108 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  try {
+    String cmd[]=null;
+    String base[]=null;
+    log.logBasic(toString(),"Running on platform : " + Const.getOS());
+    FileObject fileObject=null;
+    String realFilename=StringUtil.environmentSubstitute(getFilename());
+    fileObject=KettleVFS.getFileObject(realFilename);
+    if (Const.getOS().equals("Windows 95")) {
+      base=new String[]{"command.com","/C"};
+    }
+ else     if (Const.getOS().startsWith("Windows")) {
+      base=new String[]{"cmd.exe","/C"};
+    }
+ else {
+      base=new String[]{KettleVFS.getFilename(fileObject)};
+    }
+    if (argFromPrevious && cmdRows != null) {
+      ArrayList cmds=new ArrayList();
+      for (int i=0; i < base.length; i++)       cmds.add(base[i]);
+      if (Const.getOS().equals("Windows 95") || Const.getOS().startsWith("Windows")) {
+        StringBuffer cmdline=new StringBuffer(300);
+        cmdline.append('"');
+        cmdline.append(optionallyQuoteField(KettleVFS.getFilename(fileObject),"\""));
+        for (int i=0; i < cmdRows.size(); i++) {
+          RowMetaAndData r=(RowMetaAndData)cmdRows.get(i);
+          for (int j=0; j < r.size(); j++) {
+            cmdline.append(' ');
+            cmdline.append(optionallyQuoteField(r.getString(j,null),"\""));
+          }
+        }
+        cmdline.append('"');
+        cmds.add(cmdline.toString());
+      }
+ else {
+        for (int i=0; i < cmdRows.size(); i++) {
+          RowMetaAndData r=(RowMetaAndData)cmdRows.get(i);
+          for (int j=0; j < r.size(); j++) {
+            cmds.add(optionallyQuoteField(r.getString(j,null),"\""));
+          }
+        }
+      }
+      cmd=(String[])cmds.toArray(new String[cmds.size()]);
+    }
+ else     if (args != null) {
+      ArrayList cmds=new ArrayList();
+      for (int i=0; i < base.length; i++)       cmds.add(base[i]);
+      if (Const.getOS().equals("Windows 95") || Const.getOS().startsWith("Windows")) {
+        StringBuffer cmdline=new StringBuffer(300);
+        cmdline.append('"');
+        cmdline.append(optionallyQuoteField(KettleVFS.getFilename(fileObject),"\""));
+        for (int i=0; i < args.length; i++) {
+          cmdline.append(' ');
+          cmdline.append(optionallyQuoteField(args[i],"\""));
+        }
+        cmdline.append('"');
+        cmds.add(cmdline.toString());
+      }
+ else {
+        for (int i=0; i < args.length; i++) {
+          cmds.add(args[i]);
+        }
+      }
+      cmd=(String[])cmds.toArray(new String[cmds.size()]);
+    }
+    if (log.isBasic()) {
+      StringBuffer command=new StringBuffer();
+      for (int i=0; i < cmd.length; i++) {
+        if (i > 0)         command.append(' ');
+        command.append(cmd[i]);
+      }
+      log.logBasic(toString(),"Executing command : " + command.toString());
+    }
+    log.logDetailed(toString(),"Passing " + (cmd.length - 1) + " arguments to command : ["+ cmd[0]+ "]");
+    Runtime runtime=java.lang.Runtime.getRuntime();
+    Process proc=runtime.exec(cmd,EnvUtil.getEnvironmentVariablesForRuntimeExec());
+    StreamLogger errorLogger=new StreamLogger(proc.getErrorStream(),toString() + " (stderr)");
+    StreamLogger outputLogger=new StreamLogger(proc.getInputStream(),toString() + " (stdout)");
+    new Thread(errorLogger).start();
+    new Thread(outputLogger).start();
+    proc.waitFor();
+    log.logDetailed(toString(),"command [" + cmd[0] + "] has finished");
+    result.setExitStatus(proc.exitValue());
+    if (result.getExitStatus() != 0) {
+      log.logDetailed(toString(),"Exit status of shell [" + StringUtil.environmentSubstitute(getFileName()) + "] was "+ result.getExitStatus());
+      result.setNrErrors(1);
+    }
+  }
+ catch (  IOException ioe) {
+    log.logError(toString(),"Error running shell [" + StringUtil.environmentSubstitute(getFileName()) + "] : "+ ioe.toString());
+    result.setNrErrors(1);
+  }
+catch (  InterruptedException ie) {
+    log.logError(toString(),"Shell [" + StringUtil.environmentSubstitute(getFileName()) + "] was interupted : "+ ie.toString());
+    result.setNrErrors(1);
+  }
+catch (  Exception e) {
+    log.logError(toString(),"Unexpected error running shell [" + StringUtil.environmentSubstitute(getFileName()) + "] : "+ e.toString());
+    result.setNrErrors(1);
+  }
+  if (result.getNrErrors() > 0) {
+    result.setResult(false);
+  }
+ else {
+    result.setResult(true);
+  }
+}

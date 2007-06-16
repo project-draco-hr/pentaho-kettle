@@ -1,0 +1,55 @@
+{
+  log.logDetailed(toString(),Messages.getString("Spoon.Log.QuitApplication"));
+  boolean exit=true;
+  saveSettings();
+  if (props.showExitWarning()) {
+    MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("System.Warning"),null,Messages.getString("Spoon.Message.Warning.PromptExit"),MessageDialog.WARNING,new String[]{Messages.getString("Spoon.Message.Warning.Yes"),Messages.getString("Spoon.Message.Warning.No")},1,Messages.getString("Spoon.Message.Warning.NotShowWarning"),!props.showExitWarning());
+    int idx=md.open();
+    props.setExitWarningShown(!md.getToggleState());
+    props.saveProps();
+    if ((idx & 0xFF) == 1)     return false;
+  }
+  List list=new ArrayList();
+  list.addAll(tabMap.values());
+  for (Iterator iter=list.iterator(); iter.hasNext() && exit; ) {
+    TabMapEntry mapEntry=(TabMapEntry)iter.next();
+    TabItemInterface itemInterface=mapEntry.getObject();
+    if (!itemInterface.canBeClosed()) {
+      tabfolder.setSelection(mapEntry.getTabItem());
+      int reply=itemInterface.showChangedWarning();
+      if (reply == SWT.YES) {
+        exit=itemInterface.applyChanges();
+      }
+ else {
+        if (reply == SWT.CANCEL) {
+          exit=false;
+        }
+ else {
+          exit=true;
+        }
+      }
+    }
+  }
+  if (exit) {
+    for (Iterator iter=list.iterator(); iter.hasNext() && exit; ) {
+      TabMapEntry mapEntry=(TabMapEntry)iter.next();
+      if (!mapEntry.getObject().canBeClosed()) {
+        if (mapEntry.getObject() instanceof SpoonGraph) {
+          TransMeta transMeta=(TransMeta)mapEntry.getObject().getManagedObject();
+          if (transMeta.hasChanged()) {
+            mapEntry.getTabItem().dispose();
+          }
+        }
+        if (mapEntry.getObject() instanceof SpoonLog) {
+          SpoonLog spoonLog=(SpoonLog)mapEntry.getObject();
+          if (spoonLog.isRunning()) {
+            spoonLog.stop();
+            mapEntry.getTabItem().dispose();
+          }
+        }
+      }
+    }
+  }
+  if (exit)   dispose();
+  return exit;
+}

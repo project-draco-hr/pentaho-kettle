@@ -1,0 +1,162 @@
+{
+  props.setLook(shell);
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText(Messages.getString("RepositoryDialog.Dialog.Main.Title2"));
+  int middle=props.getMiddlePct();
+  int margin=Const.MARGIN;
+  wnConnection=new Button(shell,SWT.PUSH);
+  wnConnection.setText(Messages.getString("System.Button.New"));
+  weConnection=new Button(shell,SWT.PUSH);
+  weConnection.setText(Messages.getString("System.Button.Edit"));
+  wdConnection=new Button(shell,SWT.PUSH);
+  wdConnection.setText(Messages.getString("System.Button.Delete"));
+  fddConnection=new FormData();
+  fddConnection.right=new FormAttachment(100,0);
+  fddConnection.top=new FormAttachment(0,margin);
+  wdConnection.setLayoutData(fddConnection);
+  fdeConnection=new FormData();
+  fdeConnection.right=new FormAttachment(wdConnection,-margin);
+  fdeConnection.top=new FormAttachment(0,margin);
+  weConnection.setLayoutData(fdeConnection);
+  fdnConnection=new FormData();
+  fdnConnection.right=new FormAttachment(weConnection,-margin);
+  fdnConnection.top=new FormAttachment(0,margin);
+  wnConnection.setLayoutData(fdnConnection);
+  wConnection=new CCombo(shell,SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
+  props.setLook(wConnection);
+  fdConnection=new FormData();
+  fdConnection.left=new FormAttachment(middle,0);
+  fdConnection.top=new FormAttachment(wnConnection,0,SWT.CENTER);
+  fdConnection.right=new FormAttachment(wnConnection,-margin);
+  wConnection.setLayoutData(fdConnection);
+  fillConnections();
+  wlConnection=new Label(shell,SWT.RIGHT);
+  wlConnection.setText(Messages.getString("RepositoryDialog.Label.SelectConnection"));
+  props.setLook(wlConnection);
+  fdlConnection=new FormData();
+  fdlConnection.left=new FormAttachment(0,0);
+  fdlConnection.right=new FormAttachment(middle,-margin);
+  fdlConnection.top=new FormAttachment(wnConnection,0,SWT.CENTER);
+  wlConnection.setLayoutData(fdlConnection);
+  wnConnection.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent arg0){
+      DatabaseMeta databaseMeta=new DatabaseMeta();
+      DatabaseDialog dd=new DatabaseDialog(shell,databaseMeta);
+      if (dd.open() != null) {
+        repositories.addDatabase(databaseMeta);
+        fillConnections();
+        int idx=repositories.indexOfDatabase(databaseMeta);
+        wConnection.select(idx);
+      }
+    }
+  }
+);
+  weConnection.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent arg0){
+      DatabaseMeta databaseMeta=repositories.searchDatabase(wConnection.getText());
+      if (databaseMeta != null) {
+        DatabaseDialog dd=new DatabaseDialog(shell,databaseMeta);
+        if (dd.open() != null) {
+          fillConnections();
+          int idx=repositories.indexOfDatabase(databaseMeta);
+          wConnection.select(idx);
+        }
+      }
+    }
+  }
+);
+  wdConnection.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent arg0){
+      DatabaseMeta dbinfo=repositories.searchDatabase(wConnection.getText());
+      if (dbinfo != null) {
+        int idx=repositories.indexOfDatabase(dbinfo);
+        repositories.removeDatabase(idx);
+        fillConnections();
+      }
+    }
+  }
+);
+  wlName=new Label(shell,SWT.RIGHT);
+  wlName.setText(Messages.getString("RepositoryDialog.Label.Name"));
+  props.setLook(wlName);
+  fdlName=new FormData();
+  fdlName.left=new FormAttachment(0,0);
+  fdlName.top=new FormAttachment(wnConnection,margin * 2);
+  fdlName.right=new FormAttachment(middle,-margin);
+  wlName.setLayoutData(fdlName);
+  wName=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wName);
+  fdName=new FormData();
+  fdName.left=new FormAttachment(middle,0);
+  fdName.top=new FormAttachment(wnConnection,margin * 2);
+  fdName.right=new FormAttachment(100,0);
+  wName.setLayoutData(fdName);
+  wlDescription=new Label(shell,SWT.RIGHT);
+  wlDescription.setText(Messages.getString("RepositoryDialog.Label.Description"));
+  props.setLook(wlDescription);
+  fdlDescription=new FormData();
+  fdlDescription.left=new FormAttachment(0,0);
+  fdlDescription.top=new FormAttachment(wName,margin);
+  fdlDescription.right=new FormAttachment(middle,-margin);
+  wlDescription.setLayoutData(fdlDescription);
+  wDescription=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wDescription);
+  fdDescription=new FormData();
+  fdDescription.left=new FormAttachment(middle,0);
+  fdDescription.top=new FormAttachment(wName,margin);
+  fdDescription.right=new FormAttachment(100,0);
+  wDescription.setLayoutData(fdDescription);
+  wOK=new Button(shell,SWT.PUSH);
+  wOK.setText(Messages.getString("System.Button.OK"));
+  lsOK=new Listener(){
+    public void handleEvent(    Event e){
+      ok();
+    }
+  }
+;
+  wOK.addListener(SWT.Selection,lsOK);
+  wCreate=new Button(shell,SWT.PUSH);
+  wCreate.setText(Messages.getString("RepositoryDialog.Button.CreateOrUpgrade"));
+  lsCreate=new Listener(){
+    public void handleEvent(    Event e){
+      create(steploader);
+    }
+  }
+;
+  wCreate.addListener(SWT.Selection,lsCreate);
+  wDrop=new Button(shell,SWT.PUSH);
+  wDrop.setText(Messages.getString("RepositoryDialog.Button.Remove"));
+  lsDrop=new Listener(){
+    public void handleEvent(    Event e){
+      drop();
+    }
+  }
+;
+  wDrop.addListener(SWT.Selection,lsDrop);
+  wCancel=new Button(shell,SWT.PUSH);
+  wCancel.setText(Messages.getString("System.Button.Cancel"));
+  lsCancel=new Listener(){
+    public void handleEvent(    Event e){
+      cancel();
+    }
+  }
+;
+  wCancel.addListener(SWT.Selection,lsCancel);
+  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCreate,wDrop,wCancel},margin,wDescription);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      cancel();
+    }
+  }
+);
+  getData();
+  BaseStepDialog.setSize(shell);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return input;
+}

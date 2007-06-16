@@ -1,0 +1,50 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  List rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  boolean rcode=true;
+  String args[]=arguments;
+  String fmasks[]=filemasks;
+  result.setResult(true);
+  rcode=true;
+  if (argFromPrevious) {
+    log.logDetailed(toString(),"Found " + (rows != null ? rows.size() : 0) + " previous result rows");
+  }
+  if (argFromPrevious && rows != null) {
+    for (int iteration=0; iteration < rows.size(); iteration++) {
+      resultRow=(RowMetaAndData)rows.get(iteration);
+      args=new String[resultRow.size()];
+      fmasks=new String[resultRow.size()];
+      args[iteration]=resultRow.getString(0,null);
+      fmasks[iteration]=resultRow.getString(1,null);
+      if (rcode) {
+        log.logDetailed(toString(),"Processing row [" + args[iteration] + "]..wildcard ["+ fmasks[iteration]+ "] ?");
+        if (!ProcessFile(args[iteration],fmasks[iteration])) {
+          rcode=false;
+        }
+      }
+ else {
+        log.logDetailed(toString(),"Ignoring row [" + args[iteration] + "]..wildcard ["+ fmasks[iteration]+ "] ?");
+      }
+    }
+  }
+ else   if (arguments != null) {
+    for (int i=0; i < arguments.length; i++) {
+      if (rcode) {
+        log.logDetailed(toString(),"Processing argument [" + arguments[i] + "].. wildcard ["+ filemasks[i]+ "] ?");
+        if (!ProcessFile(arguments[i],filemasks[i])) {
+          rcode=false;
+        }
+      }
+ else {
+        log.logDetailed(toString(),"Ignoring argument [" + arguments[i] + "].. wildcard ["+ filemasks[i]+ "] ?");
+      }
+    }
+  }
+  if (!rcode && ignoreErrors) {
+    result.setResult(false);
+    result.setNrErrors(1);
+  }
+  result.setResult(rcode);
+  return result;
+}

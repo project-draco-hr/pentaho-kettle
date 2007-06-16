@@ -1,0 +1,46 @@
+{
+  int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
+  RepositoriesDialog rd=new RepositoriesDialog(disp,perms,APP_NAME);
+  rd.getShell().setImage(GUIResource.getInstance().getImageSpoon());
+  if (rd.open()) {
+    if (rep != null)     rep.disconnect();
+    rep=new Repository(log,rd.getRepository(),rd.getUser());
+    try {
+      rep.connect(Messages.getString("Chef.AppName.RepositoryConnect"));
+    }
+ catch (    KettleException ke) {
+      rep=null;
+      new ErrorDialog(shell,Messages.getString("Chef.Dialog.ErrorConnectingToTheRepository.Title"),Messages.getString("Chef.Dialog.ErrorConnectingToTheRepository.Message1") + Const.CR + Messages.getString("Chef.Dialog.ErrorConnectingToTheRepository.Message2"),ke);
+    }
+    for (int i=0; i < jobMeta.nrDatabases(); i++) {
+      jobMeta.getDatabase(i).setID(-1L);
+    }
+    jobMeta.setID(-1L);
+    ArrayList oldDatabases=jobMeta.getDatabases();
+    loadRepositoryObjects();
+    for (int i=0; i < oldDatabases.size(); i++) {
+      DatabaseMeta oldDatabase=(DatabaseMeta)oldDatabases.get(i);
+      DatabaseMeta newDatabase=DatabaseMeta.findDatabase(jobMeta.getDatabases(),oldDatabase.getName());
+      if (newDatabase != null) {
+        oldDatabase.setDatabaseInterface(newDatabase.getDatabaseInterface());
+      }
+ else {
+        jobMeta.addDatabase(oldDatabase);
+      }
+    }
+    RepositoryDirectory redi=rep.getDirectoryTree().findDirectory(jobMeta.getDirectory().getPath());
+    if (redi != null) {
+      jobMeta.setDirectory(redi);
+    }
+ else {
+      jobMeta.setDirectory(rep.getDirectoryTree());
+    }
+    refreshTree();
+    setShellText();
+  }
+ else {
+    if (!rd.isCancelled()) {
+      closeRepository();
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  boolean rcode=false;
+  FileObject filefolder=null;
+  String realFilefoldername=StringUtil.environmentSubstitute(filename);
+  String realwilcard=StringUtil.environmentSubstitute(wildcard);
+  try {
+    filefolder=KettleVFS.getFileObject(realFilefoldername);
+    if (filefolder.exists()) {
+      if (filefolder.getType() == FileType.FOLDER) {
+        if (log.isDetailed())         log.logDetailed(toString(),"Processing folder [" + realFilefoldername + "]");
+        int Nr=filefolder.delete(new TextFileSelector(realwilcard));
+        if (log.isDetailed())         log.logDetailed(toString(),"Total deleted subfolders/files = " + Nr);
+        rcode=true;
+      }
+ else {
+        log.logDetailed(toString(),"Processing file [" + realFilefoldername + "]");
+        boolean deleted=filefolder.delete();
+        if (!deleted) {
+          log.logError(toString(),"Could not delete file [" + realFilefoldername + "].");
+        }
+ else {
+          log.logBasic(toString(),"File [" + filename + "] deleted!");
+          rcode=true;
+        }
+      }
+    }
+ else {
+      log.logBasic(toString(),"File or folder [" + realFilefoldername + "] already deleted.");
+      rcode=true;
+    }
+  }
+ catch (  IOException e) {
+    log.logError(toString(),"Could not process [" + realFilefoldername + "], exception: "+ e.getMessage());
+  }
+ finally {
+    if (filefolder != null) {
+      try {
+        filefolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return rcode;
+}

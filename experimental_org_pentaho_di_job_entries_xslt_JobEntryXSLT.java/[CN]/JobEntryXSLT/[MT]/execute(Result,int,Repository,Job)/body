@@ -1,0 +1,80 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  String realxmlfilename=getRealxmlfilename();
+  String realxslfilename=getRealxslfilename();
+  String realoutputfilename=getRealoutputfilename();
+  FileObject xmlfile=null;
+  FileObject xlsfile=null;
+  FileObject outputfile=null;
+  try {
+    if (xmlfilename != null && xslfilename != null && outputfilename != null) {
+      xmlfile=KettleVFS.getFileObject(realxmlfilename);
+      xlsfile=KettleVFS.getFileObject(realxslfilename);
+      outputfile=KettleVFS.getFileObject(realoutputfilename);
+      if (xmlfile.exists() && xlsfile.exists()) {
+        if (outputfile.exists() && iffileexists == 2) {
+          log.logError(toString(),Messages.getString("JobEntryXSLT.OuputFileExists1.Label") + realoutputfilename + Messages.getString("JobEntryXSLT.OuputFileExists2.Label"));
+          result.setResult(false);
+          result.setNrErrors(1);
+        }
+ else         if (outputfile.exists() && iffileexists == 1) {
+          log.logDebug(toString(),Messages.getString("JobEntryXSLT.OuputFileExists1.Label") + realoutputfilename + Messages.getString("JobEntryXSLT.OuputFileExists2.Label"));
+          result.setResult(true);
+        }
+ else {
+          if (outputfile.exists() && iffileexists == 0) {
+            DateFormat dateFormat=new SimpleDateFormat("mmddyyyy_hhmmss");
+            String wildcard=realoutputfilename.substring(realoutputfilename.length() - 4,realoutputfilename.length());
+            if (wildcard.substring(0,1).equals(".")) {
+              realoutputfilename=realoutputfilename.substring(0,realoutputfilename.length() - 4) + "_" + dateFormat.format(new Date())+ wildcard;
+            }
+ else {
+              realoutputfilename=realoutputfilename + "_" + dateFormat.format(new Date());
+            }
+            log.logDebug(toString(),Messages.getString("JobEntryXSLT.OuputFileExists1.Label") + realoutputfilename + Messages.getString("JobEntryXSLT.OuputFileExists2.Label"));
+            log.logDebug(toString(),Messages.getString("JobEntryXSLT.OuputFileNameChange1.Label") + realoutputfilename + Messages.getString("JobEntryXSLT.OuputFileNameChange2.Label"));
+          }
+          TransformerFactory factory=TransformerFactory.newInstance();
+          Templates template=factory.newTemplates(new StreamSource(new FileInputStream(realxslfilename)));
+          Transformer xformer=template.newTransformer();
+          Source source=new StreamSource(new FileInputStream(realxmlfilename));
+          StreamResult resultat=new StreamResult(new FileOutputStream(realoutputfilename));
+          xformer.transform(source,resultat);
+          result.setResult(true);
+        }
+      }
+ else {
+        if (!xmlfile.exists()) {
+          log.logError(toString(),Messages.getString("JobEntryXSLT.FileDoesNotExist1.Label") + realxmlfilename + Messages.getString("JobEntryXSLT.FileDoesNotExist2.Label"));
+        }
+        if (!xlsfile.exists()) {
+          log.logError(toString(),Messages.getString("JobEntryXSLT.FileDoesNotExist1.Label") + realxslfilename + Messages.getString("JobEntryXSLT.FileDoesNotExist2.Label"));
+        }
+        result.setResult(false);
+        result.setNrErrors(1);
+      }
+    }
+ else {
+      log.logError(toString(),Messages.getString("JobEntryXSLT.AllFilesNotNull.Label"));
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+  }
+ catch (  Exception e) {
+    log.logError(toString(),Messages.getString("JobEntryXSLT.ErrorXLST.Label") + Messages.getString("JobEntryXSLT.ErrorXLSTXML1.Label") + realxmlfilename+ Messages.getString("JobEntryXSLT.ErrorXLSTXML2.Label")+ Messages.getString("JobEntryXSLT.ErrorXLSTXSL1.Label")+ realxslfilename+ Messages.getString("JobEntryXSLT.ErrorXLSTXSL2.Label")+ e.getMessage());
+    result.setResult(false);
+    result.setNrErrors(1);
+  }
+ finally {
+    try {
+      if (xmlfile != null)       xmlfile.close();
+      if (xlsfile != null)       xlsfile.close();
+      if (outputfile != null)       outputfile.close();
+    }
+ catch (    IOException e) {
+    }
+  }
+  return result;
+}

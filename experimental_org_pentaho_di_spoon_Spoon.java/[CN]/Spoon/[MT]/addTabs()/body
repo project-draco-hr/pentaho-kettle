@@ -1,0 +1,108 @@
+{
+  if (tabComp != null) {
+    tabComp.dispose();
+  }
+  tabComp=new Composite(sashform,SWT.BORDER);
+  props.setLook(tabComp);
+  tabComp.setLayout(new FillLayout());
+  tabfolder=new CTabFolder(tabComp,SWT.MULTI);
+  props.setLook(tabfolder,Props.WIDGET_STYLE_TAB);
+  tabfolder.setSimple(false);
+  tabfolder.setUnselectedImageVisible(true);
+  tabfolder.setUnselectedCloseVisible(true);
+  tabfolder.addKeyListener(defKeys);
+  tabfolder.addKeyListener(modKeys);
+  sashform.addKeyListener(defKeys);
+  sashform.addKeyListener(modKeys);
+  int weights[]=props.getSashWeights();
+  sashform.setWeights(weights);
+  sashform.setVisible(true);
+  tabfolder.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      ArrayList collection=new ArrayList();
+      collection.addAll(tabMap.values());
+      for (Iterator iter=collection.iterator(); iter.hasNext(); ) {
+        TabMapEntry entry=(TabMapEntry)iter.next();
+        if (event.item.equals(entry.getTabItem())) {
+          if (event.doit && entry.getObject() instanceof SpoonGraph) {
+            SpoonGraph graph=(SpoonGraph)entry.getObject();
+            TransMeta meta=graph.getTransMeta();
+            if (meta != null) {
+              meta.setInternalKettleVariables();
+            }
+            if (getCoreObjectsState() != STATE_CORE_OBJECTS_SPOON) {
+              refreshCoreObjects();
+            }
+          }
+          if (event.doit && entry.getObject() instanceof ChefGraph) {
+            ChefGraph graph=(ChefGraph)entry.getObject();
+            JobMeta meta=graph.getJobMeta();
+            if (meta != null) {
+              meta.setInternalKettleVariables();
+            }
+            if (getCoreObjectsState() != STATE_CORE_OBJECTS_CHEF) {
+              refreshCoreObjects();
+            }
+          }
+        }
+      }
+      refreshTree();
+    }
+  }
+);
+  tabfolder.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent selectionEvent){
+      enableMenus();
+    }
+  }
+);
+  tabfolder.addCTabFolder2Listener(new CTabFolder2Adapter(){
+    public void close(    CTabFolderEvent event){
+      ArrayList collection=new ArrayList();
+      collection.addAll(tabMap.values());
+      for (Iterator iter=collection.iterator(); iter.hasNext(); ) {
+        TabMapEntry entry=(TabMapEntry)iter.next();
+        if (event.item.equals(entry.getTabItem())) {
+          TabItemInterface itemInterface=entry.getObject();
+          boolean close=true;
+          if (!itemInterface.canBeClosed()) {
+            int reply=itemInterface.showChangedWarning();
+            if (reply == SWT.YES) {
+              close=itemInterface.applyChanges();
+            }
+ else {
+              if (reply == SWT.CANCEL) {
+                close=false;
+              }
+ else {
+                close=true;
+              }
+            }
+          }
+          event.doit=close;
+          if (event.doit) {
+            if (entry.getObject() instanceof SpoonGraph) {
+              TransMeta transMeta=(TransMeta)entry.getObject().getManagedObject();
+              closeTransformation(transMeta);
+              refreshTree();
+            }
+ else             if (entry.getObject() instanceof ChefGraph) {
+              JobMeta jobMeta=(JobMeta)entry.getObject().getManagedObject();
+              closeJob(jobMeta);
+              refreshTree();
+            }
+ else             if (entry.getObject() instanceof SpoonBrowser) {
+              closeSpoonBrowser();
+              refreshTree();
+            }
+            if (entry.getObject() instanceof Composite) {
+              Composite comp=(Composite)entry.getObject();
+              if (comp != null && !comp.isDisposed())               comp.dispose();
+            }
+          }
+        }
+      }
+    }
+  }
+);
+}

@@ -1,0 +1,109 @@
+{
+  String ReplaceIgnore;
+  String IgnoreNbrLignes="";
+  String ListOfColumn="";
+  String LocalExec="";
+  String PriorityText="";
+  String LineTerminatedby="";
+  String FieldTerminatedby="";
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  if (filename != null) {
+    String realFilename=getRealFilename();
+    File file=new File(realFilename);
+    if ((file.exists() && file.canRead()) || isLocalInfile() == false) {
+      log.logDetailed(toString(),"File [" + realFilename + "] exists.");
+      if (connection != null) {
+        Database db=new Database(connection);
+        try {
+          db.connect();
+          String realSchemaname=StringUtil.environmentSubstitute(schemaname);
+          String realTablename=StringUtil.environmentSubstitute(tablename);
+          if (db.checkTableExists(realTablename)) {
+            log.logDetailed(toString(),"Table [" + realTablename + "] exists.");
+            if (schemaname != null) {
+              realTablename=realSchemaname + "." + realTablename;
+            }
+            if (isReplacedata()) {
+              ReplaceIgnore="REPLACE";
+            }
+ else {
+              ReplaceIgnore="IGNORE";
+            }
+            if (Const.toInt(getRealIgnorelines(),0) > 0) {
+              IgnoreNbrLignes="IGNORE " + getRealIgnorelines() + " LINES";
+            }
+            if (getRealListattribut() != null) {
+              ListOfColumn="(" + MysqlString(getRealListattribut()) + ")";
+            }
+            if (isLocalInfile()) {
+              LocalExec="LOCAL";
+            }
+            if (prorityvalue == 1) {
+              PriorityText="LOW_PRIORITY";
+            }
+ else             if (prorityvalue == 2) {
+              PriorityText="CONCURRENT";
+            }
+            if (getRealSeparator() != null || getRealEnclosed() != null || getRealEscaped() != null) {
+              FieldTerminatedby="FIELDS ";
+              if (getRealSeparator() != null) {
+                FieldTerminatedby=FieldTerminatedby + "TERMINATED BY '" + Const.replace(getRealSeparator(),"'","''")+ "'";
+              }
+              if (getRealEnclosed() != null) {
+                FieldTerminatedby=FieldTerminatedby + " ENCLOSED BY '" + Const.replace(getRealEnclosed(),"'","''")+ "'";
+              }
+              if (getRealEscaped() != null) {
+                FieldTerminatedby=FieldTerminatedby + " ESCAPED BY '" + Const.replace(getRealEscaped(),"'","''")+ "'";
+              }
+            }
+            if (getRealLinestarted() != null || getRealLineterminated() != null) {
+              LineTerminatedby="LINES ";
+              if (getRealLinestarted() != null) {
+                LineTerminatedby=LineTerminatedby + "STARTING BY '" + Const.replace(getRealLinestarted(),"'","''")+ "'";
+              }
+              if (getRealLineterminated() != null) {
+                LineTerminatedby=LineTerminatedby + " TERMINATED BY '" + Const.replace(getRealLineterminated(),"'","''")+ "'";
+              }
+            }
+            String SQLBULKLOAD="LOAD DATA " + PriorityText + " "+ LocalExec+ " INFILE '"+ realFilename+ "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " "+ FieldTerminatedby+ " "+ LineTerminatedby+ " "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
+            try {
+              db.execStatements(SQLBULKLOAD);
+              db.disconnect();
+              result.setResult(true);
+            }
+ catch (            KettleDatabaseException je) {
+              db.disconnect();
+              result.setNrErrors(1);
+              log.logError(toString(),"An error occurred executing this job entry : " + je.getMessage());
+            }
+          }
+ else {
+            db.disconnect();
+            result.setNrErrors(1);
+            log.logDetailed(toString(),"Table [" + realTablename + "] doesn't exist!");
+          }
+        }
+ catch (        KettleDatabaseException dbe) {
+          db.disconnect();
+          result.setNrErrors(1);
+          log.logError(toString(),"An error occurred executing this entry: " + dbe.getMessage());
+        }
+      }
+ else {
+        result.setNrErrors(1);
+        log.logError(toString(),Messages.getString("JobMysqlBulkLoad.Nodatabase.Label"));
+      }
+    }
+ else {
+      result.setNrErrors(1);
+      log.logDetailed(toString(),"File [" + realFilename + "] doesn't exist!");
+    }
+  }
+ else {
+    result.setNrErrors(1);
+    log.logError(toString(),Messages.getString("JobMysqlBulkLoad.Nofilename.Label"));
+  }
+  return result;
+}

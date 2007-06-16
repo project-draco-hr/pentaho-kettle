@@ -1,0 +1,51 @@
+{
+  String exactFilename=StringUtil.environmentSubstitute(entry.getFilename());
+  String exactTransname=StringUtil.environmentSubstitute(entry.getTransname());
+  CTabItem tab=spoon.findCTabItem(exactFilename,TabMapEntry.OBJECT_TYPE_TRANSFORMATION_GRAPH);
+  if (tab == null) {
+    tab=spoon.findCTabItem(Const.filenameOnly(exactFilename),TabMapEntry.OBJECT_TYPE_TRANSFORMATION_GRAPH);
+  }
+  if (tab != null) {
+    spoon.tabfolder.setSelection(tab);
+    return;
+  }
+  if (Const.isEmpty(exactFilename) && !Const.isEmpty(exactTransname)) {
+    try {
+      long id=spoon.rep.getTransformationID(exactTransname,entry.getDirectory().getID());
+      TransMeta newTrans;
+      if (id < 0) {
+        newTrans=new TransMeta(null,exactTransname,entry.arguments);
+      }
+ else {
+        newTrans=new TransMeta(spoon.rep,exactTransname,entry.getDirectory());
+      }
+      spoon.addSpoonGraph(newTrans);
+      newTrans.clearChanged();
+      spoon.open();
+    }
+ catch (    Throwable e) {
+      new ErrorDialog(shell,Messages.getString("ChefGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Title"),Messages.getString("ChefGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Message"),(Exception)e);
+    }
+  }
+ else {
+    try {
+      if (Const.isEmpty(exactFilename)) {
+        throw new Exception(Messages.getString("ChefGraph.Exception.NoFilenameSpecified"));
+      }
+      TransMeta launchTransMeta=null;
+      if (KettleVFS.fileExists(exactFilename)) {
+        launchTransMeta=new TransMeta(exactFilename);
+      }
+ else {
+        launchTransMeta=new TransMeta();
+      }
+      launchTransMeta.clearChanged();
+      launchTransMeta.setFilename(exactFilename);
+      spoon.addSpoonGraph(launchTransMeta);
+      spoon.open();
+    }
+ catch (    Throwable e) {
+      new ErrorDialog(shell,Messages.getString("ChefGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformationFromXML.Title"),Messages.getString("ChefGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformationFromXML.Message"),(Exception)e);
+    }
+  }
+}

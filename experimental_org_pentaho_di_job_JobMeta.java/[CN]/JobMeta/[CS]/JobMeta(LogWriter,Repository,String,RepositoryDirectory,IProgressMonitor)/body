@@ -1,0 +1,84 @@
+{
+  this.log=log;
+  try {
+    clear();
+    directory=repdir;
+    setID(rep.getJobID(jobname,repdir.getID()));
+    if (getID() > 0) {
+      long noteids[]=rep.getJobNoteIDs(getID());
+      long jecids[]=rep.getJobEntryCopyIDs(getID());
+      long hopid[]=rep.getJobHopIDs(getID());
+      int nrWork=2 + noteids.length + jecids.length+ hopid.length;
+      if (monitor != null)       monitor.beginTask(Messages.getString("JobMeta.Monitor.LoadingJob") + repdir + Const.FILE_SEPARATOR+ jobname,nrWork);
+      if (monitor != null)       monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingJobInformation"));
+      RowMetaAndData jobRow=rep.getJob(getID());
+      name=jobRow.getString("NAME",null);
+      description=jobRow.getString("DESCRIPTION",null);
+      extended_description=jobRow.getString("EXTENDED_DESCRIPTION",null);
+      job_version=jobRow.getString("JOB_VERSION",null);
+      job_status=Const.toInt(jobRow.getString("JOB_STATUS",null),-1);
+      logTable=jobRow.getString("TABLE_NAME_LOG",null);
+      created_user=jobRow.getString("CREATED_USER",null);
+      created_date=jobRow.getDate("CREATED_DATE",new Date());
+      modifiedUser=jobRow.getString("MODIFIED_USER",null);
+      modifiedDate=jobRow.getDate("MODIFIED_DATE",new Date());
+      long id_logdb=jobRow.getInteger("ID_DATABASE_LOG",0);
+      if (id_logdb > 0) {
+        logconnection=new DatabaseMeta(rep,id_logdb);
+      }
+      useBatchId=jobRow.getBoolean("USE_BATCH_ID",false);
+      batchIdPassed=jobRow.getBoolean("PASS_BATCH_ID",false);
+      logfieldUsed=jobRow.getBoolean("USE_LOGFIELD",false);
+      if (monitor != null)       monitor.worked(1);
+      if (monitor != null)       monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingAvailableDatabasesFromRepository"));
+      try {
+        sharedObjectsFile=jobRow.getString("SHARED_FILE",null);
+        readSharedObjects(rep);
+      }
+ catch (      Exception e) {
+        LogWriter.getInstance().logError(toString(),Messages.getString("JobMeta.ErrorReadingSharedObjects.Message",e.toString()));
+        LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
+      }
+      if (monitor != null)       monitor.worked(1);
+      log.logDetailed(toString(),"Loading " + noteids.length + " notes");
+      for (int i=0; i < noteids.length; i++) {
+        if (monitor != null)         monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingNoteNr") + (i + 1) + "/"+ noteids.length);
+        NotePadMeta ni=new NotePadMeta(log,rep,noteids[i]);
+        if (indexOfNote(ni) < 0)         addNote(ni);
+        if (monitor != null)         monitor.worked(1);
+      }
+      log.logDetailed(toString(),"Loading " + jecids.length + " job entries");
+      for (int i=0; i < jecids.length; i++) {
+        if (monitor != null)         monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingJobEntryNr") + (i + 1) + "/"+ (jecids.length));
+        JobEntryCopy jec=new JobEntryCopy(log,rep,getID(),jecids[i],jobentries,databases);
+        int idx=indexOfJobEntry(jec);
+        if (idx < 0) {
+          if (jec.getName() != null && jec.getName().length() > 0)           addJobEntry(jec);
+        }
+ else {
+          setJobEntry(idx,jec);
+        }
+        if (monitor != null)         monitor.worked(1);
+      }
+      log.logDetailed(toString(),"Loading " + hopid.length + " job hops");
+      for (int i=0; i < hopid.length; i++) {
+        if (monitor != null)         monitor.subTask(Messages.getString("JobMeta.Monitor.ReadingJobHopNr") + (i + 1) + "/"+ (jecids.length));
+        JobHopMeta hi=new JobHopMeta(rep,hopid[i],this,jobcopies);
+        jobhops.add(hi);
+        if (monitor != null)         monitor.worked(1);
+      }
+      clearChanged();
+      if (monitor != null)       monitor.subTask(Messages.getString("JobMeta.Monitor.FinishedLoadOfJob"));
+      if (monitor != null)       monitor.done();
+    }
+ else {
+      throw new KettleException(Messages.getString("JobMeta.Exception.CanNotFindJob") + jobname);
+    }
+  }
+ catch (  KettleException dbe) {
+    throw new KettleException(Messages.getString("JobMeta.Exception.AnErrorOccuredReadingJob",jobname),dbe);
+  }
+ finally {
+    setInternalKettleVariables();
+  }
+}

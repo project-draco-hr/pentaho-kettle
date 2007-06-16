@@ -1,0 +1,100 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  log4j.info("Started FTP job to " + serverName);
+  Result result=previousResult;
+  result.setResult(false);
+  long filesRetrieved=0;
+  log.logDetailed(toString(),"Start of FTP job entry");
+  FTPClient ftpclient=null;
+  try {
+    ftpclient=new FTPClient();
+    String realServername=StringUtil.environmentSubstitute(serverName);
+    ftpclient.setRemoteAddr(InetAddress.getByName(realServername));
+    log.logDetailed(toString(),"Opened FTP connection to server [" + realServername + "]");
+    if (activeConnection) {
+      ftpclient.setConnectMode(FTPConnectMode.ACTIVE);
+      log.logDetailed(toString(),"set active ftp connection mode");
+    }
+ else {
+      ftpclient.setConnectMode(FTPConnectMode.PASV);
+      log.logDetailed(toString(),"set passive ftp connection mode");
+    }
+    ftpclient.setTimeout(timeout);
+    log.logDetailed(toString(),"set timeout to " + timeout);
+    ftpclient.setControlEncoding(controlEncoding);
+    log.logDetailed(toString(),"set control encoding to " + controlEncoding);
+    ftpclient.connect();
+    String realUsername=StringUtil.environmentSubstitute(userName);
+    String realPassword=StringUtil.environmentSubstitute(password);
+    ftpclient.login(realUsername,realPassword);
+    log.logDetailed(toString(),"logged in with user " + realUsername);
+    if (!Const.isEmpty(ftpDirectory)) {
+      String realFtpDirectory=StringUtil.environmentSubstitute(ftpDirectory);
+      ftpclient.chdir(realFtpDirectory);
+      log.logDetailed(toString(),"Changed to directory [" + realFtpDirectory + "]");
+    }
+    String[] filelist=ftpclient.dir();
+    log.logDetailed(toString(),"Found " + filelist.length + " files in the remote ftp directory");
+    if (binaryMode) {
+      ftpclient.setType(FTPTransferType.BINARY);
+      log.logDetailed(toString(),"set binary transfer mode");
+    }
+ else {
+      ftpclient.setType(FTPTransferType.ASCII);
+      log.logDetailed(toString(),"set ASCII transfer mode");
+    }
+    if (filelist.length == 1) {
+      String translatedWildcard=StringUtil.environmentSubstitute(wildcard);
+      if (filelist[0].startsWith(translatedWildcard)) {
+        throw new FTPException(filelist[0]);
+      }
+    }
+    Pattern pattern=null;
+    if (!Const.isEmpty(wildcard)) {
+      String realWildcard=StringUtil.environmentSubstitute(wildcard);
+      pattern=Pattern.compile(realWildcard);
+    }
+    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      boolean getIt=true;
+      if (pattern != null) {
+        Matcher matcher=pattern.matcher(filelist[i]);
+        getIt=matcher.matches();
+      }
+      if (getIt) {
+        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ StringUtil.environmentSubstitute(targetDirectory)+ "]");
+        String targetFilename=getTargetFilename(filelist[i]);
+        FileObject targetFile=KettleVFS.getFileObject(targetFilename);
+        if ((onlyGettingNewFiles == false) || (onlyGettingNewFiles == true) && needsDownload(filelist[i])) {
+          ftpclient.get(targetFilename,filelist[i]);
+          filesRetrieved++;
+          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,targetFile,parentJob.getJobname(),toString());
+          resultFile.setComment("Downloaded from ftp server " + serverName);
+          result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+          log.logDetailed(toString(),"Got file [" + filelist[i] + "]");
+        }
+        if (remove) {
+          ftpclient.delete(filelist[i]);
+          log.logDetailed(toString(),"deleted file [" + filelist[i] + "]");
+        }
+      }
+    }
+    result.setResult(true);
+    result.setNrFilesRetrieved(filesRetrieved);
+  }
+ catch (  Exception e) {
+    result.setNrErrors(1);
+    log.logError(toString(),"Error getting files from FTP : " + e.getMessage());
+    log.logError(toString(),Const.getStackTracker(e));
+  }
+ finally {
+    if (ftpclient != null && ftpclient.connected()) {
+      try {
+        ftpclient.quit();
+      }
+ catch (      Exception e) {
+        log.logError(toString(),"Error quiting FTP connection: " + e.getMessage());
+      }
+    }
+  }
+  return result;
+}

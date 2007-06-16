@@ -1,0 +1,36 @@
+{
+  KettleDependencies deps=new KettleDependencies(transMeta);
+  File kar=new File("kar");
+  if (kar.exists()) {
+    log.logBasic("Jar generator","Removing directory: " + kar.getPath());
+    deleteDirectory(kar);
+  }
+  kar.mkdir();
+  String filename="kettle.jar";
+  if (!Const.isEmpty(transMeta.getFilename())) {
+    filename=ValueDataUtil.replace(transMeta.getFilename()," ","_").toLowerCase() + ".kar";
+  }
+  File karFile=new File(filename);
+  try {
+    String strManifest="";
+    strManifest+="Manifest-Version: 1.0" + Const.CR;
+    strManifest+="Created-By: Kettle version " + Const.VERSION + Const.CR;
+    strManifest+=Attributes.Name.MAIN_CLASS.toString() + ": " + (JarPan.class.getName())+ Const.CR;
+    File manifestFile=new File(kar.getPath() + "/" + "manifest.mf");
+    FileOutputStream fos=new FileOutputStream(manifestFile);
+    fos.write(strManifest.getBytes());
+    fos.close();
+    log.logBasic("Jar generator","Wrote manifest file: " + manifestFile.getPath());
+    String strTrans=XMLHandler.getXMLHeader(Const.XML_ENCODING) + transMeta.getXML();
+    File transFile=new File(kar.getPath() + "/" + TRANSFORMATION_FILENAME);
+    fos=new FileOutputStream(transFile);
+    fos.write(strTrans.getBytes(Const.XML_ENCODING));
+    fos.close();
+    log.logBasic("Jar generator","Wrote transformation file: " + transFile.getPath());
+    executeJarCommand(kar,karFile,new File("manifest.mf"),new File(TRANSFORMATION_FILENAME),deps.getLibraryFiles());
+  }
+ catch (  Exception e) {
+    log.logError(JarfileGenerator.class.getName(),"Error zipping files into archive [" + karFile.getPath() + "] : "+ e.toString());
+    log.logError(JarfileGenerator.class.getName(),Const.getStackTracker(e));
+  }
+}

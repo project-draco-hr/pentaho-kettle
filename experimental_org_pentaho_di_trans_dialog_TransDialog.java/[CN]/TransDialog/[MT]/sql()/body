@@ -1,0 +1,54 @@
+{
+  DatabaseMeta ci=transMeta.findDatabase(wLogconnection.getText());
+  if (ci != null) {
+    RowMetaInterface r=Database.getTransLogrecordFields(wBatch.getSelection(),wLogfield.getSelection());
+    if (r != null && r.size() > 0) {
+      String tablename=wLogtable.getText();
+      if (tablename != null && tablename.length() > 0) {
+        Database db=new Database(ci);
+        try {
+          db.connect();
+          String createTable=db.getDDL(tablename,r);
+          if (createTable != null && createTable.length() > 0) {
+            log.logBasic(toString(),createTable);
+            SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,ci,transMeta.getDbCache(),createTable);
+            sqledit.open();
+          }
+ else {
+            MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+            mb.setText(Messages.getString("TransDialog.NoSqlNedds.DialogTitle"));
+            mb.setMessage(Messages.getString("TransDialog.NoSqlNedds.DialogMessage"));
+            mb.open();
+          }
+        }
+ catch (        KettleException e) {
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+          mb.setText(Messages.getString("TransDialog.ErrorOccurred.DialogTitle"));
+          mb.setMessage(Messages.getString("TransDialog.ErrorOccurred.DialogMessage") + Const.CR + e.getMessage());
+          mb.open();
+        }
+ finally {
+          db.disconnect();
+        }
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setText(Messages.getString("TransDialog.NeedLogtableName.DialogTitle"));
+        mb.setMessage(Messages.getString("TransDialog.NeedLogtableName.DialogMessage"));
+        mb.open();
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setText(Messages.getString("TransDialog.CouldnotFindAnyFields.DialogTitle"));
+      mb.setMessage(Messages.getString("TransDialog.CouldnotFindAnyFields.DialogMessage"));
+      mb.open();
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setText(Messages.getString("TransDialog.NeedValidLogtableConnection.DialogTitle"));
+    mb.setMessage(Messages.getString("TransDialog.NeedValidLogtableConnection.DialogMessage"));
+    mb.open();
+  }
+}

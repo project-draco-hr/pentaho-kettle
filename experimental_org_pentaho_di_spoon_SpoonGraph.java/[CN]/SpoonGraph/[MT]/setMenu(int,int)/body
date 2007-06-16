@@ -1,0 +1,468 @@
+{
+  final int mousex=x;
+  final int mousey=y;
+  if (mPop != null && !mPop.isDisposed()) {
+    MenuItem[] items=mPop.getItems();
+    for (int i=0; i < items.length; i++) {
+      items[i].dispose();
+    }
+  }
+ else {
+    mPop=new Menu(this);
+  }
+  final StepMeta stepMeta=transMeta.getStep(x,y,iconsize);
+  if (stepMeta != null) {
+    MenuItem miNewHop=null;
+    MenuItem miHideStep=null;
+    int sels=transMeta.nrSelectedSteps();
+    if (sels == 2) {
+      miNewHop=new MenuItem(mPop,SWT.NONE);
+      miNewHop.setText(Messages.getString("SpoonGraph.PopupMenu.NewHop"));
+    }
+    MenuItem miEditStep=new MenuItem(mPop,SWT.NONE);
+    miEditStep.setText(Messages.getString("SpoonGraph.PopupMenu.EditStep"));
+    MenuItem miEditDesc=new MenuItem(mPop,SWT.NONE);
+    miEditDesc.setText(Messages.getString("SpoonGraph.PopupMenu.EditStepDescription"));
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPopDC=new MenuItem(mPop,SWT.CASCADE);
+    miPopDC.setText(Messages.getString("SpoonGraph.PopupMenu.DataMovement"));
+    Menu mPopDC=new Menu(miPopDC);
+    MenuItem miStepDist=new MenuItem(mPopDC,SWT.NONE | SWT.CHECK);
+    miStepDist.setText(Messages.getString("SpoonGraph.PopupMenu.DistributeData"));
+    MenuItem miStepCopy=new MenuItem(mPopDC,SWT.NONE | SWT.CHECK);
+    miStepCopy.setText(Messages.getString("SpoonGraph.PopupMenu.CopyData"));
+    miPopDC.setMenu(mPopDC);
+    if (stepMeta.isDistributes())     miStepDist.setSelection(true);
+ else     miStepCopy.setSelection(true);
+    MenuItem miCopies=new MenuItem(mPop,SWT.NONE);
+    miCopies.setText(Messages.getString("SpoonGraph.PopupMenu.NumberOfCopies"));
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miCopyStep=new MenuItem(mPop,SWT.NONE);
+    miCopyStep.setText(Messages.getString("SpoonGraph.PopupMenu.CopyToClipboard"));
+    MenuItem miDupeStep=new MenuItem(mPop,SWT.NONE);
+    miDupeStep.setText(Messages.getString("SpoonGraph.PopupMenu.DuplicateStep"));
+    MenuItem miDelStep=new MenuItem(mPop,SWT.NONE);
+    miDelStep.setText(Messages.getString("SpoonGraph.PopupMenu.DeleteStep"));
+    if (stepMeta.isDrawn() && !transMeta.isStepUsedInTransHops(stepMeta)) {
+      miHideStep=new MenuItem(mPop,SWT.NONE);
+      miHideStep.setText(Messages.getString("SpoonGraph.PopupMenu.HideStep"));
+      miHideStep.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          for (int i=0; i < transMeta.nrSteps(); i++) {
+            StepMeta sti=transMeta.getStep(i);
+            if (sti.isDrawn() && sti.isSelected()) {
+              sti.hideStep();
+              spoon.refreshTree();
+            }
+          }
+          stepMeta.hideStep();
+          spoon.refreshTree();
+          redraw();
+        }
+      }
+);
+    }
+    if (transMeta.isStepUsedInTransHops(stepMeta)) {
+      MenuItem miDetach=new MenuItem(mPop,SWT.NONE);
+      miDetach.setText(Messages.getString("SpoonGraph.PopupMenu.DetachStep"));
+      miDetach.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          detach(stepMeta);
+          selected_steps=null;
+        }
+      }
+);
+    }
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPopFieldsBef=new MenuItem(mPop,SWT.NONE);
+    miPopFieldsBef.setText(Messages.getString("SpoonGraph.PopupMenu.ShowInputFields"));
+    MenuItem miPopFieldsAft=new MenuItem(mPop,SWT.NONE);
+    miPopFieldsAft.setText(Messages.getString("SpoonGraph.PopupMenu.ShowOutputFields"));
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPopAD=new MenuItem(mPop,SWT.CASCADE);
+    miPopAD.setText(Messages.getString("SpoonGraph.PopupMenu.AllignDistribute"));
+    Menu mPopAD=new Menu(miPopAD);
+    MenuItem miPopALeft=new MenuItem(mPopAD,SWT.NONE);
+    miPopALeft.setText(Messages.getString("SpoonGraph.PopupMenu.AllignLeft"));
+    MenuItem miPopARight=new MenuItem(mPopAD,SWT.NONE);
+    miPopARight.setText(Messages.getString("SpoonGraph.PopupMenu.AllignRight"));
+    MenuItem miPopATop=new MenuItem(mPopAD,SWT.NONE);
+    miPopATop.setText(Messages.getString("SpoonGraph.PopupMenu.AllignTop"));
+    MenuItem miPopABottom=new MenuItem(mPopAD,SWT.NONE);
+    miPopABottom.setText(Messages.getString("SpoonGraph.PopupMenu.AllignBottom"));
+    new MenuItem(mPopAD,SWT.SEPARATOR);
+    MenuItem miPopDHoriz=new MenuItem(mPopAD,SWT.NONE);
+    miPopDHoriz.setText(Messages.getString("SpoonGraph.PopupMenu.DistributeHorizontally"));
+    MenuItem miPopDVertic=new MenuItem(mPopAD,SWT.NONE);
+    miPopDVertic.setText(Messages.getString("SpoonGraph.PopupMenu.DistributeVertically"));
+    new MenuItem(mPopAD,SWT.SEPARATOR);
+    MenuItem miPopSSnap=new MenuItem(mPopAD,SWT.NONE);
+    miPopSSnap.setText(Messages.getString("SpoonGraph.PopupMenu.SnapToGrid") + Const.GRID_SIZE + ")\tALT-HOME");
+    miPopAD.setMenu(mPopAD);
+    miPopALeft.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        allignleft();
+      }
+    }
+);
+    miPopARight.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        allignright();
+      }
+    }
+);
+    miPopATop.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        alligntop();
+      }
+    }
+);
+    miPopABottom.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        allignbottom();
+      }
+    }
+);
+    miPopDHoriz.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        distributehorizontal();
+      }
+    }
+);
+    miPopDVertic.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        distributevertical();
+      }
+    }
+);
+    miPopSSnap.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        snaptogrid(Const.GRID_SIZE);
+      }
+    }
+);
+    if (sels <= 1) {
+      miPopAD.setEnabled(false);
+    }
+    new MenuItem(mPop,SWT.SEPARATOR);
+    MenuItem miPreview=new MenuItem(mPop,SWT.NONE);
+    miPreview.setText(Messages.getString("SpoonGraph.PopupMenu.CheckSelectedSteps"));
+    miPreview.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        spoon.checkTrans(transMeta,true);
+      }
+    }
+);
+    MenuItem miMapping=new MenuItem(mPop,SWT.NONE);
+    miMapping.setText(Messages.getString("SpoonGraph.PopupMenu.GenerateMappingToThisStep"));
+    miMapping.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        spoon.generateMapping(transMeta,stepMeta);
+      }
+    }
+);
+    MenuItem miPartition=new MenuItem(mPop,SWT.NONE);
+    miPartition.setText(Messages.getString("SpoonGraph.PopupMenu.Partitioning"));
+    miPartition.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        spoon.editPartitioning(transMeta,stepMeta);
+      }
+    }
+);
+    MenuItem miCluster=new MenuItem(mPop,SWT.NONE);
+    miCluster.setText(Messages.getString("SpoonGraph.PopupMenu.Clustering"));
+    miCluster.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        spoon.editClustering(transMeta,stepMeta);
+      }
+    }
+);
+    if (stepMeta.supportsErrorHandling()) {
+      MenuItem miError=new MenuItem(mPop,SWT.NONE);
+      miError.setText(Messages.getString("SpoonGraph.PopupMenu.Error"));
+      miError.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          spoon.editStepErrorHandling(transMeta,stepMeta);
+        }
+      }
+);
+    }
+    if (sels == 2) {
+      miNewHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selected_steps=null;
+          newHop();
+        }
+      }
+);
+    }
+    miEditStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        editStep(stepMeta);
+      }
+    }
+);
+    miEditDesc.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        editDescription(stepMeta);
+      }
+    }
+);
+    miStepDist.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        stepMeta.setDistributes(true);
+        spoon.refreshGraph();
+        spoon.refreshTree();
+      }
+    }
+);
+    miStepCopy.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        stepMeta.setDistributes(false);
+        spoon.refreshGraph();
+        spoon.refreshTree();
+      }
+    }
+);
+    final boolean multipleOK=checkNumberOfCopies(transMeta,stepMeta);
+    miCopies.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        String tt=Messages.getString("SpoonGraph.Dialog.NrOfCopiesOfStep.Title");
+        String mt=Messages.getString("SpoonGraph.Dialog.NrOfCopiesOfStep.Message");
+        EnterNumberDialog nd=new EnterNumberDialog(shell,stepMeta.getCopies(),tt,mt);
+        int cop=nd.open();
+        if (cop >= 0) {
+          if (cop == 0)           cop=1;
+          if (!multipleOK) {
+            cop=1;
+            MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
+            mb.setMessage(Messages.getString("SpoonGraph.Dialog.MultipleCopiesAreNotAllowedHere.Message"));
+            mb.setText(Messages.getString("SpoonGraph.Dialog.MultipleCopiesAreNotAllowedHere.Title"));
+            mb.open();
+          }
+          if (stepMeta.getCopies() != cop) {
+            stepMeta.setCopies(cop);
+            spoon.refreshGraph();
+          }
+        }
+      }
+    }
+);
+    miDupeStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        try {
+          if (transMeta.nrSelectedSteps() <= 1) {
+            spoon.dupeStep(transMeta,stepMeta);
+          }
+ else {
+            for (int i=0; i < transMeta.nrSteps(); i++) {
+              StepMeta stepMeta=transMeta.getStep(i);
+              if (stepMeta.isSelected()) {
+                spoon.dupeStep(transMeta,stepMeta);
+              }
+            }
+          }
+        }
+ catch (        Exception ex) {
+          new ErrorDialog(shell,Messages.getString("SpoonGraph.Dialog.ErrorDuplicatingStep.Title"),Messages.getString("SpoonGraph.Dialog.ErrorDuplicatingStep.Message"),ex);
+        }
+      }
+    }
+);
+    miCopyStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        spoon.copySelected(transMeta,transMeta.getSelectedSteps(),transMeta.getSelectedNotes());
+      }
+    }
+);
+    miDelStep.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        delSelected(stepMeta);
+      }
+    }
+);
+    miPopFieldsBef.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        inputOutputFields(stepMeta,true);
+      }
+    }
+);
+    miPopFieldsAft.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        selected_steps=null;
+        inputOutputFields(stepMeta,false);
+      }
+    }
+);
+    canvas.setMenu(mPop);
+  }
+ else {
+    final TransHopMeta hi=findHop(x,y);
+    if (hi != null) {
+      MenuItem miEditHop=new MenuItem(mPop,SWT.NONE);
+      miEditHop.setText(Messages.getString("SpoonGraph.PopupMenu.EditHop"));
+      MenuItem miFlipHop=new MenuItem(mPop,SWT.NONE);
+      miFlipHop.setText(Messages.getString("SpoonGraph.PopupMenu.FlipDirection"));
+      MenuItem miDisHop=new MenuItem(mPop,SWT.NONE);
+      if (hi.isEnabled())       miDisHop.setText(Messages.getString("SpoonGraph.PopupMenu.DisableHop"));
+ else       miDisHop.setText(Messages.getString("SpoonGraph.PopupMenu.EnableHop"));
+      MenuItem miDelHop=new MenuItem(mPop,SWT.NONE);
+      miDelHop.setText(Messages.getString("SpoonGraph.PopupMenu.DeleteHop"));
+      miEditHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          editHop(hi);
+        }
+      }
+);
+      miFlipHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          hi.flip();
+          if (transMeta.hasLoop(hi.getFromStep())) {
+            spoon.refreshGraph();
+            MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
+            mb.setMessage(Messages.getString("SpoonGraph.Dialog.LoopsAreNotAllowed.Message"));
+            mb.setText(Messages.getString("SpoonGraph.Dialog.LoopsAreNotAllowed.Title"));
+            mb.open();
+            hi.flip();
+            spoon.refreshGraph();
+          }
+ else {
+            hi.setChanged();
+            spoon.refreshGraph();
+            spoon.refreshTree();
+            spoon.setShellText();
+          }
+        }
+      }
+);
+      miDisHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          TransHopMeta before=(TransHopMeta)hi.clone();
+          hi.setEnabled(!hi.isEnabled());
+          if (transMeta.hasLoop(hi.getToStep())) {
+            hi.setEnabled(!hi.isEnabled());
+            MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+            mb.setMessage(Messages.getString("SpoonGraph.Dialog.LoopAfterHopEnabled.Message"));
+            mb.setText(Messages.getString("SpoonGraph.Dialog.LoopAfterHopEnabled.Title"));
+            mb.open();
+          }
+ else {
+            TransHopMeta after=(TransHopMeta)hi.clone();
+            spoon.addUndoChange(transMeta,new TransHopMeta[]{before},new TransHopMeta[]{after},new int[]{transMeta.indexOfTransHop(hi)});
+            spoon.refreshGraph();
+            spoon.refreshTree();
+          }
+        }
+      }
+);
+      miDelHop.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          selrect=null;
+          int idx=transMeta.indexOfTransHop(hi);
+          spoon.addUndoDelete(transMeta,new TransHopMeta[]{(TransHopMeta)hi.clone()},new int[]{idx});
+          transMeta.removeTransHop(idx);
+          spoon.refreshTree();
+          spoon.refreshGraph();
+        }
+      }
+);
+      canvas.setMenu(mPop);
+    }
+ else {
+      final NotePadMeta ni=transMeta.getNote(x,y);
+      if (ni != null) {
+        MenuItem miNoteEdit=new MenuItem(mPop,SWT.NONE);
+        miNoteEdit.setText(Messages.getString("SpoonGraph.PopupMenu.EditNote"));
+        MenuItem miNoteDel=new MenuItem(mPop,SWT.NONE);
+        miNoteDel.setText(Messages.getString("SpoonGraph.PopupMenu.DeleteNote"));
+        miNoteEdit.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            selrect=null;
+            editNote(ni);
+          }
+        }
+);
+        miNoteDel.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            selrect=null;
+            int idx=transMeta.indexOfNote(ni);
+            if (idx >= 0) {
+              transMeta.removeNote(idx);
+              spoon.addUndoDelete(transMeta,new NotePadMeta[]{(NotePadMeta)ni.clone()},new int[]{idx});
+              redraw();
+            }
+          }
+        }
+);
+        canvas.setMenu(mPop);
+      }
+ else {
+        MenuItem miNoteNew=new MenuItem(mPop,SWT.NONE);
+        miNoteNew.setText(Messages.getString("SpoonGraph.PopupMenu.NewNote"));
+        miNoteNew.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            selrect=null;
+            String title=Messages.getString("SpoonGraph.Dialog.NoteEditor.Title");
+            String message=Messages.getString("SpoonGraph.Dialog.NoteEditor.Message");
+            EnterTextDialog dd=new EnterTextDialog(shell,title,message,"");
+            String n=dd.open();
+            if (n != null) {
+              NotePadMeta npi=new NotePadMeta(n,lastclick.x,lastclick.y,Const.NOTE_MIN_SIZE,Const.NOTE_MIN_SIZE);
+              transMeta.addNote(npi);
+              spoon.addUndoNew(transMeta,new NotePadMeta[]{npi},new int[]{transMeta.indexOfNote(npi)});
+              redraw();
+            }
+          }
+        }
+);
+        MenuItem miStepNew=new MenuItem(mPop,SWT.CASCADE);
+        miStepNew.setText(Messages.getString("SpoonGraph.PopupMenu.NewStep"));
+        Menu mStep=new Menu(miStepNew);
+        StepLoader steploader=StepLoader.getInstance();
+        final StepPlugin sp[]=steploader.getStepsWithType(StepPlugin.TYPE_ALL);
+        for (int i=0; i < sp.length; i++) {
+          MenuItem miStepX=new MenuItem(mStep,SWT.NONE);
+          miStepX.setText(sp[i].getDescription());
+          final String description=sp[i].getDescription();
+          miStepX.addSelectionListener(new SelectionAdapter(){
+            public void widgetSelected(            SelectionEvent e){
+              StepMeta stepMeta=spoon.newStep(transMeta,description,description,false,true);
+              stepMeta.setLocation(mousex,mousey);
+              stepMeta.setDraw(true);
+              redraw();
+            }
+          }
+);
+        }
+        MenuItem miPasteStep=new MenuItem(mPop,SWT.NONE);
+        miPasteStep.setText(Messages.getString("SpoonGraph.PopupMenu.PasteStepFromClipboard"));
+        final String clipcontent=spoon.fromClipboard();
+        if (clipcontent == null)         miPasteStep.setEnabled(false);
+        miPasteStep.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            Point loc=new Point(mousex,mousey);
+            spoon.pasteXML(transMeta,clipcontent,loc);
+          }
+        }
+);
+        miStepNew.setMenu(mStep);
+        new MenuItem(mPop,SWT.SEPARATOR);
+        MenuItem miSettings=new MenuItem(mPop,SWT.NONE);
+        miSettings.setText(Messages.getString("SpoonGraph.PopupMenu.Settings"));
+        miSettings.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent e){
+            spoon.editTransformationProperties(transMeta);
+          }
+        }
+);
+        canvas.setMenu(mPop);
+      }
+    }
+  }
+}

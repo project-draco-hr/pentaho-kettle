@@ -1,0 +1,73 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  long filesRetrieved=0;
+  log.logDetailed(toString(),"Start of SFTP job entry");
+  SFTPClient sftpclient=null;
+  String realServerName=StringUtil.environmentSubstitute(serverName);
+  String realServerPort=StringUtil.environmentSubstitute(serverPort);
+  String realUsername=StringUtil.environmentSubstitute(userName);
+  String realPassword=StringUtil.environmentSubstitute(password);
+  String realSftpDirString=StringUtil.environmentSubstitute(sftpDirectory);
+  String realWildcard=StringUtil.environmentSubstitute(wildcard);
+  String realLocalDirectory=StringUtil.environmentSubstitute(localDirectory);
+  try {
+    sftpclient=new SFTPClient(InetAddress.getByName(realServerName),Const.toInt(realServerPort,22),realUsername);
+    log.logDetailed(toString(),"Opened SFTP connection to server [" + realServerName + "] on port ["+ realServerPort+ "] with username ["+ realUsername+ "]");
+    sftpclient.login(realPassword);
+    if (!Const.isEmpty(realSftpDirString)) {
+      sftpclient.chdir(realSftpDirString);
+      log.logDetailed(toString(),"Changed to directory [" + realSftpDirString + "]");
+    }
+    int x=0;
+    ArrayList myFileList=new ArrayList();
+    File localFiles=new File(realLocalDirectory);
+    File[] children=localFiles.listFiles();
+    for (int i=0; i < children.length; i++) {
+      if (!children[i].isDirectory()) {
+        myFileList.add(children[i].getName());
+        x=x + 1;
+      }
+    }
+    String[] filelist=new String[myFileList.size()];
+    myFileList.toArray(filelist);
+    log.logDetailed(toString(),"Found " + filelist.length + " files in the local directory");
+    Pattern pattern=null;
+    if (!Const.isEmpty(realWildcard)) {
+      pattern=Pattern.compile(realWildcard);
+    }
+    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      boolean getIt=true;
+      if (pattern != null) {
+        Matcher matcher=pattern.matcher(filelist[i]);
+        getIt=matcher.matches();
+      }
+      if (getIt) {
+        log.logDebug(toString(),"putting file [" + filelist[i] + "] to directory ["+ realSftpDirString+ "]");
+        String localFilename=realLocalDirectory + Const.FILE_SEPARATOR + filelist[i];
+        sftpclient.put(localFilename,filelist[i]);
+        filesRetrieved++;
+        log.logDetailed(toString(),"Transfered file [" + filelist[i] + "]");
+        if (remove) {
+          children[i].delete();
+          log.logDetailed(toString(),"deleted local file [" + filelist[i] + "]");
+        }
+      }
+    }
+    result.setResult(true);
+  }
+ catch (  Exception e) {
+    result.setNrErrors(1);
+    log.logError(toString(),"Error getting files from SCP : " + e.getMessage());
+    log.logError(toString(),Const.getStackTracker(e));
+  }
+ finally {
+    try {
+      if (sftpclient != null)       sftpclient.disconnect();
+    }
+ catch (    Exception e) {
+    }
+  }
+  return result;
+}

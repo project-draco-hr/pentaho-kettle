@@ -1,0 +1,185 @@
+{
+  super(parent,SWT.NONE);
+  shell=parent.getShell();
+  this.log=LogWriter.getInstance();
+  display=shell.getDisplay();
+  this.spoon=spoon;
+  this.jobMeta=jobMeta;
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  setLayout(formLayout);
+  setVisible(true);
+  white=Display.getCurrent().getSystemColor(SWT.COLOR_WHITE);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      white.dispose();
+    }
+  }
+);
+  SashForm sash=new SashForm(this,SWT.VERTICAL);
+  wTree=new Tree(sash,SWT.V_SCROLL | SWT.H_SCROLL);
+  wTree.setHeaderVisible(true);
+  TreeMemory.addTreeListener(wTree,STRING_CHEF_LOG_TREE_NAME);
+  TreeColumn column1=new TreeColumn(wTree,SWT.LEFT);
+  column1.setText(Messages.getString("ChefLog.Column.JobJobEntry"));
+  column1.setWidth(200);
+  TreeColumn column2=new TreeColumn(wTree,SWT.LEFT);
+  column2.setText(Messages.getString("ChefLog.Column.Comment"));
+  column2.setWidth(200);
+  TreeColumn column3=new TreeColumn(wTree,SWT.LEFT);
+  column3.setText(Messages.getString("ChefLog.Column.Result"));
+  column3.setWidth(100);
+  TreeColumn column4=new TreeColumn(wTree,SWT.LEFT);
+  column4.setText(Messages.getString("ChefLog.Column.Reason"));
+  column4.setWidth(200);
+  TreeColumn column5=new TreeColumn(wTree,SWT.LEFT);
+  column5.setText(Messages.getString("ChefLog.Column.Filename"));
+  column5.setWidth(200);
+  TreeColumn column6=new TreeColumn(wTree,SWT.RIGHT);
+  column6.setText(Messages.getString("ChefLog.Column.Nr"));
+  column6.setWidth(50);
+  TreeColumn column7=new TreeColumn(wTree,SWT.RIGHT);
+  column7.setText(Messages.getString("ChefLog.Column.LogDate"));
+  column7.setWidth(120);
+  FormData fdTable=new FormData();
+  fdTable.left=new FormAttachment(0,0);
+  fdTable.top=new FormAttachment(0,0);
+  fdTable.right=new FormAttachment(100,0);
+  fdTable.bottom=new FormAttachment(100,0);
+  wTree.setLayoutData(fdTable);
+  wText=new Text(sash,SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL| SWT.READ_ONLY);
+  wText.setBackground(white);
+  wText.setVisible(true);
+  wStart=new Button(this,SWT.PUSH);
+  wStart.setText(Messages.getString("ChefLog.Button.Start"));
+  wStop=new Button(this,SWT.PUSH);
+  wStop.setText(Messages.getString("ChefLog.Button.Stop"));
+  wRefresh=new Button(this,SWT.PUSH);
+  wRefresh.setText(Messages.getString("ChefLog.Button.RefreshLog"));
+  wError=new Button(this,SWT.PUSH);
+  wError.setText(Messages.getString("ChefLog.Button.ShowErrorLines"));
+  wClear=new Button(this,SWT.PUSH);
+  wClear.setText(Messages.getString("ChefLog.Button.ClearLog"));
+  wLog=new Button(this,SWT.PUSH);
+  wLog.setText(Messages.getString("ChefLog.Button.LogSettings"));
+  wAuto=new Button(this,SWT.CHECK);
+  wAuto.setText(Messages.getString("ChefLog.Button.AutoRefresh"));
+  wAuto.setSelection(true);
+  enableFields();
+  fdStart=new FormData();
+  fdStop=new FormData();
+  fdRefresh=new FormData();
+  fdError=new FormData();
+  fdClear=new FormData();
+  fdLog=new FormData();
+  fdAuto=new FormData();
+  fdStart.left=new FormAttachment(0,10);
+  fdStart.bottom=new FormAttachment(100,0);
+  wStart.setLayoutData(fdStart);
+  fdStop.left=new FormAttachment(wStart,10);
+  fdStop.bottom=new FormAttachment(100,0);
+  wStop.setLayoutData(fdStop);
+  fdRefresh.left=new FormAttachment(wStop,10);
+  fdRefresh.bottom=new FormAttachment(100,0);
+  wRefresh.setLayoutData(fdRefresh);
+  fdError.left=new FormAttachment(wRefresh,10);
+  fdError.bottom=new FormAttachment(100,0);
+  wError.setLayoutData(fdError);
+  fdClear.left=new FormAttachment(wError,10);
+  fdClear.bottom=new FormAttachment(100,0);
+  wClear.setLayoutData(fdClear);
+  fdLog.left=new FormAttachment(wClear,10);
+  fdLog.bottom=new FormAttachment(100,0);
+  wLog.setLayoutData(fdLog);
+  fdAuto.left=new FormAttachment(wLog,10);
+  fdAuto.bottom=new FormAttachment(100,0);
+  wAuto.setLayoutData(fdAuto);
+  fdText=new FormData();
+  fdText.left=new FormAttachment(0,0);
+  fdText.top=new FormAttachment(0,0);
+  fdText.right=new FormAttachment(100,0);
+  fdText.bottom=new FormAttachment(100,-30);
+  wText.setLayoutData(fdText);
+  fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(0,0);
+  fdSash.right=new FormAttachment(100,0);
+  fdSash.bottom=new FormAttachment(wStart,-5);
+  sash.setLayoutData(fdSash);
+  sash.setWeights(new int[]{60,40});
+  pack();
+  try {
+    in=log.getFileInputStream();
+  }
+ catch (  Exception e) {
+    System.out.println(Messages.getString("ChefLog.Error.CouldNotCreateInputPipe"));
+  }
+  lsRefresh=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      readLog();
+      checkEnded();
+    }
+  }
+;
+  final Timer tim=new Timer();
+  TimerTask timtask=new TimerTask(){
+    public void run(){
+      if (display != null && !display.isDisposed())       display.asyncExec(new Runnable(){
+        public void run(){
+          if (!wAuto.isDisposed() && !wText.isDisposed() && !wStart.isDisposed()&& !wTree.isDisposed()) {
+            if (wAuto.getSelection()) {
+              readLog();
+              checkEnded();
+            }
+          }
+        }
+      }
+);
+    }
+  }
+;
+  tim.schedule(timtask,10L,10L);
+  lsStart=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      startJob();
+    }
+  }
+;
+  lsStop=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      stopJob();
+    }
+  }
+;
+  lsError=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      showErrors();
+    }
+  }
+;
+  lsClear=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      clearLog();
+    }
+  }
+;
+  lsLog=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      setLog();
+    }
+  }
+;
+  wRefresh.addSelectionListener(lsRefresh);
+  wStart.addSelectionListener(lsStart);
+  wStop.addSelectionListener(lsStop);
+  wError.addSelectionListener(lsError);
+  wClear.addSelectionListener(lsClear);
+  wLog.addSelectionListener(lsLog);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      tim.cancel();
+    }
+  }
+);
+}

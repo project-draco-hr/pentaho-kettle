@@ -1,0 +1,65 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  long filesRetrieved=0;
+  log.logDetailed(toString(),"Start of SFTP job entry");
+  SFTPClient sftpclient=null;
+  String realServerName=StringUtil.environmentSubstitute(serverName);
+  String realServerPort=StringUtil.environmentSubstitute(serverPort);
+  String realUsername=StringUtil.environmentSubstitute(userName);
+  String realPassword=StringUtil.environmentSubstitute(password);
+  String realSftpDirString=StringUtil.environmentSubstitute(sftpDirectory);
+  String realWildcard=StringUtil.environmentSubstitute(wildcard);
+  String realTargetDirectory=StringUtil.environmentSubstitute(targetDirectory);
+  try {
+    sftpclient=new SFTPClient(InetAddress.getByName(realServerName),Const.toInt(realServerPort,22),realUsername);
+    log.logDetailed(toString(),"Opened SFTP connection to server [" + realServerName + "] on port ["+ realServerPort+ "] with username ["+ realUsername+ "]");
+    sftpclient.login(realPassword);
+    if (!Const.isEmpty(realSftpDirString)) {
+      sftpclient.chdir(realSftpDirString);
+      log.logDetailed(toString(),"Changed to directory [" + realSftpDirString + "]");
+    }
+    String[] filelist=sftpclient.dir();
+    log.logDetailed(toString(),"Found " + filelist.length + " files in the remote directory");
+    Pattern pattern=null;
+    if (!Const.isEmpty(realWildcard)) {
+      pattern=Pattern.compile(realWildcard);
+    }
+    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      boolean getIt=true;
+      if (pattern != null) {
+        Matcher matcher=pattern.matcher(filelist[i]);
+        getIt=matcher.matches();
+      }
+      if (getIt) {
+        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ realTargetDirectory+ "]");
+        String targetFilename=realTargetDirectory + Const.FILE_SEPARATOR + filelist[i];
+        sftpclient.get(targetFilename,filelist[i]);
+        filesRetrieved++;
+        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(targetFilename),parentJob.getJobname(),toString());
+        result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+        log.logDetailed(toString(),"Transferred file [" + filelist[i] + "]");
+        if (remove) {
+          sftpclient.delete(filelist[i]);
+          log.logDetailed(toString(),"Deleted file [" + filelist[i] + "]");
+        }
+      }
+    }
+    result.setResult(true);
+    result.setNrFilesRetrieved(filesRetrieved);
+  }
+ catch (  Exception e) {
+    result.setNrErrors(1);
+    log.logError(toString(),"Error getting files from SFTP : " + e.getMessage());
+    log.logError(toString(),Const.getStackTracker(e));
+  }
+ finally {
+    try {
+      if (sftpclient != null)       sftpclient.disconnect();
+    }
+ catch (    Exception e) {
+    }
+  }
+  return result;
+}
