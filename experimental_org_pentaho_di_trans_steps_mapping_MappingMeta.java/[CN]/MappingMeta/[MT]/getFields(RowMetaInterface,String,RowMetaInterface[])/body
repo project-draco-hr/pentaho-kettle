@@ -1,0 +1,51 @@
+{
+  for (int i=0; i < inputField.length; i++) {
+    if (inputField[i] != null && inputField[i].length() > 0) {
+      if (inputMapping[i] != null && inputMapping[i].length() > 0) {
+        if (!inputField[i].equals(inputMapping[i])) {
+          int idx=r.indexOfValue(inputField[i]);
+          if (idx < 0) {
+            throw new KettleStepException(Messages.getString("MappingMeta.Exception.MappingTargetFieldNotPresent",inputField[i]));
+          }
+          r.getValueMeta(idx).setName(inputMapping[i]);
+        }
+      }
+ else {
+        throw new KettleStepException(Messages.getString("MappingMeta.Exception.MappingTargetFieldNotSpecified",i + "",inputField[i]));
+      }
+    }
+ else {
+      throw new KettleStepException(Messages.getString("MappingMeta.Exception.InputFieldNotSpecified",i + ""));
+    }
+  }
+  Repository repository=Repository.getCurrentRepository();
+  TransMeta mappingTransMeta=null;
+  try {
+    mappingTransMeta=loadMappingMeta(fileName,transName,directoryPath,repository);
+  }
+ catch (  KettleException e) {
+    throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToLoadMappingTransformation"),e);
+  }
+  if (mappingTransMeta != null) {
+    StepMeta stepMeta=mappingTransMeta.getMappingOutputStep();
+    if (stepMeta != null) {
+      stepMeta.getStepMetaInterface().getFields(r,name,info);
+      for (int i=0; i < outputMapping.length; i++) {
+        ValueMetaInterface v=r.searchValueMeta(outputMapping[i]);
+        if (v != null) {
+          v.setName(outputField[i]);
+          v.setOrigin(name);
+        }
+ else {
+          throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToFindField") + outputMapping[i]);
+        }
+      }
+    }
+ else {
+      throw new KettleStepException(Messages.getString("MappingMeta.Exception.MappingOutputStepRequired"));
+    }
+  }
+ else {
+    throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToGetFieldsFromMapping"));
+  }
+}

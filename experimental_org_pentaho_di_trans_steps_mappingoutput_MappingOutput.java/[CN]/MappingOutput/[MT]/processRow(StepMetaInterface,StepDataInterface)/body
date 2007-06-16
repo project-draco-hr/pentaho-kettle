@@ -1,0 +1,32 @@
+{
+  meta=(MappingOutputMeta)smi;
+  data=(MappingOutputData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    if (data.mapping != null) {
+      data.mapping.setOutputDone();
+    }
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+    int totalsleep=0;
+    while (!isStopped() && data.mapping == null) {
+      try {
+        totalsleep+=10;
+        Thread.sleep(10);
+      }
+ catch (      InterruptedException e) {
+        stopAll();
+      }
+      if (totalsleep > 60000) {
+        throw new KettleException(Messages.getString("MappingOutput.Exception.UnableToConnectWithParentMapping","" + (totalsleep / 1000)));
+      }
+    }
+  }
+  data.mapping.putRow(data.outputRowMeta,r);
+  if (checkFeedback(linesRead))   logBasic(Messages.getString("MappingOutput.Log.LineNumber") + linesRead);
+  return true;
+}
