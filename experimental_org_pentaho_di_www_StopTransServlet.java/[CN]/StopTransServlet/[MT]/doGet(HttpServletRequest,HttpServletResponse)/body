@@ -1,0 +1,61 @@
+{
+  if (!request.getContextPath().equals(CONTEXT_PATH))   return;
+  if (log.isDebug())   log.logDebug(toString(),"Stop of transformation requested");
+  String transName=request.getParameter("name");
+  boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
+  PrintWriter out=response.getWriter();
+  try {
+    if (useXML) {
+      response.setContentType("text/xml");
+      response.setCharacterEncoding(Const.XML_ENCODING);
+      out.print(XMLHandler.getXMLHeader(Const.XML_ENCODING));
+    }
+ else {
+      response.setContentType("text/html");
+      out.println("<HTML>");
+      out.println("<HEAD>");
+      out.println("<TITLE>Stop transformation</TITLE>");
+      out.println("<META http-equiv=\"Refresh\" content=\"2;url=/kettle/transStatus?name=" + transName + "\">");
+      out.println("</HEAD>");
+      out.println("<BODY>");
+    }
+    Trans trans=transformationMap.getTransformation(transName);
+    if (trans != null) {
+      trans.stopAll();
+      String message="Transformation '" + transName + "' stop requested.";
+      if (useXML) {
+        out.println(new WebResult(WebResult.STRING_OK,message).getXML());
+      }
+ else {
+        out.println("<H1>" + message + "</H1>");
+        out.println("<a href=\"/kettle/transStatus?name=" + transName + "\">Back to the transformation status page</a><p>");
+      }
+    }
+ else {
+      String message="Transformation '" + transName + "' could not be found.";
+      if (useXML) {
+        out.println(new WebResult(WebResult.STRING_ERROR,message).getXML());
+      }
+ else {
+        out.println("<H1>" + message + "</H1>");
+        out.println("<a href=\"/kettle/status\">Back to the status page</a><p>");
+      }
+    }
+  }
+ catch (  Exception ex) {
+    if (useXML) {
+      out.println(new WebResult(WebResult.STRING_ERROR,Const.getStackTracker(ex)).getXML());
+    }
+ else {
+      out.println("<p>");
+      out.println("<pre>");
+      ex.printStackTrace(out);
+      out.println("</pre>");
+    }
+  }
+  if (!useXML) {
+    out.println("<p>");
+    out.println("</BODY>");
+    out.println("</HTML>");
+  }
+}
