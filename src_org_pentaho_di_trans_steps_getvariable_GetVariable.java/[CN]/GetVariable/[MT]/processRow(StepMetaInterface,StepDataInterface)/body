@@ -1,0 +1,32 @@
+{
+  Object[] rowData;
+  if (data.readsRows) {
+    rowData=getRow();
+    if (rowData == null) {
+      setOutputDone();
+      return false;
+    }
+  }
+ else {
+    rowData=new Object[0];
+    linesRead++;
+  }
+  if (first && rowData != null) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+  }
+  Object extraData[]=new Object[meta.getFieldName().length];
+  for (int i=0; i < meta.getFieldName().length; i++) {
+    String newValue=StringUtil.environmentSubstitute(meta.getVariableString()[i]);
+    if (log.isDetailed())     logDetailed("set field [" + meta.getFieldName()[i] + "] to value ["+ newValue+ "]");
+    extraData[i]=newValue;
+  }
+  rowData=RowDataUtil.addRowData(rowData,extraData);
+  putRow(data.outputRowMeta,rowData);
+  if (!data.readsRows) {
+    setOutputDone();
+    return false;
+  }
+  return true;
+}
