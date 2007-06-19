@@ -1,0 +1,50 @@
+{
+  meta=(ExecSQLMeta)smi;
+  data=(ExecSQLData)sdi;
+  Object[] row=null;
+  data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+  meta.getFields(data.outputRowMeta,getStepname(),null);
+  if (!meta.isExecutedEachInputRow()) {
+    row=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
+    putRow(data.outputRowMeta,row);
+    setOutputDone();
+    return false;
+  }
+  row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  StringBuffer sql=new StringBuffer(meta.getSql());
+  if (first) {
+    first=false;
+    data.argumentIndexes=new int[meta.getArguments().length];
+    for (int i=0; i < meta.getArguments().length; i++) {
+      data.argumentIndexes[i]=this.getInputRowMeta().indexOfValue(meta.getArguments()[i]);
+      if (data.argumentIndexes[i] < 0) {
+        logError(Messages.getString("ExecSQL.Log.ErrorFindingField") + meta.getArguments()[i] + "]");
+        throw new KettleStepException(Messages.getString("ExecSQL.Exception.CouldNotFindField",meta.getArguments()[i]));
+      }
+    }
+    data.markerPositions=new ArrayList();
+    int len=sql.length();
+    int pos=len - 1;
+    while (pos >= 0) {
+      if (sql.charAt(pos) == '?')       data.markerPositions.add(new Integer(pos));
+      pos--;
+    }
+  }
+  for (int i=0; i < data.markerPositions.size(); i++) {
+    ValueMetaAndData value=(ValueMetaAndData)row[data.argumentIndexes[data.markerPositions.size() - i - 1]];
+    int pos=((Integer)data.markerPositions.get(i)).intValue();
+    sql.replace(pos,pos + 1,value.getValueData().toString());
+  }
+  if (log.isRowLevel())   logRowlevel(Messages.getString("ExecSQL.Log.ExecutingSQLScript") + Const.CR + sql);
+  data.result=data.db.execStatements(sql.toString());
+  Object[] add=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
+  row=RowDataUtil.addRowData(add,row);
+  if (!data.db.isAutoCommit())   data.db.commit();
+  putRow(data.outputRowMeta,row);
+  if (checkFeedback(linesWritten))   logBasic(Messages.getString("ExecSQL.Log.LineNumber") + linesWritten);
+  return true;
+}
