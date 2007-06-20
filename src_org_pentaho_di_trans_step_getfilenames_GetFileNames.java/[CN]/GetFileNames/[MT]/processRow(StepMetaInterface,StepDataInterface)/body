@@ -1,0 +1,63 @@
+{
+  if (data.filenr >= data.files.nrOfFiles()) {
+    setOutputDone();
+    return false;
+  }
+  try {
+    Object[] r=new Object[13];
+    FileObject file=data.files.getFile(data.filenr);
+    if (meta.getFilterFileType().equals("all_files") || (meta.getFilterFileType().equals("only_files") && file.getType() == FileType.FILE) || meta.getFilterFileType().equals("only_folders") && file.getType() == FileType.FOLDER) {
+      ValueMetaAndData filename=new ValueMetaAndData("filename",KettleVFS.getFilename(file));
+      filename.setLength(500,-1);
+      r[0]=filename;
+      ValueMetaAndData short_filename=new ValueMetaAndData("short_filename",file.getName().getBaseName());
+      short_filename.setLength(500,-1);
+      r[1]=short_filename;
+      try {
+        ValueMetaAndData path=new ValueMetaAndData("path",KettleVFS.getFilename(file.getParent()));
+        path.setLength(500,-1);
+        r[2]=path;
+        ValueMetaAndData type=new ValueMetaAndData("type",file.getType().toString());
+        type.setLength(500,-1);
+        r[3]=type;
+        ValueMetaAndData exists=new ValueMetaAndData("exists",new Boolean(file.exists()));
+        r[4]=exists;
+        ValueMetaAndData ishidden=new ValueMetaAndData("ishidden",new Boolean(file.isHidden()));
+        r[5]=ishidden;
+        ValueMetaAndData isreadable=new ValueMetaAndData("isreadable",new Boolean(file.isReadable()));
+        r[6]=isreadable;
+        ValueMetaAndData iswriteable=new ValueMetaAndData("iswriteable",new Boolean(file.isWriteable()));
+        r[7]=iswriteable;
+        Date ladate=new Date(file.getContent().getLastModifiedTime());
+        ValueMetaAndData lastmodifiedtime=new ValueMetaAndData("lastmodifiedtime",ladate.toString());
+        r[8]=lastmodifiedtime;
+        ValueMetaAndData size=new ValueMetaAndData("size","");
+        if (file.getType().equals(FileType.FILE)) {
+          size=new ValueMetaAndData("size",new Long(file.getContent().getSize()));
+        }
+        r[9]=size;
+      }
+ catch (      IOException e) {
+        throw new KettleException(e);
+      }
+      ValueMetaAndData extension=new ValueMetaAndData("extension",file.getName().getExtension());
+      extension.setLength(500,-1);
+      r[10]=extension;
+      ValueMetaAndData uri=new ValueMetaAndData("uri",file.getName().getURI());
+      uri.setLength(500,-1);
+      r[11]=uri;
+      ValueMetaAndData rooturi=new ValueMetaAndData("rooturi",file.getName().getRootURI());
+      uri.setLength(500,-1);
+      r[12]=rooturi;
+      data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null);
+      putRow(data.outputRowMeta,r);
+    }
+  }
+ catch (  Exception e) {
+    log.logError(toString(),"Error exception: " + e.getMessage());
+  }
+  data.filenr++;
+  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
+  return true;
+}
