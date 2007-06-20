@@ -1,0 +1,36 @@
+{
+  meta=(NullIfMeta)smi;
+  data=(NullIfData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (log.isRowLevel())   logRowlevel(Messages.getString("NullIf.Log.ConvertFieldValuesToNullForRow") + r);
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    data.keynr=new int[meta.getFieldValue().length];
+    data.nullValue=new Object[meta.getFieldValue().length];
+    data.nullValueMeta=new ValueMeta[meta.getFieldValue().length];
+    for (int i=0; i < meta.getFieldValue().length; i++) {
+      data.keynr[i]=data.outputRowMeta.indexOfValue(meta.getFieldName()[i]);
+      if (data.keynr[i] < 0) {
+        logError(Messages.getString("NullIf.Log.CouldNotFindFieldInRow",meta.getFieldName()[i]));
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+      data.nullValueMeta[i]=data.outputRowMeta.getValueMeta(data.keynr[i]);
+      data.nullValue[i]=data.nullValueMeta[i].convertData(new ValueMeta(null,ValueMetaInterface.TYPE_STRING),meta.getFieldValue()[i]);
+    }
+  }
+  for (int i=0; i < meta.getFieldValue().length; i++) {
+    Object field=r[data.keynr[i]];
+    if (field != null && data.nullValueMeta[i].compare(field,data.nullValue[i]) == 0) {
+      r[data.keynr[i]]=null;
+    }
+  }
+  putRow(data.outputRowMeta,r);
+  return true;
+}
