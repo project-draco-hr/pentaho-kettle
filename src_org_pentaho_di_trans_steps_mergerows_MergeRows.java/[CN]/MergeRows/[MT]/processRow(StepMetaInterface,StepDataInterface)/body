@@ -1,0 +1,98 @@
+{
+  meta=(MergeRowsMeta)smi;
+  data=(MergeRowsData)sdi;
+  if (first) {
+    first=false;
+    data.one=getRowFrom(meta.getReferenceStepName());
+    data.two=getRowFrom(meta.getCompareStepName());
+    try {
+      checkInputLayoutValid(data.one,data.two);
+    }
+ catch (    KettleRowException e) {
+      throw new KettleException(Messages.getString("MergeRows.Exception.InvalidLayoutDetected"),e);
+    }
+    if (data.one != null) {
+      data.keyNrs=new int[meta.getKeyFields().length];
+      data.keyAsc=new boolean[meta.getKeyFields().length];
+      for (int i=0; i < data.keyNrs.length; i++) {
+        data.keyNrs[i]=data.one.getRowMeta().indexOfValue(meta.getKeyFields()[i]);
+        if (data.keyNrs[i] < 0) {
+          String message=Messages.getString("MergeRows.Exception.UnableToFindFieldInReferenceStream",meta.getKeyFields()[i]);
+          logError(message);
+          throw new KettleStepException(message);
+        }
+        data.keyAsc[i]=true;
+      }
+    }
+    if (data.two != null) {
+      data.valueNrs=new int[meta.getValueFields().length];
+      data.valueAsc=new boolean[meta.getValueFields().length];
+      for (int i=0; i < data.valueNrs.length; i++) {
+        data.valueNrs[i]=data.two.getRowMeta().indexOfValue(meta.getValueFields()[i]);
+        if (data.valueNrs[i] < 0) {
+          String message=Messages.getString("MergeRows.Exception.UnableToFindFieldInReferenceStream",meta.getValueFields()[i]);
+          logError(message);
+          throw new KettleStepException(message);
+        }
+        data.valueAsc[i]=true;
+      }
+    }
+  }
+  if (log.isRowLevel())   logRowlevel(Messages.getString("MergeRows.Log.DataInfo",data.one + "") + data.two);
+  if (data.one == null && data.two == null) {
+    setOutputDone();
+    return false;
+  }
+  if (data.outputRowMeta == null) {
+    data.outputRowMeta=new RowMeta();
+    if (data.one != null) {
+      meta.getFields(data.outputRowMeta,getStepname(),new RowMetaInterface[]{data.one.getRowMeta()});
+    }
+ else {
+      meta.getFields(data.outputRowMeta,getStepname(),new RowMetaInterface[]{data.two.getRowMeta()});
+    }
+  }
+  Object[] outputRow=null;
+  String flagField=null;
+  if (data.one == null && data.two != null) {
+    outputRow=data.two.getData();
+    flagField=VALUE_NEW;
+    data.two=getRowFrom(meta.getCompareStepName());
+  }
+ else   if (data.one != null && data.two == null) {
+    outputRow=data.one.getData();
+    flagField=VALUE_DELETED;
+    data.one=getRowFrom(meta.getReferenceStepName());
+  }
+ else {
+    int compare=data.one.compare(data.two,data.keyNrs,data.keyAsc);
+    if (compare == 0) {
+      int compareValues=data.one.compare(data.two,data.valueNrs,data.valueAsc);
+      if (compareValues == 0) {
+        outputRow=data.one.getData();
+        flagField=VALUE_IDENTICAL;
+      }
+ else {
+        outputRow=data.two.getData();
+        flagField=VALUE_CHANGED;
+      }
+      data.one=getRowFrom(meta.getReferenceStepName());
+      data.two=getRowFrom(meta.getCompareStepName());
+    }
+ else {
+      if (compare < 0) {
+        outputRow=data.one.getData();
+        flagField=VALUE_DELETED;
+        data.one=getRowFrom(meta.getReferenceStepName());
+      }
+ else {
+        outputRow=data.two.getData();
+        flagField=VALUE_NEW;
+        data.two=getRowFrom(meta.getCompareStepName());
+      }
+    }
+  }
+  putRow(data.outputRowMeta,RowDataUtil.addValueData(outputRow,flagField));
+  if (checkFeedback(linesRead))   logBasic(Messages.getString("MergeRows.LineNumber") + linesRead);
+  return true;
+}
