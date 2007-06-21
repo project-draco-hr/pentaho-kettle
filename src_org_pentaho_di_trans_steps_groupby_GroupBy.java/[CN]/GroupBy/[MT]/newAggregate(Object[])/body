@@ -1,0 +1,50 @@
+{
+  for (int i=0; i < data.counts.length; i++)   data.counts[i]=0;
+  data.agg=new Object[data.subjectnrs.length];
+  data.aggMeta=new RowMeta();
+  for (int i=0; i < data.subjectnrs.length; i++) {
+    Object subj=r[data.subjectnrs[i]];
+    ValueMetaInterface subjMeta=data.previousMeta.getValueMeta(data.subjectnrs[i]);
+    Object v=null;
+    ValueMetaInterface vMeta=null;
+switch (meta.getAggregateType()[i]) {
+case GroupByMeta.TYPE_GROUP_SUM:
+case GroupByMeta.TYPE_GROUP_AVERAGE:
+case GroupByMeta.TYPE_GROUP_COUNT_ALL:
+      vMeta=new ValueMeta(meta.getAggregateField()[i],subjMeta.isNumeric() ? subjMeta.getType() : ValueMetaInterface.TYPE_NUMBER);
+switch (subjMeta.getType()) {
+case ValueMetaInterface.TYPE_BIGNUMBER:
+      v=new BigDecimal("0");
+    break;
+case ValueMetaInterface.TYPE_INTEGER:
+  v=new Long(0L);
+break;
+case ValueMetaInterface.TYPE_NUMBER:
+default :
+v=new Double(0.0);
+break;
+}
+break;
+case GroupByMeta.TYPE_GROUP_FIRST:
+case GroupByMeta.TYPE_GROUP_LAST:
+case GroupByMeta.TYPE_GROUP_FIRST_INCL_NULL:
+case GroupByMeta.TYPE_GROUP_LAST_INCL_NULL:
+case GroupByMeta.TYPE_GROUP_MIN:
+case GroupByMeta.TYPE_GROUP_MAX:
+vMeta=new ValueMeta(meta.getAggregateField()[i],subjMeta.getType());
+v=subj;
+break;
+case GroupByMeta.TYPE_GROUP_CONCAT_COMMA:
+vMeta=new ValueMeta(meta.getAggregateField()[i],ValueMetaInterface.TYPE_STRING);
+v=new String("");
+break;
+default :
+break;
+}
+if (meta.getAggregateType()[i] != GroupByMeta.TYPE_GROUP_COUNT_ALL) {
+vMeta.setLength(subjMeta.getLength(),subjMeta.getPrecision());
+}
+if (v != null) data.agg[i]=v;
+data.aggMeta.addValueMeta(vMeta);
+}
+}

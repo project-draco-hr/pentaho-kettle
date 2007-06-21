@@ -1,0 +1,63 @@
+{
+  RowMetaInterface rowOrig=(RowMetaInterface)r.clone();
+  if (!passAllRows) {
+    for (int i=r.size() - 1; i >= 0; i--) {
+      String fieldName=rowOrig.getFieldNames()[i];
+      boolean found=false;
+      for (int j=0; j < groupField.length && !found; j++) {
+        if (fieldName.equalsIgnoreCase(groupField[j]))         found=true;
+      }
+      if (!found)       r.removeValueMeta(i);
+    }
+  }
+  for (int i=0; i < subjectField.length; i++) {
+    ValueMetaInterface subj=rowOrig.searchValueMeta(subjectField[i]);
+    if (subj != null) {
+      String value_name=aggregateField[i];
+      int value_type=ValueMetaInterface.TYPE_NONE;
+      int length=-1;
+      int precision=-1;
+switch (aggregateType[i]) {
+case TYPE_GROUP_SUM:
+        value_type=subj.getType();
+      break;
+case TYPE_GROUP_AVERAGE:
+case TYPE_GROUP_COUNT_ALL:
+    value_type=ValueMetaInterface.TYPE_NUMBER;
+  break;
+case TYPE_GROUP_FIRST:
+case TYPE_GROUP_LAST:
+case TYPE_GROUP_FIRST_INCL_NULL:
+case TYPE_GROUP_LAST_INCL_NULL:
+case TYPE_GROUP_MIN:
+case TYPE_GROUP_MAX:
+value_type=subj.getType();
+break;
+case TYPE_GROUP_CONCAT_COMMA:
+value_type=ValueMetaInterface.TYPE_STRING;
+break;
+default :
+break;
+}
+if (aggregateType[i] != TYPE_GROUP_COUNT_ALL) {
+length=subj.getLength();
+precision=subj.getPrecision();
+}
+if (value_type != ValueMetaInterface.TYPE_NONE) {
+ValueMetaInterface v=new ValueMeta(value_name,value_type);
+v.setOrigin(name);
+v.setLength(length,precision);
+r.addValueMeta(v);
+}
+}
+}
+if (passAllRows) {
+if (addingLineNrInGroup && !Const.isEmpty(lineNrInGroupField)) {
+ValueMetaInterface lineNr=new ValueMeta(lineNrInGroupField,ValueMetaInterface.TYPE_INTEGER);
+lineNr.setLength(9);
+lineNr.setOrigin(name);
+r.addValueMeta(lineNr);
+}
+}
+return;
+}
