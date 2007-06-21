@@ -1,0 +1,38 @@
+{
+  boolean retval=false;
+  data.writer=null;
+  try {
+    File file=new File(buildFilename(true));
+    OutputStream outputStream;
+    if (meta.isZipped()) {
+      FileOutputStream fos=new FileOutputStream(file);
+      data.zip=new ZipOutputStream(fos);
+      File entry=new File(buildFilename(false));
+      ZipEntry zipentry=new ZipEntry(entry.getName());
+      zipentry.setComment("Compressed by Kettle");
+      data.zip.putNextEntry(zipentry);
+      outputStream=data.zip;
+    }
+ else {
+      FileOutputStream fos=new FileOutputStream(file);
+      outputStream=fos;
+    }
+    if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+      log.logBasic(toString(),"Opening output stream in encoding: " + meta.getEncoding());
+      data.writer=new OutputStreamWriter(outputStream,meta.getEncoding());
+      data.writer.write(XMLHandler.getXMLHeader(meta.getEncoding()).toCharArray());
+    }
+ else {
+      log.logBasic(toString(),"Opening output stream in default encoding : " + Const.XML_ENCODING);
+      data.writer=new OutputStreamWriter(outputStream);
+      data.writer.write(XMLHandler.getXMLHeader(Const.XML_ENCODING).toCharArray());
+    }
+    data.writer.write(("<" + meta.getMainElement() + ">"+ Const.CR).toCharArray());
+    retval=true;
+  }
+ catch (  Exception e) {
+    logError("Error opening new file : " + e.toString());
+  }
+  data.splitnr++;
+  return retval;
+}

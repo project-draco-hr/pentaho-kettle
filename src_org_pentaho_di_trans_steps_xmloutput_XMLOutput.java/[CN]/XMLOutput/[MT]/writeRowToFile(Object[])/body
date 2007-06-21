@@ -1,0 +1,52 @@
+{
+  ValueMetaAndData v;
+  try {
+    if (first) {
+      data.previousMeta=(RowMetaInterface)getInputRowMeta().clone();
+      first=false;
+      data.fieldnrs=new int[meta.getOutputFields().length];
+      for (int i=0; i < meta.getOutputFields().length; i++) {
+        data.fieldnrs[i]=data.previousMeta.indexOfValue(meta.getOutputFields()[i].getFieldName());
+        if (data.fieldnrs[i] < 0) {
+          logError("Field [" + meta.getOutputFields()[i].getFieldName() + "] couldn't be found in the input stream!");
+          setErrors(1);
+          stopAll();
+          return false;
+        }
+      }
+    }
+    if (meta.getOutputFields() == null || meta.getOutputFields().length == 0) {
+      data.writer.write((" <" + meta.getRepeatElement() + ">").toCharArray());
+      for (int i=0; i < r.length; i++) {
+        if (i > 0)         data.writer.write(' ');
+        v=(ValueMetaAndData)r[i];
+        writeField(v,-1,v.getValueMeta().getName());
+      }
+    }
+ else {
+      data.writer.write((" <" + meta.getRepeatElement() + ">").toCharArray());
+      for (int i=0; i < meta.getOutputFields().length; i++) {
+        XMLField outputField=meta.getOutputFields()[i];
+        if (i > 0)         data.writer.write(' ');
+        v=(ValueMetaAndData)r[data.fieldnrs[i]];
+        v.getValueMeta().setLength(outputField.getLength(),outputField.getPrecision());
+        String element;
+        if (outputField.getElementName() != null && outputField.getElementName().length() > 0) {
+          element=outputField.getElementName();
+        }
+ else {
+          element=v.getValueMeta().getName();
+        }
+        writeField(v,i,element);
+      }
+    }
+    data.writer.write((" </" + meta.getRepeatElement() + ">").toCharArray());
+    data.writer.write(Const.CR.toCharArray());
+  }
+ catch (  Exception e) {
+    logError("Error writing XML row :" + e.toString() + Const.CR+ "Row: "+ r);
+    return false;
+  }
+  linesOutput++;
+  return true;
+}

@@ -1,0 +1,32 @@
+{
+  meta=(XMLOutputMeta)smi;
+  data=(XMLOutputData)sdi;
+  Object[] r;
+  boolean result=true;
+  r=getRow();
+  if ((r != null && linesOutput > 0 && meta.getSplitEvery() > 0 && (linesOutput % meta.getSplitEvery()) == 0)) {
+    closeFile();
+    if (r != null) {
+      if (!openNewFile()) {
+        logError("Unable to open new file (split #" + data.splitnr + "...");
+        setErrors(1);
+        return false;
+      }
+    }
+  }
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  result=writeRowToFile(r);
+  if (!result) {
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+  data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+  meta.getFields(data.outputRowMeta,getStepname(),null);
+  putRow(data.outputRowMeta,r);
+  if (checkFeedback(linesOutput))   logBasic("linenr " + linesOutput);
+  return result;
+}
