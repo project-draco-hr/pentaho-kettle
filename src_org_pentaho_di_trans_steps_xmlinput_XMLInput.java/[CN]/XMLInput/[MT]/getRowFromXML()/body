@@ -1,0 +1,154 @@
+{
+  while (data.itemPosition >= data.itemCount || data.file == null) {
+    data.file=null;
+    if (!openNextFile()) {
+      return null;
+    }
+  }
+  Object[] row=buildEmptyRow();
+  Node itemNode;
+  if (meta.getInputPosition().length > 1) {
+    itemNode=XMLHandler.getSubNodeByNr(data.section,data.itemElement,data.itemPosition);
+  }
+ else {
+    itemNode=data.section;
+  }
+  data.itemPosition++;
+  for (int i=0; i < meta.getInputFields().length; i++) {
+    Node node=itemNode;
+    XMLInputField xmlInputField=meta.getInputFields()[i];
+    String value=null;
+    for (int p=0; (value == null) && node != null && p < xmlInputField.getFieldPosition().length; p++) {
+      XMLInputFieldPosition pos=xmlInputField.getFieldPosition()[p];
+switch (pos.getType()) {
+case XMLInputFieldPosition.XML_ELEMENT:
+{
+          if (pos.getElementNr() <= 1) {
+            Node subNode=XMLHandler.getSubNode(node,pos.getName());
+            if (subNode != null) {
+              if (p == xmlInputField.getFieldPosition().length - 1) {
+                value=XMLHandler.getNodeValue(subNode);
+              }
+            }
+ else {
+              if (log.isDebug())               logDebug(Messages.getString("XMLInput.Log.UnableToFindPosition",pos.toString(),node.toString()));
+            }
+            node=subNode;
+          }
+ else {
+            Node subNode=XMLHandler.getSubNodeByNr(node,pos.getName(),pos.getElementNr() - 1,false);
+            if (subNode != null) {
+              if (p == xmlInputField.getFieldPosition().length - 1) {
+                value=XMLHandler.getNodeValue(subNode);
+              }
+            }
+ else {
+              if (log.isDebug())               logDebug(Messages.getString("XMLInput.Log.UnableToFindPosition",pos.toString(),node.toString()));
+            }
+            node=subNode;
+          }
+        }
+      break;
+case XMLInputFieldPosition.XML_ATTRIBUTE:
+{
+      value=XMLHandler.getTagAttribute(node,pos.getName());
+    }
+  break;
+case XMLInputFieldPosition.XML_ROOT:
+{
+  value=XMLHandler.getNodeValue(node);
+}
+break;
+default :
+break;
+}
+}
+ValueMetaAndData v=new ValueMetaAndData(((ValueMeta)row[i]).getName(),value);
+switch (xmlInputField.getTrimType()) {
+case XMLInputField.TYPE_TRIM_LEFT:
+v.setValueData(Const.ltrim(v.getValueData().toString()));
+break;
+case XMLInputField.TYPE_TRIM_RIGHT:
+v.setValueData(Const.rtrim(v.getValueData().toString()));
+break;
+case XMLInputField.TYPE_TRIM_BOTH:
+v.setValueData(v.getValueData().toString().trim());
+break;
+default :
+break;
+}
+Object val=v.getValueData();
+String sval=val != null ? val.toString() : "";
+switch (xmlInputField.getType()) {
+case ValueMeta.TYPE_STRING:
+break;
+case ValueMeta.TYPE_NUMBER:
+if (xmlInputField.getFormat() != null && xmlInputField.getFormat().length() > 0) {
+if (xmlInputField.getDecimalSymbol() != null && xmlInputField.getDecimalSymbol().length() > 0) {
+if (xmlInputField.getGroupSymbol() != null && xmlInputField.getGroupSymbol().length() > 0) {
+if (xmlInputField.getCurrencySymbol() != null && xmlInputField.getCurrencySymbol().length() > 0) {
+double dval=StringUtil.str2num(xmlInputField.getFormat(),xmlInputField.getDecimalSymbol(),xmlInputField.getGroupSymbol(),xmlInputField.getCurrencySymbol(),sval);
+v.setValueData(new Double(dval));
+}
+ else {
+v.setValueData(new Double(StringUtil.str2num(xmlInputField.getFormat(),xmlInputField.getDecimalSymbol(),xmlInputField.getGroupSymbol(),null,sval)));
+}
+}
+ else {
+v.setValueData(new Double(StringUtil.str2num(xmlInputField.getFormat(),xmlInputField.getDecimalSymbol(),null,null,sval)));
+}
+}
+ else {
+v.setValueData(new Double(StringUtil.str2num(xmlInputField.getFormat(),null,null,null,sval)));
+}
+}
+ else {
+v.setValueData(new Double(StringUtil.str2num(null,null,null,null,null)));
+}
+v.getValueMeta().setLength(xmlInputField.getLength(),xmlInputField.getPrecision());
+break;
+case ValueMeta.TYPE_INTEGER:
+v.setValueData(v.getValueData());
+v.getValueMeta().setLength(xmlInputField.getLength(),xmlInputField.getPrecision());
+break;
+case ValueMeta.TYPE_BIGNUMBER:
+v.setValueData(v.getValueData());
+v.getValueMeta().setLength(xmlInputField.getLength(),xmlInputField.getPrecision());
+break;
+case ValueMeta.TYPE_DATE:
+if (xmlInputField.getFormat() != null && xmlInputField.getFormat().length() > 0) {
+v.setValueData(StringUtil.str2dat(xmlInputField.getFormat(),null,sval));
+v.getValueMeta().setType(ValueMeta.TYPE_DATE);
+v.getValueMeta().setLength(-1,-1);
+}
+ else {
+v.setValueData(v.getValueData());
+}
+break;
+case ValueMeta.TYPE_BOOLEAN:
+v.setValueData(v.getValueData());
+break;
+default :
+break;
+}
+if (meta.getInputFields()[i].isRepeated()) {
+if (v.getValueMeta().isNull(v.getValueData()) && data.previousRow != null) {
+ValueMetaInterface previous=data.previousRow.getValueMeta(i);
+v.setValueMeta(previous);
+}
+}
+}
+if (meta.includeFilename() && meta.getFilenameField() != null && meta.getFilenameField().length() > 0) {
+ValueMetaAndData fn=new ValueMetaAndData(meta.getFilenameField(),KettleVFS.getFilename(data.file));
+row=RowDataUtil.addValueData(row,fn.getValueMeta());
+}
+if (meta.includeRowNumber() && meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
+ValueMetaAndData fn=new ValueMetaAndData(meta.getRowNumberField(),new Long(data.rownr));
+row=RowDataUtil.addValueData(row,fn.getValueMeta());
+}
+data.previousRow=(RowMetaInterface)row.clone();
+data.rownr++;
+NodeList nodeList=itemNode.getChildNodes();
+for (int i=0; i < nodeList.getLength(); i++) itemNode.removeChild(nodeList.item(i));
+return row;
+}
