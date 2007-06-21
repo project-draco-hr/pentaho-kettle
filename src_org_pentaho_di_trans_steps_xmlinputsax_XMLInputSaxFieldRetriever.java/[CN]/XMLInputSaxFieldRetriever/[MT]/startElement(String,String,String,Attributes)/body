@@ -1,0 +1,65 @@
+{
+  position[_counter + 1]+=1;
+  _counter++;
+  try {
+    if (!rootFound) {
+      XMLInputSaxFieldPosition el=(XMLInputSaxFieldPosition)pathToRootElement.get(counter);
+      if ((counter == _counter) && qName.equalsIgnoreCase(el.getName())) {
+        if (el.getType() == XMLInputSaxFieldPosition.XML_ELEMENT_ATT) {
+          String att1=attributes.getValue(el.getAttribute());
+          String att2=el.getAttributeValue();
+          if (att1.equals(att2)) {
+            _pathToRootElement.add(new XMLInputSaxFieldPosition(qName,el.getAttribute(),el.getAttributeValue()));
+            if (counter == pathToRootElement.size() - 1) {
+              for (int i=0; i < attributes.getLength(); i++) {
+                XMLInputSaxFieldPosition tempP=new XMLInputSaxFieldPosition(attributes.getQName(i),XMLInputSaxFieldPosition.XML_ATTRIBUTE,i + 1);
+                _pathToRootElement.add(tempP);
+                XMLInputSaxFieldPosition[] path=new XMLInputSaxFieldPosition[_pathToRootElement.size()];
+                _pathToRootElement.toArray(path);
+                _pathToRootElement.remove(_pathToRootElement.size() - 1);
+                XMLInputSaxField tempF=new XMLInputSaxField(tempP.getName(),path);
+                if (!fields.contains(tempF)) {
+                  fields.add(tempF);
+                }
+              }
+            }
+            counterUp();
+          }
+ else {
+            _pathToRootElement.add(new XMLInputSaxFieldPosition(qName,XMLInputSaxFieldPosition.XML_ELEMENT_POS,position[_counter] + 1));
+          }
+        }
+ else {
+          _pathToRootElement.add(new XMLInputSaxFieldPosition(qName,XMLInputSaxFieldPosition.XML_ELEMENT_POS,position[_counter] + 1));
+          counterUp();
+        }
+      }
+ else {
+        _pathToRootElement.add(new XMLInputSaxFieldPosition(qName,XMLInputSaxFieldPosition.XML_ELEMENT_POS,position[_counter] + 1));
+      }
+    }
+ else {
+      XMLInputSaxField temp=null;
+      if (attributes.getValue(meta.getDefiningAttribute(qName)) == null) {
+        _pathToRootElement.add(new XMLInputSaxFieldPosition(qName,XMLInputSaxFieldPosition.XML_ELEMENT_POS,position[_counter] + 1));
+        XMLInputSaxFieldPosition[] path=new XMLInputSaxFieldPosition[_pathToRootElement.size()];
+        _pathToRootElement.toArray(path);
+        temp=new XMLInputSaxField(naming(path),path);
+      }
+ else {
+        String attribute=meta.getDefiningAttribute(qName);
+        _pathToRootElement.add(new XMLInputSaxFieldPosition(qName,attribute,attributes.getValue(attribute)));
+        XMLInputSaxFieldPosition[] path=new XMLInputSaxFieldPosition[_pathToRootElement.size()];
+        _pathToRootElement.toArray(path);
+        temp=new XMLInputSaxField(naming(path),path);
+      }
+      if (!fields.contains(temp)) {
+        fields.add(temp);
+      }
+    }
+  }
+ catch (  KettleValueException e) {
+    LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
+    throw new SAXException(_counter + "," + counter+ ((XMLInputSaxFieldPosition)_pathToRootElement.get(_pathToRootElement.size() - 1)).toString(),e);
+  }
+}
