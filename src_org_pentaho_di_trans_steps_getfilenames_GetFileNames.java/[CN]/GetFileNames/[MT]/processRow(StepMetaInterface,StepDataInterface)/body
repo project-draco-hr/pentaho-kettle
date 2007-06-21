@@ -1,0 +1,47 @@
+{
+  if (data.filenr >= data.files.nrOfFiles()) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null);
+  }
+  try {
+    Object[] outputRow=new Object[data.outputRowMeta.size()];
+    int outputIndex=0;
+    FileObject file=data.files.getFile(data.filenr);
+    if (meta.getFilterFileType().equals("all_files") || (meta.getFilterFileType().equals("only_files") && file.getType() == FileType.FILE) || meta.getFilterFileType().equals("only_folders") && file.getType() == FileType.FOLDER) {
+      outputRow[outputIndex++]=KettleVFS.getFilename(file);
+      outputRow[outputIndex++]=file.getName().getBaseName();
+      try {
+        outputRow[outputIndex++]=KettleVFS.getFilename(file.getParent());
+        outputRow[outputIndex++]=file.getType().toString();
+        outputRow[outputIndex++]=new Boolean(file.exists());
+        outputRow[outputIndex++]=new Boolean(file.isHidden());
+        outputRow[outputIndex++]=new Boolean(file.isReadable());
+        outputRow[outputIndex++]=new Boolean(file.isWriteable());
+        outputRow[outputIndex++]=new Date(file.getContent().getLastModifiedTime());
+        Long size=null;
+        if (file.getType().equals(FileType.FILE)) {
+          size=new Long(file.getContent().getSize());
+        }
+        outputRow[outputIndex++]=size;
+      }
+ catch (      IOException e) {
+        throw new KettleException(e);
+      }
+      outputRow[outputIndex++]=file.getName().getExtension();
+      outputRow[outputIndex++]=file.getName().getURI();
+      outputRow[outputIndex++]=file.getName().getRootURI();
+      putRow(data.outputRowMeta,outputRow);
+    }
+  }
+ catch (  Exception e) {
+    log.logError(toString(),"Error exception: " + e.getMessage());
+  }
+  data.filenr++;
+  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
+  return true;
+}
