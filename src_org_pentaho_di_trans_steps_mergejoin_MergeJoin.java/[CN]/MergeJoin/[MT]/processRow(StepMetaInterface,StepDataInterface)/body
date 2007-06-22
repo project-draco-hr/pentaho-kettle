@@ -1,0 +1,183 @@
+{
+  meta=(MergeJoinMeta)smi;
+  data=(MergeJoinData)sdi;
+  int compare;
+  if (first) {
+    first=false;
+    RowMetaAndData rmdOne=getRowFrom(meta.getStepName1());
+    if (rmdOne != null) {
+      data.one=rmdOne.getData();
+      data.oneMeta=rmdOne.getRowMeta();
+    }
+ else {
+      data.one=null;
+      data.oneMeta=new RowMeta();
+    }
+    RowMetaAndData rmdTwo=getRowFrom(meta.getStepName2());
+    if (rmdTwo != null) {
+      data.two=rmdTwo.getData();
+      data.twoMeta=rmdTwo.getRowMeta();
+    }
+ else {
+      data.two=null;
+      data.twoMeta=new RowMeta();
+    }
+    data.oneTwoMeta=new RowMeta();
+    data.oneTwoMeta.addRowMeta(data.oneMeta);
+    data.oneTwoMeta.addRowMeta(data.twoMeta);
+    if (!isInputLayoutValid(data.oneMeta,data.twoMeta)) {
+      throw new KettleException(Messages.getString("MergeJoin.Exception.InvalidKeyLayoutDetected"));
+    }
+    if (data.one != null) {
+      data.keyNrs1=new int[meta.getKeyFields1().length];
+      for (int i=0; i < data.keyNrs1.length; i++) {
+        data.keyNrs1[i]=data.oneMeta.indexOfValue(meta.getKeyFields1()[i]);
+        if (data.keyNrs1[i] < 0) {
+          String message=Messages.getString("MergeJoin.Exception.UnableToFindFieldInReferenceStream",meta.getKeyFields1()[i]);
+          logError(message);
+          throw new KettleStepException(message);
+        }
+      }
+    }
+    if (data.two != null) {
+      data.keyNrs2=new int[meta.getKeyFields2().length];
+      for (int i=0; i < data.keyNrs2.length; i++) {
+        data.keyNrs2[i]=data.twoMeta.indexOfValue(meta.getKeyFields2()[i]);
+        if (data.keyNrs2[i] < 0) {
+          String message=Messages.getString("MergeJoin.Exception.UnableToFindFieldInReferenceStream",meta.getKeyFields2()[i]);
+          logError(message);
+          throw new KettleStepException(message);
+        }
+      }
+    }
+    data.one_dummy=new Object[data.oneMeta.size()];
+    data.two_dummy=new Object[data.twoMeta.size()];
+    for (int i=0; i < data.oneMeta.size(); i++) {
+      String dummy=data.oneMeta.getFieldNames()[i];
+      int idx=data.twoMeta.indexOfValue(dummy);
+      if (idx >= 0) {
+        throw new KettleStepException(Messages.getString("MergeJoin.Exception.DuplicateFieldnamesInResult",dummy));
+      }
+    }
+  }
+  if (log.isRowLevel())   logRowlevel(Messages.getString("MergeJoin.Log.DataInfo",data.one + "") + data.two);
+  if ((data.one == null && data.two == null) || (data.one == null && data.one_optional == false) || (data.two == null && data.two_optional == false)) {
+    setOutputDone();
+    return false;
+  }
+  if (data.one == null) {
+    compare=-1;
+  }
+ else {
+    if (data.two == null) {
+      compare=1;
+    }
+ else {
+      int cmp=data.oneMeta.compare(data.one,data.two,data.keyNrs2);
+      compare=cmp > 0 ? 1 : cmp < 0 ? -1 : 0;
+    }
+  }
+switch (compare) {
+case 0:
+    data.one_next=getRowDataFrom(meta.getStepName1());
+  data.two_next=getRowDataFrom(meta.getStepName2());
+int compare1=(data.one_next == null) ? -1 : data.oneMeta.compare(data.one,data.one_next,data.keyNrs1,data.keyNrs1);
+int compare2=(data.two_next == null) ? -1 : data.twoMeta.compare(data.two,data.two_next,data.keyNrs2,data.keyNrs2);
+if (compare1 == 0 || compare2 == 0) {
+if (data.ones == null) data.ones=new ArrayList<Object[]>();
+ else data.ones.clear();
+if (data.twos == null) data.twos=new ArrayList<Object[]>();
+ else data.twos.clear();
+data.ones.add(data.one);
+if (compare1 == 0) {
+data.ones.add(data.one_next);
+for (; ; ) {
+  data.one_next=getRowDataFrom(meta.getStepName1());
+  if (0 != ((data.one_next == null) ? -1 : data.oneMeta.compare(data.one,data.one_next,data.keyNrs1,data.keyNrs1)))   break;
+  data.ones.add(data.one_next);
+}
+}
+data.twos.add(data.two);
+if (compare2 == 0) {
+data.twos.add(data.two_next);
+for (; ; ) {
+  data.two_next=getRowDataFrom(meta.getStepName2());
+  if (0 != ((data.two_next == null) ? -1 : data.twoMeta.compare(data.two,data.two_next,data.keyNrs2,data.keyNrs2)))   break;
+  data.twos.add(data.two_next);
+}
+}
+Iterator one_iter=data.ones.iterator();
+while (one_iter.hasNext()) {
+Object[] one=(Object[])one_iter.next();
+Iterator two_iter=data.twos.iterator();
+while (two_iter.hasNext()) {
+  Object[] combi=RowDataUtil.addRowData(one,(Object[])two_iter.next());
+  putRow(data.oneTwoMeta,combi);
+}
+}
+data.ones.clear();
+data.twos.clear();
+}
+ else {
+putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two));
+}
+data.one=data.one_next;
+data.two=data.two_next;
+break;
+case 1:
+logDebug("First stream has missing key");
+if (data.one_optional == true) {
+if (data.two != null) {
+putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one_dummy,data.two));
+data.two=getRowDataFrom(meta.getStepName2());
+}
+ else if (data.two_optional == false) {
+setOutputDone();
+return false;
+}
+ else {
+putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two_dummy));
+data.one=getRowDataFrom(meta.getStepName1());
+}
+}
+ else if (data.two == null && data.two_optional == true) {
+putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two_dummy));
+data.one=getRowDataFrom(meta.getStepName1());
+}
+ else if (data.two != null) {
+data.two=getRowDataFrom(meta.getStepName2());
+}
+break;
+case -1:
+logDebug("Second stream has missing key");
+if (data.two_optional == true) {
+if (data.one != null) {
+putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two_dummy));
+data.one=getRowDataFrom(meta.getStepName1());
+}
+ else if (data.one_optional == false) {
+setOutputDone();
+return false;
+}
+ else {
+putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one_dummy,data.two));
+data.two=getRowDataFrom(meta.getStepName2());
+}
+}
+ else if (data.one == null && data.one_optional == true) {
+putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one_dummy,data.two));
+data.two=getRowDataFrom(meta.getStepName2());
+}
+ else if (data.one != null) {
+data.one=getRowDataFrom(meta.getStepName1());
+}
+break;
+default :
+logDebug("We shouldn't be here!!");
+data.one=getRowDataFrom(meta.getStepName1());
+data.two=getRowDataFrom(meta.getStepName2());
+break;
+}
+if (checkFeedback(linesRead)) logBasic(Messages.getString("MergeJoin.LineNumber") + linesRead);
+return true;
+}
