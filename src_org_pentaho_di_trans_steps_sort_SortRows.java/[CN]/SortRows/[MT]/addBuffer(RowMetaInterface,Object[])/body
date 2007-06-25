@@ -1,16 +1,16 @@
 {
   if (r != null) {
-    data.buffer[data.bufferSize]=r;
-    data.bufferSize++;
+    data.buffer.add(r);
   }
   if (data.files.size() == 0 && r == null) {
     quickSort(data.buffer);
   }
-  if (data.bufferSize == meta.getSortSize() || (data.files.size() > 0 && r == null && data.bufferSize > 0)) {
+  if (data.buffer.size() == meta.getSortSize() || (data.files.size() > 0 && r == null && data.buffer.size() > 0)) {
     quickSort(data.buffer);
     DataOutputStream dos;
     GZIPOutputStream gzos;
     int p;
+    Object[] previousRow=null;
     try {
       FileObject fileObject=KettleVFS.createTempFile(meta.getPrefix(),".tmp",StringUtil.environmentSubstitute(meta.getDirectory()));
       data.files.add(fileObject);
@@ -23,9 +23,28 @@
         dos=new DataOutputStream(outputStream);
         gzos=null;
       }
-      dos.writeInt(data.bufferSize);
-      for (p=0; p < data.bufferSize; p++) {
-        rowMeta.writeData(dos,(Object[])data.buffer[p]);
+      if (meta.isOnlyPassingUniqueRows()) {
+        int index=0;
+        while (index < data.buffer.size()) {
+          Object[] row=data.buffer.get(index);
+          if (previousRow != null) {
+            int result=data.outputRowMeta.compare(row,previousRow,data.fieldnrs);
+            if (result == 0) {
+              data.buffer.remove(index);
+            }
+ else {
+              index++;
+            }
+          }
+ else {
+            index++;
+          }
+          previousRow=row;
+        }
+      }
+      data.bufferSizes.add(data.buffer.size());
+      for (p=0; p < data.buffer.size(); p++) {
+        rowMeta.writeData(dos,data.buffer.get(p));
       }
       dos.close();
       if (gzos != null) {
@@ -37,7 +56,6 @@
       logError("Error processing temp-file: " + e.toString());
       return false;
     }
-    data.bufferSize=0;
     data.getBufferIndex=0;
   }
   return true;
