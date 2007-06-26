@@ -1,65 +1,38 @@
 {
-  int idx=msFile.indexOf(miFileSep3);
+  MenuItemSeparator sep=menuBar.getSeparatorById("file-last-separator");
+  Menu msFile=null;
+  if (sep != null) {
+    msFile=sep.getMenu();
+  }
+  if (msFile == null || sep == null) {
+    return;
+  }
+  int idx=msFile.indexOf(sep);
   int max=msFile.getItemCount();
   for (int i=max - 1; i > idx; i--) {
     MenuItem mi=msFile.getItem(i);
+    msFile.remove(mi);
     mi.dispose();
   }
   List lastUsedFiles=props.getLastUsedFiles();
   for (int i=0; i < lastUsedFiles.size(); i++) {
     final LastUsedFile lastUsedFile=(LastUsedFile)lastUsedFiles.get(i);
-    MenuItem miFileLast=new MenuItem(msFile,SWT.CASCADE);
+    char chr=(char)('1' + i);
+    String accessKey="ctrl-" + chr;
+    String accessText="CTRL-" + chr;
+    String text=lastUsedFile.toString();
+    String id="last-file-" + i;
+    if (i > 9) {
+      accessKey=null;
+      accessText=null;
+    }
+    MenuChoice miFileLast=new MenuChoice(msFile,text,id,accessText,accessKey,MenuChoice.TYPE_PLAIN,null);
     if (lastUsedFile.isTransformation()) {
       miFileLast.setImage(GUIResource.getInstance().getImageTransGraph());
     }
  else     if (lastUsedFile.isJob()) {
       miFileLast.setImage(GUIResource.getInstance().getImageJobGraph());
     }
-    char chr=(char)('1' + i);
-    int accel=SWT.CTRL | chr;
-    if (i < 9) {
-      miFileLast.setAccelerator(accel);
-      miFileLast.setText("&" + chr + "  "+ lastUsedFile+ "\tCTRL-"+ chr);
-    }
- else {
-      miFileLast.setText("   " + lastUsedFile);
-    }
-    Listener lsFileLast=new Listener(){
-      public void handleEvent(      Event e){
-        boolean cancelled=false;
-        if (lastUsedFile.isSourceRepository() && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(lastUsedFile.getRepositoryName()))) {
-          int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
-          RepositoriesDialog rd=new RepositoriesDialog(display,perms,Messages.getString("Spoon.Application.Name"));
-          rd.setRepositoryName(lastUsedFile.getRepositoryName());
-          if (rd.open()) {
-            if (rep != null)             rep.disconnect();
-            rep=new Repository(log,rd.getRepository(),rd.getUser());
-            try {
-              rep.connect(APP_NAME);
-            }
- catch (            KettleException ke) {
-              rep=null;
-              new ErrorDialog(shell,Messages.getString("Spoon.Dialog.UnableConnectRepository.Title"),Messages.getString("Spoon.Dialog.UnableConnectRepository.Message"),ke);
-            }
-          }
- else {
-            cancelled=true;
-          }
-        }
-        if (!cancelled) {
-          try {
-            RepositoryMeta meta=(rep == null ? null : rep.getRepositoryInfo());
-            loadLastUsedFile(lastUsedFile,meta);
-            addMenuLast();
-            refreshHistory();
-          }
- catch (          KettleException ke) {
-            new ErrorDialog(shell,Messages.getString("Spoon.Dialog.LoadTransformationError.Title"),Messages.getString("Spoon.Dialog.LoadTransformationError.Message"),ke);
-          }
-        }
-      }
-    }
-;
-    miFileLast.addListener(SWT.Selection,lsFileLast);
+    menuBar.addMenuListener(id,this,"lastFileSelect");
   }
 }
