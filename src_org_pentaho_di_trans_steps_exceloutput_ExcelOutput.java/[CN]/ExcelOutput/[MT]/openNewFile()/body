@@ -1,0 +1,45 @@
+{
+  boolean retval=false;
+  try {
+    WorkbookSettings ws=new WorkbookSettings();
+    ws.setLocale(Locale.getDefault());
+    if (!Const.isEmpty(meta.getEncoding())) {
+      ws.setEncoding(meta.getEncoding());
+    }
+    FileObject file=KettleVFS.getFileObject(buildFilename());
+    ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file,getTransMeta().getName(),getStepname());
+    resultFile.setComment("This file was created with an Excel output step");
+    addResultFile(resultFile);
+    if (!meta.isTemplateEnabled()) {
+      data.workbook=Workbook.createWorkbook(file.getContent().getOutputStream(),ws);
+      data.sheet=data.workbook.createSheet("Sheet1",0);
+    }
+ else {
+      Workbook tmpWorkbook=Workbook.getWorkbook(new File(StringUtil.environmentSubstitute(meta.getTemplateFileName())));
+      data.workbook=Workbook.createWorkbook(file.getContent().getOutputStream(),tmpWorkbook);
+      tmpWorkbook.close();
+      data.sheet=data.workbook.getSheet(0);
+      data.templateColumns=data.sheet.getColumns();
+    }
+    if (!Const.isEmpty(meta.getSheetname())) {
+      data.sheet.setName(meta.getSheetname());
+    }
+    if (meta.isSheetProtected()) {
+      data.sheet.getSettings().setProtected(true);
+      data.sheet.getSettings().setPassword(meta.getPassword());
+    }
+    data.positionX=0;
+    if (meta.isTemplateEnabled() && meta.isTemplateAppend()) {
+      data.positionY=data.sheet.getRows();
+    }
+ else {
+      data.positionY=0;
+    }
+    retval=true;
+  }
+ catch (  Exception e) {
+    logError("Error opening new file : " + e.toString());
+  }
+  data.splitnr++;
+  return retval;
+}
