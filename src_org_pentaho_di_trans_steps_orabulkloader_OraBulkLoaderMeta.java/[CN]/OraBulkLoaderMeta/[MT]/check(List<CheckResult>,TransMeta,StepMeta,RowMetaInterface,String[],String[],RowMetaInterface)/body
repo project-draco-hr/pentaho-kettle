@@ -1,0 +1,102 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    db.shareVariablesWith(transMeta);
+    try {
+      db.connect();
+      if (!Const.isEmpty(tableName)) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("OraBulkLoaderMeta.CheckResult.TableNameOK"),stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        boolean error_found=false;
+        error_message="";
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(transMeta.environmentSubstitute(schemaName),transMeta.environmentSubstitute(tableName));
+        RowMetaInterface r=db.getTableFields(schemaTable);
+        if (r != null) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("OraBulkLoaderMeta.CheckResult.TableExists"),stepMeta);
+          remarks.add(cr);
+          first=true;
+          error_found=false;
+          error_message="";
+          for (int i=0; i < fieldTable.length; i++) {
+            String field=fieldTable[i];
+            ValueMetaInterface v=r.searchValueMeta(field);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("OraBulkLoaderMeta.CheckResult.MissingFieldsToLoadInTargetTable") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + field + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("OraBulkLoaderMeta.CheckResult.AllFieldsFoundInTargetTable"),stepMeta);
+          }
+          remarks.add(cr);
+        }
+ else {
+          error_message=Messages.getString("OraBulkLoaderMeta.CheckResult.CouldNotReadTableInfo");
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("OraBulkLoaderMeta.CheckResult.StepReceivingDatas",prev.size() + ""),stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < fieldStream.length; i++) {
+          ValueMetaInterface v=prev.searchValueMeta(fieldStream[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("OraBulkLoaderMeta.CheckResult.MissingFieldsInInput") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + fieldStream[i] + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("OraBulkLoaderMeta.CheckResult.AllFieldsFoundInInput"),stepMeta);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message=Messages.getString("OraBulkLoaderMeta.CheckResult.MissingFieldsInInput3") + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("OraBulkLoaderMeta.CheckResult.DatabaseErrorOccurred") + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message=Messages.getString("OraBulkLoaderMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("OraBulkLoaderMeta.CheckResult.StepReceivingInfoFromOtherSteps"),stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("OraBulkLoaderMeta.CheckResult.NoInputError"),stepMeta);
+    remarks.add(cr);
+  }
+}

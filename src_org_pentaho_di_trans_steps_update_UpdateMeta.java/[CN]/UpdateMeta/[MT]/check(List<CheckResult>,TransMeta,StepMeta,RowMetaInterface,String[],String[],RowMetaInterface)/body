@@ -1,0 +1,156 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    db.shareVariablesWith(transMeta);
+    try {
+      db.connect();
+      if (!Const.isEmpty(tableName)) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.TableNameOK"),stepinfo);
+        remarks.add(cr);
+        boolean first=true;
+        boolean error_found=false;
+        error_message="";
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+        RowMetaInterface r=db.getTableFields(schemaTable);
+        if (r != null) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.TableExists"),stepinfo);
+          remarks.add(cr);
+          for (int i=0; i < keyLookup.length; i++) {
+            String lufield=keyLookup[i];
+            ValueMetaInterface v=r.searchValueMeta(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("UpdateMeta.CheckResult.MissingCompareFieldsInTargetTable") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.AllLookupFieldsFound"),stepinfo);
+          }
+          remarks.add(cr);
+          first=true;
+          error_found=false;
+          error_message="";
+          for (int i=0; i < updateLookup.length; i++) {
+            String lufield=updateLookup[i];
+            ValueMetaInterface v=r.searchValueMeta(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("UpdateMeta.CheckResult.MissingFieldsToUpdateInTargetTable") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.AllFieldsToUpdateFoundInTargetTable"),stepinfo);
+          }
+          remarks.add(cr);
+        }
+ else {
+          error_message=Messages.getString("UpdateMeta.CheckResult.CouldNotReadTableInfo");
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.StepReceivingDatas",prev.size() + ""),stepinfo);
+        remarks.add(cr);
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < keyStream.length; i++) {
+          ValueMetaInterface v=prev.searchValueMeta(keyStream[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("UpdateMeta.CheckResult.MissingFieldsInInput") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + keyStream[i] + Const.CR;
+          }
+        }
+        for (int i=0; i < keyStream2.length; i++) {
+          if (keyStream2[i] != null && keyStream2[i].length() > 0) {
+            ValueMetaInterface v=prev.searchValueMeta(keyStream2[i]);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("UpdateMeta.CheckResult.MissingFieldsInInput2") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + keyStream[i] + Const.CR;
+            }
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.AllFieldsFoundInInput"),stepinfo);
+        }
+        remarks.add(cr);
+        first=true;
+        error_found=false;
+        error_message="";
+        for (int i=0; i < updateStream.length; i++) {
+          String lufield=updateStream[i];
+          ValueMetaInterface v=prev.searchValueMeta(lufield);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("UpdateMeta.CheckResult.MissingInputStreamFields") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + lufield + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.AllFieldsFoundInInput2"),stepinfo);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message=Messages.getString("UpdateMeta.CheckResult.MissingFieldsInInput3") + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("UpdateMeta.CheckResult.DatabaseErrorOccurred") + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message=Messages.getString("UpdateMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("UpdateMeta.CheckResult.StepReceivingInfoFromOtherSteps"),stepinfo);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("UpdateMeta.CheckResult.NoInputError"),stepinfo);
+    remarks.add(cr);
+  }
+}

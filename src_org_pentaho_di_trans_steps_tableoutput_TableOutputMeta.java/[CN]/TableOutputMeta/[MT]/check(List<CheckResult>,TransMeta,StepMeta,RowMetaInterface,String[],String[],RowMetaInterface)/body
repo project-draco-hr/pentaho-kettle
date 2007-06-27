@@ -1,0 +1,100 @@
+{
+  if (databaseMeta != null) {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.ConnectionExists"),stepMeta);
+    remarks.add(cr);
+    Database db=new Database(databaseMeta);
+    db.shareVariablesWith(transMeta);
+    try {
+      db.connect();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.ConnectionOk"),stepMeta);
+      remarks.add(cr);
+      if (!Const.isEmpty(tablename)) {
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tablename);
+        if (db.checkTableExists(schemaTable)) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.TableAccessible",schemaTable),stepMeta);
+          remarks.add(cr);
+          RowMetaInterface r=db.getTableFields(schemaTable);
+          if (r != null) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.TableOk",schemaTable),stepMeta);
+            remarks.add(cr);
+            String error_message="";
+            boolean error_found=false;
+            if (prev != null && prev.size() > 0) {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.FieldsReceived","" + prev.size()),stepMeta);
+              remarks.add(cr);
+              for (int i=0; i < prev.size(); i++) {
+                ValueMetaInterface pv=prev.getValueMeta(i);
+                int idx=r.indexOfValue(pv.getName());
+                if (idx < 0) {
+                  error_message+="\t\t" + pv.getName() + " ("+ pv.getTypeDesc()+ ")"+ Const.CR;
+                  error_found=true;
+                }
+              }
+              if (error_found) {
+                error_message=Messages.getString("TableOutputMeta.CheckResult.FieldsNotFoundInOutput",error_message);
+                cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+                remarks.add(cr);
+              }
+ else {
+                cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.AllFieldsFoundInOutput"),stepMeta);
+                remarks.add(cr);
+              }
+              for (int i=0; i < r.size(); i++) {
+                ValueMetaInterface rv=r.getValueMeta(i);
+                int idx=prev.indexOfValue(rv.getName());
+                if (idx < 0) {
+                  error_message+="\t\t" + rv.getName() + " ("+ rv.getTypeDesc()+ ")"+ Const.CR;
+                  error_found=true;
+                }
+              }
+              if (error_found) {
+                error_message=Messages.getString("TableOutputMeta.CheckResult.FieldsNotFound",error_message);
+                cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,error_message,stepMeta);
+                remarks.add(cr);
+              }
+ else {
+                cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.AllFieldsFound"),stepMeta);
+                remarks.add(cr);
+              }
+            }
+ else {
+              cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("TableOutputMeta.CheckResult.NoFields"),stepMeta);
+              remarks.add(cr);
+            }
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("TableOutputMeta.CheckResult.TableNotAccessible"),stepMeta);
+            remarks.add(cr);
+          }
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("TableOutputMeta.CheckResult.TableError",schemaTable),stepMeta);
+          remarks.add(cr);
+        }
+      }
+ else {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("TableOutputMeta.CheckResult.NoTableName"),stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("TableOutputMeta.CheckResult.UndefinedError",e.getMessage()),stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("TableOutputMeta.CheckResult.NoConnection"),stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("TableOutputMeta.CheckResult.ExpectedInputOk"),stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    CheckResult cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("TableOutputMeta.CheckResult.ExpectedInputError"),stepMeta);
+    remarks.add(cr);
+  }
+}
