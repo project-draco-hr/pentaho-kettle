@@ -5,7 +5,7 @@
   this.spoon=spoon;
   this.jobMeta=jobMeta;
   try {
-    File xulFile=new File("ui/menus.xul");
+    File xulFile=new File(Spoon.XUL_FILE_MENUS);
     if (xulFile.exists()) {
       XulMessages xulMessages=new XulMessages();
       Document doc=XMLHandler.loadXMLFile(xulFile);
@@ -16,9 +16,13 @@
       ids.add("job-graph-entry");
       menuMap=MenuHelper.createPopupMenusFromXul(doc,shell,xulMessages,ids);
     }
+ else {
+      throw new KettleException(Messages.getString("JobGraph.Exception.XULFileNotFound.Message",Spoon.XUL_FILE_MENUS));
+    }
   }
  catch (  Throwable t) {
-    t.printStackTrace();
+    log.logError(toString(),Const.getStackTracker(t));
+    new ErrorDialog(shell,Messages.getString("JobGraph.Exception.ErrorReadingXULFile.Title"),Messages.getString("JobGraph.Exception.ErrorReadingXULFile.Message",Spoon.XUL_FILE_MENUS),new Exception(t));
   }
   setLayout(new FillLayout());
   canvas=new Canvas(this,SWT.V_SCROLL | SWT.H_SCROLL | SWT.NO_BACKGROUND);
@@ -59,7 +63,7 @@
     public void mouseDoubleClick(    MouseEvent e){
       clearSettings();
       Point real=screen2real(e.x,e.y);
-      JobEntryCopy jobentry=jobMeta.getChefGraphEntry(real.x,real.y,iconsize);
+      JobEntryCopy jobentry=jobMeta.getJobEntryCopy(real.x,real.y,iconsize);
       if (jobentry != null) {
         if (e.button == 1) {
           editEntry(jobentry);
@@ -90,7 +94,7 @@
         setMenu(real.x,real.y);
         return;
       }
-      JobEntryCopy je=jobMeta.getChefGraphEntry(real.x,real.y,iconsize);
+      JobEntryCopy je=jobMeta.getJobEntryCopy(real.x,real.y,iconsize);
       if (je != null) {
         selected_entries=jobMeta.getSelectedEntries();
         selected_icon=je;
@@ -124,9 +128,9 @@
           }
  else {
             hop_candidate.setConditional();
-            int nr=jobMeta.findNrNextChefGraphEntries(hop_candidate.from_entry);
+            int nr=jobMeta.findNrNextJobEntries(hop_candidate.from_entry);
             if (nr == 1) {
-              JobEntryCopy jge=jobMeta.findNextChefGraphEntry(hop_candidate.from_entry,0);
+              JobEntryCopy jge=jobMeta.findNextJobEntry(hop_candidate.from_entry,0);
               JobHopMeta other=jobMeta.findJobHop(hop_candidate.from_entry,jge);
               if (other != null) {
                 hop_candidate.setEvaluation(!other.getEvaluation());
@@ -171,7 +175,7 @@
           if (hi != null) {
             int id=0;
             if (!spoon.props.getAutoSplit()) {
-              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("ChefGraph.Dialog.SplitHop.Title"),null,Messages.getString("ChefGraph.Dialog.SplitHop.Message") + Const.CR + hi.from_entry.getName()+ " --> "+ hi.to_entry.getName(),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},0,Messages.getString("ChefGraph.Dialog.SplitHop.Toggle"),spoon.props.getAutoSplit());
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("JobGraph.Dialog.SplitHop.Title"),null,Messages.getString("JobGraph.Dialog.SplitHop.Message") + Const.CR + hi.from_entry.getName()+ " --> "+ hi.to_entry.getName(),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},0,Messages.getString("JobGraph.Dialog.SplitHop.Toggle"),spoon.props.getAutoSplit());
               id=md.open();
               spoon.props.setAutoSplit(md.getToggleState());
             }
@@ -253,7 +257,7 @@
           redraw();
         }
  else         if (last_button == 2 || (last_button == 1 && shift)) {
-          JobEntryCopy si=jobMeta.getChefGraphEntry(real.x,real.y,iconsize);
+          JobEntryCopy si=jobMeta.getJobEntryCopy(real.x,real.y,iconsize);
           if (si != null && !selected_icon.equals(si)) {
             if (hop_candidate == null) {
               hop_candidate=new JobHopMeta(selected_icon,si);
@@ -362,7 +366,7 @@ default :
 }
 }
  catch (Exception e) {
-new ErrorDialog(shell,Messages.getString("ChefGraph.Dialog.ErrorDroppingObject.Message"),Messages.getString("Chefraph.Dialog.ErrorDroppingObject.Title"),e);
+new ErrorDialog(shell,Messages.getString("JobGraph.Dialog.ErrorDroppingObject.Message"),Messages.getString("JobGraph.Dialog.ErrorDroppingObject.Title"),e);
 }
 }
 public void dropAccept(DropTargetEvent event){

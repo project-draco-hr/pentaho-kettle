@@ -1,0 +1,41 @@
+{
+  if (databaseMeta == null)   return;
+  boolean param=false;
+  Database db=new Database(databaseMeta);
+  databases=new Database[]{db};
+  String sNewSQL=sql;
+  if (isVariableReplacementActive())   sNewSQL=db.environmentSubstitute(sql);
+  RowMetaInterface add=null;
+  try {
+    add=db.getQueryFields(sNewSQL,param);
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleStepException("Unable to get queryfields for SQL: " + Const.CR + sNewSQL,dbe);
+  }
+  if (add != null) {
+    for (int i=0; i < add.size(); i++) {
+      ValueMetaInterface v=add.getValueMeta(i);
+      v.setOrigin(origin);
+    }
+    row.addRowMeta(add);
+  }
+ else {
+    try {
+      db.connect();
+      if (getLookupStepname() != null)       param=true;
+      add=db.getQueryFields(sNewSQL,param);
+      if (add == null)       return;
+      for (int i=0; i < add.size(); i++) {
+        ValueMetaInterface v=add.getValueMeta(i);
+        v.setOrigin(origin);
+      }
+      row.addRowMeta(add);
+    }
+ catch (    KettleException ke) {
+      throw new KettleStepException("Unable to get queryfields for SQL: " + Const.CR + sNewSQL,ke);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+}

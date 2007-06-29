@@ -2,19 +2,52 @@
   transName=XMLHandler.getTagValue(stepnode,"trans_name");
   fileName=XMLHandler.getTagValue(stepnode,"filename");
   directoryPath=XMLHandler.getTagValue(stepnode,"directory_path");
-  Node inputNode=XMLHandler.getSubNode(stepnode,"input");
-  Node outputNode=XMLHandler.getSubNode(stepnode,"output");
-  int nrInput=XMLHandler.countNodes(inputNode,"connector");
-  int nrOutput=XMLHandler.countNodes(outputNode,"connector");
-  allocate(nrInput,nrOutput);
-  for (int i=0; i < nrInput; i++) {
-    Node inputConnector=XMLHandler.getSubNodeByNr(inputNode,"connector",i);
-    inputField[i]=XMLHandler.getTagValue(inputConnector,"field");
-    inputMapping[i]=XMLHandler.getTagValue(inputConnector,"mapping");
+  Node mappingsNode=XMLHandler.getSubNode(stepnode,"mappings");
+  if (mappingsNode != null) {
+    Node inputNode=XMLHandler.getSubNode(mappingsNode,"input");
+    int nrInputMappings=XMLHandler.countNodes(inputNode,MappingIODefinition.XML_TAG);
+    for (int i=0; i < nrInputMappings; i++) {
+      Node mappingNode=XMLHandler.getSubNodeByNr(inputNode,MappingIODefinition.XML_TAG,i);
+      MappingIODefinition inputMappingDefinition=new MappingIODefinition(mappingNode);
+      inputMappings.add(inputMappingDefinition);
+    }
+    Node outputNode=XMLHandler.getSubNode(mappingsNode,"output");
+    int nrOutputMappings=XMLHandler.countNodes(inputNode,MappingIODefinition.XML_TAG);
+    for (int i=0; i < nrOutputMappings; i++) {
+      Node mappingNode=XMLHandler.getSubNodeByNr(outputNode,MappingIODefinition.XML_TAG,i);
+      MappingIODefinition outputMappingDefinition=new MappingIODefinition(mappingNode);
+      outputMappings.add(outputMappingDefinition);
+    }
+    Node mappingParametersNode=XMLHandler.getSubNode(mappingsNode,MappingParameters.XML_TAG);
+    mappingParameters=new MappingParameters(mappingParametersNode);
   }
-  for (int i=0; i < nrOutput; i++) {
-    Node outputConnector=XMLHandler.getSubNodeByNr(outputNode,"connector",i);
-    outputField[i]=XMLHandler.getTagValue(outputConnector,"field");
-    outputMapping[i]=XMLHandler.getTagValue(outputConnector,"mapping");
+ else {
+    Node inputNode=XMLHandler.getSubNode(stepnode,"input");
+    Node outputNode=XMLHandler.getSubNode(stepnode,"output");
+    int nrInput=XMLHandler.countNodes(inputNode,"connector");
+    int nrOutput=XMLHandler.countNodes(outputNode,"connector");
+    MappingIODefinition inputMappingDefinition=new MappingIODefinition();
+    String inputField[]=new String[nrInput];
+    String inputMapping[]=new String[nrInput];
+    for (int i=0; i < nrInput; i++) {
+      Node inputConnector=XMLHandler.getSubNodeByNr(inputNode,"connector",i);
+      inputField[i]=XMLHandler.getTagValue(inputConnector,"field");
+      inputMapping[i]=XMLHandler.getTagValue(inputConnector,"mapping");
+    }
+    inputMappingDefinition.setParentField(inputField);
+    inputMappingDefinition.setMappingField(inputMapping);
+    MappingIODefinition outputMappingDefinition=new MappingIODefinition();
+    String outputField[]=new String[nrOutput];
+    String outputMapping[]=new String[nrOutput];
+    for (int i=0; i < nrOutput; i++) {
+      Node outputConnector=XMLHandler.getSubNodeByNr(outputNode,"connector",i);
+      outputField[i]=XMLHandler.getTagValue(outputConnector,"field");
+      outputMapping[i]=XMLHandler.getTagValue(outputConnector,"mapping");
+    }
+    outputMappingDefinition.setMappingField(outputMapping);
+    outputMappingDefinition.setParentField(outputField);
+    inputMappings.add(inputMappingDefinition);
+    outputMappings.add(outputMappingDefinition);
+    mappingParameters=new MappingParameters();
   }
 }

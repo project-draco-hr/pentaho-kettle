@@ -1,85 +1,64 @@
 {
   meta=(MappingMeta)smi;
   data=(MappingData)sdi;
-  Object[] r=getRow();
-  if (r == null) {
-    if (data.wasStarted) {
-      data.mappingInput.setOutputDone();
-      data.mappingInput.setFinished();
+  data.trans.execute(getTrans().getTransMeta().getArguments());
+  List<Thread> connectorThreads=new ArrayList<Thread>();
+  for (  MappingIODefinition inputDefinition : meta.getInputMappings()) {
+    StepInterface sourceStep=(StepInterface)getTrans().findRunThread(inputDefinition.getInputStepname());
+    StepInterface targetStep=(StepInterface)getTrans().findRunThread(inputDefinition.getOutputStepname());
+    if (targetStep == null) {
+      MappingInput[] mappingInputSteps=data.trans.findMappingInput();
+      if (mappingInputSteps.length == 0) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OneMappingInputStepRequired"));
+      }
+      if (mappingInputSteps.length > 1) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OnlyOneMappingInputStepAllowed","" + mappingInputSteps.length));
+      }
+      targetStep=mappingInputSteps[0];
     }
- else {
-      setOutputDone();
-    }
-    return false;
+    MappingThread mappingThread=new MappingThread(this,sourceStep,targetStep);
+    Thread connectorThread=new Thread(mappingThread);
+    connectorThreads.add(connectorThread);
   }
-  if (first) {
-    first=false;
-    data.trans.execute(getTrans().getTransMeta().getArguments());
-    data.mappingInput=data.trans.findMappingInput();
-    if (data.mappingInput == null) {
-      logError(Messages.getString("Mapping.Log.CouldNotFindMappingInputStep"));
-      return false;
+  for (  MappingIODefinition outputDefinition : meta.getOutputMappings()) {
+    MappingOutput sourceStep=(MappingOutput)getTrans().findRunThread(outputDefinition.getInputStepname());
+    if (sourceStep == null) {
+      MappingOutput[] mappingOutputSteps=data.trans.findMappingOutput();
+      if (mappingOutputSteps.length == 0) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OneMappingOutputStepRequired"));
+      }
+      if (mappingOutputSteps.length > 1) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OnlyOneMappingOutputStepAllowed","" + mappingOutputSteps.length));
+      }
+      sourceStep=mappingOutputSteps[0];
     }
-    data.mappingOutput=data.trans.findMappingOutput();
-    if (data.mappingOutput == null) {
-      logError(Messages.getString("Mapping.Log.CouldNotFindMappingInputStep2"));
-      return false;
-    }
-    data.mappingOutput.setConnectorStep(this);
-    data.mappingOutput.setOutputField(meta.getOutputField());
-    data.mappingOutput.setOutputMapping(meta.getOutputMapping());
-    data.wasStarted=true;
-    data.renameFieldIndexes=new ArrayList<Integer>();
-    data.renameFieldNames=new ArrayList<String>();
-    String[] inputFields=new String[meta.getInputField().length];
-    for (int i=0; i < inputFields.length; i++)     inputFields[i]=meta.getInputField()[i];
-    Arrays.sort(inputFields);
-    for (int i=0; i < inputFields.length - 1; i++) {
-      if (inputFields[i].equalsIgnoreCase(inputFields[i + 1])) {
-        throw new KettleException(Messages.getString("Mapping.Exception.SameFieldMappedTwice",inputFields[i]));
+    StepInterface targetStep;
+    if (!Const.isEmpty(outputDefinition.getOutputStepname())) {
+      targetStep=(StepInterface)getTrans().findRunThread(outputDefinition.getOutputStepname());
+      if (targetStep == null) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.StepNameNotFound",outputDefinition.getOutputStepname()));
       }
     }
-    for (int i=0; i < meta.getInputField().length; i++) {
-      if (meta.getInputField()[i] != null && meta.getInputField()[i].length() > 0) {
-        if (meta.getInputMapping()[i] != null && meta.getInputMapping()[i].length() > 0) {
-          if (!meta.getInputField()[i].equals(meta.getInputMapping()[i])) {
-            int idx=getInputRowMeta().indexOfValue(meta.getInputField()[i]);
-            if (idx < 0) {
-              logError(Messages.getString("Mapping.Log.TargetFieldNotPresent",meta.getInputField()[i]));
-              setErrors(1);
-              stopAll();
-              data.trans.stopAll();
-              return false;
-            }
-            data.renameFieldIndexes.add(new Integer(idx));
-            data.renameFieldNames.add(meta.getInputMapping()[i]);
-            if (log.isRowLevel())             logRowlevel(Messages.getString("Mapping.Log.RenameFieldInfo",data.renameFieldIndexes.size() + "",i + "",meta.getInputMapping()[i]));
-          }
-        }
  else {
-          logError(Messages.getString("Mapping.Log.TargetFieldNotSpecified",i + "",meta.getInputField()[i]) + "]!");
-          setErrors(1);
-          stopAll();
-          data.trans.stopAll();
-          return false;
-        }
-      }
- else {
-        logError(Messages.getString("Mapping.Log.InputFieldNotSpecified",i + ""));
-        setErrors(1);
-        stopAll();
-        data.trans.stopAll();
-        return false;
-      }
+      targetStep=this;
     }
-    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
-    for (int i=0; i < data.renameFieldIndexes.size(); i++) {
-      int idx=((Integer)data.renameFieldIndexes.get(i)).intValue();
-      String newName=(String)data.renameFieldNames.get(i);
-      data.outputRowMeta.getValueMeta(idx).setName(newName);
+    sourceStep.setConnectorStep(targetStep);
+  }
+  for (  Thread connectorThread : connectorThreads) {
+    connectorThread.start();
+  }
+  Object[] row=getRow();
+  while (row != null && !isStopped()) {
+    putRow(getInputRowMeta(),row);
+    row=getRow();
+  }
+  setOutputDone();
+  for (  Thread connectorThread : connectorThreads) {
+    try {
+      connectorThread.join();
+    }
+ catch (    InterruptedException e) {
     }
   }
-  data.mappingInput.putRow(data.outputRowMeta,r);
-  if (checkFeedback(linesRead))   logBasic(Messages.getString("Mapping.Log.LineNumber") + linesRead);
-  return true;
+  return false;
 }
