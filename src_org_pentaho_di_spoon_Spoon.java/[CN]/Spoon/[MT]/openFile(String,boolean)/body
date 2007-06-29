@@ -1,32 +1,19 @@
 {
   try {
-    Document document=XMLHandler.loadXMLFile(fname);
     boolean loaded=false;
-    Node transNode=XMLHandler.getSubNode(document,TransMeta.XML_TAG);
-    if (transNode != null) {
-      TransMeta transMeta=new TransMeta();
-      transMeta.loadXML(transNode,rep,true);
-      props.addLastFile(LastUsedFile.FILE_TYPE_TRANSFORMATION,fname,null,false,null);
-      addMenuLast();
-      if (!importfile)       transMeta.clearChanged();
-      transMeta.setFilename(fname);
-      addTransGraph(transMeta);
-      refreshTree();
-      refreshHistory();
-      loaded=true;
+    FileListener listener=null;
+    int idx=fname.lastIndexOf('.');
+    if (idx != -1) {
+      String extension=fname.substring(idx + 1);
+      listener=fileExtensionMap.get(extension);
     }
-    Node jobNode=XMLHandler.getSubNode(document,JobMeta.XML_TAG);
-    if (jobNode != null) {
-      JobMeta jobMeta=new JobMeta(log);
-      jobMeta.loadXML(jobNode,rep);
-      props.addLastFile(LastUsedFile.FILE_TYPE_JOB,fname,null,false,null);
-      addMenuLast();
-      if (!importfile)       jobMeta.clearChanged();
-      jobMeta.setFilename(fname);
-      addJobGraph(jobMeta);
-      refreshTree();
-      refreshHistory();
-      loaded=true;
+    Document document=XMLHandler.loadXMLFile(fname);
+    Node root=document.getFirstChild();
+    if (listener == null) {
+      listener=fileNodeMap.get(root.getNodeName());
+    }
+    if (listener != null) {
+      loaded=listener.open(root,fname,importfile);
     }
     if (!loaded) {
       MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
