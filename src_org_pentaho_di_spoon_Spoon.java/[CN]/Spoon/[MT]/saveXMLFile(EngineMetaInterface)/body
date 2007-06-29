@@ -1,11 +1,27 @@
 {
   log.logBasic(toString(),"Save file as...");
   boolean saved=false;
-  FileDialog dialog=new FileDialog(shell,SWT.SAVE);
+  FileObject rootFile=null;
+  FileObject initialFile=null;
+  try {
+    initialFile=KettleVFS.getFileObject(lastFileOpened);
+    rootFile=KettleVFS.getFileObject(lastFileOpened).getFileSystem().getRoot();
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    MessageBox messageDialog=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+    messageDialog.setText("Error");
+    messageDialog.setMessage(e.getMessage());
+    messageDialog.open();
+    return false;
+  }
+  String fname=null;
+  VfsFileChooserDialog vfsFileChooser=new VfsFileChooserDialog(rootFile,initialFile);
+  FileObject selectedFile=vfsFileChooser.open(shell,"Untitled",Const.STRING_TRANS_AND_JOB_FILTER_EXT,Const.getTransformationAndJobFilterNames(),VfsFileChooserDialog.VFS_DIALOG_SAVEAS);
+  if (selectedFile != null) {
+    fname=selectedFile.getName().getFriendlyURI();
+  }
   String extensions[]=meta.getFilterExtensions();
-  dialog.setFilterExtensions(extensions);
-  dialog.setFilterNames(meta.getFilterNames());
-  String fname=dialog.open();
   if (fname != null) {
     boolean ending=false;
     for (int i=0; i < extensions.length - 1; i++) {
