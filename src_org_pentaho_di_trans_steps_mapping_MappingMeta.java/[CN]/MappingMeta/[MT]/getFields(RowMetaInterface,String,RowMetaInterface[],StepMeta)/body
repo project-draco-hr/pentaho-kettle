@@ -1,0 +1,59 @@
+{
+  Repository repository=Repository.getCurrentRepository();
+  TransMeta mappingTransMeta=null;
+  try {
+    mappingTransMeta=loadMappingMeta(fileName,transName,directoryPath,repository);
+  }
+ catch (  KettleException e) {
+    throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToLoadMappingTransformation"),e);
+  }
+  for (  MappingIODefinition definition : inputMappings) {
+    RowMetaInterface inputRowMeta;
+    if (definition.isMainDataPath() || Const.isEmpty(definition.getInputStepname())) {
+      inputRowMeta=(RowMetaInterface)row.clone();
+      for (int i=0; i < definition.getParentField().length; i++) {
+        ValueMetaInterface valueMeta=inputRowMeta.searchValueMeta(definition.getParentField()[i]);
+        if (valueMeta == null) {
+          throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToFindField",definition.getParentField()[i]));
+        }
+        valueMeta.setName(definition.getMappingField()[i]);
+      }
+    }
+ else {
+      String[] infoSteps=getInfoSteps();
+      int infoStepIndex=Const.indexOfString(definition.getInputStepname(),infoSteps);
+      if (infoStepIndex < 0) {
+        throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToFindMetadataInfo",definition.getInputStepname()));
+      }
+      inputRowMeta=(RowMetaInterface)info[infoStepIndex].clone();
+    }
+    StepMeta mappingInputStep=mappingTransMeta.findMappingInputStep(definition.getOutputStepname());
+    MappingInputMeta mappingInputMeta=(MappingInputMeta)mappingInputStep.getStepMetaInterface();
+    mappingInputMeta.setInputRowMeta(inputRowMeta);
+  }
+  MappingIODefinition mappingOutputDefinition=null;
+  if (nextStep == null) {
+    for (    MappingIODefinition definition : outputMappings) {
+      if (definition.isMainDataPath() || Const.isEmpty(definition.getOutputStepname())) {
+        mappingOutputDefinition=definition;
+      }
+    }
+  }
+ else {
+    for (    MappingIODefinition definition : outputMappings) {
+      if (nextStep.getName().equals(definition.getOutputStepname()) || definition.isMainDataPath() || Const.isEmpty(definition.getOutputStepname())) {
+        mappingOutputDefinition=definition;
+      }
+    }
+  }
+  if (mappingOutputDefinition == null) {
+    throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToFindMappingDefinition"));
+  }
+  StepMeta mappingOutputStep=mappingTransMeta.findMappingOutputStep(mappingOutputDefinition.getInputStepname());
+  MappingOutputMeta mappingOutputMeta=(MappingOutputMeta)mappingOutputStep.getStepMetaInterface();
+  mappingOutputMeta.setOldName(mappingOutputDefinition.getMappingField());
+  mappingOutputMeta.setNewName(mappingOutputDefinition.getParentField());
+  RowMetaInterface mappingOutputRowMeta=mappingTransMeta.getStepFields(mappingOutputStep);
+  row.clear();
+  row.addRowMeta(mappingOutputRowMeta);
+}

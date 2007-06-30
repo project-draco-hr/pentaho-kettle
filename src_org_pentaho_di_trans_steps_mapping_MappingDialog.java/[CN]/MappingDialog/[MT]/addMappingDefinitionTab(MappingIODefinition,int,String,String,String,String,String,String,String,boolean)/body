@@ -87,7 +87,7 @@
 );
   wbOutputStep.addSelectionListener(new SelectionAdapter(){
     @Override public void widgetSelected(    SelectionEvent event){
-      String stepName=selectTransformationStepname(!input,true);
+      String stepName=selectTransformationStepname(!input,false);
       if (stepName != null) {
         wOutputStep.setText(stepName);
         definition.setOutputStepname(stepName);
@@ -95,11 +95,32 @@
     }
   }
 );
+  Label wlMainPath=new Label(wInputComposite,SWT.RIGHT);
+  props.setLook(wlMainPath);
+  wlMainPath.setText(Messages.getString("MappingDialog.input.MainDataPath"));
+  FormData fdlMainPath=new FormData();
+  fdlMainPath.top=new FormAttachment(wbOutputStep,margin);
+  fdlMainPath.left=new FormAttachment(0,0);
+  fdlMainPath.right=new FormAttachment(middle,-margin);
+  wlMainPath.setLayoutData(fdlMainPath);
+  Button wMainPath=new Button(wInputComposite,SWT.CHECK);
+  props.setLook(wMainPath);
+  FormData fdMainPath=new FormData();
+  fdMainPath.top=new FormAttachment(wbOutputStep,margin);
+  fdMainPath.left=new FormAttachment(middle,0);
+  wMainPath.setLayoutData(fdMainPath);
+  wMainPath.setSelection(definition.isMainDataPath());
+  wMainPath.addSelectionListener(new SelectionAdapter(){
+    @Override public void widgetSelected(    SelectionEvent event){
+      definition.setMainDataPath(!definition.isMainDataPath());
+    }
+  }
+);
   Label wlDescription=new Label(wInputComposite,SWT.RIGHT);
   props.setLook(wlDescription);
   wlDescription.setText(descriptionLabel);
   FormData fdlDescription=new FormData();
-  fdlDescription.top=new FormAttachment(wbOutputStep,margin);
+  fdlDescription.top=new FormAttachment(wMainPath,margin);
   fdlDescription.left=new FormAttachment(0,0);
   fdlDescription.right=new FormAttachment(middle,-margin);
   wlDescription.setLayoutData(fdlDescription);
@@ -108,7 +129,7 @@
   wDescription.setText(Const.NVL(definition.getDescription(),""));
   wDescription.addModifyListener(lsMod);
   FormData fdDescription=new FormData();
-  fdDescription.top=new FormAttachment(wbOutputStep,margin);
+  fdDescription.top=new FormAttachment(wMainPath,margin);
   fdDescription.bottom=new FormAttachment(wOutputStep,100 + margin);
   fdDescription.left=new FormAttachment(middle,0);
   fdDescription.right=new FormAttachment(wbOutputStep,-margin);
@@ -143,21 +164,22 @@
   wFieldMappings.removeEmptyRows();
   wFieldMappings.setRowNums();
   wFieldMappings.optWidth(true);
-  wFieldMappings.addFocusListener(new FocusAdapter(){
+  FocusListener focusListener=new FocusAdapter(){
     @Override public void focusLost(    FocusEvent event){
+      System.out.println("!!!!!!!!!!!!  Field mapping : focus lost !!!!!!!!!!");
       int nrLines=wFieldMappings.nrNonEmpty();
-      String parentField[]=new String[nrLines];
-      String mappingField[]=new String[nrLines];
-      definition.setParentField(parentField);
-      definition.setMappingField(mappingField);
+      definition.setParentField(new String[nrLines]);
+      definition.setMappingField(new String[nrLines]);
       for (int i=0; i < nrLines; i++) {
         TableItem item=wFieldMappings.getNonEmpty(i);
-        parentField[i]=item.getText(1);
-        mappingField[i]=item.getText(2);
+        definition.getParentField()[i]=item.getText(1);
+        definition.getMappingField()[i]=item.getText(2);
+        System.out.println("#" + i + " --> parent="+ definition.getParentField()[i]+ ", mapping="+ definition.getMappingField()[i]);
       }
     }
   }
-);
+;
+  wFieldMappings.table.addFocusListener(focusListener);
   wbEnterMapping.addSelectionListener(new SelectionAdapter(){
     @Override public void widgetSelected(    SelectionEvent arg0){
       try {
@@ -169,10 +191,15 @@
         List<SourceToTargetMapping> mappings=dialog.open();
         if (mappings != null) {
           wFieldMappings.clearAll(false);
-          for (          SourceToTargetMapping mapping : mappings) {
+          definition.setParentField(new String[mappings.size()]);
+          definition.setMappingField(new String[mappings.size()]);
+          for (int i=0; i < mappings.size(); i++) {
+            SourceToTargetMapping mapping=mappings.get(i);
             TableItem item=new TableItem(wFieldMappings.table,SWT.NONE);
             item.setText(1,mapping.getSourceString(sourceFields));
             item.setText(2,mapping.getTargetString(targetFields));
+            definition.getParentField()[i]=input ? item.getText(1) : item.getText(2);
+            definition.getMappingField()[i]=input ? item.getText(2) : item.getText(1);
           }
           wFieldMappings.removeEmptyRows();
           wFieldMappings.setRowNums();

@@ -1,64 +1,15 @@
 {
   meta=(MappingMeta)smi;
   data=(MappingData)sdi;
-  data.trans.execute(getTrans().getTransMeta().getArguments());
-  List<Thread> connectorThreads=new ArrayList<Thread>();
-  for (  MappingIODefinition inputDefinition : meta.getInputMappings()) {
-    StepInterface sourceStep=(StepInterface)getTrans().findRunThread(inputDefinition.getInputStepname());
-    StepInterface targetStep=(StepInterface)getTrans().findRunThread(inputDefinition.getOutputStepname());
-    if (targetStep == null) {
-      MappingInput[] mappingInputSteps=data.trans.findMappingInput();
-      if (mappingInputSteps.length == 0) {
-        throw new KettleException(Messages.getString("MappingDialog.Exception.OneMappingInputStepRequired"));
-      }
-      if (mappingInputSteps.length > 1) {
-        throw new KettleException(Messages.getString("MappingDialog.Exception.OnlyOneMappingInputStepAllowed","" + mappingInputSteps.length));
-      }
-      targetStep=mappingInputSteps[0];
-    }
-    MappingThread mappingThread=new MappingThread(this,sourceStep,targetStep);
-    Thread connectorThread=new Thread(mappingThread);
-    connectorThreads.add(connectorThread);
-  }
-  for (  MappingIODefinition outputDefinition : meta.getOutputMappings()) {
-    MappingOutput sourceStep=(MappingOutput)getTrans().findRunThread(outputDefinition.getInputStepname());
-    if (sourceStep == null) {
-      MappingOutput[] mappingOutputSteps=data.trans.findMappingOutput();
-      if (mappingOutputSteps.length == 0) {
-        throw new KettleException(Messages.getString("MappingDialog.Exception.OneMappingOutputStepRequired"));
-      }
-      if (mappingOutputSteps.length > 1) {
-        throw new KettleException(Messages.getString("MappingDialog.Exception.OnlyOneMappingOutputStepAllowed","" + mappingOutputSteps.length));
-      }
-      sourceStep=mappingOutputSteps[0];
-    }
-    StepInterface targetStep;
-    if (!Const.isEmpty(outputDefinition.getOutputStepname())) {
-      targetStep=(StepInterface)getTrans().findRunThread(outputDefinition.getOutputStepname());
-      if (targetStep == null) {
-        throw new KettleException(Messages.getString("MappingDialog.Exception.StepNameNotFound",outputDefinition.getOutputStepname()));
-      }
-    }
- else {
-      targetStep=this;
-    }
-    sourceStep.setConnectorStep(targetStep);
-  }
-  for (  Thread connectorThread : connectorThreads) {
-    connectorThread.start();
-  }
-  Object[] row=getRow();
-  while (row != null && !isStopped()) {
-    putRow(getInputRowMeta(),row);
-    row=getRow();
-  }
-  setOutputDone();
-  for (  Thread connectorThread : connectorThreads) {
-    try {
-      connectorThread.join();
-    }
- catch (    InterruptedException e) {
-    }
-  }
+  data.trans.startThreads();
+  data.trans.waitUntilFinished();
+  Result result=data.trans.getResult();
+  setErrors(result.getNrErrors());
+  linesRead=result.getNrLinesRead();
+  linesWritten=result.getNrLinesWritten();
+  linesInput=result.getNrLinesInput();
+  linesOutput=result.getNrLinesOutput();
+  linesUpdated=result.getNrLinesUpdated();
+  linesRejected=result.getNrLinesRejected();
   return false;
 }

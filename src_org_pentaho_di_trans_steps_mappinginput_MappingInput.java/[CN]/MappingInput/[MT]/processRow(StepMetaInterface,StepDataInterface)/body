@@ -1,13 +1,27 @@
 {
   meta=(MappingInputMeta)smi;
   data=(MappingInputData)sdi;
-  while (!data.finished && !isStopped()) {
-    try {
-      Thread.sleep(10);
-    }
- catch (    InterruptedException e) {
-      stopAll();
+  if (first) {
+    first=false;
+    int totalsleep=0;
+    while (!isStopped() && data.sourceSteps == null) {
+      try {
+        totalsleep+=10;
+        Thread.sleep(10);
+      }
+ catch (      InterruptedException e) {
+        stopAll();
+      }
+      if (totalsleep > 60000) {
+        throw new KettleException(Messages.getString("MappingInput.Exception.UnableToConnectWithParentMapping","" + (totalsleep / 1000)));
+      }
     }
   }
-  return false;
+  Object[] row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  putRow(getInputRowMeta(),row);
+  return true;
 }
