@@ -1,0 +1,40 @@
+{
+  meta=(DBProcMeta)smi;
+  data=(DBProcData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    data.previousMeta=(RowMetaInterface)getInputRowMeta().clone();
+    data.addOutMeta=new RowMeta();
+    meta.getFields(data.addOutMeta,getStepname(),null);
+    data.outputMeta=(RowMetaInterface)data.previousMeta.clone();
+    data.outputMeta.addRowMeta(data.addOutMeta);
+  }
+  try {
+    r=runProc(r);
+    putRow(data.outputMeta,r);
+    if (checkFeedback(linesRead))     logBasic(Messages.getString("DBProc.LineNumber") + linesRead);
+  }
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("DBProc.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(data.outputMeta,r,1,errorMessage,null,"TOP001");
+    }
+  }
+  return true;
+}

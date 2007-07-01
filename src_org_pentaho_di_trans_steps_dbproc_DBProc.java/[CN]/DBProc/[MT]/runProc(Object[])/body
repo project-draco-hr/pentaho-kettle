@@ -1,0 +1,41 @@
+{
+  int addIndex;
+  RowMetaAndData add;
+  if (first) {
+    data.argnrs=new int[meta.getArgument().length];
+    for (int i=0; i < meta.getArgument().length; i++) {
+      if (!meta.getArgumentDirection()[i].equalsIgnoreCase("OUT")) {
+        data.argnrs[i]=data.previousMeta.indexOfValue(meta.getArgument()[i]);
+        if (data.argnrs[i] < 0) {
+          logError(Messages.getString("DBProc.Log.ErrorFindingField") + meta.getArgument()[i] + "]");
+          throw new KettleStepException(Messages.getString("DBProc.Exception.CouldnotFindField",meta.getArgument()[i]));
+        }
+      }
+ else {
+        data.argnrs[i]=-1;
+      }
+    }
+    data.db.setProcLookup(meta.getProcedure(),meta.getArgument(),meta.getArgumentDirection(),meta.getArgumentType(),meta.getResultName(),meta.getResultType());
+    first=false;
+  }
+  data.db.setProcValues(data.previousMeta,row,data.argnrs,meta.getArgumentDirection(),!Const.isEmpty(meta.getResultName()));
+  add=data.db.callProcedure(meta.getArgument(),meta.getArgumentDirection(),meta.getArgumentType(),meta.getResultName(),meta.getResultType());
+  if (!Const.isEmpty(meta.getResultName())) {
+    row=RowDataUtil.addValueData(row,add.getData()[0]);
+    addIndex=1;
+  }
+ else {
+    addIndex=0;
+  }
+  for (int i=0; i < data.argnrs.length; i++) {
+    if (meta.getArgumentDirection()[i].equalsIgnoreCase("OUT")) {
+      row=RowDataUtil.addValueData(row,add.getData()[addIndex]);
+      addIndex++;
+    }
+ else     if (meta.getArgumentDirection()[i].equalsIgnoreCase("INOUT")) {
+      row[data.argnrs[i]]=add.getData()[addIndex];
+      addIndex++;
+    }
+  }
+  return row;
+}

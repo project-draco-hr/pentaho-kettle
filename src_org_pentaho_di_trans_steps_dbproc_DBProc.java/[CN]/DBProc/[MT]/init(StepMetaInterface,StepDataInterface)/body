@@ -1,0 +1,28 @@
+{
+  meta=(DBProcMeta)smi;
+  data=(DBProcData)sdi;
+  if (super.init(smi,sdi)) {
+    data.db=new Database(meta.getDatabase());
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      if (!meta.isAutoCommit()) {
+        logBasic(Messages.getString("DBProc.Log.AutoCommit"));
+        data.db.setCommit(9999);
+      }
+      logBasic(Messages.getString("DBProc.Log.ConnectedToDB"));
+      return true;
+    }
+ catch (    KettleException e) {
+      logError(Messages.getString("DBProc.Log.DBException") + e.getMessage());
+      data.db.disconnect();
+    }
+  }
+  return false;
+}
