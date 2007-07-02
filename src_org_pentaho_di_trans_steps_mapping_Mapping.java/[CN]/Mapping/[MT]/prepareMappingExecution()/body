@@ -1,0 +1,76 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  data.trans=new Trans(log,data.mappingTransMeta);
+  if (!data.trans.prepareExecution(getTransMeta().getArguments())) {
+    throw new KettleException(Messages.getString("Mapping.Exception.UnableToPrepareExecutionOfMapping"));
+  }
+  StepInterface[] sourceSteps;
+  for (  MappingIODefinition inputDefinition : meta.getInputMappings()) {
+    if (!Const.isEmpty(inputDefinition.getInputStepname())) {
+      StepInterface sourceStep=(StepInterface)getTrans().findRunThread(inputDefinition.getInputStepname());
+      if (sourceStep == null) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.StepNameNotFound",inputDefinition.getInputStepname()));
+      }
+      sourceSteps=new StepInterface[]{sourceStep};
+    }
+ else {
+      StepMeta[] prevSteps=getTransMeta().getPrevSteps(getStepMeta());
+      sourceSteps=new StepInterface[prevSteps.length];
+      for (int s=0; s < sourceSteps.length; s++) {
+        sourceSteps[s]=(StepInterface)getTrans().findRunThread(prevSteps[s].getName());
+      }
+    }
+    MappingInput mappingInputTarget=null;
+    MappingInput[] mappingInputSteps=data.trans.findMappingInput();
+    if (Const.isEmpty(inputDefinition.getOutputStepname())) {
+      if (mappingInputSteps.length == 0) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OneMappingInputStepRequired"));
+      }
+      if (mappingInputSteps.length > 1) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OnlyOneMappingInputStepAllowed","" + mappingInputSteps.length));
+      }
+      mappingInputTarget=mappingInputSteps[0];
+    }
+ else {
+      for (int s=0; s < mappingInputSteps.length && mappingInputTarget == null; s++) {
+        if (mappingInputSteps[s].getStepname().equals(inputDefinition.getOutputStepname())) {
+          mappingInputTarget=mappingInputSteps[s];
+        }
+      }
+      if (mappingInputTarget == null) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.StepNameNotFound",inputDefinition.getOutputStepname()));
+      }
+    }
+    mappingInputTarget.setConnectorSteps(sourceSteps);
+  }
+  for (  MappingIODefinition outputDefinition : meta.getOutputMappings()) {
+    MappingOutput mappingOutputSource=(MappingOutput)getTrans().findRunThread(outputDefinition.getInputStepname());
+    if (mappingOutputSource == null) {
+      MappingOutput[] mappingOutputSteps=data.trans.findMappingOutput();
+      if (mappingOutputSteps.length == 0) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OneMappingOutputStepRequired"));
+      }
+      if (mappingOutputSteps.length > 1) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.OnlyOneMappingOutputStepAllowed","" + mappingOutputSteps.length));
+      }
+      mappingOutputSource=mappingOutputSteps[0];
+    }
+    StepInterface[] targetSteps;
+    if (!Const.isEmpty(outputDefinition.getOutputStepname())) {
+      StepInterface target=(StepInterface)getTrans().findRunThread(outputDefinition.getOutputStepname());
+      if (target == null) {
+        throw new KettleException(Messages.getString("MappingDialog.Exception.StepNameNotFound",outputDefinition.getOutputStepname()));
+      }
+      targetSteps=new StepInterface[]{target};
+    }
+ else {
+      StepMeta[] nextSteps=getTransMeta().getNextSteps(getStepMeta());
+      targetSteps=new StepInterface[nextSteps.length];
+      for (int s=0; s < targetSteps.length; s++) {
+        targetSteps[s]=(StepInterface)getTrans().findRunThread(nextSteps[s].getName());
+      }
+    }
+    mappingOutputSource.setConnectorSteps(targetSteps);
+    mappingOutputSource.setDistributed(isDistributed());
+  }
+}

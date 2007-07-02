@@ -46,7 +46,7 @@
 );
   wbInputStep.addSelectionListener(new SelectionAdapter(){
     @Override public void widgetSelected(    SelectionEvent event){
-      String stepName=selectTransformationStepname(input,false);
+      String stepName=selectTransformationStepname(input,input);
       if (stepName != null) {
         wInputStep.setText(stepName);
         definition.setInputStepname(stepName);
@@ -79,22 +79,6 @@
   fdOutputStep.left=new FormAttachment(middle,0);
   fdOutputStep.right=new FormAttachment(wbOutputStep,-margin);
   wOutputStep.setLayoutData(fdOutputStep);
-  wOutputStep.addFocusListener(new FocusAdapter(){
-    @Override public void focusLost(    FocusEvent event){
-      definition.setOutputStepname(wOutputStep.getText());
-    }
-  }
-);
-  wbOutputStep.addSelectionListener(new SelectionAdapter(){
-    @Override public void widgetSelected(    SelectionEvent event){
-      String stepName=selectTransformationStepname(!input,false);
-      if (stepName != null) {
-        wOutputStep.setText(stepName);
-        definition.setOutputStepname(stepName);
-      }
-    }
-  }
-);
   Label wlMainPath=new Label(wInputComposite,SWT.RIGHT);
   props.setLook(wlMainPath);
   wlMainPath.setText(Messages.getString("MappingDialog.input.MainDataPath"));
@@ -140,7 +124,7 @@
     }
   }
 );
-  Button wbEnterMapping=new Button(wInputComposite,SWT.PUSH);
+  final Button wbEnterMapping=new Button(wInputComposite,SWT.PUSH);
   props.setLook(wbEnterMapping);
   wbEnterMapping.setText(Messages.getString("MappingDialog.button.EnterMapping"));
   FormData fdbEnterMapping=new FormData();
@@ -164,22 +148,6 @@
   wFieldMappings.removeEmptyRows();
   wFieldMappings.setRowNums();
   wFieldMappings.optWidth(true);
-  FocusListener focusListener=new FocusAdapter(){
-    @Override public void focusLost(    FocusEvent event){
-      System.out.println("!!!!!!!!!!!!  Field mapping : focus lost !!!!!!!!!!");
-      int nrLines=wFieldMappings.nrNonEmpty();
-      definition.setParentField(new String[nrLines]);
-      definition.setMappingField(new String[nrLines]);
-      for (int i=0; i < nrLines; i++) {
-        TableItem item=wFieldMappings.getNonEmpty(i);
-        definition.getParentField()[i]=item.getText(1);
-        definition.getMappingField()[i]=item.getText(2);
-        System.out.println("#" + i + " --> parent="+ definition.getParentField()[i]+ ", mapping="+ definition.getMappingField()[i]);
-      }
-    }
-  }
-;
-  wFieldMappings.table.addFocusListener(focusListener);
   wbEnterMapping.addSelectionListener(new SelectionAdapter(){
     @Override public void widgetSelected(    SelectionEvent arg0){
       try {
@@ -212,6 +180,34 @@
     }
   }
 );
+  wOutputStep.addFocusListener(new FocusAdapter(){
+    @Override public void focusLost(    FocusEvent event){
+      definition.setOutputStepname(wOutputStep.getText());
+      try {
+        enableMappingButton(wbEnterMapping,input,wInputStep.getText(),wOutputStep.getText());
+      }
+ catch (      KettleException e) {
+        new ErrorDialog(shell,"Error","Unexpected error",e);
+      }
+    }
+  }
+);
+  wbOutputStep.addSelectionListener(new SelectionAdapter(){
+    @Override public void widgetSelected(    SelectionEvent event){
+      String stepName=selectTransformationStepname(!input,input);
+      if (stepName != null) {
+        wOutputStep.setText(stepName);
+        definition.setOutputStepname(stepName);
+        try {
+          enableMappingButton(wbEnterMapping,input,wInputStep.getText(),wOutputStep.getText());
+        }
+ catch (        KettleException e) {
+          new ErrorDialog(shell,"Error","Unexpected error",e);
+        }
+      }
+    }
+  }
+);
   FormData fdParametersComposite=new FormData();
   fdParametersComposite.left=new FormAttachment(0,0);
   fdParametersComposite.top=new FormAttachment(0,0);
@@ -220,6 +216,8 @@
   wInputComposite.setLayoutData(fdParametersComposite);
   wInputComposite.layout();
   wTab.setControl(wInputComposite);
+  final ApplyChanges applyChanges=new MappingDefinitionTab(definition,wInputStep,wOutputStep,wMainPath,wDescription,wFieldMappings);
+  changeList.add(applyChanges);
   wTabFolder.addCTabFolder2Listener(new CTabFolder2Adapter(){
     @Override public void close(    CTabFolderEvent event){
       if (event.item.equals(wTab)) {
@@ -233,6 +231,7 @@
  else {
           if (input)           inputMappings.remove(definition);
  else           outputMappings.remove(definition);
+          changeList.remove(applyChanges);
         }
       }
     }
