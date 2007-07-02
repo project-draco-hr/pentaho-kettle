@@ -1,8 +1,7 @@
 {
   meta=(MappingInputMeta)smi;
   data=(MappingInputData)sdi;
-  if (first) {
-    first=false;
+  if (!data.linked) {
     int totalsleep=0;
     while (!isStopped() && data.sourceSteps == null) {
       try {
@@ -16,12 +15,24 @@
         throw new KettleException(Messages.getString("MappingInput.Exception.UnableToConnectWithParentMapping","" + (totalsleep / 1000)));
       }
     }
+    data.linked=true;
   }
   Object[] row=getRow();
   if (row == null) {
     setOutputDone();
     return false;
   }
-  putRow(getInputRowMeta(),row);
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    for (int i=0; i < data.sourceFieldname.length; i++) {
+      ValueMetaInterface valueMeta=data.outputRowMeta.searchValueMeta(data.sourceFieldname[i]);
+      if (valueMeta == null) {
+        throw new KettleStepException(Messages.getString("MappingInput.Exception.UnableToFindMappedValue",data.sourceFieldname[i]));
+      }
+      valueMeta.setName(data.targetFieldname[i]);
+    }
+  }
+  putRow(data.outputRowMeta,row);
   return true;
 }
