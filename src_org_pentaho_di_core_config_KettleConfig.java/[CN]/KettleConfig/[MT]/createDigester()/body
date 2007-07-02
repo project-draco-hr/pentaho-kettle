@@ -1,0 +1,24 @@
+{
+  Digester digester=new Digester();
+  digester.addObjectCreate(KETTLE_CONFIG,TempConfig.class);
+  digester.addBeanPropertySetter(KETTLE_CONFIG_CLASS,"clazz");
+  digester.addSetProperties(KETTLE_CONFIG,"id","id");
+  digester.addRule(KETTLE_CONFIG_PROPERTY,new SetPropertiesRule(){
+    @Override public void begin(    Attributes attrs) throws Exception {
+      ((TempConfig)digester.peek()).parms.put(attrs.getValue("name"),attrs.getValue("value"));
+    }
+  }
+);
+  digester.addRule(KETTLE_CONFIG,new SetNextRule(""){
+    public void end(    String nameSpace,    String name) throws Exception {
+      TempConfig cfg=(TempConfig)digester.peek();
+      Class<? extends ConfigManager> cfclass=Class.forName(cfg.clazz).asSubclass(ConfigManager.class);
+      ConfigManager parms=cfclass.newInstance();
+      inject(cfclass.getMethods(),cfg,parms);
+      inject(cfclass.getDeclaredFields(),cfg,parms);
+      KettleConfig.this.configs.put(cfg.id,parms);
+    }
+  }
+);
+  return digester;
+}
