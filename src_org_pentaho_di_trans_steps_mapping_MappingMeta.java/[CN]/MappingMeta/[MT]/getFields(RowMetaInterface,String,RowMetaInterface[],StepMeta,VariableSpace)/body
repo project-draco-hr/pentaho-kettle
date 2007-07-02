@@ -7,16 +7,17 @@
  catch (  KettleException e) {
     throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToLoadMappingTransformation"),e);
   }
+  List<MappingValueRename> inputRenameList=new ArrayList<MappingValueRename>();
   for (  MappingIODefinition definition : inputMappings) {
     RowMetaInterface inputRowMeta;
     if (definition.isMainDataPath() || Const.isEmpty(definition.getInputStepname())) {
       inputRowMeta=(RowMetaInterface)row.clone();
-      for (int i=0; i < definition.getParentField().length; i++) {
-        ValueMetaInterface valueMeta=inputRowMeta.searchValueMeta(definition.getParentField()[i]);
+      for (      MappingValueRename valueRename : definition.getValueRenames()) {
+        ValueMetaInterface valueMeta=inputRowMeta.searchValueMeta(valueRename.getSourceValueName());
         if (valueMeta == null) {
-          throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToFindField",definition.getParentField()[i]));
+          throw new KettleStepException(Messages.getString("MappingMeta.Exception.UnableToFindField",valueRename.getSourceValueName()));
         }
-        valueMeta.setName(definition.getMappingField()[i]);
+        valueMeta.setName(valueRename.getTargetValueName());
       }
     }
  else {
@@ -30,6 +31,8 @@
     StepMeta mappingInputStep=mappingTransMeta.findMappingInputStep(definition.getOutputStepname());
     MappingInputMeta mappingInputMeta=(MappingInputMeta)mappingInputStep.getStepMetaInterface();
     mappingInputMeta.setInputRowMeta(inputRowMeta);
+    mappingInputMeta.setValueRenames(definition.getValueRenames());
+    if (definition.isRenamingOnOutput())     Mapping.addInputRenames(inputRenameList,definition.getValueRenames());
   }
   MappingIODefinition mappingOutputDefinition=null;
   if (nextStep == null) {
@@ -51,8 +54,8 @@
   }
   StepMeta mappingOutputStep=mappingTransMeta.findMappingOutputStep(mappingOutputDefinition.getInputStepname());
   MappingOutputMeta mappingOutputMeta=(MappingOutputMeta)mappingOutputStep.getStepMetaInterface();
-  mappingOutputMeta.setOldName(mappingOutputDefinition.getMappingField());
-  mappingOutputMeta.setNewName(mappingOutputDefinition.getParentField());
+  mappingOutputMeta.setOutputValueRenames(mappingOutputDefinition.getValueRenames());
+  mappingOutputMeta.setInputValueRenames(inputRenameList);
   RowMetaInterface mappingOutputRowMeta=mappingTransMeta.getStepFields(mappingOutputStep);
   row.clear();
   row.addRowMeta(mappingOutputRowMeta);
