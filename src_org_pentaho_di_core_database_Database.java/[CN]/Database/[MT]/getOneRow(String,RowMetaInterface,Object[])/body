@@ -2,34 +2,41 @@
   ResultSet rs=openQuery(sql,param,data);
   if (rs != null) {
     Object[] row=getRow(rs);
+    rowMeta=null;
+    RowMeta tmpMeta=null;
     try {
-      rs.close();
+      ResultSetMetaData md=rs.getMetaData();
+      tmpMeta=getMetaFromRow(row,md);
     }
  catch (    Exception e) {
-      throw new KettleDatabaseException("Unable to close resultset",e);
+      e.printStackTrace();
     }
-    if (pstmt != null) {
+ finally {
       try {
-        pstmt.close();
+        rs.close();
       }
  catch (      Exception e) {
-        throw new KettleDatabaseException("Unable to close prepared statement pstmt",e);
+        throw new KettleDatabaseException("Unable to close resultset",e);
       }
-      pstmt=null;
+      if (pstmt != null) {
+        try {
+          pstmt.close();
+        }
+ catch (        Exception e) {
+          throw new KettleDatabaseException("Unable to close prepared statement pstmt",e);
+        }
+        pstmt=null;
+      }
+      if (sel_stmt != null) {
+        try {
+          sel_stmt.close();
+        }
+ catch (        Exception e) {
+          throw new KettleDatabaseException("Unable to close prepared statement sel_stmt",e);
+        }
+        sel_stmt=null;
+      }
     }
-    if (sel_stmt != null) {
-      try {
-        sel_stmt.close();
-      }
- catch (      Exception e) {
-        throw new KettleDatabaseException("Unable to close prepared statement sel_stmt",e);
-      }
-      sel_stmt=null;
-    }
-    rowMeta=null;
-    RowMeta tmpMeta=new RowMeta();
-    ValueMeta valueMeta=new ValueMeta("id",ValueMetaInterface.TYPE_INTEGER,16,8);
-    tmpMeta.addValueMeta(valueMeta);
     return new RowMetaAndData(tmpMeta,row);
   }
  else {
