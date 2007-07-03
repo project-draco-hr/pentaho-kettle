@@ -1,31 +1,25 @@
 {
-  RowMetaInterface argsMeta=new RowMeta();
+  Map<String,String> transArgs=new HashMap<String,String>();
   for (int i=0; i < nrSteps(); i++) {
     StepMetaInterface smi=getStep(i).getStepMetaInterface();
-    RowMetaAndData rmad=smi.getUsedArguments();
-    if (rmad != null) {
-      RowMetaInterface row=rmad.getRowMeta();
-      for (int x=0; x < row.size(); x++) {
-        ValueMetaInterface value=row.getValueMeta(x);
-        String argname=value.getName();
-        if (argsMeta.indexOfValue(argname) < 0)         argsMeta.addValueMeta(value);
-      }
+    Map<String,String> stepArgs=smi.getUsedArguments();
+    if (stepArgs != null) {
+      transArgs.putAll(stepArgs);
     }
   }
   String[] saved=Props.isInitialized() ? Props.getInstance().getLastArguments() : null;
-  Object[] data=new Object[argsMeta.size()];
-  for (int i=0; i < argsMeta.size(); i++) {
-    ValueMetaInterface arg=argsMeta.getValueMeta(i);
-    int argNr=Const.toInt(arg.getName(),-1);
+  for (  String argument : transArgs.keySet()) {
+    String value="";
+    int argNr=Const.toInt(argument,-1);
     if (arguments != null && argNr > 0 && argNr <= arguments.length) {
-      data[i]=arguments[argNr - 1];
+      value=Const.NVL(arguments[argNr - 1],"");
     }
-    if (data[i] == null) {
+    if (value.length() == 0) {
       if (argNr > 0 && argNr <= saved.length && saved[argNr] != null) {
-        data[i]=saved[argNr - 1];
+        value=saved[argNr - 1];
       }
     }
-    arg.setName("Argument " + arg.getName());
+    transArgs.put(argument,value);
   }
-  return new RowMetaAndData(argsMeta,data);
+  return transArgs;
 }
