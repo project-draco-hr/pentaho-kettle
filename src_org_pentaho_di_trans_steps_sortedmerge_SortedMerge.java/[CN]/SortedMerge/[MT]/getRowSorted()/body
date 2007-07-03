@@ -1,77 +1,59 @@
 {
-  int smallestId=0;
-  Object[] smallestRow=null;
-  if (inputRowSets.size() == 0)   return null;
-  for (int i=0; i < inputRowSets.size(); i++) {
-    RowSet rowSet=(RowSet)inputRowSets.get(i);
-    while (rowSet != null && rowSet.isEmpty() && rowSet.isDone()) {
-      inputRowSets.remove(i);
-      if (inputRowSets.size() == 0) {
-        return null;
-      }
-      if (i < inputRowSets.size()) {
-        rowSet=(RowSet)inputRowSets.get(i);
-      }
- else {
-        rowSet=null;
-      }
-    }
-    if (rowSet != null) {
-      int sleeptime=getTransMeta().getSleepTimeEmpty();
-      while (rowSet.isEmpty() && !stopped) {
-        try {
-          if (sleeptime > 0)           sleep(0,sleeptime);
- else           super.notifyAll();
-        }
- catch (        Exception e) {
-          logError(Messages.getString("BaseStep.Log.SleepInterupted") + e.toString());
-          setErrors(1);
-          stopAll();
-          return null;
-        }
-        if (sleeptime < 100)         sleeptime=((int)(sleeptime * 1.2)) + 1;
- else         sleeptime=100;
-        setNrGetSleeps(getNrGetSleeps() + sleeptime);
-      }
-      if (stopped)       return null;
-      Object[] row=rowSet.lookAtFirst();
-      if (data.rowMeta == null) {
-        data.rowMeta=rowSet.getRowMeta();
-        meta.getFields(data.rowMeta,getStepname(),null,null,this);
-      }
-      if (smallestRow == null) {
-        smallestRow=row;
-        smallestId=i;
-      }
- else {
-        if (data.fieldIndices == null) {
-          data.fieldIndices=new int[meta.getFieldName().length];
-          for (int f=0; f < data.fieldIndices.length; f++) {
-            data.fieldIndices[f]=data.rowMeta.indexOfValue(meta.getFieldName()[f]);
-            if (data.fieldIndices[f] < 0) {
-              throw new KettleStepException("Unable to find fieldname [" + meta.getFieldName()[f] + "] in row : "+ row);
+  if (first) {
+    first=false;
+    data.sortedBuffer=new ArrayList<RowSetRow>();
+    data.rowMeta=null;
+    for (int i=0; i < inputRowSets.size() && !isStopped(); i++) {
+      RowSet rowSet=inputRowSets.get(i);
+      if (!rowSet.isDone()) {
+        RowMetaAndData row=getRowFrom(i);
+        if (row != null) {
+          data.sortedBuffer.add(new RowSetRow(rowSet,row.getRowMeta(),row.getData()));
+          if (data.rowMeta == null)           data.rowMeta=(RowMetaInterface)row.getRowMeta().clone();
+          if (data.fieldIndices == null) {
+            data.fieldIndices=new int[meta.getFieldName().length];
+            for (int f=0; f < data.fieldIndices.length; f++) {
+              data.fieldIndices[f]=data.rowMeta.indexOfValue(meta.getFieldName()[f]);
+              if (data.fieldIndices[f] < 0) {
+                throw new KettleStepException("Unable to find fieldname [" + meta.getFieldName()[f] + "] in row : "+ data.rowMeta);
+              }
+              data.rowMeta.getValueMeta(data.fieldIndices[f]).setSortedDescending(!meta.getAscending()[f]);
             }
           }
         }
-        if (data.rowMeta.compare(row,smallestRow,data.fieldIndices) < 0) {
-          smallestRow=row;
-          smallestId=i;
+      }
+      data.comparator=new Comparator<RowSetRow>(){
+        public int compare(        RowSetRow o1,        RowSetRow o2){
+          try {
+            return o1.getRowMeta().compare(o1.getRowData(),o2.getRowData(),data.fieldIndices);
+          }
+ catch (          KettleValueException e) {
+            return 0;
+          }
         }
       }
+;
+      Collections.sort(data.sortedBuffer,data.comparator);
     }
   }
-  Object[] row=null;
-  if (!isSafeModeEnabled()) {
-    row=((RowSet)inputRowSets.get(smallestId)).getRow();
+  if (data.sortedBuffer.isEmpty()) {
+    return null;
   }
+  RowSetRow smallestRow=data.sortedBuffer.get(0);
+  Object[] outputRowData=smallestRow.getRowData();
+  RowMetaAndData extraRow=getRowFrom(smallestRow.getRowSet());
+  if (extraRow != null) {
+    RowSetRow add=new RowSetRow(smallestRow.getRowSet(),extraRow.getRowMeta(),extraRow.getData());
+    int index=Collections.binarySearch(data.sortedBuffer,add,data.comparator);
+    if (index < 0) {
+      data.sortedBuffer.add(-index - 1,add);
+    }
  else {
-    RowSet rowSet=((RowSet)inputRowSets.get(smallestId));
-    row=rowSet.getRow();
-    safeModeChecking(rowSet.getRowMeta());
+      data.sortedBuffer.add(index,add);
+    }
   }
-  for (int i=0; i < getRowListeners().size(); i++) {
-    RowListener rowListener=(RowListener)getRowListeners().get(i);
-    rowListener.rowReadEvent(data.rowMeta,row);
+  if (isSafeModeEnabled()) {
+    safeModeChecking(smallestRow.getRowMeta());
   }
-  return row;
+  return outputRowData;
 }

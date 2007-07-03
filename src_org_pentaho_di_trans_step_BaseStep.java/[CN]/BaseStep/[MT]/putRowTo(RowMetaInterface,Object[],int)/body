@@ -1,5 +1,4 @@
 {
-  int sleeptime;
   if (previewSize > 0 && previewBuffer.size() < previewSize) {
     try {
       previewBuffer.add(rowMeta.cloneRow(row));
@@ -21,32 +20,12 @@
     }
   }
   if (outputRowSets.isEmpty())   return;
-  RowSet rs=(RowSet)outputRowSets.get(output_rowset_nr);
-  sleeptime=transMeta.getSleepTimeFull();
-  while (rs.isFull() && !stopped) {
-    try {
-      if (sleeptime > 0) {
-        sleep(0,sleeptime);
-      }
- else {
-        super.notifyAll();
-      }
-    }
- catch (    Exception e) {
-      logError(Messages.getString("BaseStep.Log.ErrorInThreadSleeping") + e.toString());
-      setErrors(1);
-      stopAll();
-      return;
-    }
-    nrPutSleeps+=sleeptime;
-    if (sleeptime < 100)     sleeptime=((int)(sleeptime * 1.2)) + 1;
- else     sleeptime=100;
-  }
-  if (stopped) {
+  RowSet rs=outputRowSets.get(output_rowset_nr);
+  if (stopped.get()) {
     if (log.isDebug())     logDebug(Messages.getString("BaseStep.Log.StopPuttingARow"));
     stopAll();
     return;
   }
-  rs.putRow(rowMeta,row);
+  while (!rs.putRow(rowMeta,row) && !isStopped())   ;
   linesWritten++;
 }

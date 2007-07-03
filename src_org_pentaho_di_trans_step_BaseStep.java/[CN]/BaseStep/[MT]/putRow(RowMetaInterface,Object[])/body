@@ -1,18 +1,23 @@
 {
-  while (!trans.isRunning() && !stopped) {
-    try {
-      Thread.sleep(1);
+  if (this.checkTransRunning == false) {
+    while (!trans.isRunning() && !stopped.get()) {
+      try {
+        Thread.sleep(1);
+      }
+ catch (      InterruptedException e) {
+      }
     }
- catch (    InterruptedException e) {
-    }
+    this.checkTransRunning=true;
   }
-  if (previewSize > 0 && previewBuffer.size() < previewSize) {
-    try {
-      if (previewRowMeta == null)       previewRowMeta=(RowMetaInterface)rowMeta.clone();
-      previewBuffer.add(rowMeta.cloneRow(row));
-    }
- catch (    KettleValueException e) {
-      throw new KettleStepException("Unable to clone row while adding rows to the preview buffer",e);
+  if (previewSize > 0) {
+    if (previewBuffer.size() < previewSize) {
+      try {
+        if (previewRowMeta == null)         previewRowMeta=(RowMetaInterface)rowMeta.clone();
+        previewBuffer.add(rowMeta.cloneRow(row));
+      }
+ catch (      KettleValueException e) {
+        throw new KettleStepException("Unable to clone row while adding rows to the preview buffer",e);
+      }
     }
   }
   for (int i=0; i < rowListeners.size(); i++) {
@@ -27,111 +32,83 @@
       throw new KettleStepException("Unable to clone row while adding rows to the terminator rows.",e);
     }
   }
-  if (outputRowSets.isEmpty()) {
+  if (outputRowSetsSize == 0) {
     return;
   }
-  for (int i=0; i < outputRowSets.size(); i++) {
-    int sleeptime=transMeta.getSleepTimeFull();
-    RowSet rs=(RowSet)outputRowSets.get(i);
-    if (transMeta.isUsingThreadPriorityManagment()) {
-      if (linesWritten > 0 && (linesWritten & 0xFF) == 0) {
-        rs.setPriorityFrom(calcPutPriority(rs));
-      }
-    }
-    while (rs.isFull() && !stopped) {
-      try {
-        if (sleeptime > 0) {
-          sleep(0,sleeptime);
-        }
- else {
-          super.notifyAll();
-        }
-      }
- catch (      Exception e) {
-        logError(Messages.getString("BaseStep.Log.ErrorInThreadSleeping") + e.toString());
-        setErrors(1);
-        stopAll();
-        return;
-      }
-      nrPutSleeps+=sleeptime;
-      if (sleeptime < 100)       sleeptime=((int)(sleeptime * 1.2)) + 1;
- else       sleeptime=100;
-    }
-  }
-  if (stopped) {
+  if (stopped.get()) {
     if (log.isDebug())     logDebug(Messages.getString("BaseStep.Log.StopPuttingARow"));
     stopAll();
     return;
   }
 switch (repartitioning) {
-case StepPartitioningMeta.PARTITIONING_METHOD_MOD:
-{
-      if (partitionColumnIndex < 0) {
-        StepMeta nextSteps[]=transMeta.getNextSteps(stepMeta);
-        if (nextSteps == null || nextSteps.length == 0) {
-          throw new KettleStepException("Re-partitioning is enabled but no next steps could be found: developer error!");
-        }
-        nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
-        partitionColumnIndex=rowMeta.indexOfValue(nextStepPartitioningMeta.getFieldName());
-        if (partitionColumnIndex < 0) {
-          throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row : "+ row);
-        }
-        partitionIDs=nextSteps[0].getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-        for (int r=0; r < outputRowSets.size(); r++) {
-          RowSet rowSet=(RowSet)outputRowSets.get(r);
-          if (rowSet.getOriginStepName().equalsIgnoreCase(getStepname()) && rowSet.getOriginStepCopy() == getCopy()) {
-            StepMeta targetStep=transMeta.findStep(rowSet.getDestinationStepName());
-            String targetPartitions[]=targetStep.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-            String targetPartitionID=targetPartitions[rowSet.getDestinationStepCopy()];
-            partitionTargets.put(targetPartitionID,rowSet);
-          }
-        }
-      }
-      int partitionNr;
-      try {
-        partitionNr=nextStepPartitioningMeta.getPartitionNr(rowMeta.getInteger(row,partitionColumnIndex),partitionIDs.length);
-      }
- catch (      KettleValueException e) {
-        throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
-      }
-      String targetPartition=partitionIDs[partitionNr];
-      RowSet rs=(RowSet)partitionTargets.get(targetPartition);
-      rs.putRow(rowMeta,row);
-      linesWritten++;
-    }
-  break;
-case StepPartitioningMeta.PARTITIONING_METHOD_MIRROR:
-{
-  for (int r=0; r < outputRowSets.size(); r++) {
-    RowSet rowSet=(RowSet)outputRowSets.get(r);
-    rowSet.putRow(rowMeta,row);
-  }
-}
-break;
 case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
 {
-if (distributed) {
-RowSet rs=(RowSet)outputRowSets.get(out_handling);
-rs.putRow(rowMeta,row);
-linesWritten++;
-if (outputRowSets.size() > 1) {
-  out_handling++;
-  if (out_handling >= outputRowSets.size())   out_handling=0;
-}
-}
+      if (distributed) {
+        RowSet rs=outputRowSets.get(out_handling);
+        while (!rs.putRow(rowMeta,row) && !isStopped())         ;
+        linesWritten++;
+        if (outputRowSets.size() > 1) {
+          out_handling++;
+          if (out_handling >= outputRowSets.size())           out_handling=0;
+        }
+      }
  else {
-for (int i=1; i < outputRowSets.size(); i++) {
-  RowSet rs=(RowSet)outputRowSets.get(i);
+        for (int i=1; i < outputRowSets.size(); i++) {
+          RowSet rs=outputRowSets.get(i);
+          try {
+            while (!rs.putRow(rowMeta,rowMeta.cloneRow(row)) && !isStopped())             ;
+          }
+ catch (          KettleValueException e) {
+            throw new KettleStepException("Unable to clone row while copying rows to multiple target steps",e);
+          }
+        }
+        RowSet rs=outputRowSets.get(0);
+        while (!rs.putRow(rowMeta,row) && !isStopped())         ;
+        linesWritten++;
+      }
+    }
+  break;
+case StepPartitioningMeta.PARTITIONING_METHOD_MOD:
+{
+  if (partitionColumnIndex < 0) {
+    StepMeta nextSteps[]=transMeta.getNextSteps(stepMeta);
+    if (nextSteps == null || nextSteps.length == 0) {
+      throw new KettleStepException("Re-partitioning is enabled but no next steps could be found: developer error!");
+    }
+    nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
+    partitionColumnIndex=rowMeta.indexOfValue(nextStepPartitioningMeta.getFieldName());
+    if (partitionColumnIndex < 0) {
+      throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row : "+ row);
+    }
+    partitionIDs=nextSteps[0].getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+    for (int r=0; r < outputRowSets.size(); r++) {
+      RowSet rowSet=outputRowSets.get(r);
+      if (rowSet.getOriginStepName().equalsIgnoreCase(getStepname()) && rowSet.getOriginStepCopy() == getCopy()) {
+        StepMeta targetStep=transMeta.findStep(rowSet.getDestinationStepName());
+        String targetPartitions[]=targetStep.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+        String targetPartitionID=targetPartitions[rowSet.getDestinationStepCopy()];
+        partitionTargets.put(targetPartitionID,rowSet);
+      }
+    }
+  }
+  int partitionNr;
   try {
-    rs.putRow(rowMeta,rowMeta.cloneRow(row));
+    partitionNr=nextStepPartitioningMeta.getPartitionNr(rowMeta.getInteger(row,partitionColumnIndex),partitionIDs.length);
   }
  catch (  KettleValueException e) {
-    throw new KettleStepException("Unable to clone row while copying rows to multiple target steps",e);
+    throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
   }
+  String targetPartition=partitionIDs[partitionNr];
+  RowSet rs=partitionTargets.get(targetPartition);
+  while (!rs.putRow(rowMeta,row) && !isStopped())   ;
+  linesWritten++;
 }
-RowSet rs=(RowSet)outputRowSets.get(0);
-rs.putRow(rowMeta,row);
-linesWritten++;
+break;
+case StepPartitioningMeta.PARTITIONING_METHOD_MIRROR:
+{
+for (int r=0; r < outputRowSets.size(); r++) {
+RowSet rowSet=outputRowSets.get(r);
+while (!rowSet.putRow(rowMeta,row) && !isStopped()) ;
 }
 }
 break;
