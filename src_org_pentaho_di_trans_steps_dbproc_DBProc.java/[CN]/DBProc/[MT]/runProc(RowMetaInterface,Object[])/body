@@ -1,11 +1,12 @@
 {
-  int addIndex;
-  RowMetaAndData add;
   if (first) {
+    first=false;
+    data.outputMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputMeta,getStepname(),null,null,this);
     data.argnrs=new int[meta.getArgument().length];
     for (int i=0; i < meta.getArgument().length; i++) {
       if (!meta.getArgumentDirection()[i].equalsIgnoreCase("OUT")) {
-        data.argnrs[i]=data.previousMeta.indexOfValue(meta.getArgument()[i]);
+        data.argnrs[i]=rowMeta.indexOfValue(meta.getArgument()[i]);
         if (data.argnrs[i] < 0) {
           logError(Messages.getString("DBProc.Log.ErrorFindingField") + meta.getArgument()[i] + "]");
           throw new KettleStepException(Messages.getString("DBProc.Exception.CouldnotFindField",meta.getArgument()[i]));
@@ -16,26 +17,23 @@
       }
     }
     data.db.setProcLookup(meta.getProcedure(),meta.getArgument(),meta.getArgumentDirection(),meta.getArgumentType(),meta.getResultName(),meta.getResultType());
-    first=false;
   }
-  data.db.setProcValues(data.previousMeta,row,data.argnrs,meta.getArgumentDirection(),!Const.isEmpty(meta.getResultName()));
-  add=data.db.callProcedure(meta.getArgument(),meta.getArgumentDirection(),meta.getArgumentType(),meta.getResultName(),meta.getResultType());
+  Object[] outputRowData=RowDataUtil.resizeArray(rowData,data.outputMeta.size());
+  int outputIndex=rowMeta.size();
+  data.db.setProcValues(rowMeta,rowData,data.argnrs,meta.getArgumentDirection(),!Const.isEmpty(meta.getResultName()));
+  RowMetaAndData add=data.db.callProcedure(meta.getArgument(),meta.getArgumentDirection(),meta.getArgumentType(),meta.getResultName(),meta.getResultType());
+  int addIndex=0;
   if (!Const.isEmpty(meta.getResultName())) {
-    row=RowDataUtil.addValueData(row,add.getData()[0]);
-    addIndex=1;
-  }
- else {
-    addIndex=0;
+    outputRowData[outputIndex++]=add.getData()[addIndex++];
   }
   for (int i=0; i < data.argnrs.length; i++) {
     if (meta.getArgumentDirection()[i].equalsIgnoreCase("OUT")) {
-      row=RowDataUtil.addValueData(row,add.getData()[addIndex]);
-      addIndex++;
+      outputRowData[outputIndex++]=add.getData()[addIndex++];
     }
  else     if (meta.getArgumentDirection()[i].equalsIgnoreCase("INOUT")) {
-      row[data.argnrs[i]]=add.getData()[addIndex];
+      outputRowData[data.argnrs[i]]=add.getData()[addIndex];
       addIndex++;
     }
   }
-  return row;
+  return outputRowData;
 }

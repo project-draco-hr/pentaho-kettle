@@ -1,16 +1,13 @@
 {
   meta=(ExecSQLMeta)smi;
   data=(ExecSQLData)sdi;
-  Object[] row=null;
-  data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
-  meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
   if (!meta.isExecutedEachInputRow()) {
-    row=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
-    putRow(data.outputRowMeta,row);
+    RowMetaAndData resultRow=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
+    putRow(resultRow.getRowMeta(),resultRow.getData());
     setOutputDone();
     return false;
   }
-  row=getRow();
+  Object[] row=getRow();
   if (row == null) {
     setOutputDone();
     return false;
@@ -18,6 +15,8 @@
   StringBuffer sql=new StringBuffer(meta.getSql());
   if (first) {
     first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
     data.argumentIndexes=new int[meta.getArguments().length];
     for (int i=0; i < meta.getArguments().length; i++) {
       data.argumentIndexes[i]=this.getInputRowMeta().indexOfValue(meta.getArguments()[i]);
@@ -41,9 +40,11 @@
   }
   if (log.isRowLevel())   logRowlevel(Messages.getString("ExecSQL.Log.ExecutingSQLScript") + Const.CR + sql);
   data.result=data.db.execStatements(sql.toString());
-  Object[] add=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
-  row=RowDataUtil.addRowData(add,row);
-  if (!data.db.isAutoCommit())   data.db.commit();
+  RowMetaAndData add=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
+  row=RowDataUtil.addRowData(row,getInputRowMeta().size(),add.getData());
+  if (!data.db.isAutoCommit()) {
+    data.db.commit();
+  }
   putRow(data.outputRowMeta,row);
   if (checkFeedback(linesWritten))   logBasic(Messages.getString("ExecSQL.Log.LineNumber") + linesWritten);
   return true;

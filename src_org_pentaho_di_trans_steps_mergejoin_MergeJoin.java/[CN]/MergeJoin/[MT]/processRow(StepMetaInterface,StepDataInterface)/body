@@ -22,9 +22,9 @@
       data.two=null;
       data.twoMeta=new RowMeta();
     }
-    data.oneTwoMeta=new RowMeta();
-    data.oneTwoMeta.addRowMeta(data.oneMeta);
-    data.oneTwoMeta.addRowMeta(data.twoMeta);
+    data.outputRowMeta=new RowMeta();
+    data.outputRowMeta.mergeRowMeta(data.oneMeta);
+    data.outputRowMeta.mergeRowMeta(data.twoMeta);
     if (!isInputLayoutValid(data.oneMeta,data.twoMeta)) {
       throw new KettleException(Messages.getString("MergeJoin.Exception.InvalidKeyLayoutDetected"));
     }
@@ -50,7 +50,7 @@
         }
       }
     }
-    data.one_dummy=new Object[data.oneMeta.size()];
+    data.one_dummy=RowDataUtil.allocateRowData(data.oneMeta.size() + data.twoMeta.size());
     data.two_dummy=new Object[data.twoMeta.size()];
     for (int i=0; i < data.oneMeta.size(); i++) {
       String dummy=data.oneMeta.getFieldNames()[i];
@@ -108,15 +108,15 @@ for (; ; ) {
 }
 for (Object[] one : data.ones) {
 for (Object[] two : data.twos) {
-  Object[] combi=RowDataUtil.addRowData(one,two);
-  putRow(data.oneTwoMeta,combi);
+  Object[] combi=RowDataUtil.addRowData(one,data.oneMeta.size(),two);
+  putRow(data.outputRowMeta,combi);
 }
 }
 data.ones.clear();
 data.twos.clear();
 }
  else {
-putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two));
+putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one,data.oneMeta.size(),data.two));
 }
 data.one=data.one_next;
 data.two=data.two_next;
@@ -125,7 +125,7 @@ case 1:
 logDebug("First stream has missing key");
 if (data.one_optional == true) {
 if (data.two != null) {
-putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one_dummy,data.two));
+putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one_dummy,data.oneMeta.size(),data.two));
 data.two=getRowDataFrom(meta.getStepName2());
 }
  else if (data.two_optional == false) {
@@ -133,12 +133,12 @@ setOutputDone();
 return false;
 }
  else {
-putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two_dummy));
+putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one,data.oneMeta.size(),data.two_dummy));
 data.one=getRowDataFrom(meta.getStepName1());
 }
 }
  else if (data.two == null && data.two_optional == true) {
-putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two_dummy));
+putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one,data.oneMeta.size(),data.two_dummy));
 data.one=getRowDataFrom(meta.getStepName1());
 }
  else if (data.two != null) {
@@ -149,7 +149,7 @@ case -1:
 logDebug("Second stream has missing key");
 if (data.two_optional == true) {
 if (data.one != null) {
-putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one,data.two_dummy));
+putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one,data.oneMeta.size(),data.two_dummy));
 data.one=getRowDataFrom(meta.getStepName1());
 }
  else if (data.one_optional == false) {
@@ -157,12 +157,12 @@ setOutputDone();
 return false;
 }
  else {
-putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one_dummy,data.two));
+putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one_dummy,data.oneMeta.size(),data.two));
 data.two=getRowDataFrom(meta.getStepName2());
 }
 }
  else if (data.one == null && data.one_optional == true) {
-putRow(data.oneTwoMeta,RowDataUtil.addRowData(data.one_dummy,data.two));
+putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one_dummy,data.oneMeta.size(),data.two));
 data.two=getRowDataFrom(meta.getStepName2());
 }
  else if (data.one != null) {

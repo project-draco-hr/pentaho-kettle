@@ -8,12 +8,18 @@
     }
   }
  else {
-    rowData=new Object[0];
+    rowData=RowDataUtil.allocateRowData(0);
     linesRead++;
   }
   if (first && rowData != null) {
     first=false;
-    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    if (data.readsRows) {
+      data.inputRowMeta=getInputRowMeta();
+    }
+ else {
+      data.inputRowMeta=new RowMeta();
+    }
+    data.outputRowMeta=(RowMetaInterface)data.inputRowMeta.clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
   }
   Object extraData[]=new Object[meta.getFieldName().length];
@@ -22,7 +28,7 @@
     if (log.isDetailed())     logDetailed("field [" + meta.getFieldName()[i] + "] has value ["+ newValue+ "]");
     extraData[i]=newValue;
   }
-  rowData=RowDataUtil.addRowData(rowData,extraData);
+  rowData=RowDataUtil.addRowData(rowData,data.inputRowMeta.size(),extraData);
   putRow(data.outputRowMeta,rowData);
   if (!data.readsRows) {
     setOutputDone();
