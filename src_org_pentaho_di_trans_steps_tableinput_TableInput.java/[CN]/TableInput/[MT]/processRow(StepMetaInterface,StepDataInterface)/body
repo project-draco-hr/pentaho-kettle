@@ -1,28 +1,34 @@
 {
   if (first) {
-    RowMetaAndData parameters;
+    Object[] parameters;
+    RowMetaInterface parametersMeta;
     first=false;
     if (meta.getInfoSteps() != null) {
       if (meta.isExecuteEachInputRow()) {
         if (log.isDetailed())         logDetailed("Reading single row from stream [" + meta.getLookupStepname() + "]");
-        parameters=getRowFrom(meta.getLookupStepname());
+        data.rowSet=findInputRowSet(meta.getLookupStepname());
+        parameters=getRowFrom(data.rowSet);
+        parametersMeta=data.rowSet.getRowMeta();
       }
  else {
         if (log.isDetailed())         logDetailed("Reading query parameters from stream [" + meta.getLookupStepname() + "]");
-        parameters=readStartDate();
+        RowMetaAndData rmad=readStartDate();
+        parameters=rmad.getData();
+        parametersMeta=rmad.getRowMeta();
       }
       if (parameters != null) {
         if (log.isDetailed())         logDetailed("Query parameters found = " + parameters.toString());
       }
     }
  else {
-      parameters=new RowMetaAndData(new RowMeta(),new Object[]{});
+      parameters=new Object[]{};
+      parametersMeta=new RowMeta();
     }
-    if (meta.isExecuteEachInputRow() && (parameters == null || parameters.getRowMeta().size() == 0)) {
+    if (meta.isExecuteEachInputRow() && (parameters == null || parametersMeta.size() == 0)) {
       setOutputDone();
       return false;
     }
-    boolean success=doQuery(parameters);
+    boolean success=doQuery(parametersMeta,parameters);
     if (!success) {
       return false;
     }
@@ -36,13 +42,13 @@
   if (data.thisrow == null) {
     boolean done=false;
     if (meta.isExecuteEachInputRow()) {
-      RowMetaAndData nextRow=getRowFrom(meta.getLookupStepname());
+      Object[] nextRow=getRowFrom(data.rowSet);
       if (nextRow == null) {
         done=true;
       }
  else {
         closePreviousQuery();
-        boolean success=doQuery(nextRow);
+        boolean success=doQuery(data.rowSet.getRowMeta(),nextRow);
         if (!success) {
           return false;
         }

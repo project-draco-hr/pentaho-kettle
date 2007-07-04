@@ -7,42 +7,43 @@
   int[] keyNrs=new int[meta.getKeylookup().length];
   int[] valueNrs=new int[meta.getValue().length];
   boolean firstRun=true;
-  RowMetaAndData r=getRowFrom(meta.getLookupFromStep().getName());
-  while (r != null) {
-    if (log.isRowLevel())     logRowlevel(Messages.getString("StreamLookup.Log.ReadLookupRow") + r.toString());
+  RowSet rowSet=findInputRowSet(meta.getLookupFromStep().getName());
+  Object[] rowData=getRowFrom(rowSet);
+  while (rowData != null) {
+    if (log.isRowLevel())     logRowlevel(Messages.getString("StreamLookup.Log.ReadLookupRow") + rowData.toString());
     if (firstRun) {
       firstRun=false;
-      data.infoMeta=(RowMetaInterface)r.getRowMeta().clone();
+      data.infoMeta=(RowMetaInterface)rowSet.getRowMeta().clone();
       data.keyMeta=new RowMeta();
       data.valueMeta=new RowMeta();
       for (int i=0; i < meta.getKeylookup().length; i++) {
-        keyNrs[i]=r.getRowMeta().indexOfValue(meta.getKeylookup()[i]);
+        keyNrs[i]=rowSet.getRowMeta().indexOfValue(meta.getKeylookup()[i]);
         if (keyNrs[i] < 0) {
           throw new KettleStepException(Messages.getString("StreamLookup.Exception.UnableToFindField",meta.getKeylookup()[i]));
         }
-        data.keyMeta.addValueMeta(r.getRowMeta().getValueMeta(keyNrs[i]));
+        data.keyMeta.addValueMeta(rowSet.getRowMeta().getValueMeta(keyNrs[i]));
       }
       if (data.keyTypes == null) {
         data.keyTypes=(RowMetaInterface)data.keyMeta.clone();
       }
       for (int v=0; v < meta.getValue().length; v++) {
-        valueNrs[v]=r.getRowMeta().indexOfValue(meta.getValue()[v]);
+        valueNrs[v]=rowSet.getRowMeta().indexOfValue(meta.getValue()[v]);
         if (valueNrs[v] < 0) {
           throw new KettleStepException(Messages.getString("StreamLookup.Exception.UnableToFindField",meta.getValue()[v]));
         }
-        data.valueMeta.addValueMeta(r.getRowMeta().getValueMeta(valueNrs[v]));
+        data.valueMeta.addValueMeta(rowSet.getRowMeta().getValueMeta(valueNrs[v]));
       }
     }
     Object[] keyData=new Object[keyNrs.length];
     for (int i=0; i < keyNrs.length; i++) {
-      keyData[i]=r.getData()[keyNrs[i]];
+      keyData[i]=rowData[keyNrs[i]];
     }
     Object[] valueData=new Object[valueNrs.length];
     for (int i=0; i < valueNrs.length; i++) {
-      valueData[i]=r.getData()[valueNrs[i]];
+      valueData[i]=rowData[valueNrs[i]];
     }
     addToCache(data.keyMeta,keyData,data.valueMeta,valueData);
-    r=getRowFrom(meta.getLookupFromStep().getName());
+    rowData=getRowFrom(rowSet);
   }
   return true;
 }
