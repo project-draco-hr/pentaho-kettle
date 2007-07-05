@@ -1,0 +1,75 @@
+{
+  try {
+    Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    int outputIndex=0;
+    boolean newLineFound=false;
+    int newLines=0;
+    while (!newLineFound) {
+      if (data.endBuffer >= data.bufferSize) {
+        data.resizeByteBuffer();
+        if (!data.readBufferFromFile()) {
+          return null;
+        }
+      }
+      boolean delimiterFound=false;
+      while (!delimiterFound) {
+        if (data.byteBuffer[data.endBuffer] == data.delimiter[0]) {
+          delimiterFound=true;
+        }
+ else         if (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+          data.endBuffer++;
+          newLines=1;
+          if (data.endBuffer >= data.bufferSize) {
+            data.resizeByteBuffer();
+            data.readBufferFromFile();
+          }
+          if (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+            data.endBuffer++;
+            newLines=2;
+            if (data.endBuffer >= data.bufferSize) {
+              data.resizeByteBuffer();
+              data.readBufferFromFile();
+            }
+          }
+          newLineFound=true;
+          delimiterFound=true;
+        }
+ else {
+          data.endBuffer++;
+          if (data.endBuffer >= data.bufferSize) {
+            data.resizeByteBuffer();
+            if (!data.readBufferFromFile()) {
+              return null;
+            }
+          }
+        }
+      }
+      int length=data.endBuffer - data.startBuffer;
+      if (newLineFound) {
+        length-=newLines;
+      }
+      byte[] field=new byte[length];
+      System.arraycopy(data.byteBuffer,data.startBuffer,field,0,length);
+      if (doConversions) {
+        if (meta.isLazyConversionActive()) {
+          outputRowData[outputIndex++]=field;
+        }
+ else {
+          ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(outputIndex);
+          ValueMetaInterface sourceValueMeta=targetValueMeta.getStorageMetadata();
+          outputRowData[outputIndex++]=targetValueMeta.convertData(sourceValueMeta,field);
+        }
+      }
+ else {
+        outputRowData[outputIndex++]=null;
+      }
+      data.endBuffer++;
+      data.startBuffer=data.endBuffer;
+    }
+    linesInput++;
+    return outputRowData;
+  }
+ catch (  Exception e) {
+    throw new KettleFileException("Exception reading line using NIO: " + e.toString());
+  }
+}
