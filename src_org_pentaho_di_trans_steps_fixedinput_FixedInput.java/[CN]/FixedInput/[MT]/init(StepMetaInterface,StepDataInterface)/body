@@ -1,0 +1,26 @@
+{
+  meta=(FixedInputMeta)smi;
+  data=(FixedInputData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      data.preferredBufferSize=Integer.parseInt(environmentSubstitute(meta.getBufferSize()));
+      data.lineWidth=Integer.parseInt(environmentSubstitute(meta.getLineWidth()));
+      data.filename=environmentSubstitute(meta.getFilename());
+      FileObject fileObject=KettleVFS.getFileObject(data.filename);
+      if (!(fileObject instanceof LocalFile)) {
+        logError(Messages.getString("FixedInput.Log.OnlyLocalFilesAreSupported"));
+        return false;
+      }
+      FileInputStream fis=(FileInputStream)((LocalFile)fileObject).getInputStream();
+      data.fc=fis.getChannel();
+      data.bb=ByteBuffer.allocateDirect(data.preferredBufferSize);
+      data.stopReading=false;
+      return true;
+    }
+ catch (    IOException e) {
+      logError("Error opening file '" + meta.getFilename() + "' : "+ e.toString());
+      logError(Const.getStackTracker(e));
+    }
+  }
+  return false;
+}
