@@ -21,9 +21,15 @@
       for (int i=0; i < data.fields_used.length; i++) {
         ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.fields_used[i]);
         Object valueData=row[data.fields_used[i]];
-        Value val=valueMeta.createOriginalValue(valueData);
-        Scriptable jsarg=Context.toObject(val,data.scope);
-        data.scope.put(val.getName(),data.scope,jsarg);
+        if (meta.isCompatible()) {
+          data.values_used[i]=valueMeta.createOriginalValue(valueData);
+          Scriptable jsarg=Context.toObject(data.values_used[i],data.scope);
+          data.scope.put(valueMeta.getName(),data.scope,jsarg);
+        }
+ else {
+          Scriptable jsarg=Context.toObject(valueData,data.scope);
+          data.scope.put(valueMeta.getName(),data.scope,jsarg);
+        }
       }
       try {
         if (meta.getAddClasses() != null) {
@@ -73,10 +79,7 @@
       throw new KettleValueException(Messages.getString("ScriptValuesMod.Log.CouldNotCompileJavascript"),e);
     }
   }
-  Object[] outputRow=new Object[data.outputRowMeta.size()];
-  for (int i=0; i < rowMeta.size(); i++) {
-    outputRow[i]=row[i];
-  }
+  Object[] outputRow=RowDataUtil.resizeArray(row,rowMeta.size());
   int outputIndex=rowMeta.size();
   try {
     try {
@@ -85,9 +88,15 @@
       for (int i=0; i < data.fields_used.length; i++) {
         ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.fields_used[i]);
         Object valueData=row[data.fields_used[i]];
-        Value val=valueMeta.createOriginalValue(valueData);
-        Scriptable jsarg=Context.toObject(val,data.scope);
-        data.scope.put(val.getName(),data.scope,jsarg);
+        if (meta.isCompatible()) {
+          data.values_used[i]=valueMeta.createOriginalValue(valueData);
+          Scriptable jsarg=Context.toObject(data.values_used[i],data.scope);
+          data.scope.put(valueMeta.getName(),data.scope,jsarg);
+        }
+ else {
+          Scriptable jsarg=Context.toObject(valueData,data.scope);
+          data.scope.put(valueMeta.getName(),data.scope,jsarg);
+        }
       }
     }
  catch (    Exception e) {
@@ -118,6 +127,12 @@
         Object result=data.scope.get(meta.getName()[i],data.scope);
         outputRow[outputIndex]=getValueFromJScript(result,i);
         outputIndex++;
+      }
+      if (meta.isCompatible()) {
+        for (int i=0; i < data.values_used.length; i++) {
+          ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.fields_used[i]);
+          outputRow[data.fields_used[i]]=valueMeta.getValueData(data.values_used[i]);
+        }
       }
     }
  else {
