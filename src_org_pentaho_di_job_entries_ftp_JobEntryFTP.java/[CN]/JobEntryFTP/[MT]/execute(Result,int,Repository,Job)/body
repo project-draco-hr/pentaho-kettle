@@ -1,47 +1,47 @@
 {
   LogWriter log=LogWriter.getInstance();
-  log4j.info("Started FTP job to " + serverName);
+  log4j.info(Messages.getString("JobEntryFTP.Started",serverName));
   Result result=previousResult;
   result.setResult(false);
   long filesRetrieved=0;
-  log.logDetailed(toString(),"Start of FTP job entry");
+  log.logDetailed(toString(),Messages.getString("JobEntryFTP.Start"));
   FTPClient ftpclient=null;
   try {
     ftpclient=new FTPClient();
     String realServername=environmentSubstitute(serverName);
     ftpclient.setRemoteAddr(InetAddress.getByName(realServername));
-    log.logDetailed(toString(),"Opened FTP connection to server [" + realServername + "]");
+    log.logDetailed(toString(),Messages.getString("JobEntryFTP.OpenedConnection",realServername));
     if (activeConnection) {
       ftpclient.setConnectMode(FTPConnectMode.ACTIVE);
-      log.logDetailed(toString(),"set active ftp connection mode");
+      log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetActive"));
     }
  else {
       ftpclient.setConnectMode(FTPConnectMode.PASV);
-      log.logDetailed(toString(),"set passive ftp connection mode");
+      log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetPassive"));
     }
     ftpclient.setTimeout(timeout);
-    log.logDetailed(toString(),"set timeout to " + timeout);
+    log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetTimeout",String.valueOf(timeout)));
     ftpclient.setControlEncoding(controlEncoding);
-    log.logDetailed(toString(),"set control encoding to " + controlEncoding);
+    log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetEncoding",controlEncoding));
     ftpclient.connect();
     String realUsername=environmentSubstitute(userName);
     String realPassword=environmentSubstitute(password);
     ftpclient.login(realUsername,realPassword);
-    log.logDetailed(toString(),"logged in with user " + realUsername);
+    log.logDetailed(toString(),Messages.getString("JobEntryFTP.LoggedIn",realUsername));
     if (!Const.isEmpty(ftpDirectory)) {
       String realFtpDirectory=environmentSubstitute(ftpDirectory);
       ftpclient.chdir(realFtpDirectory);
-      log.logDetailed(toString(),"Changed to directory [" + realFtpDirectory + "]");
+      log.logDetailed(toString(),Messages.getString("JobEntryFTP.ChangedDir",realFtpDirectory));
     }
     String[] filelist=ftpclient.dir();
-    log.logDetailed(toString(),"Found " + filelist.length + " files in the remote ftp directory");
+    log.logDetailed(toString(),Messages.getString("JobEntryFTP.FoundNFiles",String.valueOf(filelist.length)));
     if (binaryMode) {
       ftpclient.setType(FTPTransferType.BINARY);
-      log.logDetailed(toString(),"set binary transfer mode");
+      log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetBinary"));
     }
  else {
       ftpclient.setType(FTPTransferType.ASCII);
-      log.logDetailed(toString(),"set ASCII transfer mode");
+      log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetAscii"));
     }
     if (filelist.length == 1) {
       String translatedWildcard=environmentSubstitute(wildcard);
@@ -61,20 +61,20 @@
         getIt=matcher.matches();
       }
       if (getIt) {
-        log.logDebug(toString(),"Getting file [" + filelist[i] + "] to directory ["+ environmentSubstitute(targetDirectory)+ "]");
+        log.logDebug(toString(),Messages.getString("JobEntryFTP.GettingFile",filelist[i],environmentSubstitute(targetDirectory)));
         String targetFilename=getTargetFilename(filelist[i]);
         FileObject targetFile=KettleVFS.getFileObject(targetFilename);
         if ((onlyGettingNewFiles == false) || (onlyGettingNewFiles == true) && needsDownload(filelist[i])) {
           ftpclient.get(targetFilename,filelist[i]);
           filesRetrieved++;
           ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,targetFile,parentJob.getJobname(),toString());
-          resultFile.setComment("Downloaded from ftp server " + serverName);
+          resultFile.setComment(Messages.getString("JobEntryFTP.Downloaded",serverName));
           result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-          log.logDetailed(toString(),"Got file [" + filelist[i] + "]");
+          log.logDetailed(toString(),Messages.getString("JobEntryFTP.GotFile",filelist[i]));
         }
         if (remove) {
           ftpclient.delete(filelist[i]);
-          log.logDetailed(toString(),"deleted file [" + filelist[i] + "]");
+          log.logDetailed(toString(),Messages.getString("JobEntryFTP.DeletedFile",filelist[i]));
         }
       }
     }
@@ -83,7 +83,7 @@
   }
  catch (  Exception e) {
     result.setNrErrors(1);
-    log.logError(toString(),"Error getting files from FTP : " + e.getMessage());
+    log.logError(toString(),Messages.getString("JobEntryFTP.ErrorGetting",e.getMessage()));
     log.logError(toString(),Const.getStackTracker(e));
   }
  finally {
@@ -92,7 +92,7 @@
         ftpclient.quit();
       }
  catch (      Exception e) {
-        log.logError(toString(),"Error quiting FTP connection: " + e.getMessage());
+        log.logError(toString(),Messages.getString("JobEntryFTP.ErrorQuitting",e.getMessage()));
       }
     }
   }
