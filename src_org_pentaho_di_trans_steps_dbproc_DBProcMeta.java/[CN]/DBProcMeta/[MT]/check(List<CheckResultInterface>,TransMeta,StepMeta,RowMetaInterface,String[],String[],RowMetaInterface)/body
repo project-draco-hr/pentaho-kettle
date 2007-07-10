@@ -1,0 +1,62 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (database != null) {
+    Database db=new Database(database);
+    try {
+      db.connect();
+      if (prev != null && prev.size() > 0) {
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < argument.length; i++) {
+          ValueMetaInterface v=prev.searchValueMeta(argument[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("DBProcMeta.CheckResult.MissingArguments") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + argument[i] + Const.CR;
+          }
+ else {
+            if (v.getType() != argumentType[i] && !(v.isNumeric() && ValueMeta.isNumeric(argumentType[i]))) {
+              error_found=true;
+              error_message+="\t\t" + argument[i] + Messages.getString("DBProcMeta.CheckResult.WrongTypeArguments",v.getTypeDesc(),ValueMeta.getTypeDesc(argumentType[i]))+ Const.CR;
+            }
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,Messages.getString("DBProcMeta.CheckResult.AllArgumentsOK"),stepMeta);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message=Messages.getString("DBProcMeta.CheckResult.CouldNotReadFields") + Const.CR;
+        cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("DBProcMeta.CheckResult.ErrorOccurred") + e.getMessage();
+      cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+  }
+ else {
+    error_message=Messages.getString("DBProcMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,Messages.getString("DBProcMeta.CheckResult.ReceivingInfoFromOtherSteps"),stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,Messages.getString("DBProcMeta.CheckResult.NoInpuReceived"),stepMeta);
+    remarks.add(cr);
+  }
+}
