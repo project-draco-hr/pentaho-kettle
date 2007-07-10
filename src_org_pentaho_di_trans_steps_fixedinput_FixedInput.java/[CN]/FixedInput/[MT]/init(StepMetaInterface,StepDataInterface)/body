@@ -7,13 +7,15 @@
       data.lineWidth=Integer.parseInt(environmentSubstitute(meta.getLineWidth()));
       data.filename=environmentSubstitute(meta.getFilename());
       FileObject fileObject=KettleVFS.getFileObject(data.filename);
-      if (!(fileObject instanceof LocalFile)) {
-        logError(Messages.getString("FixedInput.Log.OnlyLocalFilesAreSupported"));
+      try {
+        FileInputStream fileInputStream=KettleVFS.getFileInputStream(fileObject);
+        data.fc=fileInputStream.getChannel();
+        data.bb=ByteBuffer.allocateDirect(data.preferredBufferSize);
+      }
+ catch (      IOException e) {
+        logError(e.toString());
         return false;
       }
-      FileInputStream fis=(FileInputStream)((LocalFile)fileObject).getInputStream();
-      data.fc=fis.getChannel();
-      data.bb=ByteBuffer.allocateDirect(data.preferredBufferSize);
       data.stopReading=false;
       if (meta.isRunningInParallel()) {
         data.stepNumber=getUniqueStepNrAcrossSlaves();
