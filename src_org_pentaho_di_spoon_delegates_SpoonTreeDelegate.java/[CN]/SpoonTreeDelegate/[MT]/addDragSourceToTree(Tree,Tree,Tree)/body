@@ -1,0 +1,71 @@
+{
+  Transfer[] ttypes=new Transfer[]{XMLTransfer.getInstance()};
+  DragSource ddSource=new DragSource(tree,DND.DROP_MOVE);
+  ddSource.setTransfer(ttypes);
+  ddSource.addDragListener(new DragSourceListener(){
+    public void dragStart(    DragSourceEvent event){
+    }
+    public void dragSetData(    DragSourceEvent event){
+      TreeSelection[] treeObjects=getTreeObjects(tree,selectionTree,coreObjectsTree);
+      if (treeObjects.length == 0) {
+        event.doit=false;
+        return;
+      }
+      int type=0;
+      String data=null;
+      TreeSelection treeObject=treeObjects[0];
+      Object object=treeObject.getSelection();
+      JobMeta jobMeta=spoon.getActiveJob();
+      if (object instanceof StepMeta) {
+        StepMeta stepMeta=(StepMeta)object;
+        type=DragAndDropContainer.TYPE_STEP;
+        data=stepMeta.getName();
+      }
+ else       if (object instanceof StepPlugin) {
+        StepPlugin stepPlugin=(StepPlugin)object;
+        type=DragAndDropContainer.TYPE_BASE_STEP_TYPE;
+        data=stepPlugin.getDescription();
+      }
+ else       if (object instanceof DatabaseMeta) {
+        DatabaseMeta databaseMeta=(DatabaseMeta)object;
+        type=DragAndDropContainer.TYPE_DATABASE_CONNECTION;
+        data=databaseMeta.getName();
+      }
+ else       if (object instanceof TransHopMeta) {
+        TransHopMeta hop=(TransHopMeta)object;
+        type=DragAndDropContainer.TYPE_TRANS_HOP;
+        data=hop.toString();
+      }
+ else       if (object instanceof JobEntryCopy) {
+        JobEntryCopy jobEntryCopy=(JobEntryCopy)object;
+        type=DragAndDropContainer.TYPE_JOB_ENTRY;
+        data=jobEntryCopy.getName();
+      }
+ else       if (object instanceof JobPlugin) {
+        JobPlugin jobPlugin=(JobPlugin)object;
+        type=DragAndDropContainer.TYPE_BASE_JOB_ENTRY;
+        data=jobPlugin.getDescription();
+      }
+ else       if (object instanceof Class && object.equals(JobPlugin.class)) {
+        JobEntryCopy dummy=null;
+        if (jobMeta != null)         dummy=jobMeta.findJobEntry(JobMeta.STRING_SPECIAL_DUMMY,0,true);
+        if (JobMeta.STRING_SPECIAL_DUMMY.equalsIgnoreCase(treeObject.getItemText()) && dummy != null) {
+          type=DragAndDropContainer.TYPE_JOB_ENTRY;
+          data=dummy.getName();
+        }
+ else {
+          type=DragAndDropContainer.TYPE_BASE_JOB_ENTRY;
+          data=treeObject.getItemText();
+        }
+      }
+ else {
+        event.doit=false;
+        return;
+      }
+      event.data=new DragAndDropContainer(type,data);
+    }
+    public void dragFinished(    DragSourceEvent event){
+    }
+  }
+);
+}
