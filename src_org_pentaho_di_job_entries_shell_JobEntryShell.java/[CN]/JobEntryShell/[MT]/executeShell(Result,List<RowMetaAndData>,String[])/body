@@ -1,8 +1,8 @@
 {
   LogWriter log=LogWriter.getInstance();
   try {
-    String cmd[]=null;
     String base[]=null;
+    List<String> cmds=new ArrayList<String>();
     log.logBasic(toString(),"Running on platform : " + Const.getOS());
     FileObject fileObject=null;
     String realFilename=environmentSubstitute(getFilename());
@@ -17,7 +17,6 @@
       base=new String[]{KettleVFS.getFilename(fileObject)};
     }
     if (argFromPrevious && cmdRows != null) {
-      List<String> cmds=new ArrayList<String>();
       for (int i=0; i < base.length; i++)       cmds.add(base[i]);
       if (Const.getOS().equals("Windows 95") || Const.getOS().startsWith("Windows")) {
         StringBuffer cmdline=new StringBuffer(300);
@@ -41,10 +40,8 @@
           }
         }
       }
-      cmd=(String[])cmds.toArray(new String[cmds.size()]);
     }
  else     if (args != null) {
-      List<String> cmds=new ArrayList<String>();
       for (int i=0; i < base.length; i++)       cmds.add(base[i]);
       if (Const.getOS().equals("Windows 95") || Const.getOS().startsWith("Windows")) {
         StringBuffer cmdline=new StringBuffer(300);
@@ -62,25 +59,29 @@
           cmds.add(args[i]);
         }
       }
-      cmd=(String[])cmds.toArray(new String[cmds.size()]);
     }
-    if (log.isBasic()) {
-      StringBuffer command=new StringBuffer();
-      for (int i=0; i < cmd.length; i++) {
-        if (i > 0)         command.append(' ');
-        command.append(cmd[i]);
-      }
-      log.logBasic(toString(),"Executing command : " + command.toString());
+    StringBuffer command=new StringBuffer();
+    Iterator it=cmds.iterator();
+    boolean first=true;
+    while (it.hasNext()) {
+      if (!first)       command.append(' ');
+ else       first=false;
+      command.append((String)it.next());
     }
-    log.logDetailed(toString(),"Passing " + (cmd.length - 1) + " arguments to command : ["+ cmd[0]+ "]");
-    Runtime runtime=java.lang.Runtime.getRuntime();
-    Process proc=runtime.exec(cmd,EnvUtil.getEnvironmentVariablesForRuntimeExec());
+    log.logBasic(toString(),"Executing command : " + command.toString());
+    ProcessBuilder procBuilder=new ProcessBuilder(cmds);
+    Map<String,String> env=procBuilder.environment();
+    String[] variables=listVariables();
+    for (int i=0; i < variables.length; i++) {
+      env.put(variables[i],getVariable(variables[i]));
+    }
+    Process proc=procBuilder.start();
     StreamLogger errorLogger=new StreamLogger(proc.getErrorStream(),toString() + " (stderr)");
     StreamLogger outputLogger=new StreamLogger(proc.getInputStream(),toString() + " (stdout)");
     new Thread(errorLogger).start();
     new Thread(outputLogger).start();
     proc.waitFor();
-    log.logDetailed(toString(),"command [" + cmd[0] + "] has finished");
+    log.logDetailed(toString(),"Command " + command.toString() + " has finished");
     result.setExitStatus(proc.exitValue());
     if (result.getExitStatus() != 0) {
       log.logDetailed(toString(),"Exit status of shell [" + environmentSubstitute(getFileName()) + "] was "+ result.getExitStatus());
