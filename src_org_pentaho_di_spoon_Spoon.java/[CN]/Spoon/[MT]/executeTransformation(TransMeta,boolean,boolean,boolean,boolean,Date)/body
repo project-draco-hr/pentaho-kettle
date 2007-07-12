@@ -1,47 +1,8 @@
 {
-  if (transMeta == null)   return;
-  executionConfiguration.setExecutingLocally(local);
-  executionConfiguration.setExecutingRemotely(remote);
-  executionConfiguration.setExecutingClustered(cluster);
-  Object data[]=variables.getData();
-  String fields[]=variables.getRowMeta().getFieldNames();
-  Map<String,String> variableMap=new HashMap<String,String>();
-  for (int idx=0; idx < fields.length; idx++) {
-    variableMap.put(fields[idx],data[idx].toString());
+  try {
+    delegates.trans.executeTransformation(transMeta,local,remote,cluster,preview,replayDate);
   }
-  executionConfiguration.getUsedVariables(transMeta);
-  executionConfiguration.getUsedArguments(transMeta,arguments);
-  executionConfiguration.setVariables(variableMap);
-  executionConfiguration.setReplayDate(replayDate);
-  executionConfiguration.setLocalPreviewing(preview);
-  executionConfiguration.setLogLevel(log.getLogLevel());
-  TransExecutionConfigurationDialog dialog=new TransExecutionConfigurationDialog(shell,executionConfiguration,transMeta);
-  if (dialog.open()) {
-    addTransLog(transMeta,!executionConfiguration.isLocalPreviewing());
-    TransLog transLog=getActiveTransLog();
-    if (executionConfiguration.isExecutingLocally()) {
-      if (executionConfiguration.isLocalPreviewing()) {
-        transLog.preview(executionConfiguration);
-      }
- else {
-        transLog.start(executionConfiguration);
-      }
-    }
- else     if (executionConfiguration.isExecutingRemotely()) {
-      if (executionConfiguration.getRemoteServer() != null) {
-        sendXMLToSlaveServer(transMeta,executionConfiguration);
-        addSpoonSlave(executionConfiguration.getRemoteServer());
-      }
- else {
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
-        mb.setMessage(Messages.getString("Spoon.Dialog.NoRemoteServerSpecified.Message"));
-        mb.setText(Messages.getString("Spoon.Dialog.NoRemoteServerSpecified.Title"));
-        mb.open();
-      }
-    }
- else     if (executionConfiguration.isExecutingClustered()) {
-      splitTrans(transMeta,executionConfiguration.isClusterShowingTransformation(),executionConfiguration.isClusterPosting(),executionConfiguration.isClusterPreparing(),executionConfiguration.isClusterStarting());
-    }
+ catch (  Exception e) {
+    new ErrorDialog(shell,"Split transformation","There was an error during transformation split",e);
   }
-  arguments=executionConfiguration.getArgumentStrings();
 }
