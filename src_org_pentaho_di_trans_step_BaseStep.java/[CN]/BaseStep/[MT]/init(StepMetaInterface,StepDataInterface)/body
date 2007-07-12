@@ -16,5 +16,43 @@
   if (uniqueStepCountAcrossSlaves == 0)   uniqueStepCountAcrossSlaves=1;
   setVariable(Const.INTERNAL_VARIABLE_STEP_UNIQUE_NUMBER,Integer.toString(uniqueStepNrAcrossSlaves));
   setVariable(Const.INTERNAL_VARIABLE_STEP_UNIQUE_COUNT,Integer.toString(uniqueStepCountAcrossSlaves));
+  try {
+    remoteOutputSteps=new ArrayList<RemoteStep>();
+    for (    RemoteStep remoteStep : stepMeta.getRemoteOutputSteps()) {
+      RemoteStep copy=(RemoteStep)remoteStep.clone();
+      try {
+        copy.openServerSocket(this);
+      }
+ catch (      Exception e) {
+        log.logError(toString(),"Unable to open server socket during step initialisation: " + copy.toString(),e);
+        throw new Exception(e);
+      }
+      remoteOutputSteps.add(copy);
+    }
+  }
+ catch (  Exception e) {
+    for (    RemoteStep remoteStep : remoteOutputSteps) {
+      if (remoteStep.getServerSocket() != null) {
+        try {
+          remoteStep.getServerSocket().close();
+        }
+ catch (        IOException e1) {
+          log.logError(toString(),"Unable to close server socket after error during step initialisation",e);
+        }
+      }
+    }
+    return false;
+  }
+  try {
+    remoteInputSteps=new ArrayList<RemoteStep>();
+    for (    RemoteStep remoteStep : stepMeta.getRemoteInputSteps()) {
+      RemoteStep copy=(RemoteStep)remoteStep.clone();
+      remoteInputSteps.add(copy);
+    }
+  }
+ catch (  Exception e) {
+    log.logError(toString(),"Unable to initialize remote input steps during step initialisation",e);
+    return false;
+  }
   return true;
 }

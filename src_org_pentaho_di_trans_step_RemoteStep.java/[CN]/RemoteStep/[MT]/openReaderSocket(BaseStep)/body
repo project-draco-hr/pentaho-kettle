@@ -1,0 +1,42 @@
+{
+  final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
+  rowSet.setThreadNameFromToCopy(sourceStep,0,targetStep,0);
+  this.baseStep=baseStep;
+  int portNumber=Integer.parseInt(baseStep.environmentSubstitute(port));
+  socket=new Socket(baseStep.environmentSubstitute(hostname),portNumber);
+  inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),5000));
+  Runnable runnable=new Runnable(){
+    public void run(){
+      try {
+        RowMetaInterface rowMeta=new RowMeta(inputStream);
+        Object[] rowData=rowMeta.readData(inputStream);
+        while (rowData != null && !baseStep.isStopped()) {
+          baseStep.linesInput++;
+          rowSet.putRow(rowMeta,rowData);
+          rowData=rowMeta.readData(inputStream);
+        }
+      }
+ catch (      KettleEOFException e) {
+      }
+catch (      KettleFileException e) {
+        LogWriter.getInstance().logError(baseStep.toString(),"Error reading from client socket to remote step",e);
+        baseStep.setErrors(1);
+        baseStep.stopAll();
+      }
+ finally {
+        try {
+          socket.close();
+        }
+ catch (        IOException e) {
+          LogWriter.getInstance().logError(baseStep.toString(),"Error closing client socket to remote step",e);
+          baseStep.setErrors(1);
+          baseStep.stopAll();
+        }
+      }
+      rowSet.setDone();
+    }
+  }
+;
+  new Thread(runnable).start();
+  return rowSet;
+}

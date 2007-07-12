@@ -1,21 +1,23 @@
 {
+  clear();
   findUsedOriginalSteps();
   checkClusterConfiguration();
   generateSlaveDatabasePartitions();
   try {
+    SlaveServer masterServer=getMasterServer();
     master=getOriginalCopy(false,null,null);
-    for (int i=0; i < originalSteps.length; i++) {
-      StepMeta originalStep=originalSteps[i];
-      ClusterSchema originalClusterSchema=originalStep.getClusterSchema();
-      int nrPreviousSteps=originalTransformation.findNrPrevSteps(originalStep);
+    for (int i=0; i < referenceSteps.length; i++) {
+      StepMeta referenceStep=referenceSteps[i];
+      ClusterSchema originalClusterSchema=referenceStep.getClusterSchema();
+      int nrPreviousSteps=originalTransformation.findNrPrevSteps(referenceStep);
       for (int p=0; p < nrPreviousSteps; p++) {
-        StepMeta previousStep=originalTransformation.findPrevStep(originalStep,p);
+        StepMeta previousStep=originalTransformation.findPrevStep(referenceStep,p);
         ClusterSchema previousClusterSchema=previousStep.getClusterSchema();
         if (originalClusterSchema == null) {
           if (previousClusterSchema == null) {
-            StepMeta target=master.findStep(originalStep.getName());
+            StepMeta target=master.findStep(referenceStep.getName());
             if (target == null) {
-              target=(StepMeta)originalStep.clone();
+              target=(StepMeta)referenceStep.clone();
               master.addStep(target);
             }
             StepMeta source=master.findStep(previousStep.getName());
@@ -27,45 +29,28 @@
             master.addTransHop(masterHop);
           }
  else {
-            StepMeta target=master.findStep(originalStep.getName());
+            StepMeta target=master.findStep(referenceStep.getName());
             if (target == null) {
-              target=(StepMeta)originalStep.clone();
-              target.setLocation(target.getLocation().x + (SPLIT / 2),target.getLocation().y);
+              target=(StepMeta)referenceStep.clone();
+              target.setLocation(target.getLocation().x,target.getLocation().y);
               master.addStep(target);
             }
             int nrSlaves=previousClusterSchema.getSlaveServers().size();
             for (int s=0; s < nrSlaves; s++) {
               SlaveServer slaveServer=(SlaveServer)previousClusterSchema.getSlaveServers().get(s);
               if (!slaveServer.isMaster()) {
-                SocketReaderMeta socketReaderMeta=new SocketReaderMeta();
-                socketReaderMeta.setHostname(slaveServer.getHostname());
-                socketReaderMeta.setPort("" + getPort(previousClusterSchema,slaveServer,originalStep.getName()));
-                socketReaderMeta.setBufferSize(previousClusterSchema.getSocketsBufferSize());
-                socketReaderMeta.setCompressed(previousClusterSchema.isSocketsCompressed());
-                StepMeta readerStep=new StepMeta(getReaderName(originalStep.getName(),previousClusterSchema,slaveServer),socketReaderMeta);
-                readerStep.setLocation(originalStep.getLocation().x - (SPLIT / 2),originalStep.getLocation().y + (s * FANOUT * 2) - (nrSlaves * FANOUT / 2));
-                readerStep.setDraw(originalStep.isDrawn());
-                master.addStep(readerStep);
-                TransHopMeta masterHop=new TransHopMeta(readerStep,target);
-                master.addTransHop(masterHop);
+                int port=getPort(previousClusterSchema,slaveServer,referenceStep.getName());
+                RemoteStep remoteSlaveStep=new RemoteStep(slaveServer.getHostname(),Integer.toString(port),previousStep.getName() + ":" + slaveServer.toString(),target.getName());
+                target.getRemoteInputSteps().add(remoteSlaveStep);
                 TransMeta slave=getSlaveTransformation(previousClusterSchema,slaveServer);
-                SocketWriterMeta socketWriterMeta=new SocketWriterMeta();
-                socketWriterMeta.setPort("" + getPort(previousClusterSchema,slaveServer,originalStep.getName()));
-                socketWriterMeta.setBufferSize(previousClusterSchema.getSocketsBufferSize());
-                socketWriterMeta.setFlushInterval(previousClusterSchema.getSocketsFlushInterval());
-                socketWriterMeta.setCompressed(previousClusterSchema.isSocketsCompressed());
-                StepMeta writerStep=new StepMeta(getWriterName(originalStep.getName(),previousClusterSchema,slaveServer),socketWriterMeta);
-                writerStep.setLocation(originalStep.getLocation().x,originalStep.getLocation().y);
-                writerStep.setDraw(originalStep.isDrawn());
-                slave.addStep(writerStep);
                 StepMeta previous=slave.findStep(previousStep.getName());
                 if (previous == null) {
                   previous=(StepMeta)previousStep.clone();
-                  previous.setLocation(previousStep.getLocation().x + (SPLIT / 2),previousStep.getLocation().y);
+                  previous.setLocation(previousStep.getLocation().x,previousStep.getLocation().y);
                   slave.addStep(previous);
                 }
-                TransHopMeta slaveHop=new TransHopMeta(previous,writerStep);
-                slave.addTransHop(slaveHop);
+                RemoteStep remoteMasterStep=new RemoteStep(masterServer.getHostname(),Integer.toString(port),previous.getName(),target.getName() + ":" + masterServer.toString());
+                previous.getRemoteOutputSteps().add(remoteMasterStep);
               }
             }
           }
@@ -76,44 +61,24 @@
             for (int s=0; s < nrSlaves; s++) {
               SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
               if (!slaveServer.isMaster()) {
-                SocketWriterMeta socketWriterMeta=new SocketWriterMeta();
-                socketWriterMeta.setPort("" + getPort(originalClusterSchema,slaveServer,originalStep.getName()));
-                socketWriterMeta.setBufferSize(originalClusterSchema.getSocketsBufferSize());
-                socketWriterMeta.setFlushInterval(originalClusterSchema.getSocketsFlushInterval());
-                socketWriterMeta.setCompressed(originalClusterSchema.isSocketsCompressed());
-                StepMeta writerStep=new StepMeta(getWriterName(originalStep.getName(),originalClusterSchema,slaveServer),socketWriterMeta);
-                writerStep.setLocation(originalStep.getLocation().x,originalStep.getLocation().y + (s * FANOUT * 2) - (nrSlaves * FANOUT / 2));
-                writerStep.setDraw(originalStep.isDrawn());
-                master.addStep(writerStep);
                 StepMeta previous=master.findStep(previousStep.getName());
                 if (previous == null) {
                   previous=(StepMeta)previousStep.clone();
+                  previous.setLocation(previousStep.getLocation().x,previousStep.getLocation().y);
                   master.addStep(previous);
                 }
-                TransHopMeta masterHop=new TransHopMeta(previous,writerStep);
-                master.addTransHop(masterHop);
+                int port=getPort(originalClusterSchema,slaveServer,referenceStep.getName());
+                RemoteStep remoteMasterStep=new RemoteStep(masterServer.getHostname(),Integer.toString(port),previous.getName(),referenceStep.getName());
+                previous.getRemoteOutputSteps().add(remoteMasterStep);
                 TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
-                SocketReaderMeta socketReaderMeta=new SocketReaderMeta();
-                SlaveServer masterServer=originalClusterSchema.findMaster();
-                if (masterServer == null) {
-                  throw new KettleException("No master server set for cluster schema [" + originalClusterSchema.getName() + "]");
-                }
-                socketReaderMeta.setHostname(masterServer.getHostname());
-                socketReaderMeta.setPort("" + getPort(originalClusterSchema,slaveServer,originalStep.getName()));
-                socketReaderMeta.setBufferSize(originalClusterSchema.getSocketsBufferSize());
-                socketReaderMeta.setCompressed(originalClusterSchema.isSocketsCompressed());
-                StepMeta readerStep=new StepMeta(getReaderName(originalStep.getName(),originalClusterSchema,slaveServer),socketReaderMeta);
-                readerStep.setLocation(originalStep.getLocation().x - (SPLIT / 2),originalStep.getLocation().y);
-                readerStep.setDraw(originalStep.isDrawn());
-                slave.addStep(readerStep);
-                StepMeta slaveStep=slave.findStep(originalStep.getName());
+                StepMeta slaveStep=slave.findStep(referenceStep.getName());
                 if (slaveStep == null) {
-                  slaveStep=(StepMeta)originalStep.clone();
-                  slaveStep.setLocation(originalStep.getLocation().x + (SPLIT / 2),originalStep.getLocation().y);
+                  slaveStep=(StepMeta)referenceStep.clone();
+                  slaveStep.setLocation(referenceStep.getLocation().x,referenceStep.getLocation().y);
                   slave.addStep(slaveStep);
                 }
-                TransHopMeta slaveHop=new TransHopMeta(readerStep,slaveStep);
-                slave.addTransHop(slaveHop);
+                RemoteStep remoteSlaveStep=new RemoteStep(slaveServer.getHostname(),Integer.toString(port),referenceStep.getName(),slaveStep.getName());
+                slaveStep.getRemoteInputSteps().add(remoteSlaveStep);
               }
             }
           }
@@ -123,9 +88,9 @@
               SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
               if (!slaveServer.isMaster()) {
                 TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
-                StepMeta target=slave.findStep(originalStep.getName());
+                StepMeta target=slave.findStep(referenceStep.getName());
                 if (target == null) {
-                  target=(StepMeta)originalStep.clone();
+                  target=(StepMeta)referenceStep.clone();
                   slave.addStep(target);
                 }
                 StepMeta source=slave.findStep(previousStep.getName());
@@ -143,7 +108,7 @@
       }
       if (nrPreviousSteps == 0) {
         if (originalClusterSchema == null) {
-          if (master.findStep(originalStep.getName()) == null)           master.addStep(originalStep);
+          if (master.findStep(referenceStep.getName()) == null)           master.addStep(referenceStep);
         }
  else {
           int nrSlaves=originalClusterSchema.getSlaveServers().size();
@@ -151,14 +116,14 @@
             SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
             if (!slaveServer.isMaster()) {
               TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
-              slave.addStep(originalStep);
+              slave.addStep((StepMeta)referenceStep.clone());
             }
           }
         }
       }
     }
-    for (int i=0; i < originalSteps.length; i++) {
-      StepMeta originalStep=originalSteps[i];
+    for (int i=0; i < referenceSteps.length; i++) {
+      StepMeta originalStep=referenceSteps[i];
       ClusterSchema originalClusterSchema=originalStep.getClusterSchema();
       StepMeta infoSteps[]=originalTransformation.getInfoStep(originalStep);
       for (int p=0; infoSteps != null && p < infoSteps.length; p++) {
@@ -198,10 +163,6 @@
                 master.addTransHop(masterHop);
                 TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
                 SocketReaderMeta socketReaderMeta=new SocketReaderMeta();
-                SlaveServer masterServer=originalClusterSchema.findMaster();
-                if (masterServer == null) {
-                  throw new KettleException("No master server set for cluster schema [" + originalClusterSchema.getName() + "]");
-                }
                 socketReaderMeta.setHostname(masterServer.getHostname());
                 socketReaderMeta.setPort("" + getPort(originalClusterSchema,slaveServer,originalStep.getName()));
                 socketReaderMeta.setBufferSize(originalClusterSchema.getSocketsBufferSize());

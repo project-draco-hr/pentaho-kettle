@@ -1,0 +1,45 @@
+{
+  this.baseStep=baseStep;
+  socket=serverSocket.accept();
+  outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),5000));
+  first=true;
+  final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
+  rowSet.setThreadNameFromToCopy(sourceStep,0,targetStep,0);
+  Runnable runnable=new Runnable(){
+    public void run(){
+      try {
+        Object[] rowData=baseStep.getRowFrom(rowSet);
+        while (rowData != null && !baseStep.isStopped()) {
+          sendRow(rowSet.getRowMeta(),rowData);
+          rowData=baseStep.getRowFrom(rowSet);
+        }
+      }
+ catch (      Exception e) {
+        LogWriter.getInstance().logError(baseStep.toString(),"Error writing to remote step",e);
+        baseStep.setErrors(1);
+        baseStep.stopAll();
+      }
+ finally {
+        try {
+          socket.close();
+        }
+ catch (        IOException e) {
+          LogWriter.getInstance().logError(baseStep.toString(),"Error closing client socket to remote step",e);
+          baseStep.setErrors(1);
+          baseStep.stopAll();
+        }
+        try {
+          serverSocket.close();
+        }
+ catch (        IOException e) {
+          LogWriter.getInstance().logError(baseStep.toString(),"Error closing client socket to remote step",e);
+          baseStep.setErrors(1);
+          baseStep.stopAll();
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
+  return rowSet;
+}
