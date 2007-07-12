@@ -1,0 +1,59 @@
+{
+  meta=(ValueMapperMeta)smi;
+  data=(ValueMapperData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.previousMeta=(RowMetaInterface)getInputRowMeta().clone();
+    data.outputMeta=(RowMetaInterface)data.previousMeta.clone();
+    meta.getFields(data.outputMeta,getStepname(),null);
+    data.keynr=data.previousMeta.indexOfValue(meta.getFieldToUse());
+    if (data.keynr < 0) {
+      String message=Messages.getString("ValueMapper.RuntimeError.FieldToUseNotFound.VALUEMAPPER0001",meta.getFieldToUse(),Const.CR,r.toString());
+      log.logError(toString(),message);
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+    for (int i=0; i < meta.getSourceValue().length; i++) {
+      if (Const.isEmpty(meta.getSourceValue()[i])) {
+        if (data.emptyFieldIndex < 0) {
+          data.emptyFieldIndex=i;
+        }
+ else {
+          throw new KettleException(Messages.getString("ValueMapper.RuntimeError.OnlyOneEmptyMappingAllowed.VALUEMAPPER0004"));
+        }
+      }
+    }
+  }
+  String source=data.previousMeta.getString(r,data.keynr);
+  String target=null;
+  if (data.emptyFieldIndex >= 0 && (r[data.keynr] == null || Const.isEmpty(source))) {
+    target=meta.getTargetValue()[data.emptyFieldIndex];
+  }
+ else {
+    if (!Const.isEmpty(source)) {
+      target=(String)data.hashtable.get(source);
+    }
+  }
+  if (!Const.isEmpty(meta.getTargetField())) {
+    Object[] outputDataWithTargetField=new Object[r.length + 1];
+    System.arraycopy(r,0,outputDataWithTargetField,0,r.length);
+    if (!Const.isEmpty(target)) {
+      outputDataWithTargetField[data.outputMeta.size() - 1]=target;
+    }
+ else {
+      outputDataWithTargetField[data.outputMeta.size() - 1]=null;
+    }
+    putRow(data.outputMeta,outputDataWithTargetField);
+  }
+ else {
+    if (!Const.isEmpty(target))     r[data.keynr]=target;
+    putRow(data.outputMeta,r);
+  }
+  return true;
+}
