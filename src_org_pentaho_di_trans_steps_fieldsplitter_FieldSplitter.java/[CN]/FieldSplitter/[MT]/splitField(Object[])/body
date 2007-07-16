@@ -1,0 +1,50 @@
+{
+  if (first) {
+    data.previousMeta=(RowMetaInterface)getInputRowMeta().clone();
+    data.fieldnr=data.previousMeta.indexOfValue(meta.getSplitField());
+    if (data.fieldnr < 0) {
+      logError(Messages.getString("FieldSplitter.Log.CouldNotFindFieldToSplit",meta.getSplitField()));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+    if (!data.previousMeta.getValueMeta(data.fieldnr).isString()) {
+      logError(Messages.getString("FieldSplitter.Log.SplitFieldNotValid",meta.getSplitField()));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+    data.outputMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputMeta,getStepname(),null);
+  }
+  String v=data.previousMeta.getString(r,data.fieldnr);
+  RowDataUtil.resizeArray(r,data.outputMeta.size());
+  boolean insert=data.fieldnr < data.previousMeta.size();
+  if (insert) {
+    System.arraycopy(r,data.fieldnr + 1,r,data.fieldnr + meta.getFieldID().length,meta.getFieldID().length);
+  }
+  boolean use_ids=meta.getFieldID().length > 0 && meta.getFieldID()[0] != null && meta.getFieldID()[0].length() > 0;
+  Object value=null;
+  if (use_ids) {
+  }
+ else {
+    if (log.isDebug())     logDebug(Messages.getString("FieldSplitter.Log.UsingPositionOfValue"));
+    int prev=0;
+    for (int i=0; i < meta.getField().length; i++) {
+      String pol=polNext(v,meta.getDelimiter(),prev);
+      if (log.isDebug())       logDebug(Messages.getString("FieldSplitter.Log.SplitFieldsInfo",pol,String.valueOf(prev)));
+      prev+=(pol == null ? 0 : pol.length()) + meta.getDelimiter().length();
+      try {
+        value=TextFileInput.convertValue(pol,data.previousMeta.getValueMeta(data.fieldnr),data.outputMeta.getValueMeta(data.fieldnr + i),meta.getFieldDefault()[i],"",TextFileInputMeta.TYPE_TRIM_BOTH);
+      }
+ catch (      Exception e) {
+        logError(Messages.getString("FieldSplitter.Log.ErrorConvertingSplitValue",pol,meta.getSplitField() + "]!"));
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+      r[data.fieldnr + i]=value;
+    }
+  }
+  return true;
+}
