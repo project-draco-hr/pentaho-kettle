@@ -1,0 +1,43 @@
+{
+  slaveServerPartitionsMap=new Hashtable<SlaveServer,Map<PartitionSchema,List<String>>>();
+  for (int i=0; i < referenceSteps.length; i++) {
+    StepMeta stepMeta=referenceSteps[i];
+    StepPartitioningMeta stepPartitioningMeta=stepMeta.getStepPartitioningMeta();
+    if (stepPartitioningMeta == null)     continue;
+    if (stepPartitioningMeta.getMethod() == StepPartitioningMeta.PARTITIONING_METHOD_NONE)     continue;
+    ClusterSchema clusterSchema=stepMeta.getClusterSchema();
+    if (clusterSchema == null)     continue;
+    PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
+    int nrPartitions=partitionSchema.getPartitionIDs().size();
+    int nrSlaves=clusterSchema.findNrSlaves();
+    if (nrSlaves == 0)     continue;
+    if (nrPartitions < nrSlaves) {
+      throw new KettleException("It doesn't make sense to have a partitioned, clustered step with less partitions (" + nrPartitions + ") than that there are slave servers ("+ nrSlaves+ ")");
+    }
+    int slaveServerNr=0;
+    for (int p=0; p < nrPartitions; p++) {
+      String partitionId=partitionSchema.getPartitionIDs().get(p);
+      SlaveServer slaveServer=clusterSchema.getSlaveServers().get(slaveServerNr);
+      if (slaveServer.isMaster()) {
+        slaveServerNr++;
+        if (slaveServerNr >= clusterSchema.getSlaveServers().size())         slaveServerNr=0;
+        slaveServer=(SlaveServer)clusterSchema.getSlaveServers().get(slaveServerNr);
+      }
+      Map<PartitionSchema,List<String>> schemaPartitionsMap=slaveServerPartitionsMap.get(slaveServer);
+      if (schemaPartitionsMap == null) {
+        schemaPartitionsMap=new HashMap<PartitionSchema,List<String>>();
+        slaveServerPartitionsMap.put(slaveServer,schemaPartitionsMap);
+      }
+      List<String> partitions=schemaPartitionsMap.get(partitionSchema);
+      if (partitions == null) {
+        partitions=new ArrayList<String>();
+        schemaPartitionsMap.put(partitionSchema,partitions);
+      }
+      if (partitions.indexOf(partitionId) < 0) {
+        partitions.add(partitionId);
+      }
+      slaveServerNr++;
+      if (slaveServerNr >= clusterSchema.getSlaveServers().size())       slaveServerNr=0;
+    }
+  }
+}

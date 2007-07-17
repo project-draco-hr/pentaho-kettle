@@ -121,105 +121,111 @@
         }
         candidate=null;
         selected_steps=null;
-        last_button=0;
         redraw();
       }
- else       if (selrect != null) {
-        selrect.width=real.x - selrect.x;
-        selrect.height=real.y - selrect.y;
-        transMeta.unselectAll();
-        selectInRect(transMeta,selrect);
-        selrect=null;
-        redraw();
-      }
- else       if (selected_step != null) {
-        if (e.button == 1) {
-          Point realclick=screen2real(e.x,e.y);
-          if (lastclick.x == realclick.x && lastclick.y == realclick.y) {
-            if (control) {
-              selected_step.flipSelected();
-            }
  else {
-              transMeta.unselectAll();
-              selected_step.setSelected(true);
+        if (selrect != null) {
+          selrect.width=real.x - selrect.x;
+          selrect.height=real.y - selrect.y;
+          transMeta.unselectAll();
+          selectInRect(transMeta,selrect);
+          selrect=null;
+          redraw();
+        }
+ else {
+          if (selected_step != null) {
+            if (e.button == 1) {
+              Point realclick=screen2real(e.x,e.y);
+              if (lastclick.x == realclick.x && lastclick.y == realclick.y) {
+                if (control) {
+                  selected_step.flipSelected();
+                }
+ else {
+                  transMeta.unselectAll();
+                  selected_step.setSelected(true);
+                }
+              }
+ else {
+                selected_steps=transMeta.getSelectedSteps();
+                selected_notes=transMeta.getSelectedNotes();
+                boolean also=false;
+                if (selected_notes != null && previous_note_locations != null) {
+                  int indexes[]=transMeta.getNoteIndexes(selected_notes);
+                  addUndoPosition(selected_notes,indexes,previous_note_locations,transMeta.getSelectedNoteLocations(),also);
+                  also=selected_steps != null && selected_steps.length > 0;
+                }
+                if (selected_steps != null && previous_step_locations != null) {
+                  int indexes[]=transMeta.getStepIndexes(selected_steps);
+                  addUndoPosition(selected_steps,indexes,previous_step_locations,transMeta.getSelectedStepLocations(),also);
+                }
+              }
             }
+            if (split_hop) {
+              TransHopMeta hi=findHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
+              if (hi != null) {
+                int id=0;
+                if (!spoon.props.getAutoSplit()) {
+                  MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("SpoonGraph.Dialog.SplitHop.Title"),null,Messages.getString("SpoonGraph.Dialog.SplitHop.Message") + Const.CR + hi.toString(),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},0,Messages.getString("SpoonGraph.Dialog.Option.SplitHop.DoNotAskAgain"),spoon.props.getAutoSplit());
+                  id=md.open();
+                  spoon.props.setAutoSplit(md.getToggleState());
+                }
+                if ((id & 0xFF) == 0) {
+                  TransHopMeta newhop1=new TransHopMeta(hi.getFromStep(),selected_step);
+                  transMeta.addTransHop(newhop1);
+                  spoon.addUndoNew(transMeta,new TransHopMeta[]{newhop1},new int[]{transMeta.indexOfTransHop(newhop1)},true);
+                  TransHopMeta newhop2=new TransHopMeta(selected_step,hi.getToStep());
+                  transMeta.addTransHop(newhop2);
+                  spoon.addUndoNew(transMeta,new TransHopMeta[]{newhop2},new int[]{transMeta.indexOfTransHop(newhop2)},true);
+                  int idx=transMeta.indexOfTransHop(hi);
+                  spoon.addUndoDelete(transMeta,new TransHopMeta[]{hi},new int[]{idx},true);
+                  transMeta.removeTransHop(idx);
+                  spoon.refreshTree();
+                }
+              }
+              split_hop=false;
+            }
+            selected_steps=null;
+            selected_notes=null;
+            selected_step=null;
+            selected_note=null;
+            redraw();
           }
  else {
-            selected_steps=transMeta.getSelectedSteps();
-            selected_notes=transMeta.getSelectedNotes();
-            boolean also=false;
-            if (selected_notes != null && previous_note_locations != null) {
-              int indexes[]=transMeta.getNoteIndexes(selected_notes);
-              addUndoPosition(selected_notes,indexes,previous_note_locations,transMeta.getSelectedNoteLocations(),also);
-              also=selected_steps != null && selected_steps.length > 0;
-            }
-            if (selected_steps != null && previous_step_locations != null) {
-              int indexes[]=transMeta.getStepIndexes(selected_steps);
-              addUndoPosition(selected_steps,indexes,previous_step_locations,transMeta.getSelectedStepLocations(),also);
+            if (selected_note != null) {
+              if (e.button == 1) {
+                if (lastclick.x == e.x && lastclick.y == e.y) {
+                  if (control) {
+                    selected_note.flipSelected();
+                  }
+ else {
+                    transMeta.unselectAll();
+                    selected_note.setSelected(true);
+                  }
+                }
+ else {
+                  selected_steps=transMeta.getSelectedSteps();
+                  selected_notes=transMeta.getSelectedNotes();
+                  boolean also=false;
+                  if (selected_notes != null && previous_note_locations != null) {
+                    int indexes[]=transMeta.getNoteIndexes(selected_notes);
+                    addUndoPosition(selected_notes,indexes,previous_note_locations,transMeta.getSelectedNoteLocations(),also);
+                    also=selected_steps != null && selected_steps.length > 0;
+                  }
+                  if (selected_steps != null && previous_step_locations != null) {
+                    int indexes[]=transMeta.getStepIndexes(selected_steps);
+                    addUndoPosition(selected_steps,indexes,previous_step_locations,transMeta.getSelectedStepLocations(),also);
+                  }
+                }
+              }
+              selected_notes=null;
+              selected_steps=null;
+              selected_step=null;
+              selected_note=null;
             }
           }
         }
-        if (split_hop) {
-          TransHopMeta hi=findHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
-          if (hi != null) {
-            int id=0;
-            if (!spoon.props.getAutoSplit()) {
-              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("SpoonGraph.Dialog.SplitHop.Title"),null,Messages.getString("SpoonGraph.Dialog.SplitHop.Message") + Const.CR + hi.toString(),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},0,Messages.getString("SpoonGraph.Dialog.Option.SplitHop.DoNotAskAgain"),spoon.props.getAutoSplit());
-              id=md.open();
-              spoon.props.setAutoSplit(md.getToggleState());
-            }
-            if ((id & 0xFF) == 0) {
-              TransHopMeta newhop1=new TransHopMeta(hi.getFromStep(),selected_step);
-              transMeta.addTransHop(newhop1);
-              spoon.addUndoNew(transMeta,new TransHopMeta[]{newhop1},new int[]{transMeta.indexOfTransHop(newhop1)},true);
-              TransHopMeta newhop2=new TransHopMeta(selected_step,hi.getToStep());
-              transMeta.addTransHop(newhop2);
-              spoon.addUndoNew(transMeta,new TransHopMeta[]{newhop2},new int[]{transMeta.indexOfTransHop(newhop2)},true);
-              int idx=transMeta.indexOfTransHop(hi);
-              spoon.addUndoDelete(transMeta,new TransHopMeta[]{hi},new int[]{idx},true);
-              transMeta.removeTransHop(idx);
-              spoon.refreshTree();
-            }
-          }
-          split_hop=false;
-        }
-        selected_steps=null;
-        selected_notes=null;
-        selected_step=null;
-        selected_note=null;
-        redraw();
       }
- else       if (selected_note != null) {
-        if (e.button == 1) {
-          if (lastclick.x == e.x && lastclick.y == e.y) {
-            if (control) {
-              selected_note.flipSelected();
-            }
- else {
-              transMeta.unselectAll();
-              selected_note.setSelected(true);
-            }
-          }
- else {
-            selected_steps=transMeta.getSelectedSteps();
-            selected_notes=transMeta.getSelectedNotes();
-            boolean also=false;
-            if (selected_notes != null && previous_note_locations != null) {
-              int indexes[]=transMeta.getNoteIndexes(selected_notes);
-              addUndoPosition(selected_notes,indexes,previous_note_locations,transMeta.getSelectedNoteLocations(),also);
-              also=selected_steps != null && selected_steps.length > 0;
-            }
-            if (selected_steps != null && previous_step_locations != null) {
-              int indexes[]=transMeta.getStepIndexes(selected_steps);
-              addUndoPosition(selected_steps,indexes,previous_step_locations,transMeta.getSelectedStepLocations(),also);
-            }
-          }
-        }
-        selected_notes=null;
-        selected_steps=null;
-        selected_step=null;
-        selected_note=null;
-      }
+      last_button=0;
     }
   }
 );
@@ -232,7 +238,7 @@
       Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
       if (noteoffset == null)       noteoffset=new Point(0,0);
       Point note=new Point(real.x - noteoffset.x,real.y - noteoffset.y);
-      setToolTip(real.x,real.y);
+      if (last_button == 0)       setToolTip(real.x,real.y);
       if (selected_step != null && !selected_step.isSelected()) {
         transMeta.unselectAll();
         selected_step.setSelected(true);

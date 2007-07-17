@@ -31,8 +31,32 @@
   if (inputRowSets.size() == 0) {
     return null;
   }
+  if (blockPointer >= NR_OF_ROWS_IN_BLOCK) {
+    nextInputStream();
+  }
   RowSet in=currentInputStream();
-  Object[] row=getRowFrom(in);
+  Object[] row=null;
+  while (row == null && !isStopped()) {
+    row=in.getRowWait(1,TimeUnit.MILLISECONDS);
+    if (row != null) {
+      linesRead++;
+      blockPointer++;
+    }
+ else {
+      if (in.isDone()) {
+        row=in.getRowWait(1,TimeUnit.MILLISECONDS);
+        if (row == null) {
+          inputRowSets.remove(in);
+          if (inputRowSets.size() == 0)           return null;
+        }
+ else {
+          linesRead++;
+        }
+      }
+      nextInputStream();
+      in=currentInputStream();
+    }
+  }
   while (row == null && !stopped.get()) {
     if (inputRowSets.size() == 0)     return null;
     nextInputStream();
@@ -40,7 +64,6 @@
     row=getRowFrom(in);
   }
   if (inputRowMeta == null)   inputRowMeta=in.getRowMeta();
-  nextInputStream();
   if (safeModeEnabled) {
     safeModeChecking(inputRowMeta);
   }

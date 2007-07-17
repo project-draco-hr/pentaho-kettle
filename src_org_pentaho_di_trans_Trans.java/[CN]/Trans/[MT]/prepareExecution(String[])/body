@@ -120,9 +120,9 @@ combi.data=data;
 StepInterface step=combi.meta.getStep(stepMeta,data,c,transMeta,this);
 ((BaseStep)step).initializeVariablesFrom(this);
 if (stepMeta.isPartitioned()) {
-String[] partitionIDs=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-if (partitionIDs != null && partitionIDs.length > 0) {
-step.setPartitionID(partitionIDs[c]);
+List<String> partitionIDs=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+if (partitionIDs != null && partitionIDs.size() > 0) {
+step.setPartitionID(partitionIDs.get(c));
 }
 }
 ((BaseStep)step).setSafeModeEnabled(safeModeEnabled);
@@ -172,49 +172,25 @@ StepMetaDataCombi sid=steps.get(i);
 StepMeta stepMeta=sid.stepMeta;
 BaseStep baseStep=(BaseStep)sid.step;
 baseStep.setPartitioned(stepMeta.isPartitioned());
-StepPartitioningMeta thisPartitioningMeta=stepMeta.getStepPartitioningMeta();
-PartitionSchema thisSchema=thisPartitioningMeta.getPartitionSchema();
-String thisFieldName=stepMeta.getStepPartitioningMeta().getFieldName();
-int nextPartitioned=StepPartitioningMeta.PARTITIONING_METHOD_NONE;
-boolean samePartitioned=thisSchema != null;
-boolean sameFieldName=thisFieldName != null;
+StepPartitioningMeta nextPartitioned=stepMeta.getTargetStepPartitioningMeta();
+if (nextPartitioned == null) {
 int nrNext=transMeta.findNrNextSteps(stepMeta);
 for (int p=0; p < nrNext; p++) {
 StepMeta nextStep=transMeta.findNextStep(stepMeta,p);
-StepPartitioningMeta nextPartitioningMeta=nextStep.getStepPartitioningMeta();
 if (nextStep.isPartitioned()) {
-nextPartitioned=nextStep.getStepPartitioningMeta().getMethod();
-}
- else {
-if (thisSchema != null && !thisSchema.equals(nextStep.getStepPartitioningMeta().getPartitionSchema())) {
-samePartitioned=false;
-}
-if (thisFieldName != null && !thisFieldName.equalsIgnoreCase(nextStep.getStepPartitioningMeta().getFieldName())) {
-sameFieldName=false;
-}
-if (thisPartitioningMeta != null && nextPartitioningMeta != null && thisPartitioningMeta.getMethod() != nextPartitioningMeta.getMethod()) {
-samePartitioned=false;
+nextPartitioned=nextStep.getStepPartitioningMeta();
 }
 }
 }
+stepMeta.setTargetStepPartitioningMeta(nextPartitioned);
 baseStep.setRepartitioning(StepPartitioningMeta.PARTITIONING_METHOD_NONE);
-if ((!stepMeta.isPartitioned() && nextPartitioned != StepPartitioningMeta.PARTITIONING_METHOD_NONE) || (stepMeta.isPartitioned() && nextPartitioned != StepPartitioningMeta.PARTITIONING_METHOD_NONE && !samePartitioned) || (stepMeta.isPartitioned() && nextPartitioned != StepPartitioningMeta.PARTITIONING_METHOD_NONE && !sameFieldName)) {
-baseStep.setRepartitioning(nextPartitioned);
-}
-boolean prevPartitioned=true;
-int nrPrev=transMeta.findNrPrevSteps(stepMeta);
-for (int p=0; p < nrPrev; p++) {
-StepMeta prevStep=transMeta.findPrevStep(stepMeta,p);
-if (!prevStep.isPartitioned()) prevPartitioned=false;
-}
-baseStep.setPartitionMerging(false);
-if (prevPartitioned && !stepMeta.isPartitioned()) {
-baseStep.setPartitionMerging(true);
+if (nextPartitioned != null) {
+baseStep.setRepartitioning(nextPartitioned.getMethod());
 }
 if (stepMeta.isPartitioned()) {
-String[] partitionIDs=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-if (partitionIDs != null && partitionIDs.length > 0) {
-baseStep.setPartitionID(partitionIDs[sid.copy]);
+List<String> partitionIDs=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
+if (partitionIDs != null && partitionIDs.size() > 0) {
+baseStep.setPartitionID(partitionIDs.get(sid.copy));
 }
 }
 }

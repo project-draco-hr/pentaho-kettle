@@ -3,8 +3,37 @@
   rowSet.setThreadNameFromToCopy(sourceStep,0,targetStep,0);
   this.baseStep=baseStep;
   int portNumber=Integer.parseInt(baseStep.environmentSubstitute(port));
-  socket=new Socket(baseStep.environmentSubstitute(hostname),portNumber);
-  inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),5000));
+  String realHostname=baseStep.environmentSubstitute(hostname);
+  long startTime=System.currentTimeMillis();
+  boolean connected=false;
+  KettleException lastException=null;
+  while (!connected && (TIMEOUT_IN_SECONDS > (System.currentTimeMillis() - startTime) / 1000) && !baseStep.isStopped()) {
+    try {
+      socket=new Socket(realHostname,portNumber);
+      connected=true;
+      inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),5000));
+      lastException=null;
+    }
+ catch (    Exception e) {
+      lastException=new KettleException("Unable to open socket to server " + realHostname + " port "+ portNumber,e);
+    }
+    if (lastException != null) {
+      try {
+        Thread.sleep(1000);
+      }
+ catch (      InterruptedException e) {
+        throw new KettleException("Interrupted while trying to connect to server socket: " + e.toString());
+      }
+    }
+  }
+  if (lastException != null) {
+    log.logError(toString(),"Error initialising step: " + lastException.toString());
+    log.logError(toString(),Const.getStackTracker(lastException));
+    throw lastException;
+  }
+ else {
+    if (inputStream == null)     throw new KettleException("Unable to connect to the SocketWriter in the " + TIMEOUT_IN_SECONDS + "s timeout period.");
+  }
   Runnable runnable=new Runnable(){
     public void run(){
       try {

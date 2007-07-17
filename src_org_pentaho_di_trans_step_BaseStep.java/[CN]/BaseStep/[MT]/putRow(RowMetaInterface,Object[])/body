@@ -90,35 +90,28 @@ case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
 case StepPartitioningMeta.PARTITIONING_METHOD_MOD:
 {
   if (partitionColumnIndex < 0) {
-    StepMeta nextSteps[]=transMeta.getNextSteps(stepMeta);
-    if (nextSteps == null || nextSteps.length == 0) {
-      throw new KettleStepException("Re-partitioning is enabled but no next steps could be found: developer error!");
-    }
-    nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
+    nextStepPartitioningMeta=stepMeta.getTargetStepPartitioningMeta();
+    System.out.println(stepMeta.getName() + " : next partitioning schema = " + nextStepPartitioningMeta.toString());
     partitionColumnIndex=rowMeta.indexOfValue(nextStepPartitioningMeta.getFieldName());
     if (partitionColumnIndex < 0) {
-      throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row : "+ row);
+      throw new KettleStepException("Unable to find partitioning field name [" + nextStepPartitioningMeta.getFieldName() + "] in the output row..."+ rowMeta);
     }
-    partitionIDs=nextSteps[0].getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-    for (int r=0; r < outputRowSets.size(); r++) {
-      RowSet rowSet=outputRowSets.get(r);
-      if (rowSet.getOriginStepName().equalsIgnoreCase(getStepname()) && rowSet.getOriginStepCopy() == getCopy()) {
-        StepMeta targetStep=transMeta.findStep(rowSet.getDestinationStepName());
-        String targetPartitions[]=targetStep.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
-        String targetPartitionID=targetPartitions[rowSet.getDestinationStepCopy()];
-        partitionTargets.put(targetPartitionID,rowSet);
-      }
+    partitionIDs=nextStepPartitioningMeta.getPartitionSchema().getPartitionIDs();
+    if (partitionIDs.size() != outputRowSets.size()) {
+      throw new KettleStepException("The number of partitions (" + partitionIDs.size() + ") is not the same as the number of output rowsets ("+ outputRowSets.size()+ ")");
     }
   }
   int partitionNr;
   try {
-    partitionNr=nextStepPartitioningMeta.getPartitionNr(rowMeta.getInteger(row,partitionColumnIndex),partitionIDs.length);
+    partitionNr=nextStepPartitioningMeta.getPartitionNr(rowMeta.getInteger(row,partitionColumnIndex),partitionIDs.size());
   }
  catch (  KettleValueException e) {
     throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
   }
-  String targetPartition=partitionIDs[partitionNr];
-  RowSet rs=partitionTargets.get(targetPartition);
+  RowSet rs=outputRowSets.get(partitionNr);
+  if (rs == null) {
+    logBasic("Target rowset is not available for target partition, partitionNr=" + partitionNr);
+  }
   while (!rs.putRow(rowMeta,row) && !isStopped())   ;
   linesWritten++;
 }
