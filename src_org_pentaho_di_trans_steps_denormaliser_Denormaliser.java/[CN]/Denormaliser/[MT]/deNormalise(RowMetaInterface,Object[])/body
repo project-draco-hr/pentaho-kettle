@@ -1,0 +1,45 @@
+{
+  String key=rowMeta.getString(rowData,data.keyFieldNr);
+  if (!Const.isEmpty(key)) {
+    List<Integer> indexes=data.keyValue.get(key);
+    if (indexes != null) {
+      for (int i=0; i < indexes.size(); i++) {
+        Integer keyNr=indexes.get(i);
+        if (keyNr != null) {
+          int idx=keyNr.intValue();
+          DenormaliserTargetField field=meta.getDenormaliserTargetField()[idx];
+          ValueMetaInterface sourceMeta=rowMeta.getValueMeta(data.fieldNameIndex[idx]);
+          Object sourceData=rowData[data.fieldNameIndex[idx]];
+          ValueMetaInterface targetMeta=data.outputRowMeta.getValueMeta(data.inputRowMeta.size() - data.removeNrs.length + idx);
+          Object targetData=targetMeta.convertData(sourceMeta,sourceData);
+          Object prevTargetData=data.targetResult[idx];
+switch (field.getTargetAggregationType()) {
+case DenormaliserTargetField.TYPE_AGGR_SUM:
+            prevTargetData=ValueDataUtil.plus(targetMeta,prevTargetData,targetMeta,targetData);
+          break;
+case DenormaliserTargetField.TYPE_AGGR_MIN:
+        if (targetMeta.compare(sourceData,prevTargetData) < 0)         prevTargetData=sourceData;
+      break;
+case DenormaliserTargetField.TYPE_AGGR_MAX:
+    if (targetMeta.compare(sourceData,prevTargetData) > 0)     prevTargetData=sourceData;
+  break;
+case DenormaliserTargetField.TYPE_AGGR_COUNT_ALL:
+if (!sourceMeta.isNull(sourceData)) prevTargetData=((Integer)prevTargetData) + 1;
+;
+break;
+case DenormaliserTargetField.TYPE_AGGR_AVERAGE:
+if (!sourceMeta.isNull(sourceData)) {
+data.counters[idx]++;
+data.sum[idx]=(Integer)data.sum[idx] + (Integer)sourceData;
+}
+break;
+case DenormaliserTargetField.TYPE_AGGR_NONE:
+default :
+prevTargetData=sourceData;
+break;
+}
+}
+}
+}
+}
+}
