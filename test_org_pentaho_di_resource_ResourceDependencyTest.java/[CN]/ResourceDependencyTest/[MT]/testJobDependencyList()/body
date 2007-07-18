@@ -1,0 +1,46 @@
+{
+  EnvUtil.environmentInit();
+  LogWriter.getInstance(LogWriter.LOG_LEVEL_BASIC);
+  StepLoader.getInstance().read();
+  JobEntryLoader.getInstance().read();
+  JobMeta jobMeta=new JobMeta(LogWriter.getInstance(),"test/org/pentaho/di/resource/processchangelog.kjb",null);
+  List<ResourceReference> resourceReferences=jobMeta.getResourceDependencies();
+  assertEquals(5,resourceReferences.size());
+  for (int i=0; i < 5; i++) {
+    ResourceReference genRef=resourceReferences.get(i);
+    ResourceHolderInterface refHolder=genRef.getReferenceHolder();
+    boolean checkDatabaseStuff=false;
+    if (i == 0) {
+      assertEquals("TABLE_EXISTS",refHolder.getTypeId());
+      checkDatabaseStuff=true;
+    }
+ else     if ((i == 1) || (i == 4)) {
+      assertEquals("SQL",refHolder.getTypeId());
+      checkDatabaseStuff=true;
+    }
+ else     if ((i == 2) || (i == 3)) {
+      assertEquals("TRANS",refHolder.getTypeId());
+      checkDatabaseStuff=false;
+    }
+    if (checkDatabaseStuff) {
+      assertEquals(2,genRef.getEntries().size());
+      for (int j=0; j < 2; j++) {
+        ResourceEntry entry=genRef.getEntries().get(j);
+        if (j == 0) {
+          assertEquals(ResourceType.SERVER,entry.getResourcetype());
+          assertEquals("localhost",entry.getResource());
+        }
+ else {
+          assertEquals(ResourceType.DATABASENAME,entry.getResourcetype());
+          assertEquals("test",entry.getResource());
+        }
+      }
+    }
+ else {
+      assertEquals(1,genRef.getEntries().size());
+      ResourceEntry entry=genRef.getEntries().get(0);
+      assertEquals(ResourceType.ACTIONFILE,entry.getResourcetype());
+      assertTrue(entry.getResource().endsWith(".ktr"));
+    }
+  }
+}
