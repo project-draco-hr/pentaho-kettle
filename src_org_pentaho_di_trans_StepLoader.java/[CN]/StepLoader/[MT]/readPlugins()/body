@@ -1,4 +1,17 @@
 {
+  try {
+    Enumeration<URL> resources=getClass().getClassLoader().getResources("META-INF/step_plugin.xml");
+    while (resources.hasMoreElements()) {
+      URL url=resources.nextElement();
+      Object content=url.getContent();
+      if (content instanceof InputStream) {
+        readPluginFromResource((InputStream)content,null,null,StepPlugin.TYPE_NATIVE);
+      }
+    }
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+  }
   for (int dirNr=0; dirNr < pluginDirectory.length; dirNr++) {
     try {
       File f=new File(pluginDirectory[dirNr]);
@@ -13,79 +26,7 @@
             String pixml=pi.toString() + Const.FILE_SEPARATOR + "plugin.xml";
             File fpixml=new File(pixml);
             if (fpixml.canRead()) {
-              try {
-                DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
-                DocumentBuilder db=dbf.newDocumentBuilder();
-                Document doc=db.parse(fpixml);
-                Node plugin=XMLHandler.getSubNode(doc,"plugin");
-                String id=XMLHandler.getTagAttribute(plugin,"id");
-                String description=XMLHandler.getTagAttribute(plugin,"description");
-                String iconfile=XMLHandler.getTagAttribute(plugin,"iconfile");
-                String tooltip=XMLHandler.getTagAttribute(plugin,"tooltip");
-                String category=XMLHandler.getTagAttribute(plugin,"category");
-                String classname=XMLHandler.getTagAttribute(plugin,"classname");
-                String errorHelpfile=XMLHandler.getTagAttribute(plugin,"errorhelpfile");
-                Node libsnode=XMLHandler.getSubNode(plugin,"libraries");
-                int nrlibs=XMLHandler.countNodes(libsnode,"library");
-                String jarfiles[]=new String[nrlibs];
-                for (int j=0; j < nrlibs; j++) {
-                  Node libnode=XMLHandler.getSubNodeByNr(libsnode,"library",j);
-                  String jarfile=XMLHandler.getTagAttribute(libnode,"name");
-                  jarfiles[j]=pi.toString() + Const.FILE_SEPARATOR + jarfile;
-                }
-                Node locCatsNode=XMLHandler.getSubNode(plugin,"localized_category");
-                int nrLocCats=XMLHandler.countNodes(locCatsNode,"category");
-                Map<String,String> localizedCategories=new Hashtable<String,String>();
-                for (int j=0; j < nrLocCats; j++) {
-                  Node locCatNode=XMLHandler.getSubNodeByNr(locCatsNode,"category",j);
-                  String locale=XMLHandler.getTagAttribute(locCatNode,"locale");
-                  String locCat=XMLHandler.getNodeValue(locCatNode);
-                  if (!Const.isEmpty(locale) && !Const.isEmpty(locCat)) {
-                    localizedCategories.put(locale.toLowerCase(),locCat);
-                  }
-                }
-                Node locDescsNode=XMLHandler.getSubNode(plugin,"localized_description");
-                int nrLocDescs=XMLHandler.countNodes(locDescsNode,"description");
-                Map<String,String> localizedDescriptions=new Hashtable<String,String>();
-                for (int j=0; j < nrLocDescs; j++) {
-                  Node locDescNode=XMLHandler.getSubNodeByNr(locDescsNode,"description",j);
-                  String locale=XMLHandler.getTagAttribute(locDescNode,"locale");
-                  String locDesc=XMLHandler.getNodeValue(locDescNode);
-                  if (!Const.isEmpty(locale) && !Const.isEmpty(locDesc)) {
-                    localizedDescriptions.put(locale.toLowerCase(),locDesc);
-                  }
-                }
-                Node locTipsNode=XMLHandler.getSubNode(plugin,"localized_tooltip");
-                int nrLocTips=XMLHandler.countNodes(locTipsNode,"tooltip");
-                Map<String,String> localizedTooltips=new Hashtable<String,String>();
-                for (int j=0; j < nrLocTips; j++) {
-                  Node locTipNode=XMLHandler.getSubNodeByNr(locTipsNode,"tooltip",j);
-                  String locale=XMLHandler.getTagAttribute(locTipNode,"locale");
-                  String locTip=XMLHandler.getNodeValue(locTipNode);
-                  if (!Const.isEmpty(locale) && !Const.isEmpty(locTip)) {
-                    localizedTooltips.put(locale.toLowerCase(),locTip);
-                  }
-                }
-                String iconFilename=pi.toString() + Const.FILE_SEPARATOR + iconfile;
-                String errorHelpFileFull=errorHelpfile;
-                if (!Const.isEmpty(errorHelpfile))                 errorHelpFileFull=pi.getPath() + Const.FILE_SEPARATOR + errorHelpfile;
-                StepPlugin sp=new StepPlugin(StepPlugin.TYPE_PLUGIN,new String[]{id},description,tooltip,dirs[i],jarfiles,iconFilename,classname,category,errorHelpFileFull);
-                sp.setLocalizedCategories(localizedCategories);
-                sp.setLocalizedDescriptions(localizedDescriptions);
-                sp.setLocalizedTooltips(localizedTooltips);
-                if (findStepPluginWithID(id) == null) {
-                  pluginList.add(sp);
-                }
- else {
-                  int idx=pluginList.indexOf(sp);
-                  pluginList.set(idx,sp);
-                }
-              }
- catch (              Exception e) {
-                LogWriter.getInstance().logError("StepLoader",Messages.getString("StepLoader.RuntimeError.UnableToReadPluginXML.TRANS0001") + e.toString());
-                LogWriter.getInstance().logError("StepLoader",Const.getStackTracker(e));
-                return false;
-              }
+              readPluginFromResource(new FileInputStream(fpixml),pi.getPath(),dirs[i],StepPlugin.TYPE_PLUGIN);
             }
           }
         }
