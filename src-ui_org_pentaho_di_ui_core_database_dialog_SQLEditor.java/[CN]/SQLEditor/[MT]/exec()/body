@@ -1,0 +1,107 @@
+{
+  DatabaseMeta ci=connection;
+  if (ci == null)   return;
+  StringBuffer message=new StringBuffer();
+  Database db=new Database(ci);
+  boolean first=true;
+  PartitionDatabaseMeta[] partitioningInformation=ci.getPartitioningInformation();
+  for (int partitionNr=0; first || (partitioningInformation != null && partitionNr < partitioningInformation.length); partitionNr++) {
+    first=false;
+    String partitionId=null;
+    if (partitioningInformation != null && partitioningInformation.length > 0) {
+      partitionId=partitioningInformation[partitionNr].getPartitionId();
+    }
+    try {
+      db.connect(partitionId);
+      String all=wScript.getText() + Const.CR;
+      int from=0;
+      int to=0;
+      int length=all.length();
+      int nrstats=0;
+      while (to < length) {
+        char c=all.charAt(to);
+        if (c == '"') {
+          to++;
+          c=' ';
+          while (to < length && c != '"') {
+            c=all.charAt(to);
+            to++;
+          }
+        }
+ else         if (c == '\'') {
+          to++;
+          c=' ';
+          while (to < length && c != '\'') {
+            c=all.charAt(to);
+            to++;
+          }
+        }
+        if (c == ';' || to >= length - 1) {
+          if (to >= length - 1)           to++;
+          String stat=all.substring(from,to);
+          if (!onlySpaces(stat)) {
+            String sql=Const.trim(stat);
+            if (sql.toUpperCase().startsWith("SELECT")) {
+              log.logDetailed(toString(),"launch SELECT statement: " + Const.CR + sql);
+              nrstats++;
+              try {
+                List<Object[]> rows=db.getRows(sql,1000);
+                RowMetaInterface rowMeta=db.getReturnRowMeta();
+                if (rows.size() > 0) {
+                  PreviewRowsDialog prd=new PreviewRowsDialog(shell,ci,SWT.NONE,Messages.getString("SQLEditor.ResultRows.Title",Integer.toString(nrstats)),rowMeta,rows);
+                  prd.open();
+                }
+ else {
+                  MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
+                  mb.setMessage(Messages.getString("SQLEditor.NoRows.Message",sql));
+                  mb.setText(Messages.getString("SQLEditor.NoRows.Title"));
+                  mb.open();
+                }
+              }
+ catch (              KettleDatabaseException dbe) {
+                new ErrorDialog(shell,Messages.getString("SQLEditor.ErrorExecSQL.Title"),Messages.getString("SQLEditor.ErrorExecSQL.Message",sql),dbe);
+              }
+            }
+ else {
+              log.logDetailed(toString(),"launch DDL statement: " + Const.CR + sql);
+              nrstats++;
+              try {
+                log.logDetailed(toString(),"Executing SQL: " + Const.CR + sql);
+                db.execStatement(sql);
+                message.append(Messages.getString("SQLEditor.Log.SQLExecuted",sql));
+                message.append(Const.CR);
+                if (dbcache != null)                 dbcache.clear(ci.getName());
+              }
+ catch (              Exception dbe) {
+                String error=Messages.getString("SQLEditor.Log.SQLExecError",sql,dbe.toString());
+                message.append(error).append(Const.CR);
+                new ErrorDialog(shell,Messages.getString("SQLEditor.ErrorExecSQL.Title"),error,dbe);
+              }
+            }
+          }
+          to++;
+          from=to;
+        }
+ else {
+          to++;
+        }
+      }
+      message.append(Messages.getString("SQLEditor.Log.StatsExecuted",Integer.toString(nrstats)));
+      if (partitionId != null)       message.append(Messages.getString("SQLEditor.Log.OnPartition",partitionId));
+      message.append(Const.CR);
+    }
+ catch (    KettleDatabaseException dbe) {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      String error=Messages.getString("SQLEditor.Error.CouldNotConnect.Message",(connection == null ? "" : connection.getName()),dbe.getMessage());
+      message.append(error).append(Const.CR);
+      mb.setMessage(error);
+      mb.setText(Messages.getString("SQLEditor.Error.CouldNotConnect.Title"));
+      mb.open();
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+  EnterTextDialog dialog=new EnterTextDialog(shell,Messages.getString("SQLEditor.Result.Title"),Messages.getString("SQLEditor.Result.Message"),message.toString(),true);
+  dialog.open();
+}

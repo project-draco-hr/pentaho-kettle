@@ -1,0 +1,54 @@
+{
+  spoon.refreshGraph();
+  SearchFieldsProgressDialog op=new SearchFieldsProgressDialog(transMeta,stepMeta,before);
+  try {
+    final ProgressMonitorDialog pmd=new ProgressMonitorDialog(shell);
+    Runnable run=new Runnable(){
+      public void run(){
+        IProgressMonitor monitor=pmd.getProgressMonitor();
+        while (pmd.getShell() == null || (!pmd.getShell().isDisposed() && !monitor.isCanceled())) {
+          try {
+            Thread.sleep(250);
+          }
+ catch (          InterruptedException e) {
+          }
+          ;
+        }
+        if (monitor.isCanceled()) {
+          try {
+            transMeta.cancelQueries();
+          }
+ catch (          Exception e) {
+          }
+          ;
+        }
+      }
+    }
+;
+    new Thread(run).start();
+    pmd.run(true,true,op);
+  }
+ catch (  InvocationTargetException e) {
+    new ErrorDialog(shell,Messages.getString("SpoonGraph.Dialog.GettingFields.Title"),Messages.getString("SpoonGraph.Dialog.GettingFields.Message"),e);
+  }
+catch (  InterruptedException e) {
+    new ErrorDialog(shell,Messages.getString("SpoonGraph.Dialog.GettingFields.Title"),Messages.getString("SpoonGraph.Dialog.GettingFields.Message"),e);
+  }
+  RowMetaInterface fields=op.getFields();
+  if (fields != null && fields.size() > 0) {
+    StepFieldsDialog sfd=new StepFieldsDialog(shell,transMeta,SWT.NONE,stepMeta.getName(),fields);
+    String sn=(String)sfd.open();
+    if (sn != null) {
+      StepMeta esi=transMeta.findStep(sn);
+      if (esi != null) {
+        editStep(esi);
+      }
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+    mb.setMessage(Messages.getString("SpoonGraph.Dialog.CouldntFindFields.Message"));
+    mb.setText(Messages.getString("SpoonGraph.Dialog.CouldntFindFields.Title"));
+    mb.open();
+  }
+}

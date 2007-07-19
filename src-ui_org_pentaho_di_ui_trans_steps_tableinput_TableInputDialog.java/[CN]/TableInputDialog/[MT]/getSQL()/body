@@ -1,0 +1,62 @@
+{
+  DatabaseMeta inf=transMeta.findDatabase(wConnection.getText());
+  if (inf != null) {
+    DatabaseExplorerDialog std=new DatabaseExplorerDialog(shell,SWT.NONE,inf,transMeta.getDatabases());
+    std.setSplitSchemaAndTable(true);
+    if (std.open() != null) {
+      String sql="SELECT *" + Const.CR + "FROM "+ inf.getQuotedSchemaTableCombination(std.getSchemaName(),std.getTableName())+ Const.CR;
+      wSQL.setText(sql);
+      MessageBox yn=new MessageBox(shell,SWT.YES | SWT.NO | SWT.CANCEL| SWT.ICON_QUESTION);
+      yn.setMessage(Messages.getString("TableInputDialog.IncludeFieldNamesInSQL"));
+      yn.setText(Messages.getString("TableInputDialog.DialogCaptionQuestion"));
+      int id=yn.open();
+switch (id) {
+case SWT.CANCEL:
+        break;
+case SWT.NO:
+      wSQL.setText(sql);
+    break;
+case SWT.YES:
+  Database db=new Database(inf);
+db.shareVariablesWith(transMeta);
+try {
+db.connect();
+RowMetaInterface fields=db.getQueryFields(sql,false);
+if (fields != null) {
+  sql="SELECT" + Const.CR;
+  for (int i=0; i < fields.size(); i++) {
+    ValueMetaInterface field=fields.getValueMeta(i);
+    if (i == 0)     sql+="  ";
+ else     sql+=", ";
+    sql+=inf.quoteField(field.getName()) + Const.CR;
+  }
+  sql+="FROM " + inf.getQuotedSchemaTableCombination(std.getSchemaName(),std.getTableName()) + Const.CR;
+  wSQL.setText(sql);
+}
+ else {
+  MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+  mb.setMessage(Messages.getString("TableInputDialog.ERROR_CouldNotRetrieveFields") + Const.CR + Messages.getString("TableInputDialog.PerhapsNoPermissions"));
+  mb.setText(Messages.getString("TableInputDialog.DialogCaptionError2"));
+  mb.open();
+}
+}
+ catch (KettleException e) {
+MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+mb.setText(Messages.getString("TableInputDialog.DialogCaptionError3"));
+mb.setMessage(Messages.getString("TableInputDialog.AnErrorOccurred") + Const.CR + e.getMessage());
+mb.open();
+}
+ finally {
+db.disconnect();
+}
+break;
+}
+}
+}
+ else {
+MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+mb.setMessage(Messages.getString("TableInputDialog.ConnectionNoLongerAvailable"));
+mb.setText(Messages.getString("TableInputDialog.DialogCaptionError4"));
+mb.open();
+}
+}

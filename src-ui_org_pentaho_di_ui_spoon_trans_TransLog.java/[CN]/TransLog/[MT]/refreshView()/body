@@ -1,0 +1,61 @@
+{
+  boolean insert=true;
+  if (wFields.isDisposed())   return;
+  if (refresh_busy)   return;
+  refresh_busy=true;
+  Table table=wFields.table;
+  boolean doPreview=trans != null && trans.previewComplete() && preview;
+  long time=new Date().getTime();
+  long msSinceLastUpdate=time - lastUpdateView;
+  if ((trans != null && msSinceLastUpdate > UPDATE_TIME_VIEW) || doPreview) {
+    lastUpdateView=time;
+    int nrSteps=trans.nrSteps();
+    if (wOnlyActive.getSelection())     nrSteps=trans.nrActiveSteps();
+    if (table.getItemCount() != nrSteps) {
+      table.removeAll();
+    }
+ else {
+      insert=false;
+    }
+    if (nrSteps == 0) {
+      if (table.getItemCount() == 0)       new TableItem(table,SWT.NONE);
+    }
+    int nr=0;
+    for (int i=0; i < trans.nrSteps(); i++) {
+      BaseStep baseStep=trans.getRunThread(i);
+      if ((baseStep.isAlive() && wOnlyActive.getSelection()) || baseStep.getStatus() != StepDataInterface.STATUS_EMPTY) {
+        StepStatus stepStatus=new StepStatus(baseStep);
+        TableItem ti;
+        if (insert) {
+          ti=new TableItem(table,SWT.NONE);
+        }
+ else {
+          ti=table.getItem(nr);
+        }
+        String fields[]=stepStatus.getSpoonLogFields();
+        for (int f=1; f < fields.length; f++) {
+          if (!fields[f].equalsIgnoreCase(ti.getText(f))) {
+            ti.setText(f,fields[f]);
+          }
+        }
+        if (baseStep.getErrors() > 0) {
+          ti.setBackground(GUIResource.getInstance().getColorRed());
+        }
+ else {
+          ti.setBackground(GUIResource.getInstance().getColorWhite());
+        }
+        nr++;
+      }
+    }
+    wFields.setRowNums();
+    wFields.optWidth(true);
+  }
+ else {
+    if (table.getItemCount() == 0)     new TableItem(table,SWT.NONE);
+  }
+  if (doPreview) {
+    trans.stopAll();
+    showPreview();
+  }
+  refresh_busy=false;
+}

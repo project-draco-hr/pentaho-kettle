@@ -1,0 +1,68 @@
+{
+  super(parent,SWT.NONE);
+  undoStack=new LinkedList<UndoRedoStack>();
+  redoStack=new LinkedList<UndoRedoStack>();
+  styledText=new StyledText(this,args);
+  styledTextPopupmenu=new Menu(parent.getShell(),SWT.POP_UP);
+  xParent=parent;
+  this.strTabName=strTabName;
+  this.setLayout(new FillLayout());
+  buildingStyledTextMenu();
+  addUndoRedoSupport();
+  kls=new KeyAdapter(){
+    public void keyReleased(    KeyEvent e){
+      if (e.keyCode == 'h' && (e.stateMask & SWT.CTRL) != 0) {
+        new StyledTextCompReplace(styledTextPopupmenu.getShell(),styledText).open();
+      }
+ else       if (e.keyCode == 'z' && (e.stateMask & SWT.CTRL) != 0) {
+        undo();
+      }
+ else       if (e.keyCode == 'y' && (e.stateMask & SWT.CTRL) != 0) {
+        redo();
+      }
+ else       if (e.keyCode == 'a' && (e.stateMask & SWT.CTRL) != 0) {
+        bFullSelection=true;
+        styledText.selectAll();
+      }
+ else       if (e.keyCode == 'f' && (e.stateMask & SWT.CTRL) != 0) {
+        new StyledTextCompFind(styledTextPopupmenu.getShell(),styledText,"Find").open();
+      }
+    }
+  }
+;
+  styledText.addKeyListener(kls);
+  DropTarget dt=new DropTarget(styledText,DND.DROP_MOVE);
+  dt.setTransfer(new Transfer[]{TextTransfer.getInstance()});
+  dt.addDropListener(new DropTargetAdapter(){
+    public void dragOver(    DropTargetEvent e){
+      styledText.setFocus();
+      Point location=xParent.getDisplay().map(null,styledText,e.x,e.y);
+      location.x=Math.max(0,location.x);
+      location.y=Math.max(0,location.y);
+      try {
+        int offset=styledText.getOffsetAtLocation(new Point(location.x,location.y));
+        styledText.setCaretOffset(offset);
+      }
+ catch (      IllegalArgumentException ex) {
+        int maxOffset=styledText.getCharCount();
+        Point maxLocation=styledText.getLocationAtOffset(maxOffset);
+        if (location.y >= maxLocation.y) {
+          if (location.x >= maxLocation.x) {
+            styledText.setCaretOffset(maxOffset);
+          }
+ else {
+            int offset=styledText.getOffsetAtLocation(new Point(location.x,maxLocation.y));
+            styledText.setCaretOffset(offset);
+          }
+        }
+ else {
+          styledText.setCaretOffset(maxOffset);
+        }
+      }
+    }
+    public void drop(    DropTargetEvent event){
+      styledText.insert((String)event.data);
+    }
+  }
+);
+}

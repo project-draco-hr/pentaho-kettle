@@ -1,0 +1,55 @@
+{
+  Menu mTree=null;
+  TreeItem ti[]=wTree.getSelection();
+  if (ti.length == 1) {
+    mTree=new Menu(wTree);
+    MenuItem miNew=new MenuItem(mTree,SWT.CASCADE);
+    miNew.setText(Messages.getString("SelectDirectoryDialog.PopupMenu.Directory.New"));
+    miNew.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        if (!rep.getUserInfo().isReadonly()) {
+          TreeItem ti=wTree.getSelection()[0];
+          String str[]=ConstUI.getTreeStrings(ti);
+          RepositoryDirectory dir=rep.getDirectoryTree().findDirectory(str);
+          if (dir != null) {
+            EnterStringDialog etd=new EnterStringDialog(shell,Messages.getString("SelectDirectoryDialog.Dialog.EnterDirectoryName.Title"),Messages.getString("SelectDirectoryDialog.Dialog.EnterDirectoryName.Message"),Messages.getString("SelectDirectoryDialog.Dialog.EnterDirectoryName.Default"));
+            String newdir=etd.open();
+            if (newdir != null) {
+              RepositoryDirectory subdir=new RepositoryDirectory(dir,newdir);
+              if (subdir.addToRep(rep)) {
+                dir.addSubdirectory(subdir);
+                TreeItem tiNew=new TreeItem(ti,SWT.NONE);
+                tiNew.setText(newdir);
+                wTree.setSelection(new TreeItem[]{tiNew});
+              }
+ else {
+                MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+                mb.setMessage(Messages.getString("SelectDirectoryDialog.Dialog.UnableToCreateDirectory.Message"));
+                mb.setText(Messages.getString("SelectDirectoryDialog.Dialog.UnableToCreateDirectory.Title"));
+                mb.open();
+              }
+            }
+          }
+ else {
+            MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+            mb.setMessage(Messages.getString("SelectDirectoryDialog.Dialog.UnableToLocateDirectory.Message"));
+            mb.setText(Messages.getString("SelectDirectoryDialog.Dialog.UnableToLocateDirectory.Title"));
+            mb.open();
+          }
+        }
+ else {
+          MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+          mb.setMessage(Messages.getString("SelectDirectoryDialog.Dialog.PermissionDenied.Message1") + rep.getUserInfo().getLogin() + Messages.getString("SelectDirectoryDialog.Dialog.PermissionDenied.Message2"));
+          mb.setText(Messages.getString("SelectDirectoryDialog.Dialog.PermissionDenied.Title"));
+          mb.open();
+        }
+      }
+    }
+);
+    MenuItem miRen=new MenuItem(mTree,SWT.CASCADE);
+    miRen.setText(Messages.getString("SelectDirectoryDialog.PopupMenu.Directory.Rename"));
+    MenuItem miDel=new MenuItem(mTree,SWT.CASCADE);
+    miDel.setText(Messages.getString("SelectDirectoryDialog.PopupMenu.Directory.Delete"));
+  }
+  wTree.setMenu(mTree);
+}

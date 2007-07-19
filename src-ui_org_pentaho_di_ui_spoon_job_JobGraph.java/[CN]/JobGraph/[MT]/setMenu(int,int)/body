@@ -1,0 +1,144 @@
+{
+  currentMouseX=x;
+  currentMouseY=y;
+  final JobEntryCopy jobEntry=jobMeta.getJobEntryCopy(x,y,iconsize);
+  setJobEntry(jobEntry);
+  if (jobEntry != null) {
+    XulPopupMenu menu=(XulPopupMenu)menuMap.get("job-graph-entry");
+    if (menu != null) {
+      int sels=jobMeta.nrSelected();
+      XulMenuChoice item=menu.getMenuItemById("job-graph-entry-newhop");
+      menu.addMenuListener("job-graph-entry-newhop",this,JobGraph.class,"newHopClick");
+      item.setEnabled(sels == 2);
+      item=menu.getMenuItemById("job-graph-entry-launch");
+switch (jobEntry.getJobEntryType()) {
+case TRANS:
+{
+          item.setEnabled(true);
+          item.setText(Messages.getString("JobGraph.PopupMenu.JobEntry.LaunchSpoon"));
+          menu.addMenuListener("job-graph-entry-launch",this,"openTransformation");
+          break;
+        }
+case JOB:
+{
+        item.setEnabled(true);
+        item.setText(Messages.getString("JobGraph.PopupMenu.JobEntry.LaunchChef"));
+        menu.addMenuListener("job-graph-entry-launch",this,"launchChef");
+      }
+    break;
+default :
+{
+    item.setEnabled(false);
+  }
+break;
+}
+item=menu.getMenuItemById("job-graph-entry-align-snap");
+item.setText(Messages.getString("JobGraph.PopupMenu.JobEntry.AllignDistribute.SnapToGrid") + ConstUI.GRID_SIZE + ")\tALT-HOME");
+XulMenu aMenu=menu.getMenuById("job-graph-entry-align");
+if (aMenu != null) {
+aMenu.setEnabled(sels > 1);
+}
+item=menu.getMenuItemById("job-graph-entry-detach");
+if (item != null) {
+item.setEnabled(jobMeta.isEntryUsedInHops(jobEntry));
+}
+item=menu.getMenuItemById("job-graph-entry-hide");
+if (item != null) {
+item.setEnabled(jobEntry.isDrawn() && !jobMeta.isEntryUsedInHops(jobEntry));
+}
+item=menu.getMenuItemById("job-graph-entry-delete");
+if (item != null) {
+item.setEnabled(jobEntry.isDrawn());
+}
+menu.addMenuListener("job-graph-entry-align-left",this,"allignleft");
+menu.addMenuListener("job-graph-entry-align-right",this,"allignright");
+menu.addMenuListener("job-graph-entry-align-top",this,"alligntop");
+menu.addMenuListener("job-graph-entry-align-bottom",this,"allignbottom");
+menu.addMenuListener("job-graph-entry-align-horz",this,"distributehorizontal");
+menu.addMenuListener("job-graph-entry-align-vert",this,"distributevertical");
+menu.addMenuListener("job-graph-entry-align-snap",this,"snaptogrid");
+menu.addMenuListener("job-graph-entry-edit",this,"editEntryClick");
+menu.addMenuListener("job-graph-entry-edit-description",this,"editEntryDescription");
+menu.addMenuListener("job-graph-entry-duplicate",this,"duplicateEntry");
+menu.addMenuListener("job-graph-entry-copy",this,"copyEntry");
+menu.addMenuListener("job-graph-entry-detach",this,"detatchEntry");
+menu.addMenuListener("job-graph-entry-hide",this,"hideEntry");
+menu.addMenuListener("job-graph-entry-delete",this,"deleteEntry");
+canvas.setMenu((Menu)menu.getNativeObject());
+}
+}
+ else {
+final JobHopMeta hi=findJobHop(x,y);
+setCurrentHop(hi);
+if (hi != null) {
+XulPopupMenu menu=(XulPopupMenu)menuMap.get("job-graph-hop");
+if (menu != null) {
+XulMenuChoice miPopEvalUncond=menu.getMenuItemById("job-graph-hop-evaluation-uncond");
+XulMenuChoice miPopEvalTrue=menu.getMenuItemById("job-graph-hop-evaluation-true");
+XulMenuChoice miPopEvalFalse=menu.getMenuItemById("job-graph-hop-evaluation-false");
+XulMenuChoice miDisHop=menu.getMenuItemById("job-graph-hop-enabled");
+menu.addMenuListener("job-graph-hop-evaluation-uncond",this,"setHopConditional");
+menu.addMenuListener("job-graph-hop-evaluation-true",this,"setHopConditional");
+menu.addMenuListener("job-graph-hop-evaluation-false",this,"setHopConditional");
+menu.addMenuListener("job-graph-hop-flip",this,"flipHop");
+menu.addMenuListener("job-graph-hop-enabled",this,"disableHop");
+menu.addMenuListener("job-graph-hop-delete",this,"deleteHop");
+if (hi.isUnconditional()) {
+if (miPopEvalUncond != null) miPopEvalUncond.setChecked(true);
+if (miPopEvalTrue != null) miPopEvalTrue.setChecked(false);
+if (miPopEvalFalse != null) miPopEvalFalse.setChecked(false);
+}
+ else {
+if (hi.getEvaluation()) {
+  if (miPopEvalUncond != null)   miPopEvalUncond.setChecked(false);
+  if (miPopEvalTrue != null)   miPopEvalTrue.setChecked(true);
+  if (miPopEvalFalse != null)   miPopEvalFalse.setChecked(false);
+}
+ else {
+  if (miPopEvalUncond != null)   miPopEvalUncond.setChecked(false);
+  if (miPopEvalTrue != null)   miPopEvalTrue.setChecked(false);
+  if (miPopEvalFalse != null)   miPopEvalFalse.setChecked(true);
+}
+}
+if (!hi.from_entry.evaluates()) {
+if (miPopEvalTrue != null) miPopEvalTrue.setEnabled(false);
+if (miPopEvalFalse != null) miPopEvalFalse.setEnabled(false);
+}
+if (!hi.from_entry.isUnconditional()) {
+if (miPopEvalUncond != null) miPopEvalUncond.setEnabled(false);
+}
+if (miDisHop != null) {
+if (hi.isEnabled()) miDisHop.setText(Messages.getString("JobGraph.PopupMenu.Hop.Disable"));
+ else miDisHop.setText(Messages.getString("JobGraph.PopupMenu.Hop.Enable"));
+}
+canvas.setMenu((Menu)menu.getNativeObject());
+}
+}
+ else {
+final NotePadMeta ni=jobMeta.getNote(x,y);
+setCurrentNote(ni);
+if (ni != null) {
+XulPopupMenu menu=(XulPopupMenu)menuMap.get("job-graph-note");
+if (menu != null) {
+menu.addMenuListener("job-graph-note-edit",this,"editNote");
+menu.addMenuListener("job-graph-note-delete",this,"deleteNote");
+canvas.setMenu((Menu)menu.getNativeObject());
+}
+}
+ else {
+XulPopupMenu menu=(XulPopupMenu)menuMap.get("job-graph-background");
+if (menu != null) {
+menu.addMenuListener("job-graph-note-new",this,"newNote");
+menu.addMenuListener("job-graph-note-paste",this,"pasteNote");
+menu.addMenuListener("job-graph-background-settings",this,"editJobProperties");
+final String clipcontent=spoon.fromClipboard();
+XulMenuChoice item=menu.getMenuItemById("job-graph-note-paste");
+if (item != null) {
+  item.setEnabled(clipcontent != null);
+}
+canvas.setMenu((Menu)menu.getNativeObject());
+}
+}
+}
+}
+}

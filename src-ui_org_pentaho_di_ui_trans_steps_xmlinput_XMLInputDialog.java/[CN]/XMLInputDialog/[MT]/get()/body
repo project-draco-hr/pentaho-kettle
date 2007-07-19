@@ -1,0 +1,57 @@
+{
+  boolean finished=false;
+  int elementsFound=0;
+  try {
+    XMLInputMeta meta=new XMLInputMeta();
+    getInfo(meta);
+    if (!checkInputPositionsFilled(meta))     return;
+    EnterNumberDialog dialog=new EnterNumberDialog(shell,1000,"Number of elements to scan","Enter the number of elements to scan (0=all)");
+    int maxElements=dialog.open();
+    RowMetaInterface row=new RowMeta();
+    List<XMLInputFieldPosition> path=new ArrayList<XMLInputFieldPosition>();
+    FileInputList inputList=meta.getFiles(transMeta);
+    for (int f=0; f < inputList.getFiles().size() && !finished; f++) {
+      Node rootNode=XMLHandler.loadXMLFile(inputList.getFile(f));
+      for (int p=0; rootNode != null && p < meta.getInputPosition().length - 1; p++) {
+        rootNode=XMLHandler.getSubNode(rootNode,meta.getInputPosition()[p]);
+      }
+      if (rootNode == null) {
+        return;
+      }
+      if (meta.getInputPosition().length > 1) {
+        String itemElement=meta.getInputPosition()[meta.getInputPosition().length - 1];
+        int nrItems=XMLHandler.countNodes(rootNode,itemElement);
+        for (int i=0; i < nrItems && !finished; i++) {
+          Node itemNode=XMLHandler.getSubNodeByNr(rootNode,itemElement,i,false);
+          if (i >= meta.getNrRowsToSkip()) {
+            getValues(itemNode,row,path,0);
+            elementsFound++;
+            if (elementsFound >= maxElements && maxElements > 0) {
+              finished=true;
+            }
+          }
+        }
+      }
+ else {
+        getValues(rootNode,row,path,0);
+        elementsFound++;
+        if (elementsFound >= maxElements && maxElements > 0) {
+          finished=true;
+        }
+      }
+    }
+    for (int i=0; i < row.size(); i++) {
+      ValueMetaInterface v=row.getValueMeta(i);
+      TableItem item=new TableItem(wFields.table,SWT.NONE);
+      item.setText(1,v.getName());
+      item.setText(2,v.getTypeDesc());
+      item.setText(11,v.getOrigin());
+    }
+    wFields.removeEmptyRows();
+    wFields.setRowNums();
+    wFields.optWidth(true);
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,Messages.getString("XMLInputDialog.ErrorParsingData.DialogTitle"),Messages.getString("XMLInputDialog.ErrorParsingData.DialogMessage"),e);
+  }
+}

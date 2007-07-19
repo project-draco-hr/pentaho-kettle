@@ -1,0 +1,68 @@
+{
+  log.logDetailed(toString(),"Save to repository...");
+  if (rep != null) {
+    boolean answer=true;
+    boolean ask=ask_name;
+    while (answer && (ask || jobMeta.getName() == null || jobMeta.getName().length() == 0)) {
+      if (!ask) {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        mb.setMessage(Messages.getString("Spoon.Dialog.GiveJobANameBeforeSaving.Message"));
+        mb.setText(Messages.getString("Spoon.Dialog.GiveJobANameBeforeSaving.Title"));
+        mb.open();
+      }
+      ask=false;
+      answer=JobGraph.editProperties(jobMeta,this,rep);
+    }
+    if (answer && jobMeta.getName() != null && jobMeta.getName().length() > 0) {
+      if (!rep.getUserInfo().isReadonly()) {
+        boolean saved=false;
+        int response=SWT.YES;
+        if (jobMeta.showReplaceWarning(rep)) {
+          MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.ICON_QUESTION);
+          mb.setMessage("'" + jobMeta.getName() + "'"+ Const.CR+ Const.CR+ Messages.getString("Spoon.Dialog.FileExistsOverWrite.Message"));
+          mb.setText(Messages.getString("Spoon.Dialog.FileExistsOverWrite.Title"));
+          response=mb.open();
+        }
+        if (response == SWT.YES) {
+          if (jobMeta.getCreatedUser() == null || jobMeta.getCreatedUser().equals("-")) {
+            jobMeta.setCreatedDate(new Date());
+            jobMeta.setCreatedUser(rep.getUserInfo().getLogin());
+          }
+ else {
+            jobMeta.setCreatedDate(jobMeta.getCreatedDate());
+            jobMeta.setCreatedUser(jobMeta.getCreatedUser());
+          }
+          jobMeta.modifiedDate=new Date();
+          jobMeta.modifiedUser=rep.getUserInfo().getLogin();
+          JobSaveProgressDialog jspd=new JobSaveProgressDialog(shell,rep,jobMeta);
+          if (jspd.open()) {
+            if (!props.getSaveConfirmation()) {
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("Spoon.Dialog.JobWasStoredInTheRepository.Title"),null,Messages.getString("Spoon.Dialog.JobWasStoredInTheRepository.Message"),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.OK")},0,Messages.getString("Spoon.Dialog.JobWasStoredInTheRepository.Toggle"),props.getSaveConfirmation());
+              md.open();
+              props.setSaveConfirmation(md.getToggleState());
+            }
+            props.addLastFile(LastUsedFile.FILE_TYPE_JOB,jobMeta.getName(),jobMeta.getDirectory().getPath(),true,rep.getName());
+            saveSettings();
+            addMenuLast();
+            setShellText();
+            saved=true;
+          }
+        }
+        return saved;
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.CLOSE | SWT.ICON_ERROR);
+        mb.setMessage(Messages.getString("Spoon.Dialog.UserCanOnlyReadFromTheRepositoryJobNotSaved.Message"));
+        mb.setText(Messages.getString("Spoon.Dialog.UserCanOnlyReadFromTheRepositoryJobNotSaved.Title"));
+        mb.open();
+      }
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage(Messages.getString("Spoon.Dialog.NoRepositoryConnectionAvailable.Message"));
+    mb.setText(Messages.getString("Spoon.Dialog.NoRepositoryConnectionAvailable.Title"));
+    mb.open();
+  }
+  return false;
+}

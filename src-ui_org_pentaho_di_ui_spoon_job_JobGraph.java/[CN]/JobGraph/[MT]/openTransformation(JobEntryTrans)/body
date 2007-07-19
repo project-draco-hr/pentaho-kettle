@@ -1,0 +1,51 @@
+{
+  String exactFilename=jobMeta.environmentSubstitute(entry.getFilename());
+  String exactTransname=jobMeta.environmentSubstitute(entry.getTransname());
+  TabItem tab=spoon.delegates.tabs.findTabItem(exactFilename,TabMapEntry.OBJECT_TYPE_TRANSFORMATION_GRAPH);
+  if (tab == null) {
+    tab=spoon.delegates.tabs.findTabItem(Const.filenameOnly(exactFilename),TabMapEntry.OBJECT_TYPE_TRANSFORMATION_GRAPH);
+  }
+  if (tab != null) {
+    spoon.tabfolder.setSelected(tab);
+    return;
+  }
+  if (TransMeta.isRepReference(exactFilename,exactTransname)) {
+    try {
+      long id=spoon.rep.getTransformationID(exactTransname,entry.getDirectory().getID());
+      TransMeta newTrans;
+      if (id < 0) {
+        newTrans=new TransMeta(null,exactTransname,entry.arguments);
+      }
+ else {
+        newTrans=new TransMeta(spoon.rep,exactTransname,entry.getDirectory());
+      }
+      spoon.addTransGraph(newTrans);
+      newTrans.clearChanged();
+      spoon.open();
+    }
+ catch (    Throwable e) {
+      new ErrorDialog(shell,Messages.getString("JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Title"),Messages.getString("JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Message"),(Exception)e);
+    }
+  }
+ else {
+    try {
+      if (Const.isEmpty(exactFilename)) {
+        throw new Exception(Messages.getString("JobGraph.Exception.NoFilenameSpecified"));
+      }
+      TransMeta launchTransMeta=null;
+      if (KettleVFS.fileExists(exactFilename)) {
+        launchTransMeta=new TransMeta(exactFilename);
+      }
+ else {
+        launchTransMeta=new TransMeta();
+      }
+      launchTransMeta.clearChanged();
+      launchTransMeta.setFilename(exactFilename);
+      spoon.addTransGraph(launchTransMeta);
+      spoon.open();
+    }
+ catch (    Throwable e) {
+      new ErrorDialog(shell,Messages.getString("JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformationFromXML.Title"),Messages.getString("JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformationFromXML.Message"),(Exception)e);
+    }
+  }
+}

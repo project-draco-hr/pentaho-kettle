@@ -1,0 +1,36 @@
+{
+  int idx=Integer.parseInt(id.substring("last-file-".length()));
+  List<LastUsedFile> lastUsedFiles=props.getLastUsedFiles();
+  final LastUsedFile lastUsedFile=(LastUsedFile)lastUsedFiles.get(idx);
+  boolean cancelled=false;
+  if (lastUsedFile.isSourceRepository() && (rep == null || !rep.getRepositoryInfo().getName().equalsIgnoreCase(lastUsedFile.getRepositoryName()))) {
+    int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION};
+    RepositoriesDialog rd=new RepositoriesDialog(display,perms,Messages.getString("Spoon.Application.Name"));
+    rd.setRepositoryName(lastUsedFile.getRepositoryName());
+    if (rd.open()) {
+      if (rep != null)       rep.disconnect();
+      rep=new Repository(log,rd.getRepository(),rd.getUser());
+      try {
+        rep.connect(APP_NAME);
+      }
+ catch (      KettleException ke) {
+        rep=null;
+        new ErrorDialog(shell,Messages.getString("Spoon.Dialog.UnableConnectRepository.Title"),Messages.getString("Spoon.Dialog.UnableConnectRepository.Message"),ke);
+      }
+    }
+ else {
+      cancelled=true;
+    }
+  }
+  if (!cancelled) {
+    try {
+      RepositoryMeta meta=(rep == null ? null : rep.getRepositoryInfo());
+      loadLastUsedFile(lastUsedFile,meta);
+      addMenuLast();
+      refreshHistory();
+    }
+ catch (    KettleException ke) {
+      new ErrorDialog(shell,Messages.getString("Spoon.Dialog.LoadTransformationError.Title"),Messages.getString("Spoon.Dialog.LoadTransformationError.Message"),ke);
+    }
+  }
+}

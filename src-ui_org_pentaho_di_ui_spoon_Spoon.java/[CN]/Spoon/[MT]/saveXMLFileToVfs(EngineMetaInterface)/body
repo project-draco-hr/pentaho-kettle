@@ -1,0 +1,51 @@
+{
+  log.logBasic(toString(),"Save file as...");
+  boolean saved=false;
+  FileObject rootFile=null;
+  FileObject initialFile=null;
+  try {
+    initialFile=KettleVFS.getFileObject(lastFileOpened);
+    rootFile=KettleVFS.getFileObject(lastFileOpened).getFileSystem().getRoot();
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    MessageBox messageDialog=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+    messageDialog.setText("Error");
+    messageDialog.setMessage(e.getMessage());
+    messageDialog.open();
+    return false;
+  }
+  String fname=null;
+  VfsFileChooserDialog vfsFileChooser=new VfsFileChooserDialog(rootFile,initialFile);
+  FileObject selectedFile=vfsFileChooser.open(shell,"Untitled",Const.STRING_TRANS_AND_JOB_FILTER_EXT,Const.getTransformationAndJobFilterNames(),VfsFileChooserDialog.VFS_DIALOG_SAVEAS);
+  if (selectedFile != null) {
+    fname=selectedFile.getName().getFriendlyURI();
+  }
+  String extensions[]=meta.getFilterExtensions();
+  if (fname != null) {
+    boolean ending=false;
+    for (int i=0; i < extensions.length - 1; i++) {
+      if (fname.endsWith(extensions[i].substring(1)))       ending=true;
+    }
+    if (fname.endsWith(meta.getDefaultExtension()))     ending=true;
+    if (!ending) {
+      fname+=meta.getDefaultExtension();
+    }
+    int id=SWT.YES;
+    try {
+      FileObject f=KettleVFS.getFileObject(fname);
+      if (f.exists()) {
+        MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+        mb.setMessage(Messages.getString("Spoon.Dialog.PromptOverwriteFile.Message"));
+        mb.setText(Messages.getString("Spoon.Dialog.PromptOverwriteFile.Title"));
+        id=mb.open();
+      }
+    }
+ catch (    Exception e) {
+    }
+    if (id == SWT.YES) {
+      save(meta,fname);
+    }
+  }
+  return saved;
+}

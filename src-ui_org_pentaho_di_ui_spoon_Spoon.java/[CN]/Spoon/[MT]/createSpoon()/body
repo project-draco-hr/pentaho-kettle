@@ -1,0 +1,39 @@
+{
+  StringBuffer optionLogfile=getCommandLineOption("logfile").getArgument();
+  StringBuffer optionLoglevel=getCommandLineOption("level").getArgument();
+  String version=Const.JAVA_VERSION;
+  if ("1.4".compareToIgnoreCase(version) > 0) {
+    System.out.println("The System is running on Java version " + version);
+    System.out.println("Unfortunately, it needs version 1.4 or higher to run.");
+    return;
+  }
+  Locale.setDefault(Const.DEFAULT_LOCALE);
+  LogWriter.setConsoleAppenderDebug();
+  if (Const.isEmpty(optionLogfile)) {
+    log=LogWriter.getInstance(Const.SPOON_LOG_FILE,false,LogWriter.LOG_LEVEL_BASIC);
+  }
+ else {
+    log=LogWriter.getInstance(optionLogfile.toString(),true,LogWriter.LOG_LEVEL_BASIC);
+  }
+  if (log.getRealFilename() != null)   log.logBasic(APP_NAME,Messages.getString("Spoon.Log.LoggingToFile") + log.getRealFilename());
+  if (!Const.isEmpty(optionLoglevel)) {
+    log.setLogLevel(optionLoglevel.toString());
+    log.logBasic(APP_NAME,Messages.getString("Spoon.Log.LoggingAtLevel") + log.getLogLevelDesc());
+  }
+  StepLoader stloader=StepLoader.getInstance();
+  if (!stloader.read()) {
+    log.logError(APP_NAME,Messages.getString("Spoon.Log.ErrorLoadingAndHaltSystem"));
+    return;
+  }
+  JobEntryLoader jeloader=JobEntryLoader.getInstance();
+  if (!jeloader.read()) {
+    log.logError("Spoon","Error loading job entries & plugins... halting Kitchen!");
+    return;
+  }
+  init(null);
+  SpoonFactory.setSpoonInstance(this);
+  staticSpoon=this;
+  setDestroy(true);
+  GUIFactory.setThreadDialogs(new ThreadGuiResources());
+  log.logBasic(APP_NAME,Messages.getString("Spoon.Log.MainWindowCreated"));
+}

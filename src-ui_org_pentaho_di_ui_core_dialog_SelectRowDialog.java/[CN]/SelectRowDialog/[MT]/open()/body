@@ -1,0 +1,62 @@
+{
+  Shell parent=getParent();
+  Display display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX);
+  props.setLook(shell);
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  if (title == null)   title=Messages.getString("SelectRowDialog.Title");
+  shell.setLayout(formLayout);
+  shell.setText(title);
+  int margin=Const.MARGIN;
+  if (buffer == null || buffer.size() == 0)   return null;
+  rowMeta=buffer.get(0).getRowMeta();
+  int FieldsRows=buffer.size();
+  ColumnInfo[] colinf=new ColumnInfo[buffer.size()];
+  for (int i=0; i < rowMeta.size(); i++) {
+    ValueMetaInterface v=rowMeta.getValueMeta(i);
+    colinf[i]=new ColumnInfo(v.getName(),ColumnInfo.COLUMN_TYPE_TEXT,false);
+    colinf[i].setToolTip(v.toStringMeta());
+    colinf[i].setReadOnly(true);
+  }
+  wFields=new TableView(variables,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,null,props);
+  wOK=new Button(shell,SWT.PUSH);
+  wOK.setText(Messages.getString("System.Button.OK"));
+  wCancel=new Button(shell,SWT.PUSH);
+  wCancel.setText(Messages.getString("System.Button.Cancel"));
+  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCancel},margin,null);
+  fdFields=new FormData();
+  fdFields.left=new FormAttachment(0,0);
+  fdFields.top=new FormAttachment(wlFields,margin);
+  fdFields.right=new FormAttachment(100,0);
+  fdFields.bottom=new FormAttachment(wOK,-margin);
+  wFields.setLayoutData(fdFields);
+  lsOK=new Listener(){
+    public void handleEvent(    Event e){
+      ok();
+    }
+  }
+;
+  wOK.addListener(SWT.Selection,lsOK);
+  lsCancel=new Listener(){
+    public void handleEvent(    Event e){
+      close();
+    }
+  }
+;
+  wCancel.addListener(SWT.Selection,lsCancel);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      close();
+    }
+  }
+);
+  getData();
+  BaseStepDialog.setSize(shell);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return selection;
+}

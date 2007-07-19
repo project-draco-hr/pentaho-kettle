@@ -1,0 +1,77 @@
+{
+  Shell parent=getParent();
+  Display display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX);
+  props.setLook(shell);
+  shell.setImage(GUIResource.getInstance().getImageConnection());
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  if (title == null)   title=Messages.getString("PreviewRowsDialog.Title");
+  if (message == null)   message=Messages.getString("PreviewRowsDialog.Header",stepname);
+  shell.setLayout(formLayout);
+  shell.setText(title);
+  int margin=Const.MARGIN;
+  wlFields=new Label(shell,SWT.LEFT);
+  wlFields.setText(message);
+  props.setLook(wlFields);
+  fdlFields=new FormData();
+  fdlFields.left=new FormAttachment(0,0);
+  fdlFields.right=new FormAttachment(100,0);
+  fdlFields.top=new FormAttachment(0,margin);
+  wlFields.setLayoutData(fdlFields);
+  if (buffer == null || buffer.size() == 0) {
+    ShowMessageDialog dialog=new ShowMessageDialog(shell,SWT.OK | SWT.ICON_WARNING,Messages.getString("PreviewRowsDialog.NoRows.Text"),Messages.getString("PreviewRowsDialog.NoRows.Message"));
+    dialog.open();
+    shell.dispose();
+    return null;
+  }
+  int FieldsRows=buffer.size();
+  ColumnInfo[] colinf=new ColumnInfo[rowMeta.size()];
+  for (int i=0; i < rowMeta.size(); i++) {
+    ValueMetaInterface v=rowMeta.getValueMeta(i);
+    colinf[i]=new ColumnInfo(v.getName(),ColumnInfo.COLUMN_TYPE_TEXT,v.isNumeric());
+    colinf[i].setToolTip(v.toStringMeta());
+    colinf[i].setValueMeta(v);
+  }
+  wFields=new TableView(variables,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,null,props);
+  fdFields=new FormData();
+  fdFields.left=new FormAttachment(0,0);
+  fdFields.top=new FormAttachment(wlFields,margin);
+  fdFields.right=new FormAttachment(100,0);
+  fdFields.bottom=new FormAttachment(100,-50);
+  wFields.setLayoutData(fdFields);
+  wClose=new Button(shell,SWT.PUSH);
+  wClose.setText(Messages.getString("System.Button.Close"));
+  wLog=new Button(shell,SWT.PUSH);
+  wLog.setText(Messages.getString("PreviewRowsDialog.Button.ShowLog"));
+  if (loggingText == null || loggingText.length() == 0)   wLog.setEnabled(false);
+  lsClose=new Listener(){
+    public void handleEvent(    Event e){
+      close();
+    }
+  }
+;
+  lsLog=new Listener(){
+    public void handleEvent(    Event e){
+      log();
+    }
+  }
+;
+  wClose.addListener(SWT.Selection,lsClose);
+  wLog.addListener(SWT.Selection,lsLog);
+  BaseStepDialog.positionBottomButtons(shell,new Button[]{wClose,wLog},margin,null);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      close();
+    }
+  }
+);
+  getData();
+  BaseStepDialog.setSize(shell);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return stepname;
+}

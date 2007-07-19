@@ -1,0 +1,55 @@
+{
+  DatabaseMeta ci=jobMeta.findDatabase(wLogconnection.getText());
+  if (ci != null) {
+    RowMetaInterface r=Database.getJobLogrecordFields(wBatch.getSelection(),wLogfield.getSelection());
+    if (r != null && r.size() > 0) {
+      String tablename=wLogtable.getText();
+      if (tablename != null && tablename.length() > 0) {
+        Database db=new Database(ci);
+        db.shareVariablesWith(jobMeta);
+        try {
+          db.connect();
+          String createTable=db.getDDL(tablename,r);
+          if (!Const.isEmpty(createTable)) {
+            log.logBasic(toString(),createTable);
+            SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,ci,null,createTable);
+            sqledit.open();
+          }
+ else {
+            MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+            mb.setText(Messages.getString("JobDialog.NoSqlNedds.DialogTitle"));
+            mb.setMessage(Messages.getString("JobDialog.NoSqlNedds.DialogMessage"));
+            mb.open();
+          }
+        }
+ catch (        KettleDatabaseException dbe) {
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+          mb.setMessage(Messages.getString("JobDialog.Dialog.ErrorCreatingSQL.Message") + Const.CR + dbe.getMessage());
+          mb.setText(Messages.getString("JobDialog.Dialog.ErrorCreatingSQL.Title"));
+          mb.open();
+        }
+ finally {
+          db.disconnect();
+        }
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage(Messages.getString("JobDialog.Dialog.PleaseEnterALogTable.Message"));
+        mb.setText(Messages.getString("JobDialog.Dialog.PleaseEnterALogTable.Title"));
+        mb.open();
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage(Messages.getString("JobDialog.Dialog.CouldNotFindFieldsToCreateLogTable.Message"));
+      mb.setText(Messages.getString("JobDialog.Dialog.CouldNotFindFieldsToCreateLogTable.Title"));
+      mb.open();
+    }
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage(Messages.getString("JobDialog.Dialog.SelectCreateValidLogConnection.Message"));
+    mb.setText(Messages.getString("JobDialog.Dialog.SelectCreateValidLogConnection.Title"));
+    mb.open();
+  }
+}
