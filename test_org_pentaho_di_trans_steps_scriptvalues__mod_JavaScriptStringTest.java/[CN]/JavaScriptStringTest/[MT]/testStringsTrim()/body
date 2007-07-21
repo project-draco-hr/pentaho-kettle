@@ -1,0 +1,57 @@
+{
+  EnvUtil.environmentInit();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("javascripttest1");
+  StepLoader steploader=StepLoader.getInstance();
+  String injectorStepname="injector step";
+  InjectorMeta im=new InjectorMeta();
+  String injectorPid=steploader.getStepPluginID(im);
+  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,(StepMetaInterface)im);
+  transMeta.addStep(injectorStep);
+  String javaScriptStepname="blocking step";
+  ScriptValuesMetaMod svm=new ScriptValuesMetaMod();
+  ScriptValuesScript[] js=new ScriptValuesScript[]{new ScriptValuesScript(ScriptValuesScript.TRANSFORM_SCRIPT,"script","var original = 'b' + string.getString() + 'e';\n" + "var ltrimStr = 'b' + ltrim(string.getString()) + 'e';\n" + "var rtrimStr = 'b' + rtrim(string.getString()) + 'e';\n"+ "var trimStr  = 'b' + trim(string.getString()) + 'e';\n")};
+  svm.setJSScripts(js);
+  svm.setName(new String[]{"original","ltrimStr","rtrimStr","trimStr"});
+  svm.setRename(new String[]{"","","",""});
+  svm.setType(new int[]{ValueMetaInterface.TYPE_STRING,ValueMetaInterface.TYPE_STRING,ValueMetaInterface.TYPE_STRING,ValueMetaInterface.TYPE_STRING});
+  svm.setLength(new int[]{-1,-1,-1,-1});
+  svm.setPrecision(new int[]{-1,-1,-1,-1});
+  svm.setCompatible(true);
+  String javaScriptStepPid=steploader.getStepPluginID(svm);
+  StepMeta javaScriptStep=new StepMeta(javaScriptStepPid,javaScriptStepname,(StepMetaInterface)svm);
+  transMeta.addStep(javaScriptStep);
+  TransHopMeta hi1=new TransHopMeta(injectorStep,javaScriptStep);
+  transMeta.addTransHop(hi1);
+  String dummyStepname="dummy step";
+  DummyTransMeta dm=new DummyTransMeta();
+  String dummyPid=steploader.getStepPluginID(dm);
+  StepMeta dummyStep=new StepMeta(dummyPid,dummyStepname,(StepMetaInterface)dm);
+  transMeta.addStep(dummyStep);
+  TransHopMeta hi2=new TransHopMeta(javaScriptStep,dummyStep);
+  transMeta.addTransHop(hi2);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si;
+  si=trans.getStepInterface(javaScriptStepname,0);
+  RowStepCollector javaScriptRc=new RowStepCollector();
+  si.addRowListener(javaScriptRc);
+  si=trans.getStepInterface(dummyStepname,0);
+  RowStepCollector dummyRc=new RowStepCollector();
+  si.addRowListener(dummyRc);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  trans.startThreads();
+  List<RowMetaAndData> inputList=createData();
+  Iterator<RowMetaAndData> it=inputList.iterator();
+  while (it.hasNext()) {
+    RowMetaAndData rm=(RowMetaAndData)it.next();
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> goldenImageRows=createResultData1();
+  List<RowMetaAndData> resultRows1=javaScriptRc.getRowsWritten();
+  checkRows(resultRows1,goldenImageRows);
+  List<RowMetaAndData> resultRows2=dummyRc.getRowsRead();
+  checkRows(resultRows2,goldenImageRows);
+}
