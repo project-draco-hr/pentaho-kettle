@@ -1,27 +1,12 @@
 {
-  LogWriter log=LogWriter.getInstance();
-  if (arguments != null) {
-    for (int i=0; i < arguments.length; i++) {
-      FileObject fileObject=null;
-      String filename=environmentSubstitute(arguments[i]);
-      try {
-        fileObject=KettleVFS.getFileObject(filename);
-        if (null != fileObject && fileObject.exists()) {
-          remarks.add(new CheckResult(CheckResultInterface.TYPE_RESULT_OK,Messages.getString("JobEntryDeleteFiles.CheckResult.Exists",filename),this));
-          if (fileObject.getType() == FileType.FOLDER) {
-            remarks.add(new CheckResult(CheckResultInterface.TYPE_RESULT_OK,Messages.getString("JobEntryDeleteFiles.CheckResult.IsFolder",filename),this));
-            String wildcard=environmentSubstitute(filemasks[i]);
-            remarks.add(new CheckResult(CheckResultInterface.TYPE_RESULT_OK,Messages.getString("JobEntryDeleteFiles.CheckResult.Wildcard",wildcard),this));
-          }
-        }
- else {
-          remarks.add(new CheckResult(CheckResultInterface.TYPE_RESULT_OK,Messages.getString("JobEntryDeleteFiles.FileAlreadyDeleted",filename),this));
-        }
-      }
- catch (      IOException e) {
-        log.logError(toString(),e.getMessage());
-        remarks.add(new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,Messages.getString("JobEntryDeleteFiles.CouldNotProcess",filename,e.getMessage()),this));
-      }
-    }
+  boolean res=andValidator().validate(this,"arguments",remarks,putValidators(notNullValidator()));
+  if (res == false) {
+    return;
+  }
+  ValidatorContext ctx=new ValidatorContext();
+  putVariableSpace(ctx,getVariables());
+  putValidators(ctx,notNullValidator(),fileExistsValidator());
+  for (int i=0; i < arguments.length; i++) {
+    andValidator().validate(this,"arguments[" + i + "]",remarks,ctx);
   }
 }
