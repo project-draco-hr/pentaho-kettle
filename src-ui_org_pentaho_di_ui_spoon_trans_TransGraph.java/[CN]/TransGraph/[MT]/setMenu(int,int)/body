@@ -8,7 +8,7 @@
     if (menu != null) {
       int sels=transMeta.nrSelectedSteps();
       XulMenuChoice item=menu.getMenuItemById("trans-graph-entry-newhop");
-      menu.addMenuListener("trans-graph-entry-newhop",this,TransGraph.class,"newHopClick");
+      menu.addMenuListener("trans-graph-entry-newhop",this,TransGraph.class,"newHop");
       item.setEnabled(sels == 2);
       item=menu.getMenuItemById("trans-graph-entry-align-snap");
       item.setText(Messages.getString("SpoonGraph.PopupMenu.SnapToGrid") + ConstUI.GRID_SIZE + ")\tALT-HOME");
@@ -91,7 +91,6 @@
         XulPopupMenu menu=(XulPopupMenu)menuMap.get("trans-graph-background");
         if (menu != null) {
           menu.addMenuListener("trans-graph-background-new-note",this,"newNote");
-          menu.addMenuListener("trans-graph-background-new-step",this,"pasteNote");
           menu.addMenuListener("trans-graph-background-paste",this,"paste");
           menu.addMenuListener("trans-graph-background-settings",this,"settings");
           final String clipcontent=spoon.fromClipboard();
@@ -99,15 +98,22 @@
           if (item != null) {
             item.setEnabled(clipcontent != null);
           }
+          String locale=LanguageChoice.getInstance().getDefaultLocale().toString().toLowerCase();
           XulMenu subMenu=menu.getMenuById("trans-graph-background-new-step");
           if (subMenu.getItemCount() == 0) {
             StepLoader steploader=StepLoader.getInstance();
-            final StepPlugin sp[]=steploader.getStepsWithType(StepPlugin.TYPE_ALL);
-            for (int i=0; i < sp.length; i++) {
-              XulMessages xulMessages=new XulMessages();
-              final String name=sp[i].getDescription();
-              new MenuChoice(subMenu,name,name,null,null,MenuChoice.TYPE_PLAIN,xulMessages);
-              menu.addMenuListener(name,this,"newStep");
+            String basecat[]=steploader.getCategories(StepPlugin.TYPE_ALL,locale);
+            StepPlugin basesteps[]=steploader.getStepsWithType(StepPlugin.TYPE_ALL);
+            XulMessages xulMessages=new XulMessages();
+            for (int cat=0; cat < basecat.length; cat++) {
+              org.pentaho.xul.swt.menu.Menu catMenu=new org.pentaho.xul.swt.menu.Menu((org.pentaho.xul.swt.menu.Menu)subMenu,basecat[cat],basecat[cat],null);
+              for (int step=0; step < basesteps.length; step++) {
+                if (basesteps[step].getCategory(locale).equalsIgnoreCase(basecat[cat])) {
+                  final String name=basesteps[step].getDescription();
+                  new MenuChoice(catMenu,name,name,null,null,MenuChoice.TYPE_PLAIN,xulMessages);
+                  menu.addMenuListener(name,this,"newStep");
+                }
+              }
             }
           }
           canvas.setMenu((Menu)menu.getNativeObject());
