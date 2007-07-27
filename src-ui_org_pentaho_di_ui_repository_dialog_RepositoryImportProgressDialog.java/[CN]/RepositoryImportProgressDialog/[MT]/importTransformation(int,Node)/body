@@ -1,0 +1,58 @@
+{
+  TransMeta ti=new TransMeta(transnode);
+  wLabel.setText(Messages.getString("RepositoryImportDialog.ImportTrans.Label",Integer.toString(nrthis),Integer.toString(nrtrans),ti.getName()));
+  String directoryPath=XMLHandler.getTagValue(transnode,"info","directory");
+  directoryPath=directoryPath.substring(1);
+  RepositoryDirectory targetDirectory=baseDirectory.findDirectory(directoryPath);
+  if (targetDirectory == null) {
+    if (askDirectory) {
+      MessageDialogWithToggle mb=new MessageDialogWithToggle(shell,Messages.getString("RepositoryImportDialog.CreateDir.Title"),null,Messages.getString("RepositoryImportDialog.CreateDir.Message",directoryPath),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No"),Messages.getString("System.Button.Cancel")},1,Messages.getString("RepositoryImportDialog.DontAskAgain.Label"),!askDirectory);
+      int answer=mb.open();
+      makeDirectory=(answer & 0xFF) == 0;
+      askDirectory=!mb.getToggleState();
+      if ((answer & 0xFF) == 1)       return false;
+    }
+    if (makeDirectory) {
+      addLog(Messages.getString("RepositoryImportDialog.CreateDir.Log",directoryPath,baseDirectory.toString()));
+      targetDirectory=baseDirectory.createDirectory(rep,directoryPath);
+    }
+ else {
+      targetDirectory=baseDirectory;
+    }
+  }
+  long id=rep.getTransformationID(ti.getName(),targetDirectory.getID());
+  if (id > 0 && askOverwrite) {
+    MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("RepositoryImportDialog.OverwriteTrans.Title"),null,Messages.getString("RepositoryImportDialog.OverwriteTrans.Message",ti.getName()),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},1,Messages.getString("RepositoryImportDialog.DontAskAgain.Label"),!askOverwrite);
+    int answer=md.open();
+    overwrite=(answer & 0xFF) == 0;
+    askOverwrite=!md.getToggleState();
+  }
+ else {
+    shell.getDisplay().update();
+  }
+  if (id <= 0 || overwrite) {
+    ti.setDirectory(targetDirectory);
+    try {
+      if (ti.getCreatedUser() == null || ti.getCreatedUser().equals("-")) {
+        ti.setCreatedDate(new Date());
+        ti.setCreatedUser(rep.getUserInfo().getLogin());
+      }
+ else {
+        ti.setCreatedDate(ti.getCreatedDate());
+        ti.setCreatedUser(ti.getCreatedUser());
+      }
+      ti.setModifiedDate(new Date());
+      ti.setModifiedUser(rep.getUserInfo().getLogin());
+      ti.saveRep(rep);
+      addLog(Messages.getString("RepositoryImportDialog.TransSaved.Log",Integer.toString(nrthis),ti.getName()));
+    }
+ catch (    Exception e) {
+      addLog(Messages.getString("RepositoryImportDialog.ErrorSavingTrans.Log",Integer.toString(nrthis),ti.getName(),e.toString()));
+      addLog(Const.getStackTracker(e));
+    }
+  }
+ else {
+    addLog(Messages.getString("RepositoryImportDialog.ErrorSavingTrans2.Log",ti.getName()));
+  }
+  return true;
+}

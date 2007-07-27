@@ -1,0 +1,41 @@
+{
+  JobMeta ji=new JobMeta(log,jobnode,rep,SpoonFactory.getInstance());
+  wLabel.setText(Messages.getString("RepositoryImportDialog.ImportJob.Label",Integer.toString(nrthis),Integer.toString(nrjobs),ji.getName()));
+  String directoryPath=Const.NVL(XMLHandler.getTagValue(jobnode,"directory"),Const.FILE_SEPARATOR);
+  RepositoryDirectory targetDirectory=baseDirectory.findDirectory(directoryPath);
+  if (targetDirectory == null) {
+    if (askDirectory) {
+      MessageDialogWithToggle mb=new MessageDialogWithToggle(shell,Messages.getString("RepositoryImportDialog.CreateDir.Title"),null,Messages.getString("RepositoryImportDialog.CreateDir.Message",directoryPath),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No"),Messages.getString("System.Button.Cancel")},1,Messages.getString("RepositoryImportDialog.DontAskAgain.Label"),!askDirectory);
+      int answer=mb.open();
+      makeDirectory=answer == 0;
+      askDirectory=!mb.getToggleState();
+      if ((answer & 0xFF) == 2)       return false;
+    }
+    if (makeDirectory) {
+      addLog(Messages.getString("RepositoryImportDialog.CreateDir.Log",directoryPath,baseDirectory.toString()));
+      targetDirectory=baseDirectory.createDirectory(rep,directoryPath);
+    }
+ else {
+      targetDirectory=baseDirectory;
+    }
+  }
+  long id=rep.getJobID(ji.getName(),targetDirectory.getID());
+  if (id > 0 && askOverwrite) {
+    MessageDialogWithToggle md=new MessageDialogWithToggle(shell,Messages.getString("RepositoryImportDialog.OverwriteJob.Title"),null,Messages.getString("RepositoryImportDialog.OverwriteJob.Message",ji.getName()),MessageDialog.QUESTION,new String[]{Messages.getString("System.Button.Yes"),Messages.getString("System.Button.No")},1,Messages.getString("RepositoryImportDialog.DontAskAgain.Label"),!askOverwrite);
+    int answer=md.open();
+    overwrite=(answer & 0xFF) == 0;
+    askOverwrite=!md.getToggleState();
+  }
+ else {
+    shell.getDisplay().update();
+  }
+  if (id <= 0 || overwrite) {
+    ji.setDirectory(targetDirectory);
+    ji.saveRep(rep);
+    addLog(Messages.getString("RepositoryImportDialog.JobSaved.Log",Integer.toString(nrthis),ji.getName()));
+  }
+ else {
+    addLog(Messages.getString("RepositoryImportDialog.ErrorSavingJob.Log",ji.getName()));
+  }
+  return true;
+}
