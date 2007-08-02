@@ -1,0 +1,53 @@
+{
+  System.out.println("Running: " + getPath(transFile));
+  LogWriter log;
+  log=LogWriter.getInstance(LogWriter.LOG_LEVEL_ERROR);
+  log.startStringCapture();
+  boolean ok=false;
+  int failsIn=failures;
+  String actualFile=expected.getAbsolutePath();
+  actualFile=actualFile.replaceFirst(".expected.",".actual.");
+  try {
+    currentFile=transFile;
+    if (!transFile.exists()) {
+      log.logError("BlackBoxTest","Transformation does not exist: " + getPath(transFile));
+      addFailure("Transformation does not exist: " + getPath(transFile));
+    }
+    if (!expected.exists()) {
+      fail("Expected output file does not exist: " + getPath(expected));
+      addFailure("Expected output file does not exist: " + getPath(expected));
+    }
+    File actual=new File(actualFile);
+    try {
+      ok=runTrans(transFile.getAbsolutePath(),log);
+      if (ok) {
+        fileCompare(expected,actual,log);
+      }
+    }
+ catch (    KettleException ke) {
+    }
+catch (    AssertionFailedError failure) {
+    }
+catch (    Throwable t) {
+    }
+  }
+ catch (  AssertionFailedError failure) {
+    System.err.println(failure.getMessage());
+  }
+  log.endStringCapture();
+  if (!ok) {
+    String logStr=log.getString();
+    String tmpFileName=transFile.getAbsolutePath().substring(0,transFile.getAbsolutePath().length() - 4) + "-log.txt";
+    File logFile=new File(tmpFileName);
+    writeLog(logFile,logStr);
+    try {
+      if (fileCompare(expected,logFile,log)) {
+        failures=failsIn;
+      }
+    }
+ catch (    IOException e) {
+      addFailure("Could not compare log files: " + getPath(logFile) + ""+ e.getMessage());
+      fail("Could not compare log files: " + getPath(logFile) + ""+ e.getMessage());
+    }
+  }
+}

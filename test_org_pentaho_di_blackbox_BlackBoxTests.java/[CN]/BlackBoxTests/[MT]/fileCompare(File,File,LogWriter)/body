@@ -1,0 +1,76 @@
+{
+  int failsIn=failures;
+  InputStream expectedStream=new FileInputStream(expected);
+  InputStream actualStream=new FileInputStream(actual);
+  int goldPos=0;
+  int tmpPos=0;
+  byte goldBuffer[]=new byte[2048];
+  byte tmpBuffer[]=new byte[2048];
+  try {
+    goldPos=expectedStream.read(goldBuffer);
+    tmpPos=actualStream.read(tmpBuffer);
+    int lineno=1;
+    int charno=0;
+    int indexGold=0;
+    int indexTmp=0;
+    int totalGold=goldPos;
+    int totalTmp=tmpPos;
+    while (goldPos > 0 && tmpPos > 0) {
+      if (indexGold == goldPos) {
+        goldPos=expectedStream.read(goldBuffer);
+        if (goldPos > 0) {
+          totalGold+=goldPos;
+        }
+        indexGold=0;
+      }
+      if (indexTmp == tmpPos) {
+        tmpPos=actualStream.read(tmpBuffer);
+        if (tmpPos > 0) {
+          totalTmp+=tmpPos;
+        }
+        indexTmp=0;
+      }
+      if (goldPos < 0) {
+        break;
+      }
+      if (tmpPos < 0) {
+        break;
+      }
+      charno++;
+      if (goldBuffer[indexGold] != tmpBuffer[indexTmp]) {
+        int start=indexTmp > 10 ? indexTmp - 10 : 0;
+        int end=indexTmp < tmpBuffer.length - 11 ? indexTmp + 10 : tmpBuffer.length - 1;
+        int offset=indexTmp - start;
+        byte bytes[]=new byte[offset];
+        System.arraycopy(tmpBuffer,start,bytes,0,bytes.length);
+        String frag="-->" + new String(bytes);
+        frag+="[" + (char)tmpBuffer[indexTmp] + "]";
+        bytes=new byte[end - start - offset];
+        System.arraycopy(tmpBuffer,start + offset + 1,bytes,0,bytes.length);
+        frag+=new String(bytes);
+        frag+="<--";
+        String exp=goldBuffer[indexGold] < 32 ? "\\" + (char)(goldBuffer[indexGold] - 'a') : "" + (char)goldBuffer[indexGold];
+        String act=tmpBuffer[indexTmp] < 32 ? "\\" + (char)(tmpBuffer[indexTmp] - 'a') : "" + (char)tmpBuffer[indexTmp];
+        String message="Test files (" + getPath(actual) + ") differ at: line "+ lineno+ " char "+ charno+ " expecting '"+ exp+ "' but found '"+ act+ "' - "+ frag;
+        addFailure(message);
+        log.logError("BlackBoxTest",message);
+        fail(message);
+      }
+ else       if (tmpBuffer[indexTmp] == '\n') {
+        lineno++;
+        charno=0;
+      }
+      indexGold++;
+      indexTmp++;
+    }
+    if (totalGold != totalTmp) {
+      addFailure("Comparison files are not same length");
+    }
+  }
+ catch (  Exception e) {
+    addFailure("Error trying to compare output files: " + getPath(actual));
+    e.printStackTrace();
+    fail("Error trying to compare output files: " + getPath(actual));
+  }
+  return failsIn == failures;
+}
