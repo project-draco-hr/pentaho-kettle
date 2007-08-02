@@ -2,18 +2,42 @@
   StepPartitioningMeta stepPartitioningMeta=stepMeta.getStepPartitioningMeta();
   if (stepPartitioningMeta == null)   stepPartitioningMeta=new StepPartitioningMeta();
   StepMeta before=(StepMeta)stepMeta.clone();
-  String[] options=StepPartitioningMeta.methodDescriptions;
+  Set<Entry<String,Partitioner>> plugins=StepLoader.getPartitionerList().entrySet();
+  String options[]=new String[StepPartitioningMeta.methodDescriptions.length + plugins.size()];
+  String codes[]=new String[StepPartitioningMeta.methodDescriptions.length + plugins.size()];
+  System.arraycopy(StepPartitioningMeta.methodDescriptions,0,options,0,StepPartitioningMeta.methodDescriptions.length);
+  System.arraycopy(StepPartitioningMeta.methodCodes,0,codes,0,StepPartitioningMeta.methodCodes.length);
+  Iterator<Entry<String,Partitioner>> it=plugins.iterator();
+  int idx=0;
+  while (it.hasNext()) {
+    Partitioner entry=it.next().getValue();
+    options[StepPartitioningMeta.methodDescriptions.length + idx]=entry.getDescription();
+    codes[StepPartitioningMeta.methodCodes.length + idx]=entry.getId();
+    idx++;
+  }
+  for (int i=0; i < codes.length; i++) {
+    if (codes[i].equals(stepPartitioningMeta.getMethod())) {
+      idx=i;
+      break;
+    }
+  }
   EnterSelectionDialog dialog=new EnterSelectionDialog(shell,options,"Partioning method","Select the partitioning method");
-  String methodDescription=dialog.open(stepPartitioningMeta.getMethod());
+  String methodDescription=dialog.open(idx);
   if (methodDescription != null) {
-    int method=StepPartitioningMeta.getMethod(methodDescription);
+    String method=StepPartitioningMeta.methodCodes[StepPartitioningMeta.PARTITIONING_METHOD_NONE];
+    for (int i=0; i < options.length; i++) {
+      if (options[i].equals(methodDescription)) {
+        method=codes[i];
+      }
+    }
+    int methodType=StepPartitioningMeta.getMethodType(method);
+    stepPartitioningMeta.setMethodType(methodType);
     stepPartitioningMeta.setMethod(method);
-switch (method) {
+switch (methodType) {
 case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
       break;
 case StepPartitioningMeta.PARTITIONING_METHOD_MIRROR:
-case StepPartitioningMeta.PARTITIONING_METHOD_MOD:
-case StepPartitioningMeta.PARTITIONING_METHOD_HASH:
+case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
     String schemaNames[]=transMeta.getPartitionSchemasNames();
   if (schemaNames.length == 0) {
     MessageBox box=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
@@ -23,7 +47,7 @@ case StepPartitioningMeta.PARTITIONING_METHOD_HASH:
   }
  else {
     PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
-    int idx=-1;
+    idx=-1;
     if (partitionSchema != null) {
       idx=Const.indexOfString(partitionSchema.getName(),schemaNames);
     }
@@ -34,10 +58,15 @@ case StepPartitioningMeta.PARTITIONING_METHOD_HASH:
       stepPartitioningMeta.setPartitionSchema(transMeta.getPartitionSchemas().get(idx));
     }
   }
-if (method == StepPartitioningMeta.PARTITIONING_METHOD_MOD || method == StepPartitioningMeta.PARTITIONING_METHOD_HASH) {
-  EnterStringDialog stringDialog=new EnterStringDialog(shell,Const.NVL(stepPartitioningMeta.getFieldName(),""),"Fieldname","Enter a field name to partition on");
-  String fieldName=stringDialog.open();
-  stepPartitioningMeta.setFieldName(fieldName);
+if (methodType == StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL) {
+  StepDialogInterface partitionerDialog=null;
+  try {
+    partitionerDialog=delegates.steps.getPartitionerDialog(stepMeta.getStepMetaInterface(),stepPartitioningMeta,transMeta);
+    String result=partitionerDialog.open();
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+  }
 }
 break;
 }
