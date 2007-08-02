@@ -1,29 +1,27 @@
 {
   try {
-    TransMeta transMeta=info.getTransMeta();
-    if (Const.isEmpty(transMeta.getName()))     throw new KettleException("The transformation needs a name to uniquely identify it by on the remote server.");
-    TransSplitter transSplitter=new TransSplitter(transMeta);
-    transSplitter.splitOriginalTransformation();
-    TransMeta master=transSplitter.getMaster();
+    if (Const.isEmpty(originalTransformation.getName()))     throw new KettleException("The transformation needs a name to uniquely identify it by on the remote server.");
+    splitOriginalTransformation();
+    TransMeta master=getMaster();
     SlaveServer masterServer=null;
     List<StepMeta> masterSteps=master.getTransHopSteps(false);
     if (masterSteps.size() > 0) {
-      masterServer=transSplitter.getMasterServer();
-      if (info.show())       info.addTransGraph(master);
-      if (info.post()) {
-        String masterReply=masterServer.sendXML(new TransConfiguration(master,info.getExecutionConfiguration()).getXML(),AddTransServlet.CONTEXT_PATH + "/?xml=Y");
+      masterServer=getMasterServer();
+      info.addTransMeta(master);
+      if (post) {
+        String masterReply=masterServer.sendXML(new TransConfiguration(master,config).getXML(),AddTransServlet.CONTEXT_PATH + "/?xml=Y");
         WebResult webResult=WebResult.fromXMLString(masterReply);
         if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
           throw new KettleException("An error occurred sending the master transformation: " + webResult.getMessage());
         }
       }
     }
-    SlaveServer slaves[]=transSplitter.getSlaveTargets();
+    SlaveServer slaves[]=getSlaveTargets();
     for (int i=0; i < slaves.length; i++) {
-      TransMeta slaveTrans=(TransMeta)transSplitter.getSlaveTransMap().get(slaves[i]);
-      if (info.show())       info.addTransGraph(slaveTrans);
-      if (info.post()) {
-        TransConfiguration transConfiguration=new TransConfiguration(slaveTrans,info.getExecutionConfiguration());
+      TransMeta slaveTrans=(TransMeta)getSlaveTransMap().get(slaves[i]);
+      info.addTransMeta(slaveTrans);
+      if (post) {
+        TransConfiguration transConfiguration=new TransConfiguration(slaveTrans,config);
         Map<String,String> variables=transConfiguration.getTransExecutionConfiguration().getVariables();
         variables.put(Const.INTERNAL_VARIABLE_SLAVE_TRANS_NUMBER,Integer.toString(i));
         variables.put(Const.INTERNAL_VARIABLE_SLAVE_TRANS_NAME,slaves[i].getName());
@@ -35,8 +33,8 @@
         }
       }
     }
-    if (info.post()) {
-      if (info.prepare()) {
+    if (post) {
+      if (prepare) {
         if (masterSteps.size() > 0) {
           String masterReply=masterServer.getContentFromServer(PrepareExecutionTransServlet.CONTEXT_PATH + "/?name=" + master.getName()+ "&xml=Y");
           WebResult webResult=WebResult.fromXMLString(masterReply);
@@ -45,7 +43,7 @@
           }
         }
         for (int i=0; i < slaves.length; i++) {
-          TransMeta slaveTrans=(TransMeta)transSplitter.getSlaveTransMap().get(slaves[i]);
+          TransMeta slaveTrans=(TransMeta)getSlaveTransMap().get(slaves[i]);
           String slaveReply=slaves[i].getContentFromServer(PrepareExecutionTransServlet.CONTEXT_PATH + "/?name=" + slaveTrans.getName()+ "&xml=Y");
           WebResult webResult=WebResult.fromXMLString(slaveReply);
           if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
@@ -53,7 +51,7 @@
           }
         }
       }
-      if (info.start()) {
+      if (start) {
         if (masterSteps.size() > 0) {
           String masterReply=masterServer.getContentFromServer(StartExecutionTransServlet.CONTEXT_PATH + "/?name=" + master.getName()+ "&xml=Y");
           WebResult webResult=WebResult.fromXMLString(masterReply);
@@ -62,7 +60,7 @@
           }
         }
         for (int i=0; i < slaves.length; i++) {
-          TransMeta slaveTrans=(TransMeta)transSplitter.getSlaveTransMap().get(slaves[i]);
+          TransMeta slaveTrans=(TransMeta)getSlaveTransMap().get(slaves[i]);
           String slaveReply=slaves[i].getContentFromServer(StartExecutionTransServlet.CONTEXT_PATH + "/?name=" + slaveTrans.getName()+ "&xml=Y");
           WebResult webResult=WebResult.fromXMLString(slaveReply);
           if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
