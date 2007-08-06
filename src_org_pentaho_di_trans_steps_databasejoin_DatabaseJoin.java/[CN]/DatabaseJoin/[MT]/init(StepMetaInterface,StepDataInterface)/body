@@ -1,0 +1,26 @@
+{
+  meta=(DatabaseJoinMeta)smi;
+  data=(DatabaseJoinData)sdi;
+  if (super.init(smi,sdi)) {
+    data.db=new Database(meta.getDatabaseMeta());
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      logBasic(Messages.getString("DatabaseJoin.Log.ConnectedToDB"));
+      data.pstmt=data.db.prepareSQL(meta.getSql());
+      data.db.setQueryLimit(meta.getRowLimit());
+      return true;
+    }
+ catch (    KettleException e) {
+      logError(Messages.getString("DatabaseJoin.Log.DatabaseError") + e.getMessage());
+      data.db.disconnect();
+    }
+  }
+  return false;
+}

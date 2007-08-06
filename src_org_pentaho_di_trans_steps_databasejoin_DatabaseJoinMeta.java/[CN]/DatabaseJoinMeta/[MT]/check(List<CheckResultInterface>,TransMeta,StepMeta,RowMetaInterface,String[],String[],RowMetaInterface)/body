@@ -1,0 +1,86 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    databases=new Database[]{db};
+    try {
+      db.connect();
+      if (sql != null && sql.length() != 0) {
+        RowMetaInterface param=getParameterRow(prev);
+        error_message="";
+        RowMetaInterface r=db.getQueryFields(sql,true,param,new Object[param.size()]);
+        if (r != null) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DatabaseJoinMeta.CheckResult.QueryOK"),stepMeta);
+          remarks.add(cr);
+        }
+ else {
+          error_message=Messages.getString("DatabaseJoinMeta.CheckResult.InvalidDBQuery");
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+        int q=db.countParameters(sql);
+        if (q != parameterField.length) {
+          error_message=Messages.getString("DatabaseJoinMeta.CheckResult.DismatchBetweenParametersAndQuestion") + Const.CR;
+          error_message+=Messages.getString("DatabaseJoinMeta.CheckResult.DismatchBetweenParametersAndQuestion2") + q + Const.CR;
+          error_message+=Messages.getString("DatabaseJoinMeta.CheckResult.DismatchBetweenParametersAndQuestion3") + parameterField.length;
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DatabaseJoinMeta.CheckResult.NumberOfParamCorrect") + q + ")",stepMeta);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < parameterField.length; i++) {
+          ValueMetaInterface v=prev.searchValueMeta(parameterField[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("DatabaseJoinMeta.CheckResult.MissingFields") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + parameterField[i] + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DatabaseJoinMeta.CheckResult.AllFieldsFound"),stepMeta);
+        }
+        remarks.add(cr);
+      }
+ else {
+        error_message=Messages.getString("DatabaseJoinMeta.CheckResult.CounldNotReadFields") + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("DatabaseJoinMeta.CheckResult.ErrorOccurred") + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message=Messages.getString("DatabaseJoinMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DatabaseJoinMeta.CheckResult.ReceivingInfo"),stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("DatabaseJoinMeta.CheckResult.NoInputReceived"),stepMeta);
+    remarks.add(cr);
+  }
+}

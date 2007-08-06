@@ -1,0 +1,52 @@
+{
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)rowMeta.clone();
+    meta.getFields(data.outputRowMeta,getStepname(),new RowMetaInterface[]{meta.getTableFields()},null,this);
+    data.lookupRowMeta=new RowMeta();
+    if (log.isDetailed())     logDetailed(Messages.getString("DatabaseJoin.Log.CheckingRow") + rowMeta.getString(rowData));
+    data.keynrs=new int[meta.getParameterField().length];
+    for (int i=0; i < meta.getParameterField().length; i++) {
+      data.keynrs[i]=rowMeta.indexOfValue(meta.getParameterField()[i]);
+      if (data.keynrs[i] < 0) {
+        throw new KettleStepException(Messages.getString("DatabaseJoin.Exception.FieldNotFound",meta.getParameterField()[i]));
+      }
+      data.lookupRowMeta.addValueMeta((ValueMetaInterface)rowMeta.getValueMeta(data.keynrs[i]).clone());
+    }
+  }
+  Object[] lookupRowData=new Object[data.lookupRowMeta.size()];
+  for (int i=0; i < data.keynrs.length; i++) {
+    lookupRowData[i]=rowData[data.keynrs[i]];
+  }
+  ResultSet rs=data.db.openQuery(data.pstmt,data.lookupRowMeta,lookupRowData);
+  Object[] add=data.db.getRow(rs);
+  RowMetaInterface addMeta=data.db.getReturnRowMeta();
+  linesInput++;
+  int counter=0;
+  while (add != null && (meta.getRowLimit() == 0 || counter < meta.getRowLimit())) {
+    counter++;
+    Object[] newRow=RowDataUtil.resizeArray(rowData,data.outputRowMeta.size());
+    int newIndex=rowMeta.size();
+    for (int i=0; i < addMeta.size(); i++) {
+      newRow[newIndex++]=add[i];
+    }
+    putRow(data.outputRowMeta,newRow);
+    if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseJoin.Log.PutoutRow") + data.outputRowMeta.getString(newRow));
+    if (meta.getRowLimit() == 0 || counter < meta.getRowLimit()) {
+      add=data.db.getRow(rs);
+      linesInput++;
+    }
+  }
+  if (counter == 0 && meta.isOuterJoin()) {
+    if (data.notfound == null) {
+      data.notfound=new Object[data.db.getReturnRowMeta().size()];
+    }
+    Object[] newRow=RowDataUtil.resizeArray(rowData,data.outputRowMeta.size());
+    int newIndex=rowMeta.size();
+    for (int i=0; i < addMeta.size(); i++) {
+      newRow[newIndex++]=add[i];
+    }
+    putRow(data.outputRowMeta,newRow);
+  }
+  data.db.closeQuery(rs);
+}

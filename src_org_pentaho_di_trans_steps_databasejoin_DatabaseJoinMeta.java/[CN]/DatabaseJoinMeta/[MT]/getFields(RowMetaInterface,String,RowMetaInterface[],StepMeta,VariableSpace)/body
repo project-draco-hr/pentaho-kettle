@@ -1,0 +1,33 @@
+{
+  if (databaseMeta == null)   return;
+  Database db=new Database(databaseMeta);
+  databases=new Database[]{db};
+  RowMetaInterface param=getParameterRow(info[0]);
+  RowMetaInterface add=null;
+  try {
+    add=db.getQueryFields(sql,true,param,new Object[param.size()]);
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleStepException(Messages.getString("DatabaseJoinMeta.Exception.UnableToDetermineQueryFields") + Const.CR + sql,dbe);
+  }
+  if (add != null) {
+    for (int i=0; i < add.size(); i++) {
+      ValueMetaInterface v=add.getValueMeta(i);
+      v.setOrigin(name);
+    }
+    row.addRowMeta(add);
+  }
+ else   try {
+    db.connect();
+    add=db.getQueryFields(sql,true,param,new Object[param.size()]);
+    for (int i=0; i < add.size(); i++) {
+      ValueMetaInterface v=add.getValueMeta(i);
+      v.setOrigin(name);
+    }
+    row.addRowMeta(add);
+    db.disconnect();
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleStepException(Messages.getString("DatabaseJoinMeta.Exception.ErrorObtainingFields"),dbe);
+  }
+}
