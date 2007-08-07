@@ -1,9 +1,34 @@
 {
   if (inputRowMeta != null) {
-    row.mergeRowMeta(inputRowMeta);
-    for (int i=0; i < fieldName.length; i++) {
-      if (row.indexOfValue(fieldName[i]) < 0) {
-        throw new KettleStepException(Messages.getString("MappingInputMeta.Exception.UnknownField",fieldName[i]));
+    if (selectingAndSortingUnspecifiedFields) {
+      RowMetaInterface newRow=new RowMeta();
+      for (int i=0; i < fieldName.length; i++) {
+        int index=inputRowMeta.indexOfValue(fieldName[i]);
+        if (index < 0) {
+          throw new KettleStepException(Messages.getString("MappingInputMeta.Exception.UnknownField",fieldName[i]));
+        }
+        newRow.addValueMeta(inputRowMeta.getValueMeta(index));
+      }
+      List<String> extra=new ArrayList<String>();
+      for (int i=0; i < inputRowMeta.size(); i++) {
+        String fieldName=inputRowMeta.getValueMeta(i).getName();
+        if (newRow.indexOfValue(fieldName) < 0) {
+          extra.add(fieldName);
+        }
+      }
+      Collections.sort(extra);
+      for (      String fieldName : extra) {
+        ValueMetaInterface extraValue=inputRowMeta.searchValueMeta(fieldName);
+        newRow.addValueMeta(extraValue);
+      }
+      row.mergeRowMeta(newRow);
+    }
+ else {
+      row.mergeRowMeta(inputRowMeta);
+      for (int i=0; i < fieldName.length; i++) {
+        if (row.indexOfValue(fieldName[i]) < 0) {
+          throw new KettleStepException(Messages.getString("MappingInputMeta.Exception.UnknownField",fieldName[i]));
+        }
       }
     }
   }

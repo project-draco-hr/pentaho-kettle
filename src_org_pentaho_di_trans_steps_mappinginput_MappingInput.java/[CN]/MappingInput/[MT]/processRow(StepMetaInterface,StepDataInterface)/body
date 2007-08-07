@@ -24,15 +24,34 @@
   }
   if (first) {
     first=false;
-    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
-    for (    MappingValueRename valueRename : data.valueRenames) {
-      ValueMetaInterface valueMeta=data.outputRowMeta.searchValueMeta(valueRename.getSourceValueName());
-      if (valueMeta == null) {
-        throw new KettleStepException(Messages.getString("MappingInput.Exception.UnableToFindMappedValue",valueRename.getSourceValueName()));
+    data.outputRowMeta=new RowMeta();
+    meta.setInputRowMeta(getInputRowMeta());
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (meta.isSelectingAndSortingUnspecifiedFields()) {
+      data.fieldNrs=new int[data.outputRowMeta.size()];
+      for (int i=0; i < data.outputRowMeta.size(); i++) {
+        data.fieldNrs[i]=getInputRowMeta().indexOfValue(data.outputRowMeta.getValueMeta(i).getName());
       }
-      valueMeta.setName(valueRename.getTargetValueName());
+    }
+ else {
+      for (      MappingValueRename valueRename : data.valueRenames) {
+        ValueMetaInterface valueMeta=data.outputRowMeta.searchValueMeta(valueRename.getSourceValueName());
+        if (valueMeta == null) {
+          throw new KettleStepException(Messages.getString("MappingInput.Exception.UnableToFindMappedValue",valueRename.getSourceValueName()));
+        }
+        valueMeta.setName(valueRename.getTargetValueName());
+      }
     }
   }
-  putRow(data.outputRowMeta,row);
+  if (meta.isSelectingAndSortingUnspecifiedFields()) {
+    Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    for (int i=0; i < data.fieldNrs.length; i++) {
+      outputRowData[i]=row[data.fieldNrs[i]];
+    }
+    putRow(data.outputRowMeta,outputRowData);
+  }
+ else {
+    putRow(data.outputRowMeta,row);
+  }
   return true;
 }
