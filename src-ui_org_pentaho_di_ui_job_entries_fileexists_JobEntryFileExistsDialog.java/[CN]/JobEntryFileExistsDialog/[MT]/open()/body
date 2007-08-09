@@ -65,14 +65,22 @@
 );
   wbFilename.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
-      dialog.setFilterExtensions(new String[]{"*.txt","*.csv","*"});
-      if (wFilename.getText() != null) {
-        dialog.setFileName(jobMeta.environmentSubstitute(wFilename.getText()));
+      try {
+        FileObject fileName=null;
+        try {
+          String curFile=wFilename.getText();
+          if (curFile.trim().length() > 0)           fileName=VFS.getManager().resolveFile(jobMeta.environmentSubstitute(wFilename.getText()));
+ else           fileName=VFS.getManager().resolveFile(Const.USER_HOME_DIRECTORY);
+        }
+ catch (        FileSystemException ex) {
+          fileName=VFS.getManager().resolveFile(Const.USER_HOME_DIRECTORY);
+        }
+        VfsFileChooserDialog vfsFileChooser=new VfsFileChooserDialog(fileName.getParent(),fileName);
+        FileObject selected=vfsFileChooser.open(shell,null,EXTENSIONS,FILETYPES,VfsFileChooserDialog.VFS_DIALOG_OPEN);
+        wFilename.setText(selected != null ? selected.getURL().toString() : Const.EMPTY_STRING);
       }
-      dialog.setFilterNames(FILETYPES);
-      if (dialog.open() != null) {
-        wFilename.setText(dialog.getFilterPath() + Const.FILE_SEPARATOR + dialog.getFileName());
+ catch (      FileSystemException ex) {
+        ex.printStackTrace();
       }
     }
   }
