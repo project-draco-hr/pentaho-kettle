@@ -8,12 +8,12 @@
     master=getOriginalCopy(false,null,null);
     for (int r=0; r < referenceSteps.length; r++) {
       StepMeta referenceStep=referenceSteps[r];
-      ClusterSchema originalClusterSchema=referenceStep.getClusterSchema();
+      ClusterSchema referenceClusterSchema=referenceStep.getClusterSchema();
       int nrPreviousSteps=originalTransformation.findNrPrevSteps(referenceStep);
       for (int p=0; p < nrPreviousSteps; p++) {
         StepMeta previousStep=originalTransformation.findPrevStep(referenceStep,p);
         ClusterSchema previousClusterSchema=previousStep.getClusterSchema();
-        if (originalClusterSchema == null) {
+        if (referenceClusterSchema == null) {
           if (previousClusterSchema == null) {
             StepMeta target=master.findStep(referenceStep.getName());
             if (target == null) {
@@ -57,9 +57,9 @@
         }
  else {
           if (previousClusterSchema == null) {
-            int nrSlaves=originalClusterSchema.getSlaveServers().size();
+            int nrSlaves=referenceClusterSchema.getSlaveServers().size();
             for (int s=0; s < nrSlaves; s++) {
-              SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
+              SlaveServer slaveServer=(SlaveServer)referenceClusterSchema.getSlaveServers().get(s);
               if (!slaveServer.isMaster()) {
                 StepMeta previous=master.findStep(previousStep.getName());
                 if (previous == null) {
@@ -67,10 +67,10 @@
                   previous.setLocation(previousStep.getLocation().x,previousStep.getLocation().y);
                   master.addStep(previous);
                 }
-                int port=getPort(originalClusterSchema,slaveServer,referenceStep.getName());
+                int port=getPort(referenceClusterSchema,slaveServer,referenceStep.getName());
                 RemoteStep remoteMasterStep=new RemoteStep(masterServer.getHostname(),Integer.toString(port),previous.getName(),0,referenceStep.getName(),0,masterServer.getName());
                 previous.getRemoteOutputSteps().add(remoteMasterStep);
-                TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
+                TransMeta slave=getSlaveTransformation(referenceClusterSchema,slaveServer);
                 StepMeta slaveStep=slave.findStep(referenceStep.getName());
                 if (slaveStep == null) {
                   slaveStep=(StepMeta)referenceStep.clone();
@@ -83,11 +83,11 @@
             }
           }
  else {
-            int nrSlaves=originalClusterSchema.getSlaveServers().size();
+            int nrSlaves=referenceClusterSchema.getSlaveServers().size();
             for (int slaveNr=0; slaveNr < nrSlaves; slaveNr++) {
-              SlaveServer slaveServer=originalClusterSchema.getSlaveServers().get(slaveNr);
+              SlaveServer slaveServer=referenceClusterSchema.getSlaveServers().get(slaveNr);
               if (!slaveServer.isMaster()) {
-                TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
+                TransMeta slave=getSlaveTransformation(referenceClusterSchema,slaveServer);
                 StepMeta target=slave.findStep(referenceStep.getName());
                 if (target == null) {
                   target=(StepMeta)referenceStep.clone();
@@ -122,13 +122,13 @@
                   source.setTargetStepPartitioningMeta(slaveStepPartitioningMeta);
                 }
  else                 if ((!previousStep.isPartitioned() && referenceStep.isPartitioned()) || (previousStep.isPartitioned() && referenceStep.isPartitioned() && !sourceStepPartitioningMeta.equals(target.getStepPartitioningMeta()))) {
-                  for (int partSlaveNr=0; partSlaveNr < originalClusterSchema.getSlaveServers().size(); partSlaveNr++) {
-                    SlaveServer partSlaveServer=originalClusterSchema.getSlaveServers().get(partSlaveNr);
+                  for (int partSlaveNr=0; partSlaveNr < referenceClusterSchema.getSlaveServers().size(); partSlaveNr++) {
+                    SlaveServer partSlaveServer=referenceClusterSchema.getSlaveServers().get(partSlaveNr);
                     if (!partSlaveServer.isMaster() && !slaveServer.equals(partSlaveServer)) {
-                      int outPort=getPort(originalClusterSchema,slaveServer,partSlaveServer + "-" + source.getName());
+                      int outPort=getPort(referenceClusterSchema,slaveServer,partSlaveServer + "-" + source.getName());
                       RemoteStep remoteOutputStep=new RemoteStep(partSlaveServer.getHostname(),Integer.toString(outPort),source.getName(),0,target.getName(),0,partSlaveServer.getName());
                       source.getRemoteOutputSteps().add(remoteOutputStep);
-                      int inPort=getPort(originalClusterSchema,partSlaveServer,slaveServer + "-" + source.getName());
+                      int inPort=getPort(referenceClusterSchema,partSlaveServer,slaveServer + "-" + source.getName());
                       RemoteStep remoteInputStep=new RemoteStep(partSlaveServer.getHostname(),Integer.toString(inPort),source.getName(),0,target.getName(),0,slaveServer.getName());
                       target.getRemoteInputSteps().add(remoteInputStep);
                       if (targetStepPartitioningMeta.isPartitioned()) {
@@ -157,15 +157,17 @@
         }
       }
       if (nrPreviousSteps == 0) {
-        if (originalClusterSchema == null) {
-          if (master.findStep(referenceStep.getName()) == null)           master.addStep(referenceStep);
+        if (referenceClusterSchema == null) {
+          if (master.findStep(referenceStep.getName()) == null) {
+            master.addStep((StepMeta)referenceStep.clone());
+          }
         }
  else {
-          int nrSlaves=originalClusterSchema.getSlaveServers().size();
+          int nrSlaves=referenceClusterSchema.getSlaveServers().size();
           for (int s=0; s < nrSlaves; s++) {
-            SlaveServer slaveServer=(SlaveServer)originalClusterSchema.getSlaveServers().get(s);
+            SlaveServer slaveServer=(SlaveServer)referenceClusterSchema.getSlaveServers().get(s);
             if (!slaveServer.isMaster()) {
-              TransMeta slave=getSlaveTransformation(originalClusterSchema,slaveServer);
+              TransMeta slave=getSlaveTransformation(referenceClusterSchema,slaveServer);
               slave.addStep((StepMeta)referenceStep.clone());
             }
           }
