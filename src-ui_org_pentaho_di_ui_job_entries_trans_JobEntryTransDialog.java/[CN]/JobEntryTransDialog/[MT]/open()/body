@@ -360,25 +360,34 @@
 );
   wbFilename.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
-      dialog.setFilterExtensions(new String[]{"*.ktr;*.xml","*.xml","*"});
-      dialog.setFilterNames(FILE_FILTERNAMES);
-      if (wFilename.getText() != null) {
-        dialog.setFileName(wFilename.getText());
+      FileObject fileName=null;
+      try {
+        String curFile=wFilename.getText();
+        if (curFile.trim().length() > 0)         fileName=VFS.getManager().resolveFile(jobMeta.environmentSubstitute(wFilename.getText()));
+ else         fileName=VFS.getManager().resolveFile(Const.USER_HOME_DIRECTORY);
       }
-      if (dialog.open() != null) {
-        wFilename.setText(dialog.getFilterPath() + Const.FILE_SEPARATOR + dialog.getFileName());
+ catch (      IOException ex) {
         try {
-          TransMeta transMeta=new TransMeta(wFilename.getText());
-          if (transMeta.getName() != null)           wName.setText(transMeta.getName());
- else           wName.setText(dialog.getFileName());
+          fileName=VFS.getManager().resolveFile(Const.USER_HOME_DIRECTORY);
         }
- catch (        KettleException ke) {
-          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
-          mb.setText(Messages.getString("JobTrans.ErrorReadingTransformation.Text"));
-          mb.setMessage(Messages.getString("JobTrans.ErrorReadingTransformation.Text",wFilename.getText(),ke.getMessage()));
-          mb.open();
+ catch (        IOException iex) {
+          throw new RuntimeException(iex);
         }
+      }
+      try {
+        VfsFileChooserDialog dialog=new VfsFileChooserDialog(fileName.getParent(),fileName);
+        FileObject lroot=dialog.open(shell,null,new String[]{"*.ktr;*.xml","*.xml","*"},FILE_FILTERNAMES,VfsFileChooserDialog.VFS_DIALOG_OPEN);
+        String selected=lroot.getURL().toString();
+        wFilename.setText(lroot != null ? selected : Const.EMPTY_STRING);
+        TransMeta transMeta=new TransMeta(wFilename.getText());
+        if (transMeta.getName() != null)         wName.setText(transMeta.getName());
+ else         wName.setText(selected);
+      }
+ catch (      Exception ke) {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+        mb.setText(Messages.getString("JobTrans.ErrorReadingTransformation.Text"));
+        mb.setMessage(Messages.getString("JobTrans.ErrorReadingTransformation.Text",wFilename.getText(),ke.getMessage()));
+        mb.open();
       }
     }
   }
