@@ -1,0 +1,69 @@
+{
+  meta=(RegexEvalMeta)smi;
+  data=(RegexEvalData)sdi;
+  Object[] row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (meta.getMatcher() != null) {
+      if (data.indexOfFieldToEvaluate < 0) {
+        data.indexOfFieldToEvaluate=getInputRowMeta().indexOfValue(meta.getMatcher());
+        if (data.indexOfFieldToEvaluate < 0) {
+          logError(Messages.getString("RegexEval.Log.ErrorFindingField") + "[" + meta.getMatcher()+ "]");
+          throw new KettleStepException(Messages.getString("RegexEval.Exception.CouldnotFindField",meta.getMatcher()));
+        }
+        if (environmentSubstitute(meta.getResultfieldname()) == null) {
+          logError(Messages.getString("RegexEval.Log.ErrorResultFieldMissing"));
+          throw new KettleStepException(Messages.getString("RegexEval.Exception.ErrorResultFieldMissing"));
+        }
+      }
+    }
+ else {
+      log.logError("Error",Messages.getString("RegexEval.Log.ErrorMatcherMissing"));
+      throw new KettleStepException(Messages.getString("RegexEval.Exception.ErrorMatcherMissing"));
+    }
+  }
+  String Fieldvalue=getInputRowMeta().getString(row,data.indexOfFieldToEvaluate);
+  String options="";
+  if (meta.caseinsensitive()) {
+    options=options + "(?i)";
+  }
+  if (meta.comment()) {
+    options=options + "(?x)";
+  }
+  if (meta.dotall()) {
+    options=options + "(?s)";
+  }
+  if (meta.multiline()) {
+    options=options + "(?m)";
+  }
+  if (meta.unicode()) {
+    options=options + "(?u)";
+  }
+  if (meta.unix()) {
+    options=options + "(?d)";
+  }
+  String regularexpression=meta.getScript();
+  if (meta.useVar()) {
+    regularexpression=environmentSubstitute(meta.getScript());
+  }
+  if (log.isDetailed())   logDetailed(Messages.getString("RegexEval.Log.Regexp") + " " + options+ regularexpression);
+  Pattern p;
+  if (meta.canoeq()) {
+    p=Pattern.compile(options + regularexpression,Pattern.CANON_EQ);
+  }
+ else {
+    p=Pattern.compile(options + regularexpression);
+  }
+  Matcher m=p.matcher(Fieldvalue);
+  boolean b=m.matches();
+  Object[] outputRowData2=RowDataUtil.addValueData(row,getInputRowMeta().size(),b);
+  if (log.isRowLevel())   logRowlevel(Messages.getString("RegexEval.Log.ReadRow") + " " + row.toString());
+  putRow(data.outputRowMeta,outputRowData2);
+  return true;
+}
