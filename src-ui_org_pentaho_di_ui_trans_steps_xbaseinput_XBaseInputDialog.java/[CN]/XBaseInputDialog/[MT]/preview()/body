@@ -1,0 +1,34 @@
+{
+  try {
+    XBaseInputMeta oneMeta=new XBaseInputMeta();
+    getInfo(oneMeta);
+    if (oneMeta.isAcceptingFilenames()) {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+      mb.setMessage(Messages.getString("XBaseInputDialog.Dialog.SpecifyASampleFile.Message"));
+      mb.setText(Messages.getString("XBaseInputDialog.Dialog.SpecifyASampleFile.Title"));
+      mb.open();
+      return;
+    }
+    TransMeta previewMeta=TransPreviewFactory.generatePreviewTransformation(transMeta,oneMeta,wStepname.getText());
+    EnterNumberDialog numberDialog=new EnterNumberDialog(shell,500,Messages.getString("XBaseInputDialog.PreviewSize.DialogTitle"),Messages.getString("XBaseInputDialog.PreviewSize.DialogMessage"));
+    int previewSize=numberDialog.open();
+    if (previewSize > 0) {
+      TransPreviewProgressDialog progressDialog=new TransPreviewProgressDialog(shell,previewMeta,new String[]{wStepname.getText()},new int[]{previewSize});
+      progressDialog.open();
+      Trans trans=progressDialog.getTrans();
+      String loggingText=progressDialog.getLoggingText();
+      if (!progressDialog.isCancelled()) {
+        if (trans.getResult() != null && trans.getResult().getNrErrors() > 0) {
+          EnterTextDialog etd=new EnterTextDialog(shell,Messages.getString("System.Dialog.PreviewError.Title"),Messages.getString("System.Dialog.PreviewError.Message"),loggingText,true);
+          etd.setReadOnly();
+          etd.open();
+        }
+      }
+      PreviewRowsDialog prd=new PreviewRowsDialog(shell,transMeta,SWT.NONE,wStepname.getText(),progressDialog.getPreviewRowsMeta(wStepname.getText()),progressDialog.getPreviewRows(wStepname.getText()),loggingText);
+      prd.open();
+    }
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,Messages.getString("System.Dialog.PreviewError.Title"),Messages.getString("System.Dialog.PreviewError.Message"),e);
+  }
+}

@@ -1,0 +1,35 @@
+{
+  FileInputList fileList=getTextFileList(space);
+  if (fileList.nrOfFiles() == 0) {
+    throw new KettleStepException(Messages.getString("XBaseInputMeta.Exception.NoFilesFoundToProcess"));
+  }
+  XBase xbi=null;
+  try {
+    xbi=new XBase(fileList.getFile(0).getContent().getInputStream());
+    xbi.setDbfFile(fileList.getFile(0).getName().getURI());
+    xbi.open();
+    RowMetaInterface add=xbi.getFields();
+    for (int i=0; i < add.size(); i++) {
+      ValueMetaInterface v=add.getValueMeta(i);
+      v.setOrigin(name);
+    }
+    row.addRowMeta(add);
+  }
+ catch (  Exception ke) {
+    throw new KettleStepException(Messages.getString("XBaseInputMeta.Exception.UnableToReadMetaDataFromXBaseFile"),ke);
+  }
+ finally {
+    if (xbi != null)     xbi.close();
+  }
+  if (rowNrAdded && rowNrField != null && rowNrField.length() > 0) {
+    ValueMetaInterface rnr=new ValueMeta(rowNrField,ValueMetaInterface.TYPE_INTEGER);
+    rnr.setOrigin(name);
+    row.addValueMeta(rnr);
+  }
+  if (includeFilename) {
+    ValueMetaInterface v=new ValueMeta(filenameField,ValueMetaInterface.TYPE_STRING);
+    v.setLength(100,-1);
+    v.setOrigin(name);
+    row.addValueMeta(v);
+  }
+}

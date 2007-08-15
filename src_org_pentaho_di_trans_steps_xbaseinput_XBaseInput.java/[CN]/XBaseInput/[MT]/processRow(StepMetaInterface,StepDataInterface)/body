@@ -1,0 +1,60 @@
+{
+  meta=(XBaseInputMeta)smi;
+  data=(XBaseInputData)sdi;
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (meta.isAcceptingFilenames()) {
+      data.files.getFiles().clear();
+      int idx=-1;
+      RowSet rowSet=findInputRowSet(meta.getAcceptingStepName());
+      Object[] fileRowData=getRowFrom(rowSet);
+      while (fileRowData != null) {
+        RowMetaInterface fileRowMeta=rowSet.getRowMeta();
+        if (idx < 0) {
+          idx=fileRowMeta.indexOfValue(meta.getAcceptingField());
+          if (idx < 0) {
+            logError(Messages.getString("XBaseInput.Log.Error.UnableToFindFilenameField",meta.getAcceptingField()));
+            setErrors(1);
+            stopAll();
+            return false;
+          }
+        }
+        try {
+          String filename=fileRowMeta.getString(fileRowData,idx);
+          data.files.addFile(KettleVFS.getFileObject(filename));
+        }
+ catch (        Exception e) {
+          throw new KettleException(e);
+        }
+        fileRowData=getRowFrom(rowSet);
+      }
+      if (data.files.nrOfFiles() == 0) {
+        logBasic(Messages.getString("XBaseInput.Log.Error.NoFilesSpecified"));
+        return false;
+      }
+    }
+    openNextFile();
+  }
+  Object[] row=data.xbi.getRow(RowDataUtil.allocateRowData(data.outputRowMeta.size()));
+  while (row == null && data.fileNr < data.files.nrOfFiles()) {
+    openNextFile();
+    row=data.xbi.getRow(RowDataUtil.allocateRowData(data.outputRowMeta.size()));
+  }
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  linesInput++;
+  int outputIndex=data.fields.size();
+  if (meta.includeFilename()) {
+    row[outputIndex++]=data.file_dbf.getName().getURI();
+  }
+  if (meta.isRowNrAdded()) {
+    row[outputIndex++]=new Long(linesInput);
+  }
+  putRow(data.outputRowMeta,row);
+  if (checkFeedback(linesInput))   logBasic(Messages.getString("XBaseInput.Log.LineNr") + linesInput);
+  return true;
+}
