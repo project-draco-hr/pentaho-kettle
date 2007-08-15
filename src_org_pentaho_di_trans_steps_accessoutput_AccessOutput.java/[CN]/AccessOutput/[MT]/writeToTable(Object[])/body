@@ -1,0 +1,55 @@
+{
+  if (rowData == null) {
+    if (log.isDetailed())     logDetailed("Last line inserted: stop");
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta();
+    try {
+      String realTablename=environmentSubstitute(meta.getTablename());
+      data.table=data.db.getTable(realTablename);
+      if (data.table == null) {
+        if (meta.isTableCreated()) {
+          data.columns=AccessOutputMeta.getColumns(data.outputRowMeta);
+          data.db.createTable(realTablename,data.columns);
+          data.table=data.db.getTable(realTablename);
+        }
+ else {
+          logError(Messages.getString("AccessOutput.Error.TableDoesNotExist",realTablename));
+          setErrors(1);
+          stopAll();
+          return false;
+        }
+      }
+    }
+ catch (    Exception e) {
+      logError(Messages.getString("AccessOutput.Exception.UnexpectedErrorCreatingTable",e.toString()));
+      logError(Const.getStackTracker(e));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+  }
+  Object[] columnValues=AccessOutputMeta.createObjectsForRow(data.outputRowMeta,rowData);
+  try {
+    data.rows.add(columnValues);
+    if (meta.getCommitSize() > 0) {
+      if (data.rows.size() >= meta.getCommitSize()) {
+        data.table.addRows(data.rows);
+        data.rows.clear();
+      }
+    }
+ else {
+      data.table.addRow(columnValues);
+    }
+  }
+ catch (  IOException e) {
+    logError(Messages.getString("AccessOutput.Exception.UnexpectedErrorWritingRow",data.outputRowMeta.getString(rowData)));
+    logError(Const.getStackTracker(e));
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+  return true;
+}

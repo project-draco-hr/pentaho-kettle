@@ -1,0 +1,33 @@
+{
+  meta=(AccessOutputMeta)smi;
+  data=(AccessOutputData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      String realFilename=environmentSubstitute(meta.getFilename());
+      logBasic(Messages.getString("AccessOutput.log.WritingToFile",realFilename));
+      FileObject fileObject=KettleVFS.getFileObject(realFilename);
+      File file=new File(KettleVFS.getFilename(fileObject));
+      if (!file.exists()) {
+        if (meta.isFileCreated()) {
+          data.db=Database.create(file);
+        }
+ else {
+          logError(Messages.getString("AccessOutput.InitError.FileDoesNotExist",realFilename));
+          return false;
+        }
+      }
+ else {
+        data.db=Database.open(file);
+      }
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,fileObject,getTransMeta().getName(),toString());
+      addResultFile(resultFile);
+      return true;
+    }
+ catch (    Exception e) {
+      logError("An error occurred intialising this step: " + e.getMessage());
+      stopAll();
+      setErrors(1);
+    }
+  }
+  return false;
+}
