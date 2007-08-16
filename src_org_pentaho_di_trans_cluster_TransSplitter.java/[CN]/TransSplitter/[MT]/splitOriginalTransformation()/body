@@ -134,25 +134,25 @@
                       }
                       for (int sourceCopyNr=0; sourceCopyNr < nrOfSourcePartitions; sourceCopyNr++) {
                         for (int targetCopyNr=0; targetCopyNr < nrOfTargetPartitions; targetCopyNr++) {
-                          if (sourceCopyNr != targetCopyNr) {
-                            int outPort=getPort(referenceClusterSchema,slaveServer,partSlaveServer + "-" + source.getName()+ "."+ sourceCopyNr+ " --> "+ target.getName()+ "."+ targetCopyNr);
-                            RemoteStep remoteOutputStep=new RemoteStep(partSlaveServer.getHostname(),Integer.toString(outPort),source.getName(),sourceCopyNr,target.getName(),targetCopyNr,partSlaveServer.getName());
-                            source.getRemoteOutputSteps().add(remoteOutputStep);
-                            int inPort=getPort(referenceClusterSchema,partSlaveServer,slaveServer + "-" + source.getName()+ "."+ sourceCopyNr+ " --> "+ target.getName()+ "."+ targetCopyNr);
-                            RemoteStep remoteInputStep=new RemoteStep(partSlaveServer.getHostname(),Integer.toString(inPort),source.getName(),sourceCopyNr,target.getName(),targetCopyNr,slaveServer.getName());
-                            target.getRemoteInputSteps().add(remoteInputStep);
-                          }
+                          int outPort=getPort(referenceClusterSchema,slaveServer,partSlaveServer + "-" + source.getName()+ "."+ sourceCopyNr+ " --> "+ target.getName()+ "."+ targetCopyNr);
+                          RemoteStep remoteOutputStep=new RemoteStep(partSlaveServer.getHostname(),Integer.toString(outPort),source.getName(),sourceCopyNr,target.getName(),targetCopyNr,partSlaveServer.getName() + "." + targetCopyNr);
+                          source.getRemoteOutputSteps().add(remoteOutputStep);
+                          int inPort=getPort(referenceClusterSchema,partSlaveServer,slaveServer + "-" + source.getName()+ "."+ sourceCopyNr+ " --> "+ target.getName()+ "."+ targetCopyNr);
+                          RemoteStep remoteInputStep=new RemoteStep(partSlaveServer.getHostname(),Integer.toString(inPort),source.getName(),sourceCopyNr,target.getName(),targetCopyNr,slaveServer.getName());
+                          target.getRemoteInputSteps().add(remoteInputStep);
                         }
                       }
                       if (targetStepPartitioningMeta.isPartitioned()) {
-                        PartitionSchema partitionSchema=(PartitionSchema)targetStepPartitioningMeta.getPartitionSchema().clone();
+                        StepPartitioningMeta stepPartitioningMeta=targetStepPartitioningMeta.clone();
+                        PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
                         if (partitionSchema.isDynamicallyDefined()) {
                           partitionSchema.expandPartitionsDynamically(referenceClusterSchema.findNrSlaves(),originalTransformation);
                         }
-                        if (slave.findPartitionSchema(targetPartitionSchema.getName()) == null) {
-                          slave.getPartitionSchemas().add(targetPartitionSchema);
-                          source.setTargetStepPartitioningMeta(targetStepPartitioningMeta.clone());
+                        if (slave.findPartitionSchema(partitionSchema.getName()) != null) {
+                          slave.getPartitionSchemas().remove(partitionSchema);
                         }
+                        slave.getPartitionSchemas().add(partitionSchema);
+                        source.setTargetStepPartitioningMeta(stepPartitioningMeta);
                       }
                       if (sourceStepPartitioningMeta.isPartitioned()) {
                       }
