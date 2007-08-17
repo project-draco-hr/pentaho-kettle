@@ -17,6 +17,7 @@
  else {
         inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),bufferSize));
       }
+      outputStream=new DataOutputStream(socket.getOutputStream());
       lastException=null;
     }
  catch (    Exception e) {
@@ -24,7 +25,7 @@
     }
     if (lastException != null) {
       try {
-        Thread.sleep(1000);
+        Thread.sleep(250);
       }
  catch (      InterruptedException e) {
         throw new KettleException("Interrupted while trying to connect to server socket: " + e.toString());
@@ -32,8 +33,7 @@
     }
   }
   if (lastException != null) {
-    log.logError(toString(),"Error initialising step: " + lastException.toString());
-    log.logError(toString(),Const.getStackTracker(lastException));
+    baseStep.logError("Error initialising step: " + lastException.toString());
     throw lastException;
   }
  else {
@@ -53,17 +53,24 @@
  catch (      KettleEOFException e) {
       }
 catch (      Exception e) {
-        LogWriter.getInstance().logError(baseStep.toString(),"Error reading from client socket to remote step",e);
-        LogWriter.getInstance().logError(baseStep.toString(),Const.getStackTracker(e));
+        baseStep.logError("Error reading from client socket to remote step",e);
         baseStep.setErrors(1);
         baseStep.stopAll();
       }
  finally {
         try {
+          sendRemoteConfirmation();
+        }
+ catch (        KettleException e) {
+          baseStep.logError("Error handling remote confirmation server socket",e);
+          baseStep.setErrors(1);
+          baseStep.stopAll();
+        }
+        try {
           inputStream.close();
         }
  catch (        IOException e) {
-          LogWriter.getInstance().logError(baseStep.toString(),"Error closing input stream, used for reading from remote step",e);
+          baseStep.logError("Error closing input stream, used for reading from remote step",e);
           baseStep.setErrors(1);
           baseStep.stopAll();
         }
@@ -71,7 +78,7 @@ catch (      Exception e) {
           socket.close();
         }
  catch (        IOException e) {
-          LogWriter.getInstance().logError(baseStep.toString(),"Error closing client socket connection to remote step",e);
+          baseStep.logError("Error closing client socket connection to remote step",e);
           baseStep.setErrors(1);
           baseStep.stopAll();
         }
