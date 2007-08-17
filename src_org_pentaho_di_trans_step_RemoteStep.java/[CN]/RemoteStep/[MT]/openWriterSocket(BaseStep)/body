@@ -2,7 +2,15 @@
   this.baseStep=baseStep;
   socket=serverSocket.accept();
   System.out.println("Server socket accepted for port [" + port + "]");
-  outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),5000));
+  if (compressingStreams) {
+    gzipOutputStream=new GZIPOutputStream(socket.getOutputStream());
+    bufferedOutputStream=new BufferedOutputStream(gzipOutputStream,bufferSize);
+  }
+ else {
+    gzipOutputStream=null;
+    bufferedOutputStream=new BufferedOutputStream(socket.getOutputStream(),bufferSize);
+  }
+  outputStream=new DataOutputStream(bufferedOutputStream);
   first=true;
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
   rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
@@ -17,6 +25,9 @@ synchronized (rowSet) {
             rowData=baseStep.getRowFrom(rowSet);
           }
         }
+        if (gzipOutputStream != null)         gzipOutputStream.flush();
+        bufferedOutputStream.flush();
+        outputStream.flush();
       }
  catch (      Exception e) {
         LogWriter.getInstance().logError(baseStep.toString(),"Error writing to remote step",e);
