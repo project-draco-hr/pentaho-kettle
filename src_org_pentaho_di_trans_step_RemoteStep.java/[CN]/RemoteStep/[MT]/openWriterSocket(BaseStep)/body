@@ -5,7 +5,7 @@
   outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),5000));
   first=true;
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
-  rowSet.setThreadNameFromToCopy(sourceStep,0,targetStep,0);
+  rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
   rowSet.setRemoteSlaveServerName(targetSlaveServerName);
   Runnable runnable=new Runnable(){
     public void run(){
@@ -13,11 +13,14 @@
         Object[] rowData=baseStep.getRowFrom(rowSet);
         while (rowData != null && !baseStep.isStopped()) {
           sendRow(rowSet.getRowMeta(),rowData);
-          rowData=baseStep.getRowFrom(rowSet);
+synchronized (rowSet) {
+            rowData=baseStep.getRowFrom(rowSet);
+          }
         }
       }
  catch (      Exception e) {
         LogWriter.getInstance().logError(baseStep.toString(),"Error writing to remote step",e);
+        LogWriter.getInstance().logError(baseStep.toString(),Const.getStackTracker(e));
         baseStep.setErrors(1);
         baseStep.stopAll();
       }

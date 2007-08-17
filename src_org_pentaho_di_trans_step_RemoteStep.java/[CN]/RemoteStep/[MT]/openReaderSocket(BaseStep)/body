@@ -1,6 +1,6 @@
 {
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
-  rowSet.setThreadNameFromToCopy(sourceStep,0,targetStep,0);
+  rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
   this.baseStep=baseStep;
   int portNumber=Integer.parseInt(baseStep.environmentSubstitute(port));
   String realHostname=baseStep.environmentSubstitute(hostname);
@@ -47,17 +47,26 @@
       }
  catch (      KettleEOFException e) {
       }
-catch (      KettleFileException e) {
+catch (      Exception e) {
         LogWriter.getInstance().logError(baseStep.toString(),"Error reading from client socket to remote step",e);
+        LogWriter.getInstance().logError(baseStep.toString(),Const.getStackTracker(e));
         baseStep.setErrors(1);
         baseStep.stopAll();
       }
  finally {
         try {
+          inputStream.close();
+        }
+ catch (        IOException e) {
+          LogWriter.getInstance().logError(baseStep.toString(),"Error closing input stream, used for reading from remote step",e);
+          baseStep.setErrors(1);
+          baseStep.stopAll();
+        }
+        try {
           socket.close();
         }
  catch (        IOException e) {
-          LogWriter.getInstance().logError(baseStep.toString(),"Error closing client socket to remote step",e);
+          LogWriter.getInstance().logError(baseStep.toString(),"Error closing client socket connection to remote step",e);
           baseStep.setErrors(1);
           baseStep.stopAll();
         }

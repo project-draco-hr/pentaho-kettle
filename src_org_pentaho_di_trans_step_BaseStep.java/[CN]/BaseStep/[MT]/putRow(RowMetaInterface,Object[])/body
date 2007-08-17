@@ -36,18 +36,18 @@
     if (!remoteOutputStepsInitialized) {
       for (int c=0; c < outputRowSets.size(); c++) {
         RowSet rowSet=outputRowSets.get(c);
-        rowSet.setRemoteSlaveServerName(getVariable(Const.INTERNAL_VARIABLE_SLAVE_TRANS_NAME) + "." + c);
+        rowSet.setRemoteSlaveServerName(getVariable(Const.INTERNAL_VARIABLE_SLAVE_TRANS_NAME));
       }
       for (      RemoteStep remoteStep : remoteOutputSteps) {
         try {
           RowSet rowSet=remoteStep.openWriterSocket(this);
+          logBasic("Opened a writer socket to remote step: " + remoteStep);
           outputRowSets.add(rowSet);
         }
  catch (        IOException e) {
           throw new KettleStepException("Error opening writer socket to remote step '" + remoteStep + "'",e);
         }
       }
-      Collections.sort(outputRowSets);
       remoteOutputStepsInitialized=true;
     }
   }
@@ -102,7 +102,24 @@ case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
  catch (  KettleException e) {
     throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
   }
-  RowSet rs=outputRowSets.get(partitionNr);
+  RowSet rs=null;
+  if (transMeta.getSlaveStepCopyPartitionDistribution() != null) {
+    if (partitionNrRowSetMap == null) {
+      partitionNrRowSetMap=new Hashtable<Integer,RowSet>();
+      SlaveStepCopyPartitionDistribution distribution=transMeta.getSlaveStepCopyPartitionDistribution();
+      for (      RowSet outputRowSet : outputRowSets) {
+        int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),outputRowSet.getDestinationStepName(),outputRowSet.getDestinationStepCopy());
+        if (partNr == -1) {
+          throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", step="+ outputRowSet.getDestinationStepName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
+        }
+        partitionNrRowSetMap.put(partNr,outputRowSet);
+      }
+    }
+    rs=partitionNrRowSetMap.get(partitionNr);
+  }
+ else {
+    rs=outputRowSets.get(partitionNr);
+  }
   if (rs == null) {
     logBasic("Target rowset is not available for target partition, partitionNr=" + partitionNr);
   }
