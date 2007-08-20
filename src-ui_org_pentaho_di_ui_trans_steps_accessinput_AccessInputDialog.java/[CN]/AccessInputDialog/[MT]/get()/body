@@ -1,0 +1,48 @@
+{
+  try {
+    AccessInputMeta meta=new AccessInputMeta();
+    getInfo(meta);
+    if (!checkInputTableName(meta))     return;
+    FileInputList inputList=meta.getFiles(transMeta);
+    wFields.removeAll();
+    if (inputList.nrOfFiles() > 0) {
+      Database d=Database.open(new File(KettleVFS.getFilename(inputList.getFile(0))));
+      Table t=d.getTable(transMeta.environmentSubstitute(meta.getTableName()));
+      List col=t.getColumns();
+      log.logBasic("Nbr Columns ","" + col.size());
+      Iterator iter=col.iterator();
+      Map row;
+      row=t.getNextRow();
+      iter=row.keySet().iterator();
+      while (iter.hasNext()) {
+        String fieldName=(String)iter.next();
+        Object obj=row.get(fieldName);
+        TableItem item=new TableItem(wFields.table,SWT.NONE);
+        item.setText(1,fieldName);
+        item.setText(2,fieldName);
+        String attributeValue=String.valueOf(obj);
+        if (IsDate(attributeValue)) {
+          item.setText(3,"Date");
+        }
+ else         if (IsInteger(attributeValue)) {
+          item.setText(3,"Integer");
+        }
+ else         if (IsNumber(attributeValue)) {
+          item.setText(3,"Number");
+        }
+ else {
+          item.setText(3,"String");
+        }
+      }
+    }
+    wFields.removeEmptyRows();
+    wFields.setRowNums();
+    wFields.optWidth(true);
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,Messages.getString("AccessInputDialog.ErrorGettingColums.DialogTitle"),Messages.getString("AccessInputDialog.ErrorGettingColums.DialogMessage"),e);
+  }
+catch (  Exception e) {
+    new ErrorDialog(shell,Messages.getString("AccessInputDialog.ErrorGettingColums.DialogTitle"),Messages.getString("AccessInputDialog.ErrorGettingColums.DialogMessage"),e);
+  }
+}
