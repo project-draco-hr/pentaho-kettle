@@ -40,7 +40,7 @@
       }
       for (      RemoteStep remoteStep : remoteOutputSteps) {
         try {
-          RowSet rowSet=remoteStep.openWriterSocket(this);
+          RowSet rowSet=remoteStep.openWriterSocket();
           logDetailed("Opened a writer socket to remote step: " + remoteStep);
           outputRowSets.add(rowSet);
         }
@@ -93,7 +93,10 @@ case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
 case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
 {
   if (nextStepPartitioningMeta == null) {
-    nextStepPartitioningMeta=stepMeta.getTargetStepPartitioningMeta();
+    StepMeta[] nextSteps=transMeta.getNextSteps(stepMeta);
+    if (nextSteps.length > 0) {
+      nextStepPartitioningMeta=nextSteps[0].getStepPartitioningMeta();
+    }
   }
   int partitionNr;
   try {
@@ -102,28 +105,32 @@ case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
  catch (  KettleException e) {
     throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
   }
-  RowSet rs=null;
+  RowSet selectedRowSet=null;
   if (transMeta.getSlaveStepCopyPartitionDistribution() != null) {
-    if (partitionNrRowSetMap == null) {
-      partitionNrRowSetMap=new Hashtable<Integer,RowSet>();
+    if (partitionNrRowSetList == null) {
+      partitionNrRowSetList=new RowSet[outputRowSets.size()];
       SlaveStepCopyPartitionDistribution distribution=transMeta.getSlaveStepCopyPartitionDistribution();
+      for (      SlaveStepCopyPartitionDistribution.SlaveStepCopy slaveStepCopy : distribution.getDistribution().keySet()) {
+        int partition=distribution.getPartition(slaveStepCopy.getSlaveServerName(),slaveStepCopy.getStepName(),slaveStepCopy.getStepCopyNr());
+        System.out.println("slave step copy: slaveServer=" + slaveStepCopy.getSlaveServerName() + ", stepname="+ slaveStepCopy.getStepName()+ ", copynr="+ slaveStepCopy.getStepCopyNr()+ " ---> partition="+ partition);
+      }
       for (      RowSet outputRowSet : outputRowSets) {
         int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),outputRowSet.getDestinationStepName(),outputRowSet.getDestinationStepCopy());
         if (partNr == -1) {
           throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", step="+ outputRowSet.getDestinationStepName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
         }
-        partitionNrRowSetMap.put(partNr,outputRowSet);
+        partitionNrRowSetList[partNr]=outputRowSet;
       }
     }
-    rs=partitionNrRowSetMap.get(partitionNr);
+    selectedRowSet=partitionNrRowSetList[partitionNr];
   }
  else {
-    rs=outputRowSets.get(partitionNr);
+    selectedRowSet=outputRowSets.get(partitionNr);
   }
-  if (rs == null) {
+  if (selectedRowSet == null) {
     logBasic("Target rowset is not available for target partition, partitionNr=" + partitionNr);
   }
-  while (!rs.putRow(rowMeta,row) && !isStopped())   ;
+  while (!selectedRowSet.putRow(rowMeta,row) && !isStopped())   ;
   linesWritten++;
 }
 break;

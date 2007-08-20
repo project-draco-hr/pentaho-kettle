@@ -1,5 +1,4 @@
 {
-  this.baseStep=baseStep;
   socket=serverSocket.accept();
   baseStep.logDetailed("Server socket accepted for port [" + port + "]");
   if (compressingStreams) {
@@ -11,7 +10,6 @@
     bufferedOutputStream=new BufferedOutputStream(socket.getOutputStream(),bufferSize);
   }
   outputStream=new DataOutputStream(bufferedOutputStream);
-  inputStream=new DataInputStream(socket.getInputStream());
   first=true;
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
   rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
@@ -22,9 +20,7 @@
         Object[] rowData=baseStep.getRowFrom(rowSet);
         while (rowData != null && !baseStep.isStopped()) {
           sendRow(rowSet.getRowMeta(),rowData);
-synchronized (rowSet) {
-            rowData=baseStep.getRowFrom(rowSet);
-          }
+          rowData=baseStep.getRowFrom(rowSet);
         }
         if (gzipOutputStream != null)         gzipOutputStream.flush();
         bufferedOutputStream.flush();
@@ -37,36 +33,7 @@ synchronized (rowSet) {
       }
  finally {
         try {
-          socket.shutdownOutput();
-        }
- catch (        IOException e) {
-          baseStep.logError("Error closing output socket to remote step",e);
-          baseStep.setErrors(1);
-          baseStep.stopAll();
-        }
-        try {
-          readForRemoteConfirmation();
-        }
- catch (        KettleException ke) {
-          baseStep.logError("Error reading remote confirmation",ke);
-          baseStep.setErrors(1);
-          baseStep.stopAll();
-        }
-        try {
           socket.close();
-        }
- catch (        IOException e) {
-          baseStep.logError("Error closing client socket to remote step",e);
-          baseStep.setErrors(1);
-          baseStep.stopAll();
-        }
-        try {
-          Thread.sleep(5000);
-        }
- catch (        InterruptedException e1) {
-        }
-        try {
-          serverSocket.close();
         }
  catch (        IOException e) {
           baseStep.logError("Error closing client socket to remote step",e);

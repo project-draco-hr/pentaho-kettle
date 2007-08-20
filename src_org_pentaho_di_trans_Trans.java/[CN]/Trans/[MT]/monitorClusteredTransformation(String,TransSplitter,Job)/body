@@ -1,0 +1,119 @@
+{
+  long errors=0L;
+  SlaveServer[] slaveServers=transSplitter.getSlaveTargets();
+  TransMeta[] slaves=transSplitter.getSlaves();
+  SlaveServer masterServer;
+  try {
+    masterServer=transSplitter.getMasterServer();
+  }
+ catch (  KettleException e) {
+    log.logError(logSubject,"Error getting the master server",e);
+    masterServer=null;
+    errors++;
+  }
+  TransMeta master=transSplitter.getMaster();
+  boolean allFinished=false;
+  while (!allFinished && errors == 0 && (parentJob == null || !parentJob.isStopped())) {
+    allFinished=true;
+    errors=0L;
+    for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
+      try {
+        SlaveServerTransStatus transStatus=slaveServers[s].getTransStatus(slaves[s].getName());
+        if (transStatus.isRunning()) {
+          log.logDetailed(logSubject,"Slave transformation on '" + slaveServers[s] + "' is still running.");
+          allFinished=false;
+        }
+ else {
+          log.logDetailed(logSubject,"Slave transformation on '" + slaveServers[s] + "' has finished.");
+        }
+        errors+=transStatus.getNrStepErrors();
+      }
+ catch (      Exception e) {
+        errors+=1;
+        log.logError(logSubject,"Unable to contact slave server '" + slaveServers[s].getName() + "' to check slave transformation : "+ e.toString());
+      }
+    }
+    if (allFinished && errors == 0 && master != null && master.nrSteps() > 0) {
+      try {
+        SlaveServerTransStatus transStatus=masterServer.getTransStatus(master.getName());
+        if (transStatus.isRunning()) {
+          log.logDetailed(logSubject,"Master transformation is still running.");
+          allFinished=false;
+        }
+ else {
+          log.logDetailed(logSubject,"Master transformation has finished.");
+        }
+        errors+=transStatus.getNrStepErrors();
+      }
+ catch (      Exception e) {
+        errors+=1;
+        log.logError(logSubject,"Unable to contact master server '" + masterServer.getName() + "' to check master transformation : "+ e.toString());
+      }
+    }
+    if ((parentJob != null && parentJob.isStopped()) || errors != 0) {
+      for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
+        try {
+          WebResult webResult=slaveServers[s].stopTransformation(slaves[s].getName());
+          if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+            log.logError(logSubject,"Unable to stop slave transformation '" + slaves[s].getName() + "' : "+ webResult.getMessage());
+          }
+        }
+ catch (        Exception e) {
+          errors+=1;
+          log.logError(logSubject,"Unable to contact slave server '" + slaveServers[s].getName() + "' to stop transformation : "+ e.toString());
+        }
+      }
+      try {
+        WebResult webResult=masterServer.stopTransformation(master.getName());
+        if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+          log.logError(logSubject,"Unable to stop master transformation '" + masterServer.getName() + "' : "+ webResult.getMessage());
+        }
+      }
+ catch (      Exception e) {
+        errors+=1;
+        log.logError(logSubject,"Unable to contact master server '" + masterServer.getName() + "' to stop the master : "+ e.toString());
+      }
+    }
+    if (!allFinished) {
+      log.logDetailed(logSubject,"Clustered transformation is still running, waiting a few seconds...");
+      try {
+        Thread.sleep(5000);
+      }
+ catch (      Exception e) {
+      }
+    }
+  }
+  if (errors > 0) {
+    log.logMinimal(logSubject,"All transformations in the cluster have finished without errors.");
+  }
+ else {
+    log.logMinimal(logSubject,"The transformations in the cluster have finished with " + errors + " errors.");
+  }
+  for (int s=0; s < slaveServers.length; s++) {
+    try {
+      WebResult webResult=slaveServers[s].cleanupTransformation(slaves[s].getName());
+      if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+        log.logError(logSubject,"Unable to run clean-up on slave transformation '" + slaves[s].getName() + "' : "+ webResult.getMessage());
+        errors+=1;
+      }
+    }
+ catch (    Exception e) {
+      errors+=1;
+      log.logError(logSubject,"Unable to contact slave server '" + slaveServers[s].getName() + "' to check slave transformation : "+ e.toString());
+    }
+  }
+  if (master != null && master.nrSteps() > 0) {
+    try {
+      WebResult webResult=masterServer.cleanupTransformation(master.getName());
+      if (!WebResult.STRING_OK.equals(webResult.getResult())) {
+        log.logError(logSubject,"Unable to run clean-up on master transformation '" + master.getName() + "' : "+ webResult.getMessage());
+        errors+=1;
+      }
+    }
+ catch (    Exception e) {
+      errors+=1;
+      log.logError(logSubject,"Unable to contact master server '" + masterServer.getName() + "' to clean up master transformation : "+ e.toString());
+    }
+  }
+  return errors;
+}

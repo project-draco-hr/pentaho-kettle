@@ -1,7 +1,7 @@
 {
+  this.baseStep=baseStep;
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
   rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
-  this.baseStep=baseStep;
   int portNumber=Integer.parseInt(baseStep.environmentSubstitute(port));
   String realHostname=baseStep.environmentSubstitute(hostname);
   long startTime=System.currentTimeMillis();
@@ -17,7 +17,6 @@
  else {
         inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),bufferSize));
       }
-      outputStream=new DataOutputStream(socket.getOutputStream());
       lastException=null;
     }
  catch (    Exception e) {
@@ -39,6 +38,7 @@
  else {
     if (inputStream == null)     throw new KettleException("Unable to connect to the SocketWriter in the " + TIMEOUT_IN_SECONDS + "s timeout period.");
   }
+  baseStep.logBasic("Opened socket to read rows from remote step on server " + realHostname + " port "+ portNumber);
   Runnable runnable=new Runnable(){
     public void run(){
       try {
@@ -46,7 +46,7 @@
         Object[] rowData=rowMeta.readData(inputStream);
         while (rowData != null && !baseStep.isStopped()) {
           baseStep.linesInput++;
-          rowSet.putRow(rowMeta,rowData);
+          baseStep.putRowTo(rowMeta,rowData,rowSet);
           rowData=rowMeta.readData(inputStream);
         }
       }
@@ -58,22 +58,7 @@ catch (      Exception e) {
         baseStep.stopAll();
       }
  finally {
-        try {
-          sendRemoteConfirmation();
-        }
- catch (        KettleException e) {
-          baseStep.logError("Error handling remote confirmation server socket",e);
-          baseStep.setErrors(1);
-          baseStep.stopAll();
-        }
-        try {
-          inputStream.close();
-        }
- catch (        IOException e) {
-          baseStep.logError("Error closing input stream, used for reading from remote step",e);
-          baseStep.setErrors(1);
-          baseStep.stopAll();
-        }
+        rowSet.setDone();
         try {
           socket.close();
         }
@@ -83,7 +68,6 @@ catch (      Exception e) {
           baseStep.stopAll();
         }
       }
-      rowSet.setDone();
     }
   }
 ;
