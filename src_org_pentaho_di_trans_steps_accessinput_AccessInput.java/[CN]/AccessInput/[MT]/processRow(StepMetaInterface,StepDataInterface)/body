@@ -1,0 +1,39 @@
+{
+  data.rownr=0;
+  if (data.filenr >= data.files.size()) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertRowMeta=(RowMetaInterface)data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++)     data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    data.convertRowMeta=(RowMetaInterface)data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++) {
+      data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    }
+  }
+  for (int i=0; i < data.files.size(); i++) {
+    if ((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) {
+      data.file=(FileObject)data.files.get(i);
+      logBasic(Messages.getString("AccessInput.Log.OpeningFile",data.file.toString()));
+      Processfile(data.file);
+      if (log.isDetailed())       logDetailed(Messages.getString("AccessInput.Log.FileOpened",data.file.toString()));
+    }
+    ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
+    resultFile.setComment(Messages.getString("AccessInput.Log.FileAddedResult"));
+    addResultFile(resultFile);
+    data.filenr++;
+    if (meta.resetRowNumber()) {
+      data.rownr=0;
+    }
+ else {
+      data.rownr++;
+    }
+  }
+  linesInput++;
+  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
+  return true;
+}

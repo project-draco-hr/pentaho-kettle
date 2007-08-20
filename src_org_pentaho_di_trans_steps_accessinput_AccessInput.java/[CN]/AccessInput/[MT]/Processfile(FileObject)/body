@@ -1,0 +1,63 @@
+{
+  Database d=null;
+  Object[] outputRowData=null;
+  try {
+    d=Database.open(new File(KettleVFS.getFilename(data.file)));
+    Table t=d.getTable(environmentSubstitute(meta.getTableName()));
+    Map rw;
+    while (((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) && ((rw=t.getNextRow()) != null)) {
+      outputRowData=buildEmptyRow();
+      for (int i=0; i < meta.getInputFields().length; i++) {
+        Object obj=rw.get(meta.getInputFields()[i].getColumn());
+        String value=String.valueOf(obj);
+switch (meta.getInputFields()[i].getTrimType()) {
+case AccessInputField.TYPE_TRIM_LEFT:
+          value=Const.ltrim(value);
+        break;
+case AccessInputField.TYPE_TRIM_RIGHT:
+      value=Const.rtrim(value);
+    break;
+case AccessInputField.TYPE_TRIM_BOTH:
+  value=Const.trim(value);
+break;
+default :
+break;
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(i);
+outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,value);
+if (meta.getInputFields()[i].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(value)) {
+outputRowData[i]=data.previousRow[i];
+}
+}
+}
+int rowIndex=meta.getInputFields().length;
+if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
+outputRowData[rowIndex++]=KettleVFS.getFilename(data.file);
+}
+if (meta.includeTablename() && !Const.isEmpty(meta.getTableName())) {
+outputRowData[rowIndex++]=environmentSubstitute(meta.getTableName());
+}
+if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+outputRowData[rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+data.rownr++;
+putRow(data.outputRowMeta,outputRowData);
+}
+}
+ catch (Exception e) {
+logError(Messages.getString("AccessInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+stopAll();
+setErrors(1);
+}
+ finally {
+try {
+if (d != null) d.close();
+}
+ catch (Exception e) {
+}
+}
+}
