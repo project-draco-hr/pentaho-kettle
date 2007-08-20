@@ -172,19 +172,24 @@ StepMetaDataCombi sid=steps.get(i);
 StepMeta stepMeta=sid.stepMeta;
 BaseStep baseStep=(BaseStep)sid.step;
 baseStep.setPartitioned(stepMeta.isPartitioned());
-StepPartitioningMeta thisPartitioned=stepMeta.getTargetStepPartitioningMeta();
-StepPartitioningMeta nextPartitioned=stepMeta.getTargetStepPartitioningMeta();
+boolean isThisPartitioned=stepMeta.isPartitioned();
+PartitionSchema thisPartitionSchema=null;
+if (isThisPartitioned) thisPartitionSchema=stepMeta.getStepPartitioningMeta().getPartitionSchema();
+boolean isNextPartitioned=false;
+StepPartitioningMeta nextStepPartitioningMeta=null;
+PartitionSchema nextPartitionSchema=null;
 int nrNext=transMeta.findNrNextSteps(stepMeta);
 for (int p=0; p < nrNext; p++) {
 StepMeta nextStep=transMeta.findNextStep(stepMeta,p);
 if (nextStep.isPartitioned()) {
-nextPartitioned=nextStep.getStepPartitioningMeta();
+isNextPartitioned=true;
+nextStepPartitioningMeta=nextStep.getStepPartitioningMeta();
+nextPartitionSchema=nextStepPartitioningMeta.getPartitionSchema();
 }
 }
-stepMeta.setTargetStepPartitioningMeta(nextPartitioned);
 baseStep.setRepartitioning(StepPartitioningMeta.PARTITIONING_METHOD_NONE);
-if (nextPartitioned != null && (thisPartitioned == null || !thisPartitioned.equals(nextPartitioned))) {
-baseStep.setRepartitioning(nextPartitioned.getMethodType());
+if ((!isThisPartitioned && isNextPartitioned) || (isThisPartitioned && isNextPartitioned && !thisPartitionSchema.equals(nextPartitionSchema))) {
+baseStep.setRepartitioning(nextStepPartitioningMeta.getMethodType());
 }
 }
 preparing=false;

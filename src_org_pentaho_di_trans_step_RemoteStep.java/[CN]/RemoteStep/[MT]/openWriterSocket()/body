@@ -19,7 +19,9 @@
       try {
         Object[] rowData=baseStep.getRowFrom(rowSet);
         while (rowData != null && !baseStep.isStopped()) {
+          baseStep.linesRead--;
           sendRow(rowSet.getRowMeta(),rowData);
+          if (baseStep.log.isDebug())           baseStep.logDebug("Sent row to remote step: " + rowSet.getRowMeta().getString(rowData));
           rowData=baseStep.getRowFrom(rowSet);
         }
         if (gzipOutputStream != null)         gzipOutputStream.flush();
@@ -32,6 +34,14 @@
         baseStep.stopAll();
       }
  finally {
+        try {
+          socket.shutdownOutput();
+        }
+ catch (        IOException e) {
+          baseStep.logError("Error closing output socket to remote step",e);
+          baseStep.setErrors(1);
+          baseStep.stopAll();
+        }
         try {
           socket.close();
         }
