@@ -60,8 +60,7 @@
     stopAll();
     return;
   }
-  int partitioningType=StepPartitioningMeta.getMethodType(repartitioning);
-switch (partitioningType) {
+switch (repartitioning) {
 case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
 {
       if (distributed) {
@@ -110,16 +109,18 @@ case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
     if (partitionNrRowSetList == null) {
       partitionNrRowSetList=new RowSet[outputRowSets.size()];
       SlaveStepCopyPartitionDistribution distribution=transMeta.getSlaveStepCopyPartitionDistribution();
-      for (      SlaveStepCopyPartitionDistribution.SlaveStepCopy slaveStepCopy : distribution.getDistribution().keySet()) {
-        int partition=distribution.getPartition(slaveStepCopy.getSlaveServerName(),slaveStepCopy.getStepName(),slaveStepCopy.getStepCopyNr());
-        System.out.println("slave step copy: slaveServer=" + slaveStepCopy.getSlaveServerName() + ", stepname="+ slaveStepCopy.getStepName()+ ", copynr="+ slaveStepCopy.getStepCopyNr()+ " ---> partition="+ partition);
-      }
+      String nextPartitionSchemaName=TransSplitter.createPartitionSchemaNameFromTarget(nextStepPartitioningMeta.getPartitionSchema().getName());
       for (      RowSet outputRowSet : outputRowSets) {
-        int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),outputRowSet.getDestinationStepName(),outputRowSet.getDestinationStepCopy());
-        if (partNr == -1) {
-          throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", step="+ outputRowSet.getDestinationStepName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
+        try {
+          int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),nextPartitionSchemaName,outputRowSet.getDestinationStepCopy());
+          if (partNr == -1) {
+            throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", partition schema="+ nextStepPartitioningMeta.getPartitionSchema().getName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
+          }
+          partitionNrRowSetList[partNr]=outputRowSet;
         }
-        partitionNrRowSetList[partNr]=outputRowSet;
+ catch (        NullPointerException e) {
+          throw (e);
+        }
       }
     }
     selectedRowSet=partitionNrRowSetList[partitionNr];

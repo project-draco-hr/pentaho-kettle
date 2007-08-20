@@ -14,9 +14,9 @@
   SlaveStepCopyPartitionDistribution partitionDistribution=transMeta.getSlaveStepCopyPartitionDistribution();
   if (stepMeta.isPartitioned() && partitionDistribution != null) {
     String slaveServerName=getVariable(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NAME);
-    String stepName=stepname;
     int stepCopyNr=stepcopy;
-    int partitionNr=partitionDistribution.getPartition(slaveServerName,stepName,stepCopyNr);
+    PartitionSchema partitionSchema=stepMeta.getStepPartitioningMeta().getPartitionSchema();
+    int partitionNr=partitionDistribution.getPartition(slaveServerName,partitionSchema.getName(),stepCopyNr);
     if (partitionNr >= 0) {
       String partitionNrString=new DecimalFormat("000").format(partitionNr);
       setVariable(Const.INTERNAL_VARIABLE_STEP_PARTITION_NR,partitionNrString);
@@ -75,10 +75,14 @@
   }
   try {
     remoteInputSteps=new ArrayList<RemoteStep>();
-    if (stepMeta.isPartitioned() && stepMeta.getClusterSchema() != null) {
-      RemoteStep remoteStep=(RemoteStep)stepMeta.getRemoteInputSteps().get(stepcopy).clone();
-      remoteInputSteps.add(remoteStep);
-      logBasic("added remote input step : " + remoteStep);
+    if (stepMeta.isPartitioned() && getClusterSize() > 1) {
+      for (int i=0; i < stepMeta.getRemoteInputSteps().size(); i++) {
+        RemoteStep remoteStep=stepMeta.getRemoteInputSteps().get(i);
+        if (i == stepcopy) {
+          RemoteStep copy=(RemoteStep)remoteStep.clone();
+          remoteInputSteps.add(copy);
+        }
+      }
     }
  else {
       for (      RemoteStep remoteStep : stepMeta.getRemoteInputSteps()) {

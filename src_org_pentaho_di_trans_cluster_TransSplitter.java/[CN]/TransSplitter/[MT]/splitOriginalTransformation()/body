@@ -45,7 +45,7 @@
                 TransMeta slave=getSlaveTransformation(previousClusterSchema,slaveServer);
                 StepMeta previous=slave.findStep(previousStep.getName());
                 if (previous == null) {
-                  previous=addSlaveCopy(slave,previousStep);
+                  previous=addSlaveCopy(slave,previousStep,slaveServer);
                 }
                 RemoteStep remoteMasterStep=new RemoteStep(masterServer.getHostname(),slaveServer.getHostname(),Integer.toString(port),previous.getName(),0,target.getName(),0,masterServer.getName(),socketsBufferSize,compressingSocketStreams);
                 previous.getRemoteOutputSteps().add(remoteMasterStep);
@@ -68,7 +68,7 @@
                 TransMeta slave=getSlaveTransformation(referenceClusterSchema,slaveServer);
                 StepMeta slaveStep=slave.findStep(referenceStep.getName());
                 if (slaveStep == null) {
-                  slaveStep=addSlaveCopy(slave,referenceStep);
+                  slaveStep=addSlaveCopy(slave,referenceStep,slaveServer);
                 }
                 Map<PartitionSchema,List<String>> partitionsMap=slaveServerPartitionsMap.get(slaveServer);
                 StepPartitioningMeta targetStepPartitioningMeta=referenceStep.getStepPartitioningMeta();
@@ -85,20 +85,26 @@
                   RemoteStep remoteSlaveStep=new RemoteStep(masterServer.getHostname(),slaveServer.getHostname(),Integer.toString(port),masterStep.getName(),0,referenceStep.getName(),targetCopyNr,masterServer.getName(),socketsBufferSize,compressingSocketStreams);
                   slaveStep.getRemoteInputSteps().add(remoteSlaveStep);
                   if (slaveStep.isPartitioned()) {
-                    slaveStepCopyPartitionDistribution.addPartition(slaveServer.getName(),slaveStep.getName(),targetCopyNr);
+                    slaveStepCopyPartitionDistribution.addPartition(slaveServer.getName(),targetPartitionSchema.getName(),targetCopyNr);
                   }
                 }
                 if (targetStepPartitioningMeta.isPartitioned()) {
                   StepPartitioningMeta stepPartitioningMeta=targetStepPartitioningMeta.clone();
                   PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
+                  partitionSchema.setName(createTargetPartitionSchemaName(partitionSchema.getName()));
                   if (partitionSchema.isDynamicallyDefined()) {
                     partitionSchema.expandPartitionsDynamically(referenceClusterSchema.findNrSlaves(),originalTransformation);
                   }
-                  if (slave.findPartitionSchema(partitionSchema.getName()) != null) {
-                    slave.getPartitionSchemas().remove(partitionSchema);
-                  }
-                  slave.getPartitionSchemas().add(partitionSchema);
                   masterStep.setTargetStepPartitioningMeta(stepPartitioningMeta);
+                  master.addOrReplacePartitionSchema(partitionSchema);
+                  stepPartitioningMeta=targetStepPartitioningMeta.clone();
+                  partitionSchema=stepPartitioningMeta.getPartitionSchema();
+                  partitionSchema.setName(createSlavePartitionSchemaName(partitionSchema.getName()));
+                  if (partitionSchema.isDynamicallyDefined()) {
+                    partitionSchema.expandPartitionsDynamically(referenceClusterSchema.findNrSlaves(),originalTransformation);
+                  }
+                  partitionSchema.retainPartitionsForSlaveServer(referenceClusterSchema.findNrSlaves(),getSlaveServerNumber(referenceClusterSchema,slaveServer));
+                  slave.addOrReplacePartitionSchema(partitionSchema);
                 }
               }
             }
@@ -111,25 +117,27 @@
                 TransMeta slave=getSlaveTransformation(referenceClusterSchema,slaveServer);
                 StepMeta target=slave.findStep(referenceStep.getName());
                 if (target == null) {
-                  target=addSlaveCopy(slave,referenceStep);
+                  target=addSlaveCopy(slave,referenceStep,slaveServer);
                 }
                 StepMeta source=slave.findStep(previousStep.getName());
                 if (source == null) {
-                  source=addSlaveCopy(slave,previousStep);
+                  source=addSlaveCopy(slave,previousStep,slaveServer);
                 }
                 TransHopMeta slaveHop=new TransHopMeta(source,target);
                 slave.addTransHop(slaveHop);
                 StepPartitioningMeta sourceStepPartitioningMeta=previousStep.getStepPartitioningMeta();
                 StepPartitioningMeta targetStepPartitioningMeta=referenceStep.getStepPartitioningMeta();
-                if (previousStep.getStepPartitioningMeta().isPartitioned() && referenceStep.isPartitioned() && sourceStepPartitioningMeta.equals(targetStepPartitioningMeta)) {
-                  PartitionSchema sourcePartitionSchema=sourceStepPartitioningMeta.getPartitionSchema();
-                  Map<PartitionSchema,List<String>> partitionSchemaMap=slaveServerPartitionsMap.get(slaveServer);
-                  List<String> slavePartitionIDs=partitionSchemaMap.get(createSlavePartitionSchemaName(sourcePartitionSchema.getName()));
-                  StepPartitioningMeta slaveStepPartitioningMeta=(StepPartitioningMeta)sourceStepPartitioningMeta.clone();
-                  slaveStepPartitioningMeta.getPartitionSchema().setPartitionIDs(slavePartitionIDs);
-                  source.setStepPartitioningMeta(slaveStepPartitioningMeta);
-                  target.setStepPartitioningMeta(slaveStepPartitioningMeta);
-                  source.setTargetStepPartitioningMeta(slaveStepPartitioningMeta);
+                if (previousStep.isPartitioned() && referenceStep.isPartitioned() && sourceStepPartitioningMeta.equals(targetStepPartitioningMeta)) {
+                  StepPartitioningMeta stepPartitioningMeta=sourceStepPartitioningMeta.clone();
+                  PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
+                  partitionSchema.setName(createSlavePartitionSchemaName(partitionSchema.getName()));
+                  if (partitionSchema.isDynamicallyDefined()) {
+                    partitionSchema.expandPartitionsDynamically(referenceClusterSchema.findNrSlaves(),originalTransformation);
+                  }
+                  partitionSchema.retainPartitionsForSlaveServer(referenceClusterSchema.findNrSlaves(),getSlaveServerNumber(referenceClusterSchema,slaveServer));
+                  source.setStepPartitioningMeta(stepPartitioningMeta);
+                  target.setStepPartitioningMeta(stepPartitioningMeta);
+                  slave.addOrReplacePartitionSchema(partitionSchema);
                 }
  else                 if ((!previousStep.isPartitioned() && referenceStep.isPartitioned()) || (previousStep.isPartitioned() && referenceStep.isPartitioned() && !sourceStepPartitioningMeta.equals(target.getStepPartitioningMeta()))) {
                   PartitionSchema targetPartitionSchema=targetStepPartitioningMeta.getPartitionSchema();
@@ -158,22 +166,40 @@
                             RemoteStep remoteInputStep=new RemoteStep(partSlaveServer.getHostname(),slaveServer.getHostname(),Integer.toString(inPort),source.getName(),sourceCopyNr,target.getName(),targetCopyNr,slaveServer.getName(),socketsBufferSize,compressingSocketStreams);
                             target.getRemoteInputSteps().add(remoteInputStep);
                           }
-                          slaveStepCopyPartitionDistribution.addPartition(partSlaveServer.getName(),target.getName(),targetCopyNr);
+                          slaveStepCopyPartitionDistribution.addPartition(partSlaveServer.getName(),targetPartitionSchema.getName(),targetCopyNr);
                         }
+                      }
+                      if (sourceStepPartitioningMeta.isPartitioned()) {
+                        StepPartitioningMeta stepPartitioningMeta=sourceStepPartitioningMeta.clone();
+                        PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
+                        partitionSchema.setName(createSlavePartitionSchemaName(partitionSchema.getName()));
+                        if (partitionSchema.isDynamicallyDefined()) {
+                          partitionSchema.expandPartitionsDynamically(referenceClusterSchema.findNrSlaves(),originalTransformation);
+                        }
+                        partitionSchema.retainPartitionsForSlaveServer(referenceClusterSchema.findNrSlaves(),getSlaveServerNumber(referenceClusterSchema,slaveServer));
+                        source.setStepPartitioningMeta(stepPartitioningMeta);
+                        slave.addOrReplacePartitionSchema(partitionSchema);
                       }
                       if (targetStepPartitioningMeta.isPartitioned()) {
                         StepPartitioningMeta stepPartitioningMeta=targetStepPartitioningMeta.clone();
                         PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
+                        partitionSchema.setName(createSlavePartitionSchemaName(partitionSchema.getName()));
                         if (partitionSchema.isDynamicallyDefined()) {
                           partitionSchema.expandPartitionsDynamically(referenceClusterSchema.findNrSlaves(),originalTransformation);
                         }
-                        if (slave.findPartitionSchema(partitionSchema.getName()) != null) {
-                          slave.getPartitionSchemas().remove(partitionSchema);
-                        }
-                        slave.getPartitionSchemas().add(partitionSchema);
-                        source.setTargetStepPartitioningMeta(stepPartitioningMeta);
+                        partitionSchema.retainPartitionsForSlaveServer(referenceClusterSchema.findNrSlaves(),getSlaveServerNumber(referenceClusterSchema,slaveServer));
+                        target.setStepPartitioningMeta(stepPartitioningMeta);
+                        slave.addOrReplacePartitionSchema(partitionSchema);
                       }
-                      if (sourceStepPartitioningMeta.isPartitioned()) {
+                      if (!sourceStepPartitioningMeta.isPartitioned() || !sourceStepPartitioningMeta.equals(targetStepPartitioningMeta)) {
+                        StepPartitioningMeta stepPartitioningMeta=targetStepPartitioningMeta.clone();
+                        PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
+                        partitionSchema.setName(createTargetPartitionSchemaName(partitionSchema.getName()));
+                        if (partitionSchema.isDynamicallyDefined()) {
+                          partitionSchema.expandPartitionsDynamically(referenceClusterSchema.findNrSlaves(),originalTransformation);
+                        }
+                        source.setTargetStepPartitioningMeta(stepPartitioningMeta);
+                        slave.addOrReplacePartitionSchema(partitionSchema);
                       }
                     }
                   }
@@ -195,7 +221,7 @@
             SlaveServer slaveServer=(SlaveServer)referenceClusterSchema.getSlaveServers().get(s);
             if (!slaveServer.isMaster()) {
               TransMeta slave=getSlaveTransformation(referenceClusterSchema,slaveServer);
-              addSlaveCopy(slave,referenceStep);
+              addSlaveCopy(slave,referenceStep,slaveServer);
             }
           }
         }
@@ -252,7 +278,7 @@
                 slave.addStep(readerStep);
                 StepMeta slaveStep=slave.findStep(originalStep.getName());
                 if (slaveStep == null) {
-                  slaveStep=addSlaveCopy(slave,originalStep);
+                  slaveStep=addSlaveCopy(slave,originalStep,slaveServer);
                 }
                 TransHopMeta slaveHop=new TransHopMeta(readerStep,slaveStep);
                 slave.addTransHop(slaveHop);
@@ -297,8 +323,8 @@
     }
     slaveStepCopyPartitionDistribution.setOriginalPartitionSchemas(originalTransformation.getPartitionSchemas());
     for (    SlaveStepCopyPartitionDistribution.SlaveStepCopy slaveStepCopy : slaveStepCopyPartitionDistribution.getDistribution().keySet()) {
-      int partition=slaveStepCopyPartitionDistribution.getPartition(slaveStepCopy.getSlaveServerName(),slaveStepCopy.getStepName(),slaveStepCopy.getStepCopyNr());
-      System.out.println("slave step copy: slaveServer=" + slaveStepCopy.getSlaveServerName() + ", stepname="+ slaveStepCopy.getStepName()+ ", copynr="+ slaveStepCopy.getStepCopyNr()+ " ---> partition="+ partition);
+      int partition=slaveStepCopyPartitionDistribution.getPartition(slaveStepCopy.getSlaveServerName(),slaveStepCopy.getPartitionSchemaName(),slaveStepCopy.getStepCopyNr());
+      System.out.println("slave step copy: slaveServer=" + slaveStepCopy.getSlaveServerName() + ", partition schema="+ slaveStepCopy.getPartitionSchemaName()+ ", copynr="+ slaveStepCopy.getStepCopyNr()+ " ---> partition="+ partition);
     }
     for (    TransMeta transMeta : slaveTransMap.values()) {
       transMeta.setSlaveStepCopyPartitionDistribution(slaveStepCopyPartitionDistribution);
