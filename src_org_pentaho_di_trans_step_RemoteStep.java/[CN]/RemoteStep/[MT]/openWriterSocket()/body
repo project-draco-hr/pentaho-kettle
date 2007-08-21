@@ -2,7 +2,8 @@
   socket=serverSocket.accept();
   baseStep.logBasic("Server socket accepted for port [" + port + "], reading from server "+ targetSlaveServerName);
   if (compressingStreams) {
-    outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),bufferSize));
+    gzipOutputStream=new GZIPOutputStream(socket.getOutputStream());
+    outputStream=new DataOutputStream(new BufferedOutputStream(gzipOutputStream,bufferSize));
   }
  else {
     outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),bufferSize));
@@ -25,7 +26,13 @@
           if (baseStep.log.isDebug())           baseStep.logDebug("Sent row to port " + port + " : "+ rowSet.getRowMeta().getString(rowData));
           rowData=baseStep.getRowFrom(rowSet);
         }
-        outputStream.flush();
+        if (compressingStreams) {
+          outputStream.flush();
+          gzipOutputStream.finish();
+        }
+ else {
+          outputStream.flush();
+        }
       }
  catch (      Exception e) {
         baseStep.logError("Error writing to remote step",e);
