@@ -1,16 +1,12 @@
 {
   socket=serverSocket.accept();
-  baseStep.logDetailed("Server socket accepted for port [" + port + "]");
+  baseStep.logBasic("Server socket accepted for port [" + port + "], reading from server "+ targetSlaveServerName);
   if (compressingStreams) {
-    gzipOutputStream=new GZIPOutputStream(socket.getOutputStream());
-    bufferedOutputStream=new BufferedOutputStream(gzipOutputStream,bufferSize);
+    outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),bufferSize));
   }
  else {
-    gzipOutputStream=null;
-    bufferedOutputStream=new BufferedOutputStream(socket.getOutputStream(),bufferSize);
+    outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),bufferSize));
   }
-  outputStream=new DataOutputStream(bufferedOutputStream);
-  first=true;
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
   rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
   rowSet.setRemoteSlaveServerName(targetSlaveServerName);
@@ -18,14 +14,17 @@
     public void run(){
       try {
         Object[] rowData=baseStep.getRowFrom(rowSet);
+        if (rowData != null) {
+          rowSet.getRowMeta().writeMeta(outputStream);
+        }
         while (rowData != null && !baseStep.isStopped()) {
           baseStep.linesRead--;
-          sendRow(rowSet.getRowMeta(),rowData);
-          if (baseStep.log.isDebug())           baseStep.logDebug("Sent row to remote step: " + rowSet.getRowMeta().getString(rowData));
+          baseStep.linesWritten--;
+          rowSet.getRowMeta().writeData(outputStream,rowData);
+          baseStep.linesOutput++;
+          if (baseStep.log.isDebug())           baseStep.logDebug("Sent row to port " + port + " : "+ rowSet.getRowMeta().getString(rowData));
           rowData=baseStep.getRowFrom(rowSet);
         }
-        if (gzipOutputStream != null)         gzipOutputStream.flush();
-        bufferedOutputStream.flush();
         outputStream.flush();
       }
  catch (      Exception e) {
@@ -35,18 +34,10 @@
       }
  finally {
         try {
-          socket.shutdownOutput();
-        }
- catch (        IOException e) {
-          baseStep.logError("Error closing output socket to remote step",e);
-          baseStep.setErrors(1);
-          baseStep.stopAll();
-        }
-        try {
           socket.close();
         }
  catch (        IOException e) {
-          baseStep.logError("Error closing client socket to remote step",e);
+          baseStep.logError("Error closing output socket to remote step",e);
           baseStep.setErrors(1);
           baseStep.stopAll();
         }

@@ -12,7 +12,7 @@
       socket=new Socket(realHostname,portNumber);
       connected=true;
       if (compressingStreams) {
-        inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(socket.getInputStream()),bufferSize));
+        inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),bufferSize));
       }
  else {
         inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),bufferSize));
@@ -46,8 +46,10 @@
         Object[] rowData=rowMeta.readData(inputStream);
         while (rowData != null && !baseStep.isStopped()) {
           baseStep.linesInput++;
+          baseStep.linesRead--;
           if (baseStep.log.isDebug())           baseStep.logDebug("Received row from remote step: " + rowSet.getRowMeta().getString(rowData));
           baseStep.putRowTo(rowMeta,rowData,rowSet);
+          baseStep.linesWritten--;
           rowData=rowMeta.readData(inputStream);
         }
       }
@@ -60,7 +62,6 @@ catch (      Exception e) {
         baseStep.stopAll();
       }
  finally {
-        rowSet.setDone();
         try {
           socket.close();
         }
@@ -70,6 +71,7 @@ catch (      Exception e) {
           baseStep.stopAll();
         }
       }
+      rowSet.setDone();
     }
   }
 ;
