@@ -10,6 +10,7 @@
   while (!connected && (TIMEOUT_IN_SECONDS > (System.currentTimeMillis() - startTime) / 1000) && !baseStep.isStopped()) {
     try {
       socket=new Socket(realHostname,portNumber);
+      socket.setSoTimeout(1000);
       connected=true;
       if (compressingStreams) {
         inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(socket.getInputStream()),bufferSize));
@@ -42,15 +43,26 @@
   Runnable runnable=new Runnable(){
     public void run(){
       try {
-        RowMetaInterface rowMeta=new RowMeta(inputStream);
-        Object[] rowData=rowMeta.readData(inputStream);
+        RowMetaInterface rowMeta=null;
+        while (!baseStep.isStopped() && rowMeta == null) {
+          try {
+            rowMeta=new RowMeta(inputStream);
+          }
+ catch (          SocketTimeoutException e) {
+            rowMeta=null;
+          }
+        }
+        if (rowMeta == null) {
+          throw new KettleEOFException();
+        }
+        Object[] rowData=getRowOfData(rowMeta);
         while (rowData != null && !baseStep.isStopped()) {
           baseStep.linesInput++;
           baseStep.linesRead--;
           if (baseStep.log.isDebug())           baseStep.logDebug("Received row from remote step: " + rowSet.getRowMeta().getString(rowData));
           baseStep.putRowTo(rowMeta,rowData,rowSet);
           baseStep.linesWritten--;
-          rowData=rowMeta.readData(inputStream);
+          rowData=getRowOfData(rowMeta);
         }
       }
  catch (      KettleEOFException e) {
