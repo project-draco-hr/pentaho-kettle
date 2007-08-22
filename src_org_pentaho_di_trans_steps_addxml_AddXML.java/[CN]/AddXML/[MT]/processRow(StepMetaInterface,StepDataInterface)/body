@@ -1,0 +1,55 @@
+{
+  meta=(AddXMLMeta)smi;
+  data=(AddXMLData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.fieldIndexes=new int[meta.getOutputFields().length];
+    for (int i=0; i < data.fieldIndexes.length; i++) {
+      data.fieldIndexes[i]=getInputRowMeta().indexOfValue(meta.getOutputFields()[i].getFieldName());
+      if (data.fieldIndexes[i] < 0) {
+        throw new KettleException(Messages.getString("AddXML.Exception.FieldNotFound"));
+      }
+    }
+  }
+  Document xmldoc=getDomImplentation().createDocument(null,meta.getRootNode(),null);
+  Element root=xmldoc.getDocumentElement();
+  for (int i=0; i < meta.getOutputFields().length; i++) {
+    XMLField outputField=meta.getOutputFields()[i];
+    String fieldname=outputField.getFieldName();
+    ValueMetaInterface v=getInputRowMeta().getValueMeta(data.fieldIndexes[i]);
+    Object valueData=r[data.fieldIndexes[i]];
+    String value=formatField(v,valueData,outputField);
+    String element=outputField.getElementName();
+    if (element == null || element.length() == 0)     element=fieldname;
+    if (element == null || element.length() == 0) {
+      throw new KettleException("XML does not allow empty strings for element names.");
+    }
+    if (outputField.isAttribute()) {
+      root.setAttribute(element,value);
+    }
+ else {
+      Element e=xmldoc.createElement(element);
+      Node n=xmldoc.createTextNode(value);
+      e.appendChild(n);
+      root.appendChild(e);
+    }
+  }
+  StringWriter sw=new StringWriter();
+  DOMSource domSource=new DOMSource(xmldoc);
+  try {
+    this.getSerializer().transform(domSource,new StreamResult(sw));
+  }
+ catch (  TransformerException e) {
+    throw new KettleException(e);
+  }
+  Object[] outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),sw.toString());
+  putRow(data.outputRowMeta,outputRowData);
+  return true;
+}
