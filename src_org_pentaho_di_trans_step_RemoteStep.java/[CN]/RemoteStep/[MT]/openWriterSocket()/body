@@ -1,19 +1,19 @@
 {
-  socket=serverSocket.accept();
-  baseStep.logBasic("Server socket accepted for port [" + port + "], reading from server "+ targetSlaveServerName);
-  if (compressingStreams) {
-    gzipOutputStream=new GZIPOutputStream(socket.getOutputStream());
-    outputStream=new DataOutputStream(new BufferedOutputStream(gzipOutputStream,bufferSize));
-  }
- else {
-    outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),bufferSize));
-  }
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
   rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
   rowSet.setRemoteSlaveServerName(targetSlaveServerName);
   Runnable runnable=new Runnable(){
     public void run(){
       try {
+        socket=serverSocket.accept();
+        if (compressingStreams) {
+          gzipOutputStream=new GZIPOutputStream(socket.getOutputStream());
+          outputStream=new DataOutputStream(new BufferedOutputStream(gzipOutputStream,bufferSize));
+        }
+ else {
+          outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),bufferSize));
+        }
+        baseStep.logBasic("Server socket accepted for port [" + port + "], reading from server "+ targetSlaveServerName);
         Object[] rowData=baseStep.getRowFrom(rowSet);
         if (rowData != null) {
           rowSet.getRowMeta().writeMeta(outputStream);
@@ -41,7 +41,7 @@
       }
  finally {
         try {
-          socket.close();
+          if (socket != null)           socket.close();
         }
  catch (        IOException e) {
           baseStep.logError("Error closing output socket to remote step",e);

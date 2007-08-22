@@ -2,6 +2,7 @@
   this.baseStep=baseStep;
   final RowSet rowSet=new RowSet(baseStep.getTransMeta().getSizeRowset());
   rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
+  rowSet.setRemoteSlaveServerName(targetSlaveServerName);
   final int portNumber=Integer.parseInt(baseStep.environmentSubstitute(port));
   String realHostname=baseStep.environmentSubstitute(hostname);
   long startTime=System.currentTimeMillis();
@@ -10,7 +11,7 @@
   while (!connected && (TIMEOUT_IN_SECONDS > (System.currentTimeMillis() - startTime) / 1000) && !baseStep.isStopped()) {
     try {
       socket=new Socket(realHostname,portNumber);
-      socket.setSoTimeout(1000);
+      socket.setSoTimeout(10000);
       connected=true;
       if (compressingStreams) {
         inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(socket.getInputStream()),bufferSize));
@@ -75,7 +76,7 @@ catch (      Exception e) {
       }
  finally {
         try {
-          socket.close();
+          if (socket != null)           socket.close();
         }
  catch (        IOException e) {
           baseStep.logError("Error closing client socket connection to remote step",e);
