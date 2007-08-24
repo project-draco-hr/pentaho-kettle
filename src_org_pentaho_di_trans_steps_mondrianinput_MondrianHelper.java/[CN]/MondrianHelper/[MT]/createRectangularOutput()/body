@@ -1,0 +1,73 @@
+{
+  final Axis[] axes=result.getAxes();
+  if (axes.length != 2) {
+    throw new KettleDatabaseException("Tabular output only supported for 2-dimensional results");
+  }
+  headings=new ArrayList<String>();
+  rows=new ArrayList<List<Object>>();
+  final Axis rowsAxis=axes[1];
+  final Axis columnsAxis=axes[0];
+  int rowOrdinal=-1;
+  int[] coords={0,0};
+  for (  Position rowPos : rowsAxis.getPositions()) {
+    ++rowOrdinal;
+    coords[1]=rowOrdinal;
+    if (rowOrdinal == 0) {
+      for (      Member rowMember : rowPos) {
+        headings.add(rowMember.getHierarchy().getUniqueName());
+      }
+      for (      Position columnPos : columnsAxis.getPositions()) {
+        String heading="";
+        for (        Member columnMember : columnPos) {
+          if (!heading.equals("")) {
+            heading+=", ";
+          }
+          heading+=columnMember.getUniqueName();
+        }
+        headings.add(heading);
+      }
+    }
+    List<Object> rowValues=new ArrayList<Object>();
+    for (    Member rowMember : rowPos) {
+      rowValues.add(rowMember.getUniqueName());
+    }
+    for (int columnOrdinal=0; columnOrdinal < columnsAxis.getPositions().size(); ++columnOrdinal) {
+      coords[0]=columnOrdinal;
+      final Cell cell=result.getCell(coords);
+      rowValues.add(cell.getValue());
+    }
+    rows.add(rowValues);
+  }
+  outputRowMeta=new RowMeta();
+  for (int i=0; i < rows.size() && i < 1; i++) {
+    List<Object> rowValues=rows.get(i);
+    for (int c=0; c < rowValues.size(); c++) {
+      ValueMetaInterface valueMeta=new ValueMeta(headings.get(c));
+      Object valueData=rowValues.get(c);
+      if (valueData instanceof String) {
+        valueMeta.setType(ValueMetaInterface.TYPE_STRING);
+      }
+ else       if (valueData instanceof Date) {
+        valueMeta.setType(ValueMetaInterface.TYPE_DATE);
+      }
+ else       if (valueData instanceof Boolean) {
+        valueMeta.setType(ValueMetaInterface.TYPE_BOOLEAN);
+      }
+ else       if (valueData instanceof Long) {
+        valueMeta.setType(ValueMetaInterface.TYPE_INTEGER);
+      }
+ else       if (valueData instanceof Double) {
+        valueMeta.setType(ValueMetaInterface.TYPE_NUMBER);
+      }
+ else       if (valueData instanceof BigDecimal) {
+        valueMeta.setType(ValueMetaInterface.TYPE_BIGNUMBER);
+      }
+ else {
+        throw new KettleDatabaseException("Unhandled data type found '" + valueData.getClass().toString() + "'");
+      }
+      outputRowMeta.addValueMeta(valueMeta);
+    }
+  }
+  DBCacheEntry cacheEntry=new DBCacheEntry(databaseMeta.getName(),queryString);
+  DBCache.getInstance().put(cacheEntry,outputRowMeta);
+}

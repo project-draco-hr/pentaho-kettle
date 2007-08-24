@@ -1,0 +1,49 @@
+{
+  final Axis[] axes=result.getAxes();
+  rows=new ArrayList<List<Object>>();
+  headings=new ArrayList<String>();
+  for (  Axis axis : axes) {
+    final List<Position> positions=axis.getPositions();
+    if (positions.isEmpty()) {
+      return;
+    }
+    for (    Member member : positions.get(0)) {
+      Hierarchy hierarchy=member.getHierarchy();
+      headings.add(hierarchy.getUniqueName());
+    }
+  }
+  int[] coords=new int[axes.length];
+  outputFlattenedRecurse(result,rows,new ArrayList<Object>(),coords,0);
+  outputRowMeta=new RowMeta();
+  for (int i=0; i < rows.size() && i < 1; i++) {
+    List<Object> rowValues=rows.get(i);
+    for (int c=0; c < rowValues.size(); c++) {
+      ValueMetaInterface valueMeta=new ValueMeta(headings.get(c));
+      Object valueData=rowValues.get(c);
+      if (valueData instanceof String) {
+        valueMeta.setType(ValueMetaInterface.TYPE_STRING);
+      }
+ else       if (valueData instanceof Date) {
+        valueMeta.setType(ValueMetaInterface.TYPE_DATE);
+      }
+ else       if (valueData instanceof Boolean) {
+        valueMeta.setType(ValueMetaInterface.TYPE_BOOLEAN);
+      }
+ else       if (valueData instanceof Long) {
+        valueMeta.setType(ValueMetaInterface.TYPE_INTEGER);
+      }
+ else       if (valueData instanceof Double) {
+        valueMeta.setType(ValueMetaInterface.TYPE_NUMBER);
+      }
+ else       if (valueData instanceof BigDecimal) {
+        valueMeta.setType(ValueMetaInterface.TYPE_BIGNUMBER);
+      }
+ else {
+        throw new KettleDatabaseException("Unhandled data type found '" + valueData.getClass().toString() + "'");
+      }
+      outputRowMeta.addValueMeta(valueMeta);
+    }
+  }
+  DBCacheEntry cacheEntry=new DBCacheEntry(databaseMeta.getName(),queryString);
+  DBCache.getInstance().put(cacheEntry,outputRowMeta);
+}
