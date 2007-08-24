@@ -1,14 +1,20 @@
 {
-  if (!Const.isEmpty(fileName)) {
-    TransMeta mappingTransMeta=loadMappingMeta(fileName,null,null,null,space);
-    String newFilename=resourceNamingInterface.nameResource(mappingTransMeta.getName(),fileName,"ktr");
-    mappingTransMeta.setFilename(newFilename);
-    fileName=newFilename;
-    String xml=mappingTransMeta.getXML();
-    definitions.put(newFilename,new ResourceDefinition(newFilename,xml));
-    return newFilename;
-  }
+  try {
+    if (!Const.isEmpty(fileName)) {
+      FileObject fileObject=KettleVFS.getFileObject(space.environmentSubstitute(fileName));
+      TransMeta mappingTransMeta=loadMappingMeta(fileName,null,null,null,space);
+      String newFilename=resourceNamingInterface.nameResource(fileObject.getName().getBaseName(),fileObject.getParent().getName().getPath(),"ktr");
+      mappingTransMeta.setFilename(newFilename);
+      fileName=newFilename;
+      String xml=mappingTransMeta.getXML();
+      definitions.put(fileObject.getName().getPath(),new ResourceDefinition(newFilename,xml));
+      return newFilename;
+    }
  else {
-    return null;
+      return null;
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(Messages.getString("MappingMeta.Exception.UnableToLoadTransformation",fileName));
   }
 }

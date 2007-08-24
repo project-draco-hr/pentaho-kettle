@@ -1,15 +1,24 @@
 {
-  String filename=resourceNamingInterface.nameResource(getName(),getDirectory().getPath(),"ktr");
-  ResourceDefinition definition=definitions.get(filename);
-  if (definition == null) {
-    TransMeta transMeta=(TransMeta)this.clone();
-    for (    StepMeta stepMeta : transMeta.getSteps()) {
-      stepMeta.exportResources(space,definitions,resourceNamingInterface);
+  try {
+    FileObject fileObject=KettleVFS.getFileObject(getFilename());
+    String filename=resourceNamingInterface.nameResource(fileObject.getName().getBaseName(),fileObject.getParent().getName().getPath(),"kjb");
+    ResourceDefinition definition=definitions.get(filename);
+    if (definition == null) {
+      TransMeta transMeta=(TransMeta)this.clone();
+      for (      StepMeta stepMeta : transMeta.getSteps()) {
+        stepMeta.exportResources(space,definitions,resourceNamingInterface);
+      }
+      transMeta.setFilename(filename);
+      String transMetaContent=transMeta.getXML();
+      definition=new ResourceDefinition(filename,transMetaContent);
+      definitions.put(fileObject.getName().getPath(),definition);
     }
-    transMeta.setFilename(filename);
-    String transMetaContent=transMeta.getXML();
-    definition=new ResourceDefinition(filename,transMetaContent);
-    definitions.put(filename,definition);
+  }
+ catch (  FileSystemException e) {
+    throw new KettleException(Messages.getString("TransMeta.Exception.ErrorOpeningOrValidatingTheXMLFile",getFilename()),e);
+  }
+catch (  IOException e) {
+    throw new KettleException(Messages.getString("TransMeta.Exception.ErrorOpeningOrValidatingTheXMLFile",getFilename()),e);
   }
   return filename;
 }
