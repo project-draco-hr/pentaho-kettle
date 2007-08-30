@@ -1,0 +1,52 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  List<RowMetaAndData> rows=previousResult.getRows();
+  RowMetaAndData resultRow=null;
+  Result result=previousResult;
+  NbrFail=0;
+  String vsourcefilefolder[]=source_filefolder;
+  String vdestinationfilefolder[]=destination_filefolder;
+  String vwildcard[]=wildcard;
+  result.setResult(true);
+  if (arg_from_previous) {
+    log.logDetailed(toString(),Messages.getString("JobCopyFiles.Log.ArgFromPrevious.Found1") + " " + +(rows != null ? rows.size() : 0)+ " "+ Messages.getString("JobCopyFiles.Log.ArgFromPrevious.Found2"));
+  }
+  if (arg_from_previous && rows != null) {
+    for (int iteration=0; iteration < rows.size(); iteration++) {
+      resultRow=rows.get(iteration);
+      vsourcefilefolder=new String[resultRow.size()];
+      vdestinationfilefolder=new String[resultRow.size()];
+      vwildcard=new String[resultRow.size()];
+      vsourcefilefolder[iteration]=resultRow.getString(0,null);
+      vdestinationfilefolder[iteration]=resultRow.getString(1,null);
+      vwildcard[iteration]=resultRow.getString(2,null);
+      if (!Const.isEmpty(vsourcefilefolder[iteration]) && !Const.isEmpty(vdestinationfilefolder[iteration])) {
+        log.logBasic(toString(),Messages.getString("JobCopyFiles.Log.ProcessingRow") + " [" + vsourcefilefolder[iteration]+ "]..["+ vdestinationfilefolder[iteration]+ "]..["+ vwildcard[iteration]+ "]");
+        if (!ProcessFileFolder(vsourcefilefolder[iteration],vdestinationfilefolder[iteration],vwildcard[iteration],parentJob,result)) {
+          NbrFail=NbrFail++;
+        }
+      }
+ else {
+        log.logDetailed(toString(),Messages.getString("JobCopyFiles.Log.IgnoringRow") + " [" + vsourcefilefolder[iteration]+ "]..["+ vdestinationfilefolder[iteration]+ " ]..["+ vwildcard[iteration]+ "]");
+      }
+    }
+  }
+ else   if (vsourcefilefolder != null && vdestinationfilefolder != null) {
+    for (int i=0; i < vsourcefilefolder.length; i++) {
+      if (!Const.isEmpty(vsourcefilefolder[i]) && !Const.isEmpty(vdestinationfilefolder[i])) {
+        log.logBasic(toString(),Messages.getString("JobCopyFiles.Log.ProcessingRow") + " [" + vsourcefilefolder[i]+ "]..["+ vdestinationfilefolder[i]+ "]..["+ vwildcard[i]+ "]");
+        if (!ProcessFileFolder(vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i],parentJob,result)) {
+          NbrFail=NbrFail++;
+        }
+      }
+ else {
+        log.logDetailed(toString(),Messages.getString("JobCopyFiles.Log.IgnoringRow") + " [" + vsourcefilefolder[i]+ "]..["+ vdestinationfilefolder[i]+ " ]..["+ vwildcard[i]+ "]");
+      }
+    }
+  }
+  if (NbrFail > 0) {
+    result.setResult(false);
+    result.setNrErrors(NbrFail);
+  }
+  return result;
+}

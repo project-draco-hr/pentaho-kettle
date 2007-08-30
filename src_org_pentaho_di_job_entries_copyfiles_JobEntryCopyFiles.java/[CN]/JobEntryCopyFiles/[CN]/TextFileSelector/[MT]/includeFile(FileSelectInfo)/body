@@ -1,0 +1,106 @@
+{
+  boolean returncode=false;
+  FileObject file_name=null;
+  try {
+    if (!info.getFile().toString().equals(source_folder)) {
+      String short_filename_from_basefolder=info.getFile().getName().toString().substring(source_folder.length(),info.getFile().getName().toString().length());
+      String short_filename=info.getFile().getName().getBaseName();
+      file_name=KettleVFS.getFileObject(destination_folder + Const.FILE_SEPARATOR + short_filename_from_basefolder);
+      if (!info.getFile().getParent().equals(info.getBaseFolder())) {
+        if (include_subfolders) {
+          if (info.getFile().getType() == FileType.FOLDER) {
+            if (include_subfolders && copy_empty_folders && Const.isEmpty(file_wildcard)) {
+              if (!file_name.exists()) {
+                log.logBasic(""," ------ ");
+                log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FolderCopiedInfos"),Messages.getString("JobCopyFiles.Log.FolderCopied1") + " [" + info.getFile().toString()+ "]"+ " "+ Messages.getString("JobCopyFiles.Log.FolderCopied2")+ " ["+ file_name.toString()+ "]");
+                returncode=true;
+              }
+ else {
+                log.logBasic(""," ------ ");
+                log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FolderExistsInfos"),Messages.getString("JobCopyFiles.Log.FolderExists1") + " [" + file_name.getName()+ "] "+ Messages.getString("JobCopyFiles.Log.FolderExists2"));
+                if (overwrite_files) {
+                  log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FolderOverwriteInfos"),Messages.getString("JobCopyFiles.Log.FolderOverwrite1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Log.FolderOverwrite2")+ " ]"+ file_name.toString());
+                  returncode=true;
+                }
+              }
+            }
+          }
+ else {
+            if (GetFileWildcard(short_filename,file_wildcard)) {
+              if (!file_name.exists()) {
+                log.logBasic(""," ------ ");
+                log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FileCopiedInfos"),Messages.getString("JobCopyFiles.Log.FileCopied1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Log.FileCopied2")+ " ["+ file_name.toString()+ "]");
+                returncode=true;
+              }
+ else {
+                log.logBasic(""," ------ ");
+                log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FileExistsInfos"),Messages.getString("JobCopyFiles.Log.FileExists1") + " [" + file_name.getName()+ Messages.getString("JobCopyFiles.Log.FileExists2"));
+                if (overwrite_files) {
+                  log.logBasic("       " + Messages.getString("JobCopyFiles.Log.FileExistsInfos"),Messages.getString("JobCopyFiles.Log.FileExists1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Log.FileExists2")+ " ["+ file_name.toString()+ "]");
+                  returncode=true;
+                }
+              }
+            }
+          }
+        }
+      }
+ else {
+        if (info.getFile().getType() == FileType.FOLDER) {
+          if (include_subfolders && copy_empty_folders && Const.isEmpty(file_wildcard)) {
+            if (!file_name.exists()) {
+              log.logBasic(""," ------ ");
+              log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FolderCopiedInfos"),Messages.getString("JobCopyFiles.Log.FolderCopied1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Log.FolderCopied2")+ " ["+ file_name.toString()+ "]");
+              returncode=true;
+            }
+ else {
+              log.logBasic(""," ------ ");
+              log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FolderExistsInfos"),Messages.getString("JobCopyFiles.Log.FolderExists1") + " [" + file_name.getName()+ "] "+ Messages.getString("JobCopyFiles.Log.FolderExists2"));
+              if (overwrite_files) {
+                log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FolderOverwriteInfos"),Messages.getString("JobCopyFiles.Log.FolderOverwrite1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Log.FolderOverwrite2")+ " ["+ file_name.toString()+ "]");
+                returncode=true;
+              }
+            }
+          }
+        }
+ else {
+          if (GetFileWildcard(short_filename,file_wildcard)) {
+            if (!file_name.exists()) {
+              log.logBasic(""," ------ ");
+              log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FileCopiedInfos"),Messages.getString("JobCopyFiles.Log.FileCopied1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Log.FileCopied2")+ " ["+ file_name.toString()+ "]");
+              returncode=true;
+            }
+ else {
+              log.logBasic(""," ------ ");
+              log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FileExistsInfos"),Messages.getString("JobCopyFiles.Log.FileExists1") + " [" + file_name.getName()+ Messages.getString("JobCopyFiles.Log.FileExists2"));
+              if (overwrite_files) {
+                log.logBasic("      " + Messages.getString("JobCopyFiles.Log.FileExistsInfos"),Messages.getString("JobCopyFiles.Log.FileExists1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Log.FileExists2")+ " ["+ file_name.toString()+ "]");
+                returncode=true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    log.logError(Messages.getString("JobCopyFiles.Error.Exception.CopyProcessError"),Messages.getString("JobCopyFiles.Error.Exception.CopyProcess1") + " [" + info.getFile().toString()+ "] "+ Messages.getString("JobCopyFiles.Error.Exception.CopyProcess1")+ " ["+ file_name.toString()+ "] "+ Messages.getString("JobCopyFiles.Error.Exception.CopyProcess3")+ e.getMessage());
+    returncode=false;
+  }
+ finally {
+    if (file_name != null) {
+      try {
+        file_name.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  if (returncode && remove_source_files) {
+    list_files_remove.add(info.getFile().toString());
+  }
+  if (returncode && add_result_filesname) {
+    list_add_result.add(file_name.toString());
+  }
+  return returncode;
+}
