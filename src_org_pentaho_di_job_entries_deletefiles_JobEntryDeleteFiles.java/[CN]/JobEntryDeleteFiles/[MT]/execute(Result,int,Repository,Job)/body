@@ -2,11 +2,10 @@
   LogWriter log=LogWriter.getInstance();
   List<RowMetaAndData> rows=result.getRows();
   RowMetaAndData resultRow=null;
-  boolean rcode=true;
+  int NrErrFiles=0;
   String args[]=arguments;
   String fmasks[]=filemasks;
   result.setResult(true);
-  rcode=true;
   if (argFromPrevious) {
     log.logDetailed(toString(),Messages.getString("JobEntryDeleteFiles.FoundPreviousRows",String.valueOf((rows != null ? rows.size() : 0))));
   }
@@ -17,30 +16,23 @@
       fmasks=new String[resultRow.size()];
       args[iteration]=resultRow.getString(0,null);
       fmasks[iteration]=resultRow.getString(1,null);
-      if (rcode) {
-        log.logDetailed(toString(),Messages.getString("JobEntryDeleteFiles.ProcessingRow",args[iteration],fmasks[iteration]));
-        if (!ProcessFile(args[iteration],fmasks[iteration])) {
-          rcode=false;
-        }
-      }
- else {
-        log.logDetailed(toString(),Messages.getString("JobEntryDeleteFiles.IgnoringRow",args[iteration],fmasks[iteration]));
+      log.logDetailed(toString(),Messages.getString("JobEntryDeleteFiles.ProcessingRow",args[iteration],fmasks[iteration]));
+      if (!ProcessFile(args[iteration],fmasks[iteration])) {
+        NrErrFiles=NrErrFiles++;
       }
     }
   }
  else   if (arguments != null) {
     for (int i=0; i < arguments.length; i++) {
-      if (rcode) {
-        log.logDetailed(toString(),Messages.getString("JobEntryDeleteFiles.ProcessingArg",arguments[i],filemasks[i]));
-        if (!ProcessFile(arguments[i],filemasks[i])) {
-          rcode=false;
-        }
-      }
- else {
-        log.logDetailed(toString(),Messages.getString("JobEntryDeleteFiles.IgnoringArg",arguments[i],filemasks[i]));
+      log.logDetailed(toString(),Messages.getString("JobEntryDeleteFiles.ProcessingArg",arguments[i],filemasks[i]));
+      if (!ProcessFile(arguments[i],filemasks[i])) {
+        NrErrFiles=NrErrFiles++;
       }
     }
   }
-  result.setResult(rcode);
+  if (NrErrFiles > 0) {
+    result.setResult(false);
+    result.setNrErrors(NrErrFiles);
+  }
   return result;
 }
