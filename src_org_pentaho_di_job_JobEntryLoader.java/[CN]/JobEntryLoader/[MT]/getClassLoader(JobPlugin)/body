@@ -1,16 +1,25 @@
 {
   String jarfiles[]=sp.getJarfiles();
-  URL urls[]=new URL[jarfiles.length];
+  List<URL> classpath=new ArrayList<URL>();
+  ResourcePatternResolver resolver=new PathMatchingResourcePatternResolver(new FileSystemResourceLoader());
   for (int i=0; i < jarfiles.length; i++) {
-    FileSystemManager mgr=VFS.getManager();
-    FileObject jarfile=mgr.resolveFile(jarfiles[i]);
-    urls[i]=new URL(jarfile.getName().getURI());
+    try {
+      Resource[] paths=resolver.getResources(jarfiles[i]);
+      for (      Resource path : paths) {
+        classpath.add(path.getURL());
+      }
+    }
+ catch (    IOException e) {
+      e.printStackTrace();
+      continue;
+    }
   }
-  ClassLoader classLoader=getClass().getClassLoader();
+  URL urls[]=classpath.toArray(new URL[]{});
+  ClassLoader classLoader=Thread.currentThread().getContextClassLoader();
   URLClassLoader ucl=(URLClassLoader)classLoaders.get(sp.getID());
   if (ucl == null) {
 synchronized (classLoaders) {
-      ucl=new URLClassLoader(urls,classLoader);
+      ucl=new PDIClassLoader(urls,classLoader);
       classLoaders.put(sp.getID(),ucl);
     }
   }
