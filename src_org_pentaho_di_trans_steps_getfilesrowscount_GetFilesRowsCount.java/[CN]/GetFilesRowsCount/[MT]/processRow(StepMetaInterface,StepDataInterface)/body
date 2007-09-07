@@ -1,0 +1,72 @@
+{
+  char separator='\n';
+  if (data.filenr >= data.files.size()) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if ((meta.getRowSeparatorFormat().equals("CUSTOM")) && (Const.isEmpty(meta.getRowSeparator()))) {
+      log.logError(Messages.getString("GetFilesRowsCount.Error.NoSeparator.Title"),Messages.getString("GetFilesRowsCount.Error.NoSeparator.Msg"));
+      setErrors(1);
+      stopAll();
+    }
+    if (meta.getRowSeparatorFormat().equals("CR")) {
+      separator='\n';
+      if (log.isDetailed())       log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " \\n");
+    }
+ else     if (meta.getRowSeparatorFormat().equals("LF")) {
+      separator='\r';
+      if (log.isDetailed())       log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " \\r");
+    }
+ else     if (meta.getRowSeparatorFormat().equals("TAB")) {
+      separator='\t';
+      if (log.isDetailed())       log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " \\t");
+    }
+ else {
+      separator=environmentSubstitute(meta.getRowSeparator()).charAt(0);
+      if (log.isDetailed())       log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " " + separator);
+    }
+  }
+  for (int i=0; i < data.files.size(); i++) {
+    data.file=(FileObject)data.files.get(i);
+    logBasic(Messages.getString("GetFilesRowsCount.Log.OpeningFile",data.file.toString()));
+    try {
+      if (data.file.getType() == FileType.FILE) {
+        data.fr=KettleVFS.getInputStream(data.file);
+        data.isr=new InputStreamReader(new BufferedInputStream(data.fr,BUFFER_SIZE_INPUT_STREAM));
+        int c=0;
+        data.lineStringBuffer.setLength(0);
+        while (c >= 0) {
+          c=data.isr.read();
+          if (c == separator) {
+            data.rownr++;
+          }
+        }
+        data.filesnr++;
+      }
+    }
+ catch (    Exception e) {
+      logError(Messages.getString("GetFilesRowsCount.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+      stopAll();
+      setErrors(1);
+    }
+    if (log.isDetailed())     logDetailed(Messages.getString("GetFilesRowsCount.Log.FileOpened",data.file.toString()));
+    ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
+    resultFile.setComment(Messages.getString("GetFilesRowsCount.Log.FileAddedResult"));
+    addResultFile(resultFile);
+    data.filenr++;
+  }
+  linesInput++;
+  data.rownr--;
+  if (log.isDetailed())   log.logDetailed(Messages.getString("GetFilesRowsCount.Log.TotalRows"),Messages.getString("GetFilesRowsCount.Log.TotalFiles"),data.rownr,data.filesnr);
+  Object[] outputRow=new Object[data.outputRowMeta.size()];
+  int outputIndex=0;
+  outputRow[outputIndex++]=data.rownr;
+  if (meta.includeCountFiles())   outputRow[outputIndex++]=data.filesnr;
+  putRow(data.outputRowMeta,outputRow);
+  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
+  return true;
+}
