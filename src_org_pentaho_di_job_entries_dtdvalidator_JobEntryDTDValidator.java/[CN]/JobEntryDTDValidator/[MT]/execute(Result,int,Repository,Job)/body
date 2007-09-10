@@ -1,0 +1,94 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  String realxmlfilename=getRealxmlfilename();
+  String realDTDfilename=getRealDTDfilename();
+  FileObject xmlfile=null;
+  FileObject DTDfile=null;
+  try {
+    if (xmlfilename != null && dtdfilename != null) {
+      xmlfile=KettleVFS.getFileObject(realxmlfilename);
+      DTDfile=KettleVFS.getFileObject(realDTDfilename);
+      if (xmlfile.exists() && DTDfile.exists()) {
+        URL xmlFile=new File(KettleVFS.getFilename(xmlfile)).toURL();
+        BufferedReader xmlBufferedReader=new BufferedReader(new InputStreamReader(xmlFile.openStream()));
+        StringBuffer xmlStringbuffer=new StringBuffer("");
+        char[] buffertXML=new char[1024];
+        int LenXML=-1;
+        while ((LenXML=xmlBufferedReader.read(buffertXML)) != -1)         xmlStringbuffer.append(buffertXML,0,LenXML);
+        DocumentBuilderFactory DocBuilderFactory=DocumentBuilderFactory.newInstance();
+        Document xmlDocDTD=null;
+        DocumentBuilder DocBuilder=DocBuilderFactory.newDocumentBuilder();
+        DocBuilderFactory.setValidating(false);
+        xmlDocDTD=DocBuilder.parse(new ByteArrayInputStream(xmlStringbuffer.toString().getBytes("UTF-8")));
+        String encoding=null;
+        if (xmlDocDTD.getXmlEncoding() == null) {
+          encoding="UTF-8";
+        }
+ else {
+          encoding=xmlDocDTD.getXmlEncoding();
+        }
+        int xmlStartDTD=xmlStringbuffer.indexOf("<!DOCTYPE");
+        if (dtdintern) {
+          if (xmlStartDTD != -1) {
+            log.logBasic(toString(),Messages.getString("JobEntryDTDValidator.ERRORDTDFound.Label",realxmlfilename));
+          }
+ else {
+            log.logBasic(toString(),Messages.getString("JobEntryDTDValidator.ERRORDTDNotFound.Label",realxmlfilename));
+          }
+        }
+ else {
+          if (xmlStartDTD != -1) {
+            int EndDTD=xmlStringbuffer.indexOf(">",xmlStartDTD);
+            String DocTypeDTD=xmlStringbuffer.substring(xmlStartDTD,EndDTD + 1);
+            xmlStringbuffer.replace(xmlStartDTD,EndDTD + 1,"");
+          }
+          String xmlRootnodeDTD=xmlDocDTD.getDocumentElement().getNodeName();
+          String RefDTD="<?xml version='" + xmlDocDTD.getXmlVersion() + "' encoding='"+ encoding+ "'?>\n<!DOCTYPE "+ xmlRootnodeDTD+ " SYSTEM '"+ KettleVFS.getFilename(DTDfile)+ "'>\n";
+          int xmloffsetDTD=xmlStringbuffer.indexOf("<" + xmlRootnodeDTD);
+          xmlStringbuffer.replace(0,xmloffsetDTD,RefDTD);
+        }
+        if (dtdintern && xmlStartDTD == -1) {
+          result.setResult(false);
+          result.setNrErrors(1);
+        }
+ else {
+          DocBuilderFactory.setValidating(true);
+          xmlDocDTD=DocBuilder.parse(new ByteArrayInputStream(xmlStringbuffer.toString().getBytes(encoding)));
+          log.logBasic(Messages.getString("JobEntryDTDValidator.DTDValidatorOK.Subject"),Messages.getString("JobEntryDTDValidator.DTDValidatorOK.Label",realxmlfilename));
+          result.setResult(true);
+        }
+      }
+ else {
+        if (!xmlfile.exists()) {
+          log.logError(toString(),Messages.getString("JobEntryDTDValidator.FileDoesNotExist.Label",realxmlfilename));
+        }
+        if (!DTDfile.exists()) {
+          log.logError(toString(),Messages.getString("JobEntryDTDValidator.FileDoesNotExist1.Label") + realDTDfilename + Messages.getString("JobEntryDTDValidator.FileDoesNotExist2.Label"));
+        }
+        result.setResult(false);
+        result.setNrErrors(1);
+      }
+    }
+ else {
+      log.logError(toString(),Messages.getString("JobEntryDTDValidator.AllFilesNotNull.Label"));
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+  }
+ catch (  Exception e) {
+    log.logError(Messages.getString("JobEntryDTDValidator.ErrorDTDValidator.Subject"),Messages.getString("JobEntryDTDValidator.ErrorDTDValidator.Label",realxmlfilename,realDTDfilename,e.getMessage()));
+    result.setResult(false);
+    result.setNrErrors(1);
+  }
+ finally {
+    try {
+      if (xmlfile != null)       xmlfile.close();
+      if (DTDfile != null)       DTDfile.close();
+    }
+ catch (    IOException e) {
+    }
+  }
+  return result;
+}
