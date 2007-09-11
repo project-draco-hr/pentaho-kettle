@@ -1,10 +1,16 @@
 {
-  FileDialog dialog=new FileDialog(shell,SWT.OPEN);
-  dialog.setFilterExtensions(Const.STRING_TRANS_FILTER_EXT);
-  dialog.setFilterNames(Const.getTransformationFilterNames());
-  String fname=dialog.open();
-  if (fname != null) {
-    try {
+  String curFile=wFilename.getText();
+  FileObject root=null;
+  try {
+    root=KettleVFS.getFileObject(curFile != null ? curFile : Const.USER_HOME_DIRECTORY);
+    VfsFileChooserDialog vfsFileChooser=new VfsFileChooserDialog(root.getParent(),root);
+    FileObject file=vfsFileChooser.open(shell,null,Const.STRING_TRANS_FILTER_EXT,Const.getTransformationFilterNames(),VfsFileChooserDialog.VFS_DIALOG_OPEN_FILE);
+    if (file == null) {
+      return;
+    }
+    String fname=null;
+    fname=file.getURL().getFile();
+    if (fname != null) {
       loadFileTrans(fname);
       wFilename.setText(mappingTransMeta.getFilename());
       wTransName.setText(Const.NVL(mappingTransMeta.getName(),""));
@@ -12,8 +18,11 @@
       wFileRadio.setSelection(true);
       wRepRadio.setSelection(false);
     }
- catch (    KettleException e) {
-      new ErrorDialog(shell,Messages.getString("MappingDialog.ErrorLoadingTransformation.DialogTitle"),Messages.getString("MappingDialog.ErrorLoadingTransformation.DialogMessage"),e);
-    }
+  }
+ catch (  IOException e) {
+    new ErrorDialog(shell,Messages.getString("MappingDialog.ErrorLoadingTransformation.DialogTitle"),Messages.getString("MappingDialog.ErrorLoadingTransformation.DialogMessage"),e);
+  }
+catch (  KettleException e) {
+    new ErrorDialog(shell,Messages.getString("MappingDialog.ErrorLoadingTransformation.DialogTitle"),Messages.getString("MappingDialog.ErrorLoadingTransformation.DialogMessage"),e);
   }
 }
