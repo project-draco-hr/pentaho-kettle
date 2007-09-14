@@ -1,0 +1,94 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  long filesput=0;
+  log.logDetailed(toString(),"Start of SFTP job entry");
+  String realServerName=environmentSubstitute(serverName);
+  String realServerPort=environmentSubstitute(serverPort);
+  String realUsername=environmentSubstitute(userName);
+  String realPassword=environmentSubstitute(password);
+  String realRemoteDirectoty=environmentSubstitute(sftpDirectory);
+  String realWildcard=environmentSubstitute(wildcard);
+  String realLocalDirectory=environmentSubstitute(targetDirectory);
+  FTPClient ftpclient=null;
+  try {
+    ftpclient=new FTPClient();
+    ftpclient.setRemoteAddr(InetAddress.getByName(realServerName));
+    ftpclient.setRemotePort(Const.toInt(realServerPort,21));
+    if (log.isDetailed())     log.logDetailed(toString(),"Opened FTP connection to server [" + realServerName + "]");
+    if (activeConnection) {
+      ftpclient.setConnectMode(FTPConnectMode.ACTIVE);
+      if (log.isDetailed())       log.logDetailed(toString(),"set active ftp connection mode");
+    }
+ else {
+      ftpclient.setConnectMode(FTPConnectMode.PASV);
+      if (log.isDetailed())       log.logDetailed(toString(),"set passive ftp connection mode");
+    }
+    ftpclient.setTimeout(timeout);
+    if (log.isDetailed())     log.logDetailed(toString(),"set timeout to " + timeout);
+    ftpclient.setControlEncoding(controlEncoding);
+    if (log.isDetailed())     log.logDetailed(toString(),"set control encoding to " + controlEncoding);
+    ftpclient.connect();
+    ftpclient.login(realUsername,realPassword);
+    if (log.isDetailed())     log.logDetailed(toString(),"logged in with user " + realUsername);
+    if (!Const.isEmpty(realRemoteDirectoty)) {
+      ftpclient.chdir(realRemoteDirectoty);
+      if (log.isDetailed())       log.logDetailed(toString(),"Changed to directory [" + realRemoteDirectoty + "]");
+    }
+    int x=0;
+    ArrayList<String> myFileList=new ArrayList<String>();
+    File localFiles=new File(realLocalDirectory);
+    File[] children=localFiles.listFiles();
+    for (int i=0; i < children.length; i++) {
+      if (!children[i].isDirectory()) {
+        myFileList.add(children[i].getName());
+        x=x + 1;
+      }
+    }
+    String[] filelist=new String[myFileList.size()];
+    myFileList.toArray(filelist);
+    if (log.isDetailed())     log.logDetailed(toString(),"Found " + filelist.length + " files in the local directory");
+    Pattern pattern=null;
+    if (!Const.isEmpty(realWildcard)) {
+      pattern=Pattern.compile(realWildcard);
+    }
+    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      boolean getIt=true;
+      if (pattern != null) {
+        Matcher matcher=pattern.matcher(filelist[i]);
+        getIt=matcher.matches();
+      }
+      if (getIt) {
+        if (!ftpclient.exists(filelist[i]) || (ftpclient.exists(filelist[i]) && !onlyPuttingNewFiles)) {
+          if (log.isDebug())           log.logDebug(toString(),"putting file [" + filelist[i] + "] to directory ["+ realRemoteDirectoty+ "]");
+          String localFilename=realLocalDirectory + Const.FILE_SEPARATOR + filelist[i];
+          ftpclient.put(localFilename,filelist[i]);
+          filesput++;
+          if (remove) {
+            children[i].delete();
+            if (log.isDetailed())             log.logDetailed(toString(),"deleted local file [" + filelist[i] + "]");
+          }
+        }
+      }
+    }
+    result.setResult(true);
+    if (log.isDetailed())     log.logDebug(toString(),"We have put " + filesput);
+  }
+ catch (  Exception e) {
+    result.setNrErrors(1);
+    log.logError(toString(),"Error getting files from SFTP : " + e.getMessage());
+    log.logError(toString(),Const.getStackTracker(e));
+  }
+ finally {
+    if (ftpclient != null && ftpclient.connected()) {
+      try {
+        ftpclient.quit();
+      }
+ catch (      Exception e) {
+        log.logError(toString(),"Error quiting FTP connection: " + e.getMessage());
+      }
+    }
+  }
+  return result;
+}
