@@ -325,25 +325,42 @@
 );
   wbFilename.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
-      dialog.setFilterExtensions(new String[]{"*.kjb;*.xml","*.xml","*"});
-      dialog.setFilterNames(FILE_FILTERNAMES);
-      if (wFilename.getText() != null) {
-        dialog.setFileName(wFilename.getText());
+      FileObject fileName=null;
+      try {
+        String curFile=wFilename.getText();
+        if (curFile.trim().length() > 0)         fileName=VFS.getManager().resolveFile(jobMeta.environmentSubstitute(wFilename.getText()));
+ else         fileName=VFS.getManager().resolveFile(Const.USER_HOME_DIRECTORY);
       }
-      if (dialog.open() != null) {
+ catch (      IOException ex) {
         try {
-          wFilename.setText(dialog.getFilterPath() + Const.FILE_SEPARATOR + dialog.getFileName());
+          fileName=VFS.getManager().resolveFile(Const.USER_HOME_DIRECTORY);
+        }
+ catch (        IOException iex) {
+          throw new RuntimeException(iex);
+        }
+      }
+      try {
+        try {
+          VfsFileChooserDialog dialog=new VfsFileChooserDialog(fileName.getParent(),fileName);
+          FileObject lroot=dialog.open(shell,null,new String[]{"*.kjb;*.xml","*.xml","*"},FILE_FILTERNAMES,VfsFileChooserDialog.VFS_DIALOG_OPEN_FILE);
+          if (lroot == null) {
+            return;
+          }
+          String selected=lroot.getURL().toString();
+          wFilename.setText(lroot != null ? selected : Const.EMPTY_STRING);
           JobMeta job=new JobMeta(log,wFilename.getText(),repository,SpoonFactory.getInstance());
           if (job.getName() != null)           wName.setText(job.getName());
- else           wName.setText(dialog.getFileName());
+ else           wName.setText(selected);
         }
- catch (        KettleXMLException xe) {
-          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-          mb.setText(Messages.getString("JobJob.ErrorReadingJob.Text"));
-          mb.setMessage(Messages.getString("JobJob.ErrorReadingJob.Message",wFilename.getText(),xe.getMessage()));
-          mb.open();
+ catch (        IOException ex) {
+          throw new KettleXMLException(ex.getMessage());
         }
+      }
+ catch (      KettleXMLException xe) {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setText(Messages.getString("JobJob.ErrorReadingJob.Text"));
+        mb.setMessage(Messages.getString("JobJob.ErrorReadingJob.Message",wFilename.getText(),xe.getMessage()));
+        mb.open();
       }
     }
   }
