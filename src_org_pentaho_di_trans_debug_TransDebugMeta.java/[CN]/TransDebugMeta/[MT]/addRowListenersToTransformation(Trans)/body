@@ -1,0 +1,47 @@
+{
+  final TransDebugMeta self=this;
+  for (  final StepMeta stepMeta : stepDebugMetaMap.keySet()) {
+    final StepDebugMeta stepDebugMeta=stepDebugMetaMap.get(stepMeta);
+    for (    BaseStep baseStep : trans.findBaseSteps(stepMeta.getName())) {
+      baseStep.addRowListener(new RowAdapter(){
+        public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
+          try {
+            if (stepDebugMeta.isReadingFirstRows() && stepDebugMeta.getRowCount() > 0) {
+              stepDebugMeta.setRowBufferMeta(rowMeta);
+              stepDebugMeta.getRowBuffer().add(rowMeta.cloneRow(row));
+              if (stepDebugMeta.getRowBuffer().size() >= stepDebugMeta.getRowCount()) {
+                trans.pauseRunning();
+                stepDebugMeta.fireBreakPointListeners(self);
+              }
+            }
+ else             if (stepDebugMeta.isPausingOnBreakPoint() && stepDebugMeta.getCondition() != null) {
+              if (stepDebugMeta.getRowCount() > 0) {
+                stepDebugMeta.setRowBufferMeta(rowMeta);
+                stepDebugMeta.getRowBuffer().add(0,rowMeta.cloneRow(row));
+                if (stepDebugMeta.getRowBuffer().size() > stepDebugMeta.getRowCount()) {
+                  stepDebugMeta.getRowBuffer().remove(stepDebugMeta.getRowBuffer().size() - 1);
+                }
+              }
+ else {
+                if (stepDebugMeta.getRowBuffer().isEmpty()) {
+                  stepDebugMeta.getRowBuffer().add(rowMeta.cloneRow(row));
+                }
+ else {
+                  stepDebugMeta.getRowBuffer().set(0,rowMeta.cloneRow(row));
+                }
+              }
+              if (stepDebugMeta.getCondition().evaluate(rowMeta,row)) {
+                trans.pauseRunning();
+                stepDebugMeta.fireBreakPointListeners(self);
+              }
+            }
+          }
+ catch (          KettleException e) {
+            throw new KettleStepException(e);
+          }
+        }
+      }
+);
+    }
+  }
+}

@@ -1,24 +1,45 @@
 {
   LogWriter log=LogWriter.getInstance();
-  int nrRows=0;
-  for (int i=0; i < previewSize.length; i++)   nrRows+=previewSize[i];
   progressMonitor.beginTask(Messages.getString("TransPreviewProgressDialog.Monitor.BeginTask.Title"),100);
   Log4jStringAppender stringAppender=LogWriter.createStringAppender();
   log.addAppender(stringAppender);
   trans=new Trans(transMeta);
   trans.initializeVariablesFrom(null);
-  trans.setPreview(true);
-  trans.setPreviewSteps(previewStepNames);
-  trans.setPreviewSizes(previewSize);
-  trans.execute(null);
+  try {
+    trans.prepareExecution(null);
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,Messages.getString("System.Dialog.Error.Title"),Messages.getString("TransPreviewProgressDialog.Exception.ErrorPreparingTransformation"),e);
+    return;
+  }
+  transDebugMeta=new TransDebugMeta(transMeta);
+  for (int i=0; i < previewStepNames.length; i++) {
+    StepMeta stepMeta=transMeta.findStep(previewStepNames[i]);
+    StepDebugMeta stepDebugMeta=new StepDebugMeta(stepMeta);
+    stepDebugMeta.setReadingFirstRows(true);
+    stepDebugMeta.setRowCount(previewSize[i]);
+    transDebugMeta.getStepDebugMetaMap().put(stepMeta,stepDebugMeta);
+  }
+  transDebugMeta.addRowListenersToTransformation(trans);
+  trans.startThreads();
   int previousPct=0;
-  while (!trans.previewComplete() && !trans.isFinished() && !progressMonitor.isCanceled()) {
-    int nrDone=0;
-    for (int i=0; i < previewSize.length; i++) {
-      List<Object[]> buffer=trans.getPreviewRows(previewStepNames[i],0);
-      nrDone+=buffer.size();
+  final List<String> previewComplete=new ArrayList<String>();
+  while (previewComplete.size() < previewStepNames.length && !trans.isFinished() && !progressMonitor.isCanceled()) {
+    transDebugMeta.addBreakPointListers(new BreakPointListener(){
+      public void breakPointHit(      TransDebugMeta transDebugMeta,      StepDebugMeta stepDebugMeta,      RowMetaInterface rowBufferMeta,      List<Object[]> rowBuffer){
+        String stepName=stepDebugMeta.getStepMeta().getName();
+        previewComplete.add(stepName);
+        progressMonitor.subTask(Messages.getString("TransPreviewProgressDialog.SubTask.StepPreviewFinished",stepName));
+      }
     }
-    int pct=100 * nrDone / nrRows;
+);
+    int nrDone=0;
+    int nrTotal=0;
+    for (    StepDebugMeta stepDebugMeta : transDebugMeta.getStepDebugMetaMap().values()) {
+      nrDone+=stepDebugMeta.getRowBuffer().size();
+      nrTotal+=stepDebugMeta.getRowCount();
+    }
+    int pct=100 * nrDone / nrTotal;
     int worked=pct - previousPct;
     if (worked > 0)     progressMonitor.worked(worked);
     previousPct=pct;
