@@ -1,0 +1,44 @@
+{
+  if (data.reading) {
+    Object[] rowData=getRow();
+    if (rowData == null) {
+      data.reading=false;
+    }
+ else {
+      if (first) {
+        first=false;
+        data.outputRowMeta=getInputRowMeta().clone();
+        meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+        data.parentIndex=getInputRowMeta().indexOfValue(meta.getParentIdFieldName());
+        if (data.parentIndex < 0) {
+          throw new KettleException(Messages.getString("ClosureGenerator.Exception.ParentFieldNotFound"));
+        }
+        data.childIndex=getInputRowMeta().indexOfValue(meta.getChildIdFieldName());
+        if (data.childIndex < 0) {
+          throw new KettleException(Messages.getString("ClosureGenerator.Exception.ChildFieldNotFound"));
+        }
+        data.parentValueMeta=getInputRowMeta().getValueMeta(data.parentIndex);
+        data.childValueMeta=getInputRowMeta().getValueMeta(data.childIndex);
+      }
+      Object parentId=rowData[data.parentIndex];
+      Object childId=rowData[data.childIndex];
+      data.map.put(childId,parentId);
+    }
+  }
+ else {
+    for (    Object current : data.map.keySet()) {
+      data.parents=new HashMap<Object,Long>();
+      data.parents.put(current,0L);
+      recurseParents(current,1);
+      for (      Object parent : data.parents.keySet()) {
+        Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+        outputRow[0]=parent;
+        outputRow[1]=current;
+        outputRow[2]=data.parents.get(parent);
+        putRow(data.outputRowMeta,outputRow);
+      }
+    }
+    return false;
+  }
+  return true;
+}
