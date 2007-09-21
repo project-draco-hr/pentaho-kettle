@@ -24,7 +24,7 @@
     ShowMessageDialog dialog=new ShowMessageDialog(shell,SWT.OK | SWT.ICON_WARNING,Messages.getString("PreviewRowsDialog.NoRows.Text"),Messages.getString("PreviewRowsDialog.NoRows.Message"));
     dialog.open();
     shell.dispose();
-    return null;
+    return;
   }
   int FieldsRows=buffer.size();
   ColumnInfo[] colinf=new ColumnInfo[rowMeta.size()];
@@ -41,26 +41,41 @@
   fdFields.right=new FormAttachment(100,0);
   fdFields.bottom=new FormAttachment(100,-50);
   wFields.setLayoutData(fdFields);
+  List<Button> buttons=new ArrayList<Button>();
   wClose=new Button(shell,SWT.PUSH);
   wClose.setText(Messages.getString("System.Button.Close"));
-  wLog=new Button(shell,SWT.PUSH);
-  wLog.setText(Messages.getString("PreviewRowsDialog.Button.ShowLog"));
-  if (loggingText == null || loggingText.length() == 0)   wLog.setEnabled(false);
-  lsClose=new Listener(){
+  wClose.addListener(SWT.Selection,new Listener(){
     public void handleEvent(    Event e){
       close();
     }
   }
-;
-  lsLog=new Listener(){
-    public void handleEvent(    Event e){
-      log();
+);
+  buttons.add(wClose);
+  if (!Const.isEmpty(loggingText)) {
+    wLog=new Button(shell,SWT.PUSH);
+    wLog.setText(Messages.getString("PreviewRowsDialog.Button.ShowLog"));
+    wLog.addListener(SWT.Selection,new Listener(){
+      public void handleEvent(      Event e){
+        log();
+      }
     }
+);
+    buttons.add(wLog);
   }
-;
-  wClose.addListener(SWT.Selection,lsClose);
-  wLog.addListener(SWT.Selection,lsLog);
-  BaseStepDialog.positionBottomButtons(shell,new Button[]{wClose,wLog},margin,null);
+  if (proposingToGetMoreRows) {
+    wNext=new Button(shell,SWT.PUSH);
+    wNext.setText(Messages.getString("PreviewRowsDialog.Button.Next.Label"));
+    wNext.setToolTipText(Messages.getString("PreviewRowsDialog.Button.Next.ToolTip"));
+    wNext.addListener(SWT.Selection,new Listener(){
+      public void handleEvent(      Event e){
+        askingForMoreRows=true;
+        close();
+      }
+    }
+);
+    buttons.add(wNext);
+  }
+  BaseStepDialog.positionBottomButtons(shell,buttons.toArray(new Button[buttons.size()]),margin,null);
   shell.addShellListener(new ShellAdapter(){
     public void shellClosed(    ShellEvent e){
       close();
@@ -73,5 +88,4 @@
   while (!shell.isDisposed()) {
     if (!display.readAndDispatch())     display.sleep();
   }
-  return stepname;
 }
