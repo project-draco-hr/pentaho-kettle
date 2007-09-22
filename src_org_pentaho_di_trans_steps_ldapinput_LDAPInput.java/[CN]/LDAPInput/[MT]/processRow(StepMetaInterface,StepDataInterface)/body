@@ -1,0 +1,111 @@
+{
+  String basedn=environmentSubstitute(meta.getBaseDn());
+  String hostname=environmentSubstitute(meta.getHost());
+  String username=environmentSubstitute(meta.getUserName());
+  String password=environmentSubstitute(meta.getPassword());
+  String filter=environmentSubstitute(meta.getFilterString());
+  String searchbase=environmentSubstitute(meta.getSearchBase());
+  NamingEnumeration<SearchResult> results=null;
+  DirContext ctx=null;
+  data.rownr=0;
+  linesInput=0;
+  String[] attrReturned=new String[meta.getInputFields().length];
+  Object[] outputRowData=null;
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++)     data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++) {
+      data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    }
+    for (int i=0; i < meta.getInputFields().length; i++) {
+      attrReturned[i]=meta.getInputFields()[i].getAttribut();
+    }
+  }
+  try {
+    ctx=connectServerLdap(hostname,username,password,basedn);
+    if (ctx == null) {
+      log.logError("Connection","ERROR");
+    }
+    log.logBasic("Connection","Connected to server [{0}]",hostname);
+    if (log.isDetailed())     log.logDetailed("Class","Class name [{0}]",ctx.getClass().getName());
+    DirContext schema=ctx.getSchema("");
+    if (log.isDetailed())     log.logDetailed("Schema tree root","" + schema.list(""));
+    SearchControls controls=new SearchControls();
+    controls.setCountLimit(meta.getRowLimit());
+    controls.setReturningAttributes(attrReturned);
+    controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+    results=ctx.search(searchbase,filter.replace("\n\r","").replace("\n",""),controls);
+    Attribute attr=null;
+    String attrvalue=null;
+    while (((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) && (results.hasMore())) {
+      SearchResult searchResult=(SearchResult)results.next();
+      Attributes attributes=searchResult.getAttributes();
+      outputRowData=buildEmptyRow();
+      for (int i=0; i < meta.getInputFields().length; i++) {
+        attr=attributes.get(meta.getInputFields()[i].getAttribut());
+        if (attr != null)         attrvalue=(String)attr.get();
+switch (meta.getInputFields()[i].getTrimType()) {
+case LDAPInputField.TYPE_TRIM_LEFT:
+          attrvalue=Const.ltrim(attrvalue);
+        break;
+case LDAPInputField.TYPE_TRIM_RIGHT:
+      attrvalue=Const.rtrim(attrvalue);
+    break;
+case LDAPInputField.TYPE_TRIM_BOTH:
+  attrvalue=Const.trim(attrvalue);
+break;
+default :
+break;
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(i);
+outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,attrvalue);
+if (meta.getInputFields()[i].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(attrvalue)) {
+outputRowData[i]=data.previousRow[i];
+}
+}
+}
+int rowIndex=meta.getInputFields().length;
+if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+outputRowData[rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+data.rownr++;
+linesInput++;
+putRow(data.outputRowMeta,outputRowData);
+}
+ctx.close();
+log.logBasic("Deconnection","Deconnection done");
+if (log.isDebug()) log.logDebug("row",outputRowData.toString());
+if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0) logBasic("linenr " + linesInput);
+}
+ catch (Exception e) {
+log.logError("Exception",e.getMessage());
+stopAll();
+setErrors(1);
+}
+ finally {
+if (results != null) {
+try {
+results.close();
+}
+ catch (Exception e) {
+}
+}
+if (ctx != null) {
+try {
+ctx.close();
+}
+ catch (Exception e) {
+}
+}
+}
+setOutputDone();
+return false;
+}
