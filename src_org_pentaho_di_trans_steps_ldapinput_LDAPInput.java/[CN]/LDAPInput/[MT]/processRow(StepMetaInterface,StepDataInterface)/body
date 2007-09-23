@@ -1,5 +1,5 @@
 {
-  String basedn=environmentSubstitute(meta.getBaseDn());
+  String port=environmentSubstitute(meta.getPort());
   String hostname=environmentSubstitute(meta.getHost());
   String username=environmentSubstitute(meta.getUserName());
   String password=environmentSubstitute(meta.getPassword());
@@ -26,17 +26,23 @@
     }
   }
   try {
-    ctx=connectServerLdap(hostname,username,password,basedn);
+    ctx=connectServerLdap(hostname,username,password,port);
     if (ctx == null) {
       log.logError("Connection","ERROR");
     }
-    log.logBasic("Connection","Connected to server [{0}]",hostname);
+    log.logBasic("Connection","Connected to server [{0}] with username [{1]}",hostname,username);
     if (log.isDetailed())     log.logDetailed("Class","Class name [{0}]",ctx.getClass().getName());
     DirContext schema=ctx.getSchema("");
     if (log.isDetailed())     log.logDetailed("Schema tree root","" + schema.list(""));
     SearchControls controls=new SearchControls();
     controls.setCountLimit(meta.getRowLimit());
     controls.setReturningAttributes(attrReturned);
+    if (Const.isEmpty(searchbase)) {
+      Attributes attrs=ctx.getAttributes("",new String[]{"namingContexts"});
+      Attribute attr=attrs.get("namingContexts");
+      searchbase=attr.get().toString();
+      if (log.isDetailed())       log.logBasic("Search Base","Search Base found [{0}]",searchbase);
+    }
     controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
     results=ctx.search(searchbase,filter.replace("\n\r","").replace("\n",""),controls);
     Attribute attr=null;
