@@ -96,12 +96,25 @@
   }
   Object[] outputRow=RowDataUtil.resizeArray(row,rowMeta.size() + meta.getName().length);
   int outputIndex=rowMeta.size();
+  final Map<Integer,Value> usedRowValues;
+  if (meta.isCompatible()) {
+    usedRowValues=new Hashtable<Integer,Value>();
+  }
+ else {
+    usedRowValues=null;
+  }
   try {
     try {
       if (meta.isCompatible()) {
         Row v2Row=RowMeta.createOriginalRow(rowMeta,row);
         Scriptable jsV2Row=Context.toObject(v2Row,data.scope);
         data.scope.put("row",data.scope,jsV2Row);
+        v2Row.getUsedValueListeners().add(new ValueUsedListener(){
+          public void valueIsUsed(          int index,          Value value){
+            usedRowValues.put(index,value);
+          }
+        }
+);
       }
  else {
         Scriptable jsrow=Context.toObject(row,data.scope);
@@ -162,6 +175,11 @@
         for (int i=0; i < data.values_used.length; i++) {
           ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.fields_used[i]);
           outputRow[data.fields_used[i]]=valueMeta.getValueData(data.values_used[i]);
+        }
+        for (        Integer index : usedRowValues.keySet()) {
+          Value value=usedRowValues.get(index);
+          ValueMetaInterface valueMeta=rowMeta.getValueMeta(index);
+          outputRow[index]=valueMeta.getValueData(value);
         }
       }
     }
