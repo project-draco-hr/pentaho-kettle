@@ -12,29 +12,38 @@
     this.clusterSize=0;
   }
   SlaveStepCopyPartitionDistribution partitionDistribution=transMeta.getSlaveStepCopyPartitionDistribution();
-  if (stepMeta.isPartitioned() && partitionDistribution != null) {
-    String slaveServerName=getVariable(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NAME);
-    int stepCopyNr=stepcopy;
-    PartitionSchema partitionSchema=stepMeta.getStepPartitioningMeta().getPartitionSchema();
-    int partitionNr=partitionDistribution.getPartition(slaveServerName,partitionSchema.getName(),stepCopyNr);
-    if (partitionNr >= 0) {
-      String partitionNrString=new DecimalFormat("000").format(partitionNr);
-      setVariable(Const.INTERNAL_VARIABLE_STEP_PARTITION_NR,partitionNrString);
-      if (partitionDistribution.getOriginalPartitionSchemas() != null) {
-        String partitionSchemaName=stepMeta.getStepPartitioningMeta().getPartitionSchema().getName();
-        for (        PartitionSchema originalPartitionSchema : partitionDistribution.getOriginalPartitionSchemas()) {
-          String slavePartitionSchemaName=TransSplitter.createSlavePartitionSchemaName(originalPartitionSchema.getName());
-          if (slavePartitionSchemaName.equals(partitionSchemaName)) {
-            PartitionSchema schema=(PartitionSchema)originalPartitionSchema.clone();
-            if (schema.isDynamicallyDefined()) {
-              schema.expandPartitionsDynamically(this.clusterSize,this);
+  if (stepMeta.isPartitioned()) {
+    if (partitionDistribution != null && !partitionDistribution.getDistribution().isEmpty()) {
+      String slaveServerName=getVariable(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NAME);
+      int stepCopyNr=stepcopy;
+      PartitionSchema partitionSchema=stepMeta.getStepPartitioningMeta().getPartitionSchema();
+      int partitionNr=partitionDistribution.getPartition(slaveServerName,partitionSchema.getName(),stepCopyNr);
+      if (partitionNr >= 0) {
+        String partitionNrString=new DecimalFormat("000").format(partitionNr);
+        setVariable(Const.INTERNAL_VARIABLE_STEP_PARTITION_NR,partitionNrString);
+        if (partitionDistribution.getOriginalPartitionSchemas() != null) {
+          String partitionSchemaName=stepMeta.getStepPartitioningMeta().getPartitionSchema().getName();
+          for (          PartitionSchema originalPartitionSchema : partitionDistribution.getOriginalPartitionSchemas()) {
+            String slavePartitionSchemaName=TransSplitter.createSlavePartitionSchemaName(originalPartitionSchema.getName());
+            if (slavePartitionSchemaName.equals(partitionSchemaName)) {
+              PartitionSchema schema=(PartitionSchema)originalPartitionSchema.clone();
+              if (schema.isDynamicallyDefined()) {
+                schema.expandPartitionsDynamically(this.clusterSize,this);
+              }
+              String partID=schema.getPartitionIDs().get(partitionNr);
+              setVariable(Const.INTERNAL_VARIABLE_STEP_PARTITION_ID,partID);
+              break;
             }
-            String partID=schema.getPartitionIDs().get(partitionNr);
-            setVariable(Const.INTERNAL_VARIABLE_STEP_PARTITION_ID,partID);
-            break;
           }
         }
       }
+    }
+ else {
+      int partitionNr=stepcopy;
+      String partitionNrString=new DecimalFormat("000").format(partitionNr);
+      setVariable(Const.INTERNAL_VARIABLE_STEP_PARTITION_NR,partitionNrString);
+      String partitionID=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs().get(partitionNr);
+      setVariable(Const.INTERNAL_VARIABLE_STEP_PARTITION_ID,partitionID);
     }
   }
  else   if (!Const.isEmpty(partitionID)) {

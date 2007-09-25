@@ -110,20 +110,18 @@ case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
     throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
   }
   RowSet selectedRowSet=null;
-  if (transMeta.getSlaveStepCopyPartitionDistribution() != null) {
+  if (clusteredPartitioningFirst) {
+    clusteredPartitioningFirst=false;
+    clusteredPartitioning=transMeta.getSlaveStepCopyPartitionDistribution() != null && !transMeta.getSlaveStepCopyPartitionDistribution().getDistribution().isEmpty();
+  }
+  if (clusteredPartitioning) {
     if (partitionNrRowSetList == null) {
       partitionNrRowSetList=new RowSet[outputRowSets.size()];
       SlaveStepCopyPartitionDistribution distribution=transMeta.getSlaveStepCopyPartitionDistribution();
       String nextPartitionSchemaName=TransSplitter.createPartitionSchemaNameFromTarget(nextStepPartitioningMeta.getPartitionSchema().getName());
       for (      RowSet outputRowSet : outputRowSets) {
         try {
-          int partNr;
-          if (distribution.getDistribution().isEmpty()) {
-            partNr=outputRowSet.getDestinationStepCopy();
-          }
- else {
-            partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),nextPartitionSchemaName,outputRowSet.getDestinationStepCopy());
-          }
+          int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),nextPartitionSchemaName,outputRowSet.getDestinationStepCopy());
           if (partNr < 0) {
             throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", partition schema="+ nextStepPartitioningMeta.getPartitionSchema().getName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
           }
