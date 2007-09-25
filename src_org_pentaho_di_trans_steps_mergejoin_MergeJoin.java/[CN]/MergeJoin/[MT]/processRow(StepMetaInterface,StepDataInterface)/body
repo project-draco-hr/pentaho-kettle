@@ -56,7 +56,7 @@
     data.one_dummy=RowDataUtil.allocateRowData(data.oneMeta.size() + data.twoMeta.size());
     data.two_dummy=new Object[data.twoMeta.size()];
   }
-  if (log.isRowLevel())   logRowlevel(Messages.getString("MergeJoin.Log.DataInfo",data.one + "") + data.two);
+  if (log.isRowLevel())   logRowlevel(Messages.getString("MergeJoin.Log.DataInfo",data.oneMeta.getString(data.one) + "") + data.twoMeta.getString(data.two));
   if ((data.one == null && data.two == null) || (data.one == null && data.one_optional == false) || (data.two == null && data.two_optional == false)) {
     setOutputDone();
     return false;
@@ -87,11 +87,10 @@ if (data.twos == null) data.twos=new ArrayList<Object[]>();
 data.ones.add(data.one);
 if (compare1 == 0) {
 data.ones.add(data.one_next);
-boolean done=false;
-while (!done && !isStopped()) {
+for (; !isStopped(); ) {
   data.one_next=getRowFrom(data.oneRowSet);
   if (0 != ((data.one_next == null) ? -1 : data.oneMeta.compare(data.one,data.one_next,data.keyNrs1,data.keyNrs1))) {
-    done=true;
+    break;
   }
   data.ones.add(data.one_next);
 }
@@ -100,11 +99,10 @@ if (isStopped()) return false;
 data.twos.add(data.two);
 if (compare2 == 0) {
 data.twos.add(data.two_next);
-boolean done=false;
-while (!done && !isStopped()) {
+for (; !isStopped(); ) {
   data.two_next=getRowFrom(data.twoRowSet);
   if (0 != ((data.two_next == null) ? -1 : data.twoMeta.compare(data.two,data.two_next,data.keyNrs2,data.keyNrs2))) {
-    done=true;
+    break;
   }
   data.twos.add(data.two_next);
 }
@@ -126,7 +124,7 @@ data.one=data.one_next;
 data.two=data.two_next;
 break;
 case 1:
-logDebug("First stream has missing key");
+if (log.isDebug()) logDebug("First stream has missing key");
 if (data.one_optional == true) {
 if (data.two != null) {
 putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one_dummy,data.oneMeta.size(),data.two));
@@ -150,7 +148,7 @@ data.two=getRowFrom(data.twoRowSet);
 }
 break;
 case -1:
-logDebug("Second stream has missing key");
+if (log.isDebug()) logDebug("Second stream has missing key");
 if (data.two_optional == true) {
 if (data.one != null) {
 putRow(data.outputRowMeta,RowDataUtil.addRowData(data.one,data.oneMeta.size(),data.two_dummy));
