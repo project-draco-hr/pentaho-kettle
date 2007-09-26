@@ -43,14 +43,19 @@
   }
   if (!Const.isEmpty(optionRepname) && !Const.isEmpty(optionUsername))   log.logDetailed(STRING_KITCHEN,"Repository and username supplied");
   log.logMinimal(STRING_KITCHEN,"Start of run.");
-  StepLoader steploader=StepLoader.getInstance();
-  if (!steploader.read()) {
-    log.logError(STRING_KITCHEN,"Error loading steps... halting Kitchen!");
+  try {
+    StepLoader.init();
+  }
+ catch (  KettleException e) {
+    log.logError(STRING_KITCHEN,"Error loading steps... halting Kitchen!",e);
     System.exit(8);
   }
-  JobEntryLoader jeloader=JobEntryLoader.getInstance();
-  if (!jeloader.read()) {
-    log.logError(STRING_KITCHEN,"Error loading job entries & plugins... halting Kitchen!");
+  StepLoader stepLoader=StepLoader.getInstance();
+  try {
+    JobEntryLoader.init();
+  }
+ catch (  KettleException e) {
+    log.logError(STRING_KITCHEN,"Error loading job entries & plugins... halting Kitchen!",e);
     return;
   }
   Date start, stop;
@@ -86,7 +91,7 @@
                     log.logDebug(STRING_KITCHEN,"Load the job info...");
                     jobMeta=new JobMeta(log,repository,optionJobname.toString(),directory);
                     log.logDebug(STRING_KITCHEN,"Allocate job...");
-                    job=new Job(log,steploader,repository,jobMeta);
+                    job=new Job(log,stepLoader,repository,jobMeta);
                   }
  else                   if ("Y".equalsIgnoreCase(optionListjobs.toString())) {
                     log.logDebug(STRING_KITCHEN,"Getting list of jobs in directory: " + directory);
@@ -128,7 +133,7 @@
       }
       if (!Const.isEmpty(optionFilename) && job == null) {
         jobMeta=new JobMeta(log,optionFilename.toString(),null,null);
-        job=new Job(log,steploader,null,jobMeta);
+        job=new Job(log,stepLoader,null,jobMeta);
       }
     }
  else     if ("Y".equalsIgnoreCase(optionListrep.toString())) {
