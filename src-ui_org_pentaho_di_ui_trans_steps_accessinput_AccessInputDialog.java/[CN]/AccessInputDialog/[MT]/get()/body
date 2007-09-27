@@ -1,46 +1,64 @@
 {
+  RowMetaInterface fields=new RowMeta();
   try {
     AccessInputMeta meta=new AccessInputMeta();
     getInfo(meta);
     if (!checkInputTableName(meta))     return;
     FileInputList inputList=meta.getFiles(transMeta);
-    wFields.removeAll();
-    if (inputList.nrOfFiles() > 0) {
+    if (inputList.getFiles().size() > 0) {
       Database d=Database.open(new File(KettleVFS.getFilename(inputList.getFile(0))));
-      Table t=d.getTable(transMeta.environmentSubstitute(meta.getTableName()));
+      Table t=d.getTable(meta.getTableName());
       List<Column> col=t.getColumns();
-      log.logDetailed("Nbr Columns ","" + col.size());
-      Map<String,Object> row=t.getNextRow();
-      Iterator<String> columnNameIterator=row.keySet().iterator();
-      while (columnNameIterator.hasNext()) {
-        String fieldName=columnNameIterator.next();
-        Object obj=row.get(fieldName);
-        TableItem item=new TableItem(wFields.table,SWT.NONE);
-        item.setText(1,fieldName);
-        item.setText(2,fieldName);
-        String attributeValue=String.valueOf(obj);
-        if (IsDate(attributeValue)) {
-          item.setText(3,"Date");
+      for (int i=0; i < col.size(); i++) {
+        String fieldname=null;
+        int fieldtype=ValueMetaInterface.TYPE_NONE;
+        Column c=(Column)col.get(i);
+        fieldname=c.getName();
+        if (c.getType().INT.equals(c.getType())) {
+          fieldtype=ValueMetaInterface.TYPE_INTEGER;
         }
- else         if (IsInteger(attributeValue)) {
-          item.setText(3,"Integer");
+ else         if (c.getType().BOOLEAN.equals(c.getType())) {
+          fieldtype=ValueMetaInterface.TYPE_BOOLEAN;
         }
- else         if (IsNumber(attributeValue)) {
-          item.setText(3,"Number");
+ else         if (c.getType().BINARY.equals(c.getType())) {
+          fieldtype=ValueMetaInterface.TYPE_BINARY;
+        }
+ else         if ((c.getType().DOUBLE.equals(c.getType())) || (c.getType().LONG.equals(c.getType())) || (c.getType().NUMERIC.equals(c.getType()))) {
+          fieldtype=ValueMetaInterface.TYPE_NUMBER;
+        }
+ else         if ((c.getType().equals(c.getType().FLOAT)) || (c.getType().MONEY.equals(c.getType())) || (c.getType().MEMO.equals(c.getType()))) {
+          fieldtype=ValueMetaInterface.TYPE_BIGNUMBER;
+        }
+ else         if ((c.getType().SHORT_DATE_TIME.equals(c.getType()))) {
+          fieldtype=ValueMetaInterface.TYPE_DATE;
         }
  else {
-          item.setText(3,"String");
+          fieldtype=ValueMetaInterface.TYPE_STRING;
+        }
+        if (fieldname != null && fieldtype != ValueMetaInterface.TYPE_NONE) {
+          ValueMetaInterface field=new ValueMeta(fieldname,fieldtype);
+          if (fields.indexOfValue(field.getName()) < 0)           fields.addValueMeta(field);
         }
       }
+    }
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,Messages.getString("System.Dialog.Error.Title"),Messages.getString("AccessInputDialog.ErrorReadingFile.DialogMessage",e.toString()),e);
+  }
+  if (fields.size() > 0) {
+    wFields.removeAll();
+    for (int j=0; j < fields.size(); j++) {
+      ValueMetaInterface field=fields.getValueMeta(j);
+      wFields.add(new String[]{field.getName(),field.getName(),field.getTypeDesc(),"","-1","","","","","none","N"});
     }
     wFields.removeEmptyRows();
     wFields.setRowNums();
     wFields.optWidth(true);
   }
- catch (  KettleException e) {
-    new ErrorDialog(shell,Messages.getString("AccessInputDialog.ErrorGettingColums.DialogTitle"),Messages.getString("AccessInputDialog.ErrorGettingColums.DialogMessage"),e);
-  }
-catch (  Exception e) {
-    new ErrorDialog(shell,Messages.getString("AccessInputDialog.ErrorGettingColums.DialogTitle"),Messages.getString("AccessInputDialog.ErrorGettingColums.DialogMessage"),e);
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+    mb.setMessage(Messages.getString("AccessInputDialog.UnableToFindFields.DialogMessage"));
+    mb.setText(Messages.getString("AccessInputDialog.UnableToFindFields.DialogTitle"));
+    mb.open();
   }
 }
