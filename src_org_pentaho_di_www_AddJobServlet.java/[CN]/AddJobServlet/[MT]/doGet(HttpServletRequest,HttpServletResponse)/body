@@ -24,12 +24,28 @@
     JobConfiguration jobConfiguration=JobConfiguration.fromXML(xml.toString());
     JobMeta jobMeta=jobConfiguration.getJobMeta();
     jobMeta.injectVariables(jobConfiguration.getJobExecutionConfiguration().getVariables());
-    Job job=new Job(LogWriter.getInstance(),StepLoader.getInstance(),null,jobMeta);
+    final Repository repository=jobConfiguration.getJobExecutionConfiguration().getRepository();
+    final Job job=new Job(LogWriter.getInstance(),StepLoader.getInstance(),repository,jobMeta);
     Job oldOne=jobMap.getJob(job.getName());
     if (oldOne != null && oldOne.isActive()) {
       throw new Exception("A job with the same name exists and is not idle." + Const.CR + "Please stop this job first.");
     }
     jobMap.addJob(jobMeta.getName(),job,jobConfiguration);
+    if (repository != null) {
+      new Thread(new Runnable(){
+        public void run(){
+          while (job.isActive() || !job.isInitialized()) {
+            try {
+              Thread.sleep(250);
+            }
+ catch (            InterruptedException e) {
+            }
+          }
+          repository.disconnect();
+        }
+      }
+).start();
+    }
     String message;
     if (oldOne != null) {
       message="Job '" + job.getName() + "' was replaced in the list.";

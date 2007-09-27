@@ -34,4 +34,36 @@
   replayDate=XMLHandler.stringToDate(XMLHandler.getTagValue(trecNode,"replay_date"));
   safeModeEnabled="Y".equalsIgnoreCase(XMLHandler.getTagValue(trecNode,"safe_mode"));
   logLevel=LogWriter.getLogLevel(XMLHandler.getTagValue(trecNode,"log_level"));
+  Node resultNode=XMLHandler.getSubNode(trecNode,Result.XML_TAG);
+  if (resultNode != null) {
+    try {
+      previousResult=new Result(resultNode);
+    }
+ catch (    IOException e) {
+      LogWriter.getInstance().logError("Job execution configuration","Unable to hydrate previous result",e);
+    }
+  }
+  Node repNode=XMLHandler.getSubNode(trecNode,"repository");
+  if (repNode != null) {
+    String repositoryName=XMLHandler.getTagValue(repNode,"name");
+    String username=XMLHandler.getTagValue(repNode,"login");
+    String password=Encr.decryptPassword(XMLHandler.getTagValue(repNode,"password"));
+    RepositoriesMeta repositoriesMeta=new RepositoriesMeta(LogWriter.getInstance());
+    if (!repositoriesMeta.readData()) {
+      throw new KettleException("Unable to get a list of repositories to locate repository '" + repositoryName + "'");
+    }
+    RepositoryMeta repositoryMeta=repositoriesMeta.findRepository(repositoryName);
+    if (repositoryMeta == null) {
+      throw new KettleException("I couldn't find the repository with name '" + repositoryName + "'");
+    }
+    Repository rep=new Repository(LogWriter.getInstance(),repositoryMeta,null);
+    if (!rep.connect("Job execution configuration")) {
+      throw new KettleException("Unable to connect to the repository with name '" + repositoryName + "'");
+    }
+    UserInfo userInfo=new UserInfo(rep,username,password);
+    if (userInfo.getID() <= 0) {
+      rep.disconnect();
+      throw new KettleException("Unable to verify username '" + username + "' credentials for the repository with name '"+ repositoryName+ "'");
+    }
+  }
 }

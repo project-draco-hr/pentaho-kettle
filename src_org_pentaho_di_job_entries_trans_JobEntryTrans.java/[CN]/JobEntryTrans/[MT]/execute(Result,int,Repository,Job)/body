@@ -94,12 +94,43 @@
         executionConfiguration.setClusterStarting(true);
         executionConfiguration.setClusterShowingTransformation(false);
         executionConfiguration.setSafeModeEnabled(false);
+        executionConfiguration.setRepository(rep);
         TransSplitter transSplitter=Trans.executeClustered(transMeta,executionConfiguration);
         long errors=Trans.monitorClusteredTransformation(toString(),transSplitter,parentJob);
         Result clusterResult=Trans.getClusteredTransformationResult(toString(),transSplitter,parentJob);
         result.clear();
         result.add(clusterResult);
         result.setNrErrors(result.getNrErrors() + errors);
+      }
+ else       if (remoteSlaveServer != null) {
+        TransExecutionConfiguration transExecutionConfiguration=new TransExecutionConfiguration();
+        transExecutionConfiguration.setPreviousResult(transMeta.getPreviousResult().clone());
+        transExecutionConfiguration.setArgumentStrings(args);
+        transExecutionConfiguration.setVariables(this);
+        transExecutionConfiguration.setRemoteServer(remoteSlaveServer);
+        Trans.sendXMLToSlaveServer(transMeta,transExecutionConfiguration);
+        while (!parentJob.isStopped()) {
+          try {
+            SlaveServerTransStatus transStatus=remoteSlaveServer.getTransStatus(transMeta.getName());
+            if (!transStatus.isRunning()) {
+              Result remoteResult=transStatus.getResult();
+              result.clear();
+              result.add(remoteResult);
+              break;
+            }
+          }
+ catch (          Exception e1) {
+            log.logError(toString(),"Unable to contact slave server [" + remoteSlaveServer + "] to verify the status of transformation ["+ transMeta.getName()+ "]");
+            result.setNrErrors(result.getNrErrors() + 1L);
+            break;
+          }
+          try {
+            Thread.sleep(10000);
+          }
+ catch (          InterruptedException e) {
+          }
+          ;
+        }
       }
  else {
         Trans trans=new Trans(transMeta);

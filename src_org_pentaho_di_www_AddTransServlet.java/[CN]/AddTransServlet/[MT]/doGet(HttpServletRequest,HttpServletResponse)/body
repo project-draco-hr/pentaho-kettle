@@ -24,7 +24,9 @@
     TransConfiguration transConfiguration=TransConfiguration.fromXML(xml.toString());
     TransMeta transMeta=transConfiguration.getTransMeta();
     transMeta.injectVariables(transConfiguration.getTransExecutionConfiguration().getVariables());
-    Trans trans=new Trans(transMeta);
+    final Repository repository=transConfiguration.getTransExecutionConfiguration().getRepository();
+    final Trans trans=new Trans(transMeta);
+    trans.setRepository(repository);
     Trans oldOne=transformationMap.getTransformation(trans.getName());
     if (oldOne != null && !oldOne.isFinished()) {
       if (oldOne.isRunning() || oldOne.isPreparing() || oldOne.isInitializing()) {
@@ -32,6 +34,21 @@
       }
     }
     transformationMap.addTransformation(transMeta.getName(),trans,transConfiguration);
+    if (repository != null) {
+      new Thread(new Runnable(){
+        public void run(){
+          while (!trans.isFinished()) {
+            try {
+              Thread.sleep(250);
+            }
+ catch (            InterruptedException e) {
+            }
+          }
+          repository.disconnect();
+        }
+      }
+).start();
+    }
     String message;
     if (oldOne != null) {
       message="Transformation '" + trans.getName() + "' was replaced in the list.";
