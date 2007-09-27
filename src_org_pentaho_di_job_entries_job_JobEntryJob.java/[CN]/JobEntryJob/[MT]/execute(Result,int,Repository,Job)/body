@@ -66,15 +66,8 @@
  else {
         resultRow=null;
       }
-      Job job=new Job(logwriter,StepLoader.getInstance(),rep,jobMeta);
-      job.shareVariablesWith(this);
-      job.beginProcessing();
-      parentJob.getJobTracker().addJobTracker(job.getJobTracker());
-      job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
-      job.setParentJob(parentJob);
-      if (parentJob.getJobMeta().isBatchIdPassed()) {
-        job.setPassedBatchId(parentJob.getBatchId());
-      }
+      Result oneResult=new Result();
+      List<RowMetaAndData> sourceRows=null;
       if (execPerRow) {
         if (argFromPrevious) {
           args=null;
@@ -88,7 +81,7 @@
  else {
           List<RowMetaAndData> newList=new ArrayList<RowMetaAndData>();
           newList.add(resultRow);
-          job.setSourceRows(newList);
+          sourceRows=newList;
         }
       }
  else {
@@ -102,36 +95,76 @@
           }
         }
  else {
-          job.setSourceRows(result.getRows());
+          sourceRows=result.getRows();
         }
       }
-      job.getJobMeta().setArguments(args);
-      JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr);
-      Thread jobRunnerThread=new Thread(runner);
-      jobRunnerThread.setName(Const.NVL(job.getJobMeta().getName(),job.getJobMeta().getFilename()));
-      jobRunnerThread.start();
-      try {
-        while (!runner.isFinished() && !parentJob.isStopped()) {
+      if (remoteSlaveServer == null) {
+        Job job=new Job(logwriter,StepLoader.getInstance(),rep,jobMeta);
+        job.shareVariablesWith(this);
+        job.setSourceRows(sourceRows);
+        job.beginProcessing();
+        parentJob.getJobTracker().addJobTracker(job.getJobTracker());
+        job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
+        job.setParentJob(parentJob);
+        if (parentJob.getJobMeta().isBatchIdPassed()) {
+          job.setPassedBatchId(parentJob.getBatchId());
+        }
+        job.getJobMeta().setArguments(args);
+        JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr);
+        Thread jobRunnerThread=new Thread(runner);
+        jobRunnerThread.setName(Const.NVL(job.getJobMeta().getName(),job.getJobMeta().getFilename()));
+        jobRunnerThread.start();
+        try {
+          while (!runner.isFinished() && !parentJob.isStopped()) {
+            try {
+              Thread.sleep(100);
+            }
+ catch (            InterruptedException e) {
+            }
+          }
+          if (parentJob.isStopped()) {
+            job.stopAll();
+            runner.waitUntilFinished();
+            job.endProcessing("stop",new Result());
+          }
+ else {
+            job.endProcessing("end",runner.getResult());
+          }
+        }
+ catch (        KettleException je) {
+          log.logError(toString(),"Unable to open job entry job with name [" + getName() + "] : "+ Const.CR+ je.toString());
+          result.setNrErrors(1);
+        }
+        oneResult=runner.getResult();
+      }
+ else {
+        JobExecutionConfiguration jobExecutionConfiguration=new JobExecutionConfiguration();
+        jobExecutionConfiguration.setSourceRows(sourceRows);
+        jobExecutionConfiguration.setArgumentStrings(args);
+        jobExecutionConfiguration.setVariables(this);
+        jobExecutionConfiguration.setRemoteServer(remoteSlaveServer);
+        SpoonSlaveDelegate.sendXMLToSlaveServer(jobMeta,jobExecutionConfiguration);
+        while (!parentJob.isStopped()) {
           try {
-            Thread.sleep(100);
+            SlaveServerJobStatus jobStatus=remoteSlaveServer.getJobStatus(jobMeta.getName());
+            if (!jobStatus.isRunning() && !jobStatus.isWaiting()) {
+              oneResult=jobStatus.getResult();
+              break;
+            }
+          }
+ catch (          Exception e1) {
+            log.logError(toString(),"Unable to contact slave server [" + remoteSlaveServer + "] to verify the status of job ["+ jobMeta.getName()+ "]");
+            oneResult.setNrErrors(1L);
+            break;
+          }
+          try {
+            Thread.sleep(10000);
           }
  catch (          InterruptedException e) {
           }
-        }
-        if (parentJob.isStopped()) {
-          job.stopAll();
-          runner.waitUntilFinished();
-          job.endProcessing("stop",new Result());
-        }
- else {
-          job.endProcessing("end",runner.getResult());
+          ;
         }
       }
- catch (      KettleException je) {
-        log.logError(toString(),"Unable to open job entry job with name [" + getName() + "] : "+ Const.CR+ je.toString());
-        result.setNrErrors(1);
-      }
-      Result oneResult=runner.getResult();
       if (iteration == 0) {
         result.clear();
       }
@@ -163,6 +196,5 @@
  else {
     result.setResult(true);
   }
-  System.gc();
   return result;
 }

@@ -1,0 +1,42 @@
+{
+  try {
+    setID(id_jobentry_copy);
+    RowMetaAndData r=rep.getJobEntryCopy(id_jobentry_copy);
+    if (r != null) {
+      long id_jobentry=r.getInteger("ID_JOBENTRY",0);
+      long id_jobentry_type=r.getInteger("ID_JOBENTRY_TYPE",0);
+      setNr((int)r.getInteger("NR",0));
+      int locx=(int)r.getInteger("GUI_LOCATION_X",0);
+      int locy=(int)r.getInteger("GUI_LOCATION_Y",0);
+      boolean isdrawn=r.getBoolean("GUI_DRAW",false);
+      boolean isparallel=r.getBoolean("PARALLEL",false);
+      entry=JobMeta.findJobEntry(jobentries,id_jobentry);
+      if (entry == null) {
+        RowMetaAndData rt=rep.getJobEntryType(id_jobentry_type);
+        if (rt != null) {
+          String jet_code=rt.getString("CODE",null);
+          JobEntryLoader jobLoader=JobEntryLoader.getInstance();
+          JobPlugin jobPlugin=jobLoader.findJobEntriesWithID(jet_code);
+          if (jobPlugin != null) {
+            entry=jobLoader.getJobEntryClass(jobPlugin);
+            entry.loadRep(rep,id_jobentry,databases,slaveServers);
+            entry.setID(id_jobentry);
+            jobentries.add(entry);
+          }
+ else {
+            throw new KettleException("JobEntryLoader was unable to find Job Entry Plugin with description [" + jet_code + "].");
+          }
+        }
+ else {
+          throw new KettleException("Unable to find Job Entry Type with id=" + id_jobentry_type + " in the repository");
+        }
+      }
+      setLocation(locx,locy);
+      setDrawn(isdrawn);
+      setParallel(isparallel);
+    }
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleException("Unable to load job entry copy from repository with id_jobentry_copy=" + id_jobentry_copy,dbe);
+  }
+}
