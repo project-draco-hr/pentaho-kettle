@@ -1,16 +1,33 @@
 {
-  TransGraph transGraph=getActiveTransGraph();
-  if (transGraph == null) {
-    pasteTransformation();
-  }
- else {
-    TransMeta transMeta=(TransMeta)transGraph.getMeta();
-    String clipcontent=fromClipboard();
-    if (clipcontent != null) {
-      Point lastMove=transGraph.getLastMove();
-      if (lastMove != null) {
-        pasteXML(transMeta,clipcontent,lastMove);
+  String clipcontent=fromClipboard();
+  if (clipcontent != null) {
+    try {
+      Document document=XMLHandler.loadXMLString(clipcontent);
+      boolean transformation=XMLHandler.getSubNode(document,TransMeta.XML_TAG) != null;
+      boolean job=XMLHandler.getSubNode(document,JobMeta.XML_TAG) != null;
+      boolean steps=XMLHandler.getSubNode(document,Spoon.XML_TAG_TRANSFORMATION_STEPS) != null;
+      boolean jobEntries=XMLHandler.getSubNode(document,Spoon.XML_TAG_JOB_JOB_ENTRIES) != null;
+      if (transformation) {
+        pasteTransformation();
       }
+ else       if (job) {
+        pasteJob();
+      }
+ else       if (steps) {
+        TransGraph transGraph=getActiveTransGraph();
+        if (transGraph != null && transGraph.getLastMove() != null) {
+          pasteXML(transGraph.getManagedObject(),clipcontent,transGraph.getLastMove());
+        }
+      }
+ else       if (jobEntries) {
+        JobGraph jobGraph=getActiveJobGraph();
+        if (jobGraph != null && jobGraph.getLastMove() != null) {
+          pasteXML(jobGraph.getManagedObject(),clipcontent,jobGraph.getLastMove());
+        }
+      }
+    }
+ catch (    KettleXMLException e) {
+      log.logError(toString(),"Unable to paste",e);
     }
   }
 }
