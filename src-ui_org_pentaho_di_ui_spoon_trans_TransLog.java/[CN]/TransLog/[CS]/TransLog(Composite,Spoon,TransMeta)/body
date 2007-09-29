@@ -8,7 +8,6 @@
   running=false;
   debug=false;
   lastUpdateView=0L;
-  lastUpdateLog=0L;
   FormLayout formLayout=new FormLayout();
   formLayout.marginWidth=Const.FORM_MARGIN;
   formLayout.marginHeight=Const.FORM_MARGIN;
@@ -114,12 +113,38 @@
   fdSash.bottom=new FormAttachment(wStart,-5);
   sash.setLayoutData(fdSash);
   pack();
-  try {
-    in=log.getFileInputStream();
+  stringAppender=LogWriter.createStringAppender();
+  stringAppender.setMaxNrLines(Props.getInstance().getMaxNrLinesInLog());
+  stringAppender.addBufferChangedListener(new BufferChangedListener(){
+    public void contentWasAdded(    final StringBuffer content,    final String extra,    final int nrLines){
+      display.asyncExec(new Runnable(){
+        public void run(){
+          if (!wText.isDisposed()) {
+            textSize++;
+            if (textSize >= nrLines + 200) {
+              wText.setText(content.toString());
+              wText.setSelection(content.length());
+              wText.showSelection();
+              wText.clearSelection();
+              textSize=nrLines;
+            }
+ else {
+              wText.append(extra);
+            }
+          }
+        }
+      }
+);
+    }
   }
- catch (  Exception e) {
-    log.logError(Spoon.APP_NAME,Messages.getString("SpoonLog.Log.CouldNotLinkInputToOutputPipe"));
+);
+  log.addAppender(stringAppender);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      log.removeAppender(stringAppender);
+    }
   }
+);
   lsError=new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
       showErrors();
@@ -138,7 +163,6 @@
               checkStartThreads();
               checkTransEnded();
               checkErrors();
-              readLog();
               refreshView();
               busy.setCharAt(0,'N');
             }

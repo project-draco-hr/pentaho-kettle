@@ -103,12 +103,38 @@
   sash.setLayoutData(fdSash);
   sash.setWeights(new int[]{60,40});
   pack();
-  try {
-    in=log.getFileInputStream();
+  stringAppender=LogWriter.createStringAppender();
+  stringAppender.setMaxNrLines(Props.getInstance().getMaxNrLinesInLog());
+  stringAppender.addBufferChangedListener(new BufferChangedListener(){
+    public void contentWasAdded(    final StringBuffer content,    final String extra,    final int nrLines){
+      display.asyncExec(new Runnable(){
+        public void run(){
+          if (!wText.isDisposed()) {
+            textSize++;
+            if (textSize >= nrLines + 200) {
+              wText.setText(content.toString());
+              wText.setSelection(content.length());
+              wText.showSelection();
+              wText.clearSelection();
+              textSize=nrLines;
+            }
+ else {
+              wText.append(extra);
+            }
+          }
+        }
+      }
+);
+    }
   }
- catch (  Exception e) {
-    System.out.println(Messages.getString("JobLog.Error.CouldNotCreateInputPipe"));
+);
+  log.addAppender(stringAppender);
+  addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      log.removeAppender(stringAppender);
+    }
   }
+);
   lsRefresh=new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
       readLog();
@@ -176,4 +202,14 @@
     }
   }
 );
+  addKeyListener(spoon.defKeys);
+  wTree.addKeyListener(spoon.defKeys);
+  wText.addKeyListener(spoon.defKeys);
+  sash.addKeyListener(spoon.defKeys);
+  wRefresh.addKeyListener(spoon.defKeys);
+  wStart.addKeyListener(spoon.defKeys);
+  wStop.addKeyListener(spoon.defKeys);
+  wError.addKeyListener(spoon.defKeys);
+  wClear.addKeyListener(spoon.defKeys);
+  wLog.addKeyListener(spoon.defKeys);
 }
