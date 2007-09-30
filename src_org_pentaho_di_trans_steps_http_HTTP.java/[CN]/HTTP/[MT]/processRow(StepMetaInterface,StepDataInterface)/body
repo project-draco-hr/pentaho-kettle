@@ -1,6 +1,8 @@
 {
   meta=(HTTPMeta)smi;
   data=(HTTPData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
   Object[] r=getRow();
   if (r == null) {
     setOutputDone();
@@ -16,11 +18,20 @@
     if (checkFeedback(linesRead))     logBasic(Messages.getString("HTTP.LineNumber") + linesRead);
   }
  catch (  KettleException e) {
-    logError(Messages.getString("HTTP.ErrorInStepRunning") + e.getMessage());
-    setErrors(1);
-    stopAll();
-    setOutputDone();
-    return false;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("HTTP.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"HTTP001");
+    }
   }
   return true;
 }
