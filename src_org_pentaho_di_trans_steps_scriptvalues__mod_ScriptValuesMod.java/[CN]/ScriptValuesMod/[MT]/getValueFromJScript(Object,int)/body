@@ -9,8 +9,14 @@ case ValueMetaInterface.TYPE_NUMBER:
             return null;
           }
  else           if (classType.equalsIgnoreCase("org.mozilla.javascript.NativeJavaObject")) {
-            String string=Context.toString(result);
-            return new Double(Double.parseDouble(string));
+            try {
+              Value v=(Value)Context.jsToJava(result,Value.class);
+              return v.getNumber();
+            }
+ catch (            Exception e) {
+              String string=Context.toString(result);
+              return new Double(Double.parseDouble(ValueDataUtil.trim(string)));
+            }
           }
  else {
             Number nb=(Number)result;
@@ -39,8 +45,14 @@ case ValueMetaInterface.TYPE_INTEGER:
           return null;
         }
  else         if (classType.equalsIgnoreCase("org.mozilla.javascript.NativeJavaObject")) {
-          String string=Context.toString(result);
-          return new Long(Long.parseLong(string));
+          try {
+            Value value=(Value)Context.jsToJava(result,Value.class);
+            return value.getInteger();
+          }
+ catch (          Exception e2) {
+            String string=Context.toString(result);
+            return new Long(Long.parseLong(ValueDataUtil.trim(string)));
+          }
         }
  else {
           return new Long((long)((Long)result).longValue());
@@ -48,15 +60,16 @@ case ValueMetaInterface.TYPE_INTEGER:
 case ValueMetaInterface.TYPE_STRING:
       if (classType.equalsIgnoreCase("org.mozilla.javascript.NativeJavaObject") || classType.equalsIgnoreCase("org.mozilla.javascript.Undefined")) {
         try {
-          return Context.toString(result);
+          Value v=(Value)Context.jsToJava(result,Value.class);
+          return v.toString();
         }
  catch (        Exception ev) {
-          String string=(String)Context.jsToJava(result,String.class);
+          String string=(String)Context.toString(result);
           return string;
         }
       }
  else {
-        String string=(String)Context.jsToJava(result,String.class);
+        String string=(String)Context.toString(result);
         return string;
       }
 case ValueMetaInterface.TYPE_DATE:
@@ -74,7 +87,19 @@ case ValueMetaInterface.TYPE_DATE:
         dbl=dat.getTime();
       }
  catch (      Exception e) {
-        throw new KettleValueException("Can't convert a string to a date");
+        try {
+          Value value=(Value)Context.jsToJava(result,Value.class);
+          return value.getDate();
+        }
+ catch (        Exception e2) {
+          try {
+            String string=(String)Context.toString(result);
+            return XMLHandler.stringToDate(string);
+          }
+ catch (          Exception e3) {
+            throw new KettleValueException("Can't convert a string to a date");
+          }
+        }
       }
     }
  else     if (classType.equalsIgnoreCase("java.lang.Double")) {
@@ -100,8 +125,15 @@ try {
   return bd;
 }
  catch (Exception e) {
-  String string=(String)Context.jsToJava(result,String.class);
-  return new BigDecimal(string);
+  try {
+    Value v=(Value)Context.jsToJava(result,Value.class);
+    if (!v.isNull())     return v.getBigNumber();
+ else     return null;
+  }
+ catch (  Exception e2) {
+    String string=(String)Context.jsToJava(result,String.class);
+    return new BigDecimal(string);
+  }
 }
 }
  else if (classType.equalsIgnoreCase("java.lang.Byte")) {
