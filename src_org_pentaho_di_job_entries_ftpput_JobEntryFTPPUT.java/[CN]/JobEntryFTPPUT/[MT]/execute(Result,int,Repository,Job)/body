@@ -8,9 +8,9 @@
   String realServerPort=environmentSubstitute(serverPort);
   String realUsername=environmentSubstitute(userName);
   String realPassword=environmentSubstitute(password);
-  String realRemoteDirectory=environmentSubstitute(sftpDirectory);
+  String realRemoteDirectory=environmentSubstitute(remoteDirectory);
   String realWildcard=environmentSubstitute(wildcard);
-  String realLocalDirectory=environmentSubstitute(targetDirectory);
+  String realLocalDirectory=environmentSubstitute(localDirectory);
   FTPClient ftpclient=null;
   try {
     ftpclient=new FTPClient();
@@ -25,12 +25,18 @@
       ftpclient.setConnectMode(FTPConnectMode.PASV);
       if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.SetPassiveConnection"));
     }
-    ftpclient.setTimeout(timeout);
-    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.SetTimeout","" + timeout));
+    if (timeout > 0) {
+      ftpclient.setTimeout(timeout);
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.SetTimeout","" + timeout));
+    }
     ftpclient.setControlEncoding(controlEncoding);
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.SetEncoding",controlEncoding));
     ftpclient.connect();
     ftpclient.login(realUsername,realPassword);
+    if (binaryMode) {
+      ftpclient.setType(FTPTransferType.BINARY);
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.BinaryMode"));
+    }
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.Logged",realUsername));
     if (!Const.isEmpty(realRemoteDirectory)) {
       ftpclient.chdir(realRemoteDirectory);
@@ -60,7 +66,9 @@
         getIt=matcher.matches();
       }
       if (getIt) {
-        if (!ftpclient.exists(filelist[i]) || (ftpclient.exists(filelist[i]) && !onlyPuttingNewFiles)) {
+        boolean putFile=true;
+        if (onlyPuttingNewFiles)         putFile=!ftpclient.exists(filelist[i]);
+        if (putFile) {
           if (log.isDebug())           log.logDebug(toString(),Messages.getString("JobFTPPUT.Log.PuttingFileToRemoteDirectory",filelist[i],realRemoteDirectory));
           String localFilename=realLocalDirectory + Const.FILE_SEPARATOR + filelist[i];
           ftpclient.put(localFilename,filelist[i]);
