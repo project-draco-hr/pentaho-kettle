@@ -1,0 +1,43 @@
+{
+  if (getAccessType() != TYPE_ACCESS_PLUGIN) {
+    StringBuffer report=new StringBuffer();
+    Database db=new Database(this);
+    if (isPartitioned()) {
+      PartitionDatabaseMeta[] partitioningInformation=getPartitioningInformation();
+      for (int i=0; i < partitioningInformation.length; i++) {
+        try {
+          db.connect(partitioningInformation[i].getPartitionId());
+          report.append(Messages.getString("DatabaseMeta.report.ConnectionWithPartOk",getName(),partitioningInformation[i].getPartitionId()) + Const.CR);
+        }
+ catch (        KettleException e) {
+          report.append(Messages.getString("DatabaseMeta.report.ConnectionWithPartError",getName(),partitioningInformation[i].getPartitionId(),e.toString()) + Const.CR);
+          report.append(Const.getStackTracker(e) + Const.CR);
+        }
+ finally {
+          db.disconnect();
+        }
+        appendConnectionInfo(report,db.environmentSubstitute(partitioningInformation[i].getHostname()),db.environmentSubstitute(partitioningInformation[i].getPort()),db.environmentSubstitute(partitioningInformation[i].getDatabaseName()));
+        report.append(Const.CR);
+      }
+    }
+ else {
+      try {
+        db.connect();
+        report.append(Messages.getString("DatabaseMeta.report.ConnectionOk",getName()) + Const.CR);
+      }
+ catch (      KettleException e) {
+        report.append(Messages.getString("DatabaseMeta.report.ConnectionError",getName()) + e.toString() + Const.CR);
+        report.append(Const.getStackTracker(e) + Const.CR);
+      }
+ finally {
+        db.disconnect();
+      }
+      appendConnectionInfo(report,db.environmentSubstitute(getHostname()),db.environmentSubstitute(getDatabasePortNumberString()),db.environmentSubstitute(getDatabaseName()));
+      report.append(Const.CR);
+    }
+    return report.toString();
+  }
+ else {
+    return databaseInterface.getConnectionTestReport();
+  }
+}
