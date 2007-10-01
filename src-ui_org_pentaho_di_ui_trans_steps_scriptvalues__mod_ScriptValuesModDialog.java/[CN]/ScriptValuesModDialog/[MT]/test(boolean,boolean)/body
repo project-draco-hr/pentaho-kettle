@@ -2,7 +2,7 @@
   boolean retval=true;
   StyledTextComp wScript=getStyledTextComp();
   String scr=wScript.getText();
-  String errorMessage="";
+  KettleException testException=null;
   Context jscx;
   Scriptable jsscope;
   refreshScripts();
@@ -15,12 +15,12 @@
     jsscope.put(folder.getItem(i).getText(),jsscope,jsR);
   }
   jsscope.put("_TransformationName_",jsscope,this.stepname);
-  ScriptValuesModDummy dummyStep=new ScriptValuesModDummy();
-  Scriptable jsvalue=Context.toObject(dummyStep,jsscope);
-  jsscope.put("_step_",jsscope,jsvalue);
   try {
     RowMetaInterface rowMeta=transMeta.getPrevStepFields(stepname);
     if (rowMeta != null) {
+      ScriptValuesModDummy dummyStep=new ScriptValuesModDummy(rowMeta,transMeta.getStepFields(stepname));
+      Scriptable jsvalue=Context.toObject(dummyStep,jsscope);
+      jsscope.put("_step_",jsscope,jsvalue);
       try {
         if (input.getAddClasses() != null) {
           for (int i=0; i < input.getAddClasses().length; i++) {
@@ -30,7 +30,7 @@
         }
       }
  catch (      Exception e) {
-        errorMessage="Couldn't add JavaClasses to Context! Error:" + Const.CR + e.toString();
+        testException=new KettleException("Couldn't add JavaClasses to Context!",e);
         retval=false;
       }
       try {
@@ -38,7 +38,7 @@
         ((ScriptableObject)jsscope).defineFunctionProperties(jsFunctionList,ScriptValuesAddedFunctions.class,ScriptableObject.DONTENUM);
       }
  catch (      Exception ex) {
-        errorMessage="Couldn't add Default Functions! Error:" + Const.CR + ex.toString();
+        testException=new KettleException("Couldn't add Default Functions!",ex);
         retval=false;
       }
       ;
@@ -49,7 +49,7 @@
         jsscope.put("CONTINUE_TRANSFORMATION",jsscope,Integer.valueOf(CONTINUE_TRANSFORMATION));
       }
  catch (      Exception ex) {
-        errorMessage="Couldn't add Transformation Constants! Error:" + Const.CR + ex.toString();
+        testException=new KettleException("Couldn't add Transformation Constants!",ex);
         retval=false;
       }
       ;
@@ -91,7 +91,7 @@
         }
       }
  catch (      Exception ev) {
-        errorMessage="Couldn't add Input fields to Script! Error:" + Const.CR + ev.toString();
+        testException=new KettleException("Couldn't add Input fields to Script!",ev);
         retval=false;
       }
       try {
@@ -101,7 +101,7 @@
         }
       }
  catch (      Exception e) {
-        errorMessage="Couldn't process Start Script! Error:" + Const.CR + e.toString();
+        testException=new KettleException("Couldn't process Start Script!",e);
         retval=false;
       }
       ;
@@ -158,17 +158,25 @@
           wFields.optWidth(true);
         }
       }
- catch (      JavaScriptException jse) {
-        errorMessage=Messages.getString("ScriptValuesDialogMod.Exception.CouldNotExecuteScript") + Const.CR + jse.toString();
+ catch (      EvaluatorException e) {
+        String position="(" + e.lineNumber() + ":"+ e.columnNumber()+ ")";
+        String message=Messages.getString("ScriptValuesDialogMod.Exception.CouldNotExecuteScript",position);
+        testException=new KettleException(message,e);
+        retval=false;
+      }
+catch (      JavaScriptException e) {
+        String position="(" + e.lineNumber() + ":"+ e.columnNumber()+ ")";
+        String message=Messages.getString("ScriptValuesDialogMod.Exception.CouldNotExecuteScript",position);
+        testException=new KettleException(message,e);
         retval=false;
       }
 catch (      Exception e) {
-        errorMessage=Messages.getString("ScriptValuesDialogMod.Exception.CouldNotExecuteScript2") + Const.CR + e.toString();
+        testException=new KettleException(Messages.getString("ScriptValuesDialogMod.Exception.CouldNotExecuteScript2"),e);
         retval=false;
       }
     }
  else {
-      errorMessage=Messages.getString("ScriptValuesDialogMod.Exception.CouldNotGetFields");
+      testException=new KettleException(Messages.getString("ScriptValuesDialogMod.Exception.CouldNotGetFields"));
       retval=false;
     }
     if (popup) {
@@ -181,10 +189,7 @@ catch (      Exception e) {
         }
       }
  else {
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage(errorMessage);
-        mb.setText("ERROR");
-        mb.open();
+        new ErrorDialog(shell,Messages.getString("ScriptValuesDialogMod.TestFailed.DialogTitle"),Messages.getString("ScriptValuesDialogMod.TestFailed.DialogMessage"),testException);
       }
     }
   }
