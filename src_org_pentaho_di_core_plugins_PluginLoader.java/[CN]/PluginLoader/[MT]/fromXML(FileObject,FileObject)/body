@@ -1,0 +1,89 @@
+{
+  DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
+  DocumentBuilder db=dbf.newDocumentBuilder();
+  Document doc=db.parse(xml.getContent().getInputStream());
+  Node plugin=XMLHandler.getSubNode(doc,Plugin.PLUGIN);
+  String id=XMLHandler.getTagAttribute(plugin,Plugin.ID);
+  String description=XMLHandler.getTagAttribute(plugin,Plugin.DESCRIPTION);
+  String iconfile=XMLHandler.getTagAttribute(plugin,Plugin.ICONFILE);
+  String tooltip=XMLHandler.getTagAttribute(plugin,Plugin.TOOLTIP);
+  String classname=XMLHandler.getTagAttribute(plugin,Plugin.CLASSNAME);
+  String category=XMLHandler.getTagAttribute(plugin,Plugin.CATEGORY);
+  String errorHelpfile=XMLHandler.getTagAttribute(plugin,Plugin.ERRORHELPFILE);
+  Node locCatsNode=XMLHandler.getSubNode(plugin,Plugin.LOCALIZED_CATEGORY);
+  int nrLocCats=XMLHandler.countNodes(locCatsNode,Plugin.CATEGORY);
+  Map<String,String> localizedCategories=new Hashtable<String,String>();
+  for (int j=0; j < nrLocCats; j++) {
+    Node locCatNode=XMLHandler.getSubNodeByNr(locCatsNode,Plugin.CATEGORY,j);
+    String locale=XMLHandler.getTagAttribute(locCatNode,Plugin.LOCALE);
+    String locCat=XMLHandler.getNodeValue(locCatNode);
+    if (!Const.isEmpty(locale) && !Const.isEmpty(locCat)) {
+      localizedCategories.put(locale.toLowerCase(),locCat);
+    }
+  }
+  Node locDescsNode=XMLHandler.getSubNode(plugin,Plugin.LOCALIZED_DESCRIPTION);
+  int nrLocDescs=XMLHandler.countNodes(locDescsNode,Plugin.DESCRIPTION);
+  Map<String,String> localizedDescriptions=new Hashtable<String,String>();
+  for (int j=0; j < nrLocDescs; j++) {
+    Node locDescNode=XMLHandler.getSubNodeByNr(locDescsNode,Plugin.DESCRIPTION,j);
+    String locale=XMLHandler.getTagAttribute(locDescNode,Plugin.LOCALE);
+    String locDesc=XMLHandler.getNodeValue(locDescNode);
+    if (!Const.isEmpty(locale) && !Const.isEmpty(locDesc)) {
+      localizedDescriptions.put(locale.toLowerCase(),locDesc);
+    }
+  }
+  Node locTipsNode=XMLHandler.getSubNode(plugin,Plugin.LOCALIZED_TOOLTIP);
+  int nrLocTips=XMLHandler.countNodes(locTipsNode,Plugin.TOOLTIP);
+  Map<String,String> localizedTooltips=new Hashtable<String,String>();
+  for (int j=0; j < nrLocTips; j++) {
+    Node locTipNode=XMLHandler.getSubNodeByNr(locTipsNode,Plugin.TOOLTIP,j);
+    String locale=XMLHandler.getTagAttribute(locTipNode,Plugin.LOCALE);
+    String locTip=XMLHandler.getNodeValue(locTipNode);
+    if (!Const.isEmpty(locale) && !Const.isEmpty(locTip)) {
+      localizedTooltips.put(locale.toLowerCase(),locTip);
+    }
+  }
+  Node libsnode=XMLHandler.getSubNode(plugin,Plugin.LIBRARIES);
+  int nrlibs=XMLHandler.countNodes(libsnode,Plugin.LIBRARY);
+  String jarfiles[]=new String[nrlibs];
+  for (int j=0; j < nrlibs; j++) {
+    Node libnode=XMLHandler.getSubNodeByNr(libsnode,Plugin.LIBRARY,j);
+    String jarfile=XMLHandler.getTagAttribute(libnode,Plugin.NAME);
+    jarfiles[j]=parent.resolveFile(jarfile).getURL().getFile();
+  }
+  List<URL> classpath=new ArrayList<URL>();
+  ResourcePatternResolver resolver=new PathMatchingResourcePatternResolver(new FileSystemResourceLoader());
+  for (int i=0; i < jarfiles.length; i++) {
+    try {
+      Resource[] paths=resolver.getResources(jarfiles[i]);
+      for (      Resource path : paths) {
+        classpath.add(path.getURL());
+      }
+    }
+ catch (    IOException e) {
+      e.printStackTrace();
+      continue;
+    }
+  }
+  URL urls[]=classpath.toArray(new URL[classpath.size()]);
+  URLClassLoader cl=new PDIClassLoader(urls,Thread.currentThread().getContextClassLoader());
+  String iconFilename=parent.resolveFile(iconfile).getURL().getFile();
+  Class<?> pluginClass=cl.loadClass(classname);
+  if (JobEntryInterface.class.isAssignableFrom(pluginClass)) {
+    @SuppressWarnings("unchecked") Set<JobPlugin> jps=(Set<JobPlugin>)this.plugins.get(Job.class);
+    JobPlugin plg=new JobPlugin(Plugin.TYPE_PLUGIN,id,description,tooltip,parent.getName().getURI(),jarfiles,iconFilename,classname);
+    plg.setClassLoader(cl);
+    jps.add(plg);
+  }
+ else {
+    String errorHelpFileFull=errorHelpfile;
+    String path=parent.getName().getURI();
+    if (!Const.isEmpty(errorHelpfile))     errorHelpFileFull=(path == null) ? errorHelpfile : path + Const.FILE_SEPARATOR + errorHelpfile;
+    StepPlugin sp=new StepPlugin(Plugin.TYPE_PLUGIN,new String[]{id},description,tooltip,path,jarfiles,iconFilename,classname,category,errorHelpFileFull);
+    sp.setLocalizedCategories(localizedCategories);
+    sp.setLocalizedDescriptions(localizedDescriptions);
+    sp.setLocalizedTooltips(localizedTooltips);
+    @SuppressWarnings("unchecked") Set<StepPlugin> sps=(Set<StepPlugin>)this.plugins.get(Step.class);
+    sps.add(sp);
+  }
+}

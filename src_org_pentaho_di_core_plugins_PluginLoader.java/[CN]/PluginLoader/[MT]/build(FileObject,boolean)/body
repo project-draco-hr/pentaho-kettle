@@ -3,35 +3,30 @@
     FileObject xml=null;
     if (isJar) {
       FileObject exploded=explodeJar(parent);
-      xml=exploded.getChild("plugin.xml");
+      ResolverUtil<Plugin> resPlugins=new ResolverUtil<Plugin>();
+      File fparent=new File(exploded.getURL().getFile());
+      File[] files=fparent.listFiles(new JarNameFilter());
+      URL[] classpath=new URL[files.length];
+      for (int i=0; i < files.length; i++)       classpath[i]=files[i].toURI().toURL();
+      ClassLoader cl=new PDIClassLoader(classpath,Thread.currentThread().getContextClassLoader());
+      resPlugins.setClassLoader(cl);
+      for (      FileObject couldBeJar : exploded.getChildren()) {
+        if (couldBeJar.getName().getExtension().equals(JAR))         resPlugins.loadImplementationsInJar(Const.EMPTY_STRING,new File(couldBeJar.getURL().getFile()),tests.values().toArray(new ResolverUtil.Test[2]));
+      }
+      for (      Class<? extends Plugin> match : resPlugins.getClasses()) {
+        for (        Class<? extends Annotation> cannot : tests.keySet()) {
+          Annotation annot=match.getAnnotation(cannot);
+          if (annot != null)           fromAnnotation(annot,exploded,match);
+        }
+      }
+      xml=exploded.getChild(Plugin.PLUGIN_XML_FILE);
+      if (xml == null || !xml.exists())       return;
       parent=exploded;
     }
- else     xml=parent.getChild("plugin.xml");
-    if (xml != null && xml.isReadable()) {
-      DocumentBuilderFactory dbf=DocumentBuilderFactory.newInstance();
-      DocumentBuilder db=dbf.newDocumentBuilder();
-      Document doc=db.parse(xml.getContent().getInputStream());
-      Node plugin=XMLHandler.getSubNode(doc,"plugin");
-      String id=XMLHandler.getTagAttribute(plugin,"id");
-      String description=XMLHandler.getTagAttribute(plugin,"description");
-      String iconfile=XMLHandler.getTagAttribute(plugin,"iconfile");
-      String tooltip=XMLHandler.getTagAttribute(plugin,"tooltip");
-      String classname=XMLHandler.getTagAttribute(plugin,"classname");
-      Node libsnode=XMLHandler.getSubNode(plugin,"libraries");
-      int nrlibs=XMLHandler.countNodes(libsnode,"library");
-      String jarfiles[]=new String[nrlibs];
-      for (int j=0; j < nrlibs; j++) {
-        Node libnode=XMLHandler.getSubNodeByNr(libsnode,"library",j);
-        String jarfile=XMLHandler.getTagAttribute(libnode,"name");
-        jarfiles[j]=parent.resolveFile(jarfile).getURL().getFile();
-      }
-      String iconFilename=parent.resolveFile(iconfile).getURL().getFile();
-      JobPlugin sp=new JobPlugin(JobPlugin.TYPE_PLUGIN,id,description,tooltip,parent.getName().getURI(),jarfiles,iconFilename,classname);
-      return sp;
-    }
+ else     xml=parent.getChild(Plugin.PLUGIN_XML_FILE);
+    if (xml != null && xml.isReadable())     fromXML(xml,parent);
   }
  catch (  Exception e) {
     throw new KettleConfigException(e);
   }
-  throw new KettleConfigException("Unable to read plugin.xml from " + parent);
 }

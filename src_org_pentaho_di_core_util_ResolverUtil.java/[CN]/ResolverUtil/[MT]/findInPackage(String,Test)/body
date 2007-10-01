@@ -1,0 +1,35 @@
+{
+  packageName=packageName.replace('.','/');
+  ClassLoader loader=getClassLoader();
+  Enumeration<URL> urls;
+  try {
+    urls=loader.getResources(packageName);
+  }
+ catch (  IOException ioe) {
+    log.logError(toString(),"Could not read package: " + packageName,ioe);
+    return;
+  }
+  while (urls.hasMoreElements()) {
+    try {
+      String urlPath=urls.nextElement().getFile();
+      urlPath=URLDecoder.decode(urlPath,"UTF-8");
+      if (urlPath.startsWith("file:")) {
+        urlPath=urlPath.substring(5);
+      }
+      if (urlPath.indexOf('!') > 0) {
+        urlPath=urlPath.substring(0,urlPath.indexOf('!'));
+      }
+      log.logDetailed(toString(),"Scanning for classes in [" + urlPath + "] matching criteria: "+ tests);
+      File file=new File(urlPath);
+      if (file.isDirectory()) {
+        loadImplementationsInDirectory(packageName,file,tests);
+      }
+ else {
+        loadImplementationsInJar(packageName,file,tests);
+      }
+    }
+ catch (    IOException ioe) {
+      log.logError(toString(),"could not read entries",ioe);
+    }
+  }
+}
