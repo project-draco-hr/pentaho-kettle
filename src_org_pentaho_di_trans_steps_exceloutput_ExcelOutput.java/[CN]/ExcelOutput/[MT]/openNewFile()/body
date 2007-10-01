@@ -8,11 +8,19 @@
     }
     FileObject file=KettleVFS.getFileObject(buildFilename());
     ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file,getTransMeta().getName(),getStepname());
-    resultFile.setComment("This file was created with an Excel output step");
+    resultFile.setComment("This file was created with an Excel output step by Pentaho Data Integration");
     addResultFile(resultFile);
     if (!meta.isTemplateEnabled()) {
-      data.workbook=Workbook.createWorkbook(file.getContent().getOutputStream(),ws);
-      data.sheet=data.workbook.createSheet("Sheet1",0);
+      if (file.exists()) {
+        file.delete();
+      }
+      data.outputStream=file.getContent().getOutputStream();
+      data.workbook=Workbook.createWorkbook(data.outputStream,ws);
+      String sheetname="Sheet1";
+      data.sheet=data.workbook.getSheet(sheetname);
+      if (data.sheet == null) {
+        data.sheet=data.workbook.createSheet(sheetname,0);
+      }
     }
  else {
       FileObject fo=KettleVFS.getFileObject(environmentSubstitute(meta.getTemplateFileName()));
@@ -22,12 +30,12 @@
       data.sheet=data.workbook.getSheet(0);
       data.templateColumns=data.sheet.getColumns();
     }
-    if (!Const.isEmpty(meta.getSheetname(this))) {
-      data.sheet.setName(meta.getSheetname(this));
+    if (!Const.isEmpty(environmentSubstitute(meta.getSheetname()))) {
+      data.sheet.setName(environmentSubstitute(meta.getSheetname()));
     }
     if (meta.isSheetProtected()) {
       data.sheet.getSettings().setProtected(true);
-      data.sheet.getSettings().setPassword(meta.getPassword(this));
+      data.sheet.getSettings().setPassword(environmentSubstitute(meta.getPassword()));
     }
     data.positionX=0;
     if (meta.isTemplateEnabled() && meta.isTemplateAppend()) {
@@ -39,7 +47,8 @@
     retval=true;
   }
  catch (  Exception e) {
-    logError("Error opening new file : " + e.toString());
+    logError("Error opening new file",e);
+    setErrors(1);
   }
   data.splitnr++;
   return retval;
