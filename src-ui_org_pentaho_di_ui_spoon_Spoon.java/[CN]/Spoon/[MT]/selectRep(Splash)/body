@@ -3,44 +3,12 @@
   UserInfo userinfo=null;
   StringBuffer optionRepname=getCommandLineOption("rep").getArgument();
   StringBuffer optionFilename=getCommandLineOption("file").getArgument();
+  int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION,PermissionMeta.TYPE_PERMISSION_JOB};
   if (Const.isEmpty(optionRepname) && Const.isEmpty(optionFilename) && props.showRepositoriesDialogAtStartup()) {
     log.logBasic(APP_NAME,Messages.getString("Spoon.Log.AskingForRepository"));
-    int perms[]=new int[]{PermissionMeta.TYPE_PERMISSION_TRANSFORMATION,PermissionMeta.TYPE_PERMISSION_JOB};
     splash.hide();
     RepositoriesDialog rd=new RepositoriesDialog(display,perms,Messages.getString("Spoon.Application.Name"));
-    if (rd.open()) {
-      repositoryMeta=rd.getRepository();
-      userinfo=rd.getUser();
-      if (!userinfo.useTransformations()) {
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage(Messages.getString("Spoon.Dialog.RepositoryUserCannotWork.Message"));
-        mb.setText(Messages.getString("Spoon.Dialog.RepositoryUserCannotWork.Title"));
-        mb.open();
-        userinfo=null;
-        repositoryMeta=null;
-      }
- else {
-        String repName=repositoryMeta.getName();
-        RepositoriesMeta repsinfo=new RepositoriesMeta(log);
-        if (repsinfo.readData()) {
-          repositoryMeta=repsinfo.findRepository(repName);
-          if (repositoryMeta != null) {
-            setRepository(new Repository(log,repositoryMeta,userinfo));
-          }
- else {
-            log.logError(toString(),Messages.getString("Spoon.Log.NoRepositoryRrovided"));
-          }
-        }
- else {
-          log.logError(toString(),Messages.getString("Spoon.Log.NoRepositoriesDefined"));
-        }
-      }
-    }
- else {
-      if (rd.isCancelled()) {
-        return false;
-      }
-    }
+    return openRepositoryDialog(rd,repositoryMeta,userinfo);
   }
  else   if (!Const.isEmpty(optionRepname) && Const.isEmpty(optionFilename)) {
     RepositoriesMeta repsinfo=new RepositoriesMeta(log);
@@ -49,9 +17,16 @@
       if (repositoryMeta != null) {
         setRepository(new Repository(log,repositoryMeta,userinfo));
       }
-    }
  else {
-      log.logError(toString(),Messages.getString("Spoon.Log.NoRepositoriesDefined"));
+        String msg=Messages.getString("Spoon.Log.NoRepositoriesDefined");
+        log.logError(toString(),msg);
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage(Messages.getString("Spoon.Error.Repository.NotFound",optionRepname.toString()));
+        mb.setText(Messages.getString("Spoon.Error.Repository.NotFound.Title"));
+        mb.open();
+        RepositoriesDialog rd=new RepositoriesDialog(display,perms,Messages.getString("Spoon.Application.Name"));
+        return openRepositoryDialog(rd,repositoryMeta,userinfo);
+      }
     }
   }
   return true;
