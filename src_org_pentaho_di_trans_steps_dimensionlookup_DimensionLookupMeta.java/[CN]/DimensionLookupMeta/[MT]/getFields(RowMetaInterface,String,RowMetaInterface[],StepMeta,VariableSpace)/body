@@ -7,13 +7,16 @@
   v.setOrigin(name);
   row.addValueMeta(v);
   if (!update && fieldLookup.length > 0) {
+    Database db=null;
     try {
       if (databaseMeta != null) {
-        Database db=new Database(databaseMeta);
-        db.connect();
+        db=new Database(databaseMeta);
         String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
         RowMetaInterface extraFields=db.getTableFields(schemaTable);
-        db.disconnect();
+        if (extraFields == null) {
+          db.connect();
+          extraFields=db.getTableFields(schemaTable);
+        }
         for (int i=0; i < fieldLookup.length; i++) {
           v=extraFields.searchValueMeta(fieldLookup[i]);
           if (v == null) {
@@ -38,6 +41,9 @@
       String message=Messages.getString("DimensionLookupMeta.Exception.UnableToRetrieveDataTypeOfReturnField2");
       log.logError(toString(),message);
       throw new KettleStepException(message,e);
+    }
+ finally {
+      if (db != null)       db.disconnect();
     }
   }
 }
