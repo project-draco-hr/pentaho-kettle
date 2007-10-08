@@ -64,19 +64,24 @@
   transMeta.setFeedbackSize(Const.toInt(wFeedbackSize.getText(),Const.ROWS_UPDATE));
   transMeta.setSharedObjectsFile(wSharedObjectsFile.getText());
   transMeta.setUsingThreadPriorityManagment(wManageThreads.getSelection());
-  if (newDirectory != null) {
-    RepositoryDirectory dirFrom=transMeta.getDirectory();
-    long idDirFrom=dirFrom == null ? -1L : dirFrom.getID();
-    try {
-      rep.moveTransformation(transMeta.getName(),idDirFrom,newDirectory.getID());
-      log.logDetailed(getClass().getName(),Messages.getString("TransDialog.Log.MovedDirectoryTo",newDirectory.getPath()));
-      transMeta.setDirectory(newDirectory);
+  if (directoryChangeAllowed) {
+    if (newDirectory != null) {
+      RepositoryDirectory dirFrom=transMeta.getDirectory();
+      long idDirFrom=dirFrom == null ? -1L : dirFrom.getID();
+      try {
+        rep.moveTransformation(transMeta.getName(),idDirFrom,newDirectory.getID());
+        log.logDetailed(getClass().getName(),Messages.getString("TransDialog.Log.MovedDirectoryTo",newDirectory.getPath()));
+        transMeta.setDirectory(newDirectory);
+      }
+ catch (      KettleException ke) {
+        transMeta.setDirectory(dirFrom);
+        OK=false;
+        new ErrorDialog(shell,Messages.getString("TransDialog.ErrorMovingTransformation.DialogTitle"),Messages.getString("TransDialog.ErrorMovingTransformation.DialogMessage"),ke);
+      }
     }
- catch (    KettleException ke) {
-      transMeta.setDirectory(dirFrom);
-      OK=false;
-      new ErrorDialog(shell,Messages.getString("TransDialog.ErrorMovingTransformation.DialogTitle"),Messages.getString("TransDialog.ErrorMovingTransformation.DialogMessage"),ke);
-    }
+  }
+ else {
+    if (newDirectory != null)     transMeta.setDirectory(newDirectory);
   }
   applySchema();
   transMeta.setPartitionSchemas(schemas);
