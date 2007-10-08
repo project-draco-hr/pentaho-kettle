@@ -18,13 +18,11 @@
         throw new KettleStepException(Messages.getString("DimensionLookup.Exception.KeyFieldNotFound",meta.getKeyStream()[i]));
       }
     }
-    if (meta.isUpdate()) {
-      data.fieldnrs=new int[meta.getFieldStream().length];
-      for (int i=0; meta.getFieldStream() != null && i < meta.getFieldStream().length; i++) {
-        data.fieldnrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
-        if ((data.fieldnrs[i] < 0)) {
-          throw new KettleStepException(Messages.getString("DimensionLookup.Exception.KeyFieldNotFound",meta.getFieldStream()[i]));
-        }
+    data.fieldnrs=new int[meta.getFieldStream().length];
+    for (int i=0; meta.getFieldStream() != null && i < meta.getFieldStream().length; i++) {
+      data.fieldnrs[i]=data.outputRowMeta.indexOfValue(meta.getFieldStream()[i]);
+      if ((data.fieldnrs[i] < 0)) {
+        throw new KettleStepException(Messages.getString("DimensionLookup.Exception.KeyFieldNotFound",meta.getFieldStream()[i]));
       }
     }
     if (meta.getDateField() != null && meta.getDateField().length() > 0) {
@@ -50,24 +48,16 @@
       data.cacheValueRowMeta=new RowMeta();
       data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getKeyField(),ValueMetaInterface.TYPE_INTEGER));
       data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getVersionField(),ValueMetaInterface.TYPE_INTEGER));
-      if (data.fieldnrs != null) {
-        for (int i=0; i < data.fieldnrs.length; i++) {
-          ValueMetaInterface v=null;
-          if (!meta.isUpdate()) {
-            v=data.outputRowMeta.getValueMeta(data.fieldnrs[i]);
-          }
- else {
-            v=getInputRowMeta().getValueMeta(data.fieldnrs[i]);
-          }
-          data.cacheValueRowMeta.addValueMeta(v);
-        }
+      for (int i=0; i < data.fieldnrs.length; i++) {
+        ValueMetaInterface v=data.outputRowMeta.getValueMeta(data.fieldnrs[i]);
+        data.cacheValueRowMeta.addValueMeta(v);
       }
       data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getDateFrom(),ValueMetaInterface.TYPE_DATE));
       data.cacheValueRowMeta.addValueMeta(new ValueMeta(meta.getDateTo(),ValueMetaInterface.TYPE_DATE));
     }
     determineTechKeyCreation();
     if (getCopy() == 0)     checkDimZero();
-    setDimLookup(getInputRowMeta());
+    setDimLookup(data.outputRowMeta);
   }
   try {
     Object[] outputRow=lookupValues(getInputRowMeta(),r);
