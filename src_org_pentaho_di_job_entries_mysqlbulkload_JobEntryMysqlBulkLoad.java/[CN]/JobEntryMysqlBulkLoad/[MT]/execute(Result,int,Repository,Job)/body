@@ -9,105 +9,116 @@
   LogWriter log=LogWriter.getInstance();
   Result result=previousResult;
   result.setResult(false);
-  if (filename != null) {
-    String realFilename=getRealFilename();
-    File file=new File(realFilename);
-    if ((file.exists() && file.canRead()) || isLocalInfile() == false) {
-      log.logDetailed(toString(),"File [" + realFilename + "] exists.");
-      if (connection != null) {
-        Database db=new Database(connection);
-        db.shareVariablesWith(this);
-        try {
-          db.connect();
-          String realSchemaname=environmentSubstitute(schemaname);
-          String realTablename=environmentSubstitute(tablename);
-          if (db.checkTableExists(realTablename)) {
-            log.logDetailed(toString(),"Table [" + realTablename + "] exists.");
-            if (schemaname != null) {
-              realTablename=realSchemaname + "." + realTablename;
-            }
-            if (isReplacedata()) {
-              ReplaceIgnore="REPLACE";
+  String vfsFilename=environmentSubstitute(filename);
+  if (!Const.isEmpty(vfsFilename)) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(vfsFilename);
+      if (!(fileObject instanceof LocalFile)) {
+        throw new KettleException("Only local files are supported at this time, file [" + vfsFilename + "] is not a local file.");
+      }
+      String realFilename=KettleVFS.getFilename(fileObject);
+      File file=new File(realFilename);
+      if ((file.exists() && file.canRead()) || isLocalInfile() == false) {
+        log.logDetailed(toString(),"File [" + realFilename + "] exists.");
+        if (connection != null) {
+          Database db=new Database(connection);
+          db.shareVariablesWith(this);
+          try {
+            db.connect();
+            String realSchemaname=environmentSubstitute(schemaname);
+            String realTablename=environmentSubstitute(tablename);
+            if (db.checkTableExists(realTablename)) {
+              log.logDetailed(toString(),"Table [" + realTablename + "] exists.");
+              if (schemaname != null) {
+                realTablename=realSchemaname + "." + realTablename;
+              }
+              if (isReplacedata()) {
+                ReplaceIgnore="REPLACE";
+              }
+ else {
+                ReplaceIgnore="IGNORE";
+              }
+              if (Const.toInt(getRealIgnorelines(),0) > 0) {
+                IgnoreNbrLignes="IGNORE " + getRealIgnorelines() + " LINES";
+              }
+              if (getRealListattribut() != null) {
+                ListOfColumn="(" + MysqlString(getRealListattribut()) + ")";
+              }
+              if (isLocalInfile()) {
+                LocalExec="LOCAL";
+              }
+              if (prorityvalue == 1) {
+                PriorityText="LOW_PRIORITY";
+              }
+ else               if (prorityvalue == 2) {
+                PriorityText="CONCURRENT";
+              }
+              if (getRealSeparator() != null || getRealEnclosed() != null || getRealEscaped() != null) {
+                FieldTerminatedby="FIELDS ";
+                if (getRealSeparator() != null) {
+                  FieldTerminatedby=FieldTerminatedby + "TERMINATED BY '" + Const.replace(getRealSeparator(),"'","''")+ "'";
+                }
+                if (getRealEnclosed() != null) {
+                  FieldTerminatedby=FieldTerminatedby + " ENCLOSED BY '" + Const.replace(getRealEnclosed(),"'","''")+ "'";
+                }
+                if (getRealEscaped() != null) {
+                  FieldTerminatedby=FieldTerminatedby + " ESCAPED BY '" + Const.replace(getRealEscaped(),"'","''")+ "'";
+                }
+              }
+              if (getRealLinestarted() != null || getRealLineterminated() != null) {
+                LineTerminatedby="LINES ";
+                if (getRealLinestarted() != null) {
+                  LineTerminatedby=LineTerminatedby + "STARTING BY '" + Const.replace(getRealLinestarted(),"'","''")+ "'";
+                }
+                if (getRealLineterminated() != null) {
+                  LineTerminatedby=LineTerminatedby + " TERMINATED BY '" + Const.replace(getRealLineterminated(),"'","''")+ "'";
+                }
+              }
+              String SQLBULKLOAD="LOAD DATA " + PriorityText + " "+ LocalExec+ " INFILE '"+ realFilename+ "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " "+ FieldTerminatedby+ " "+ LineTerminatedby+ " "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
+              try {
+                db.execStatements(SQLBULKLOAD);
+                db.disconnect();
+                if (isAddFileToResult()) {
+                  ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(realFilename),parentJob.getName(),toString());
+                  result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+                }
+                result.setResult(true);
+              }
+ catch (              KettleDatabaseException je) {
+                db.disconnect();
+                result.setNrErrors(1);
+                log.logError(toString(),"An error occurred executing this job entry : " + je.getMessage());
+              }
+catch (              IOException e) {
+                log.logError(toString(),"An error occurred executing this job entry : " + e.getMessage());
+                result.setNrErrors(1);
+              }
             }
  else {
-              ReplaceIgnore="IGNORE";
-            }
-            if (Const.toInt(getRealIgnorelines(),0) > 0) {
-              IgnoreNbrLignes="IGNORE " + getRealIgnorelines() + " LINES";
-            }
-            if (getRealListattribut() != null) {
-              ListOfColumn="(" + MysqlString(getRealListattribut()) + ")";
-            }
-            if (isLocalInfile()) {
-              LocalExec="LOCAL";
-            }
-            if (prorityvalue == 1) {
-              PriorityText="LOW_PRIORITY";
-            }
- else             if (prorityvalue == 2) {
-              PriorityText="CONCURRENT";
-            }
-            if (getRealSeparator() != null || getRealEnclosed() != null || getRealEscaped() != null) {
-              FieldTerminatedby="FIELDS ";
-              if (getRealSeparator() != null) {
-                FieldTerminatedby=FieldTerminatedby + "TERMINATED BY '" + Const.replace(getRealSeparator(),"'","''")+ "'";
-              }
-              if (getRealEnclosed() != null) {
-                FieldTerminatedby=FieldTerminatedby + " ENCLOSED BY '" + Const.replace(getRealEnclosed(),"'","''")+ "'";
-              }
-              if (getRealEscaped() != null) {
-                FieldTerminatedby=FieldTerminatedby + " ESCAPED BY '" + Const.replace(getRealEscaped(),"'","''")+ "'";
-              }
-            }
-            if (getRealLinestarted() != null || getRealLineterminated() != null) {
-              LineTerminatedby="LINES ";
-              if (getRealLinestarted() != null) {
-                LineTerminatedby=LineTerminatedby + "STARTING BY '" + Const.replace(getRealLinestarted(),"'","''")+ "'";
-              }
-              if (getRealLineterminated() != null) {
-                LineTerminatedby=LineTerminatedby + " TERMINATED BY '" + Const.replace(getRealLineterminated(),"'","''")+ "'";
-              }
-            }
-            String SQLBULKLOAD="LOAD DATA " + PriorityText + " "+ LocalExec+ " INFILE '"+ realFilename+ "' "+ ReplaceIgnore+ " INTO TABLE "+ realTablename+ " "+ FieldTerminatedby+ " "+ LineTerminatedby+ " "+ IgnoreNbrLignes+ " "+ ListOfColumn+ ";";
-            try {
-              db.execStatements(SQLBULKLOAD);
-              db.disconnect();
-              if (isAddFileToResult()) {
-                ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(realFilename),parentJob.getName(),toString());
-                result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-              }
-              result.setResult(true);
-            }
- catch (            KettleDatabaseException je) {
               db.disconnect();
               result.setNrErrors(1);
-              log.logError(toString(),"An error occurred executing this job entry : " + je.getMessage());
-            }
-catch (            IOException e) {
-              log.logError(toString(),"An error occurred executing this job entry : " + e.getMessage());
-              result.setNrErrors(1);
+              log.logDetailed(toString(),"Table [" + realTablename + "] doesn't exist!");
             }
           }
- else {
+ catch (          KettleDatabaseException dbe) {
             db.disconnect();
             result.setNrErrors(1);
-            log.logDetailed(toString(),"Table [" + realTablename + "] doesn't exist!");
+            log.logError(toString(),"An error occurred executing this entry: " + dbe.getMessage());
           }
         }
- catch (        KettleDatabaseException dbe) {
-          db.disconnect();
+ else {
           result.setNrErrors(1);
-          log.logError(toString(),"An error occurred executing this entry: " + dbe.getMessage());
+          log.logError(toString(),Messages.getString("JobMysqlBulkLoad.Nodatabase.Label"));
         }
       }
  else {
         result.setNrErrors(1);
-        log.logError(toString(),Messages.getString("JobMysqlBulkLoad.Nodatabase.Label"));
+        log.logError(toString(),"File [" + realFilename + "] doesn't exist!");
       }
     }
- else {
+ catch (    Exception e) {
       result.setNrErrors(1);
-      log.logError(toString(),"File [" + realFilename + "] doesn't exist!");
+      log.logError(toString(),Messages.getString("JobMysqlBulkLoad.UnexpectedError.Label"),e);
     }
   }
  else {
