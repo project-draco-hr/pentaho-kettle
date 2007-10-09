@@ -15,19 +15,28 @@
       data.workbook=Workbook.getWorkbook(data.file.getContent().getInputStream(),ws);
       data.errorHandler.handleFile(data.file);
       data.sheetnr=0;
+      if (meta.readAllSheets()) {
+        data.sheetNames=data.workbook.getSheetNames();
+        data.startColumn=new int[data.sheetNames.length];
+        data.startRow=new int[data.sheetNames.length];
+        for (int i=0; i < data.sheetNames.length; i++) {
+          data.startColumn[i]=data.defaultStartColumn;
+          data.startRow[i]=data.defaultStartRow;
+        }
+      }
     }
     boolean nextsheet=false;
     if (log.isDebug())     logDetailed("Get sheet #" + data.filenr + "."+ data.sheetnr);
-    String sheetName=meta.getSheetName()[data.sheetnr];
+    String sheetName=data.sheetNames[data.sheetnr];
     Sheet sheet=data.workbook.getSheet(sheetName);
     if (sheet != null) {
       if (data.rownr < 0) {
-        data.rownr=meta.getStartRow()[data.sheetnr];
+        data.rownr=data.startRow[data.sheetnr];
         if (meta.startsWithHeader()) {
           data.rownr++;
         }
       }
-      data.colnr=meta.getStartColumn()[data.sheetnr];
+      data.colnr=data.startColumn[data.sheetnr];
       try {
         Cell line[]=sheet.getRow(data.rownr);
         int lineNr=++data.rownr;
@@ -61,7 +70,7 @@
       data.sheetnr++;
       data.rownr=-1;
       data.previousRow=null;
-      if (data.sheetnr >= meta.getSheetName().length) {
+      if (data.sheetnr >= data.sheetNames.length) {
         jumpToNextFile();
       }
     }
