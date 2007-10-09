@@ -29,12 +29,14 @@ case SetVariableMeta.VARIABLE_TYPE_JVM:
 case SetVariableMeta.VARIABLE_TYPE_ROOT_JOB:
 {
       setVariable(varname,value);
+      VariableSpace transVariableSpace=getTrans();
+      transVariableSpace.setVariable(varname,value);
       VariableSpace rootJob=null;
-      VariableSpace parentJob=getParentVariableSpace();
+      Job parentJob=getTrans().getParentJob();
       while (parentJob != null) {
         parentJob.setVariable(varname,value);
         rootJob=parentJob;
-        parentJob=parentJob.getParentVariableSpace();
+        parentJob=parentJob.getParentJob();
       }
       if (rootJob == null) {
         throw new KettleStepException("Can't set variable [" + varname + "] on root job: the root job is not available (meaning: not even the parent job)");
@@ -44,26 +46,35 @@ case SetVariableMeta.VARIABLE_TYPE_ROOT_JOB:
 case SetVariableMeta.VARIABLE_TYPE_GRAND_PARENT_JOB:
 {
   setVariable(varname,value);
-  VariableSpace parentJob=getParentVariableSpace().getParentVariableSpace();
+  VariableSpace transVariableSpace=getTrans();
+  transVariableSpace.setVariable(varname,value);
+  VariableSpace parentJob=getTrans().getParentJob();
   if (parentJob != null) {
     parentJob.setVariable(varname,value);
-    VariableSpace gpJob=parentJob.getParentVariableSpace();
-    if (gpJob != null) {
-      gpJob.setVariable(varname,value);
-    }
- else {
-      throw new KettleStepException("Can't set variable [" + varname + "] on grand parent job: the grand parent job is not available");
-    }
   }
  else {
-    throw new KettleStepException("Can't set variable [" + varname + "] on grand parent job: the parent job is not available");
+    throw new KettleStepException("Can't set variable [" + varname + "] on parent job: the parent job is not available");
+  }
+  VariableSpace gpJob=getTrans().getParentJob().getParentJob();
+  if (gpJob != null) {
+    gpJob.setVariable(varname,value);
+  }
+ else {
+    throw new KettleStepException("Can't set variable [" + varname + "] on grand parent job: the grand parent job is not available");
   }
 }
 case SetVariableMeta.VARIABLE_TYPE_PARENT_JOB:
 {
 setVariable(varname,value);
-VariableSpace parentJob=getParentVariableSpace().getParentVariableSpace();
-parentJob.setVariable(varname,value);
+VariableSpace transVariableSpace=getTrans();
+transVariableSpace.setVariable(varname,value);
+VariableSpace parentJob=getTrans().getParentJob();
+if (parentJob != null) {
+  parentJob.setVariable(varname,value);
+}
+ else {
+  throw new KettleStepException("Can't set variable [" + varname + "] on parent job: the parent job is not available");
+}
 }
 }
 logBasic("Set variable " + meta.getVariableName()[i] + " to value ["+ value+ "]");

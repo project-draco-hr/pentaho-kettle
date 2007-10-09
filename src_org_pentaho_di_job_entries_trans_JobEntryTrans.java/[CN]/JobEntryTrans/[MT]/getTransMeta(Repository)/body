@@ -1,3 +1,31 @@
 {
-  return getTransMeta(rep,null);
+  try {
+    LogWriter log=LogWriter.getInstance();
+    TransMeta transMeta=null;
+    if (!Const.isEmpty(getFilename())) {
+      String filename=environmentSubstitute(getFilename());
+      log.logBasic(toString(),"Loading transformation from XML file [" + filename + "]");
+      transMeta=new TransMeta(filename);
+      transMeta.copyVariablesFrom(this);
+    }
+ else     if (!Const.isEmpty(getTransname()) && getDirectory() != null) {
+      String filename=environmentSubstitute(getTransname());
+      log.logBasic(toString(),"Loading transformation from repository [" + filename + "] in directory ["+ getDirectory()+ "]");
+      if (rep != null) {
+        transMeta=new TransMeta(rep,filename,getDirectory());
+        transMeta.copyVariablesFrom(this);
+      }
+ else {
+        throw new KettleException("No repository defined!");
+      }
+    }
+ else {
+      throw new KettleJobException("The transformation to execute is not specified!");
+    }
+    transMeta.setArguments(arguments);
+    return transMeta;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unexpected error during transformation metadata load",e);
+  }
 }
