@@ -5,19 +5,25 @@
     Node entriesnode=XMLHandler.getSubNode(doc,Spoon.XML_TAG_JOB_JOB_ENTRIES);
     int nr=XMLHandler.countNodes(entriesnode,"entry");
     spoon.getLog().logDebug(spoon.toString(),"I found " + nr + " job entries to paste on location: "+ loc);
-    JobEntryCopy entries[]=new JobEntryCopy[nr];
+    List<JobEntryCopy> entryList=new ArrayList<JobEntryCopy>(nr);
     Point min=new Point(99999999,99999999);
     for (int i=0; i < nr; i++) {
       Node entrynode=XMLHandler.getSubNodeByNr(entriesnode,"entry",i);
-      entries[i]=new JobEntryCopy(entrynode,jobMeta.getDatabases(),jobMeta.getSlaveServers(),spoon.getRepository());
-      String name=jobMeta.getAlternativeJobentryName(entries[i].getName());
-      entries[i].setName(name);
+      JobEntryCopy copy=new JobEntryCopy(entrynode,jobMeta.getDatabases(),jobMeta.getSlaveServers(),spoon.getRepository());
+      if (copy.isStart()) {
+        JobGraph.showOnlyStartOnceMessage(spoon.getShell());
+        continue;
+      }
+      String name=jobMeta.getAlternativeJobentryName(copy.getName());
+      copy.setName(name);
       if (loc != null) {
-        Point p=entries[i].getLocation();
+        Point p=copy.getLocation();
         if (min.x > p.x)         min.x=p.x;
         if (min.y > p.y)         min.y=p.y;
       }
+      entryList.add(copy);
     }
+    JobEntryCopy entries[]=entryList.toArray(new JobEntryCopy[]{});
     Point offset=new Point(loc.x - min.x,loc.y - min.y);
     int position[]=new int[entries.length];
     for (int i=0; i < entries.length; i++) {
