@@ -71,19 +71,44 @@
     }
     ;
     try {
-      Scriptable jsrow=Context.toObject(prev,jsscope);
-      jsscope.put("row",jsscope,jsrow);
+      ScriptValuesModDummy dummyStep=new ScriptValuesModDummy(prev,transMeta.getStepFields(stepinfo));
+      Scriptable jsvalue=Context.toObject(dummyStep,jsscope);
+      jsscope.put("_step_",jsscope,jsvalue);
+      Object[] row=new Object[prev.size()];
+      Scriptable jsRowMeta=Context.toObject(prev,jsscope);
+      jsscope.put("rowMeta",jsscope,jsRowMeta);
       for (int i=0; i < prev.size(); i++) {
         ValueMetaInterface valueMeta=prev.getValueMeta(i);
         Object valueData=null;
         if (valueMeta.isDate())         valueData=new Date();
         if (valueMeta.isString())         valueData="test value test value test value test value test value test value test value test value test value test value";
-        if (valueMeta.isNumeric())         valueData=new Double(0.0);
-        Scriptable jsarg=Context.toObject(valueData,jsscope);
-        jsscope.put(valueMeta.getName(),jsscope,jsarg);
+        if (valueMeta.isInteger())         valueData=Long.valueOf(0L);
+        if (valueMeta.isNumber())         valueData=new Double(0.0);
+        if (valueMeta.isBigNumber())         valueData=new BigDecimal(0.0);
+        if (valueMeta.isBoolean())         valueData=Boolean.TRUE;
+        if (valueMeta.isBinary())         valueData=new byte[]{0,1,2,3,4,5,6,7,8,9};
+        row[i]=valueData;
+        if (isCompatible()) {
+          Value value=valueMeta.createOriginalValue(valueData);
+          Scriptable jsarg=Context.toObject(value,jsscope);
+          jsscope.put(valueMeta.getName(),jsscope,jsarg);
+        }
+ else {
+          Scriptable jsarg=Context.toObject(valueData,jsscope);
+          jsscope.put(valueMeta.getName(),jsscope,jsarg);
+        }
       }
       Scriptable jsval=Context.toObject(Value.class,jsscope);
       jsscope.put("Value",jsscope,jsval);
+      if (isCompatible()) {
+        Row v2Row=RowMeta.createOriginalRow(prev,row);
+        Scriptable jsV2Row=Context.toObject(v2Row,jsscope);
+        jsscope.put("row",jsscope,jsV2Row);
+      }
+ else {
+        Scriptable jsRow=Context.toObject(row,jsscope);
+        jsscope.put("row",jsscope,jsRow);
+      }
     }
  catch (    Exception ev) {
       error_message="Couldn't add Input fields to Script! Error:" + Const.CR + ev.toString();
