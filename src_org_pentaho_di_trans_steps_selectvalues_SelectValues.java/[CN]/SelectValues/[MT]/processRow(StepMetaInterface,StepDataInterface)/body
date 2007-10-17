@@ -7,15 +7,24 @@
     return false;
   }
   if (log.isRowLevel())   logRowlevel(Messages.getString("SelectValues.Log.GotRowFromPreviousStep") + rowData);
-  Object[] outputData=null;
-  if (data.select)   outputData=selectValues(getInputRowMeta(),rowData);
-  if (data.deselect)   outputData=removeValues(getInputRowMeta(),rowData);
-  if (data.metadata)   outputData=metadataValues(getInputRowMeta(),rowData);
+  if (first) {
+    first=false;
+    data.selectRowMeta=getInputRowMeta().clone();
+    meta.getSelectFields(data.selectRowMeta,getStepname());
+    data.deselectRowMeta=data.selectRowMeta.clone();
+    meta.getDeleteFields(data.deselectRowMeta);
+    data.metadataRowMeta=data.deselectRowMeta.clone();
+    meta.getMetadataFields(data.metadataRowMeta,getStepname());
+  }
+  Object[] outputData=rowData;
+  if (data.select)   outputData=selectValues(getInputRowMeta(),outputData);
+  if (data.deselect)   outputData=removeValues(data.selectRowMeta,outputData);
+  if (data.metadata)   outputData=metadataValues(data.deselectRowMeta,outputData);
   if (outputData == null) {
     setOutputDone();
     return false;
   }
-  putRow(data.outputMeta,outputData);
+  putRow(data.metadataRowMeta,outputData);
   if (log.isRowLevel())   logRowlevel(Messages.getString("SelectValues.Log.WroteRowToNextStep") + rowData);
   if (checkFeedback(linesRead))   logBasic(Messages.getString("SelectValues.Log.LineNumber") + linesRead);
   return true;
