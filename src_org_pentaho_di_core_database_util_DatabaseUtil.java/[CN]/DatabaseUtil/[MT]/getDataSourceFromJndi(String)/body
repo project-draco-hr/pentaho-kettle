@@ -1,0 +1,55 @@
+{
+  Object foundDs=FoundDS.get(dsName);
+  if (foundDs != null) {
+    return (DataSource)foundDs;
+  }
+  InitialContext ctx=new InitialContext();
+  Object lkup=null;
+  DataSource rtn=null;
+  NamingException firstNe=null;
+  try {
+    lkup=ctx.lookup(dsName);
+    if (lkup != null) {
+      rtn=(DataSource)lkup;
+      FoundDS.put(dsName,rtn);
+      return rtn;
+    }
+  }
+ catch (  NamingException ignored) {
+    firstNe=ignored;
+  }
+  try {
+    lkup=ctx.lookup("java:" + dsName);
+    if (lkup != null) {
+      rtn=(DataSource)lkup;
+      FoundDS.put(dsName,rtn);
+      return rtn;
+    }
+  }
+ catch (  NamingException ignored) {
+  }
+  try {
+    lkup=ctx.lookup("java:comp/env/jdbc/" + dsName);
+    if (lkup != null) {
+      rtn=(DataSource)lkup;
+      FoundDS.put(dsName,rtn);
+      return rtn;
+    }
+  }
+ catch (  NamingException ignored) {
+  }
+  try {
+    lkup=ctx.lookup("jdbc/" + dsName);
+    if (lkup != null) {
+      rtn=(DataSource)lkup;
+      FoundDS.put(dsName,rtn);
+      return rtn;
+    }
+  }
+ catch (  NamingException ignored) {
+  }
+  if (firstNe != null) {
+    throw firstNe;
+  }
+  throw new NamingException(Messages.getString("DatabaseUtil.DSNotFound",dsName));
+}
