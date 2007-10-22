@@ -1,5 +1,11 @@
 {
   if (level > 5)   return;
+  if (stepPluginPackages == null) {
+    stepPluginPackages=StepLoader.getInstance().getPluginPackages();
+  }
+  if (jobEntryPluginPackages == null) {
+    jobEntryPluginPackages=JobEntryLoader.getInstance().getPluginPackages();
+  }
   Class<? extends Object> baseClass=object.getClass();
   Field[] fields=baseClass.getDeclaredFields();
   for (int i=0; i < fields.length; i++) {
@@ -7,7 +13,15 @@
     boolean processThisOne=true;
     if ((field.getModifiers() & Modifier.FINAL) > 0)     processThisOne=false;
     if ((field.getModifiers() & Modifier.STATIC) > 0)     processThisOne=false;
-    if (field.toString().indexOf("org.pentaho.di") < 0)     processThisOne=false;
+    boolean sanctionedPackage=false;
+    if (field.toString().indexOf(LOCAL_PACKAGE) >= 0)     sanctionedPackage=true;
+    for (int x=0; x < stepPluginPackages.length && !sanctionedPackage; x++) {
+      if (field.toString().indexOf(stepPluginPackages[x]) >= 0)       sanctionedPackage=true;
+    }
+    for (int x=0; x < jobEntryPluginPackages.length && !sanctionedPackage; x++) {
+      if (field.toString().indexOf(jobEntryPluginPackages[x]) >= 0)       sanctionedPackage=true;
+    }
+    if (!sanctionedPackage)     processThisOne=false;
     if (processThisOne) {
       try {
         Object obj=field.get(object);
