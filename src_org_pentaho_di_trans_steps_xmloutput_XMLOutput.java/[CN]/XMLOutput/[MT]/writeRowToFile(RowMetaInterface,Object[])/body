@@ -2,25 +2,23 @@
   ValueMetaAndData v;
   try {
     if (first) {
-      data.previousMeta=getInputRowMeta().clone();
+      data.previousMeta=rowMeta.clone();
       first=false;
       data.fieldnrs=new int[meta.getOutputFields().length];
       for (int i=0; i < meta.getOutputFields().length; i++) {
         data.fieldnrs[i]=data.previousMeta.indexOfValue(meta.getOutputFields()[i].getFieldName());
         if (data.fieldnrs[i] < 0) {
-          logError("Field [" + meta.getOutputFields()[i].getFieldName() + "] couldn't be found in the input stream!");
-          setErrors(1);
-          stopAll();
-          return false;
+          throw new KettleException("Field [" + meta.getOutputFields()[i].getFieldName() + "] couldn't be found in the input stream!");
         }
       }
     }
     if (meta.getOutputFields() == null || meta.getOutputFields().length == 0) {
       data.writer.write((" <" + meta.getRepeatElement() + ">").toCharArray());
-      for (int i=0; i < r.length; i++) {
+      for (int i=0; i < data.previousMeta.size(); i++) {
         if (i > 0)         data.writer.write(' ');
-        v=(ValueMetaAndData)r[i];
-        writeField(v,-1,v.getValueMeta().getName());
+        ValueMetaInterface valueMeta=data.previousMeta.getValueMeta(i);
+        Object valueData=r[i];
+        writeField(new ValueMetaAndData(valueMeta,valueData),-1,valueMeta.getName());
       }
     }
  else {
@@ -46,9 +44,7 @@
     data.writer.write(Const.CR.toCharArray());
   }
  catch (  Exception e) {
-    logError("Error writing XML row :" + e.toString() + Const.CR+ "Row: "+ r);
-    return false;
+    throw new KettleException("Error writing XML row :" + e.toString() + Const.CR+ "Row: "+ getInputRowMeta().getString(r),e);
   }
   linesOutput++;
-  return true;
 }
