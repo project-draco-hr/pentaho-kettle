@@ -11,25 +11,28 @@
   }
   while (urls.hasMoreElements()) {
     try {
-      String urlPath=urls.nextElement().getFile();
-      urlPath=URLDecoder.decode(urlPath,"UTF-8");
-      if (urlPath.startsWith("file:")) {
-        urlPath=urlPath.substring(5);
-      }
+      URL eurl=urls.nextElement();
+      String urlPath=eurl.toURI().toString();
       if (urlPath.indexOf('!') > 0) {
         urlPath=urlPath.substring(0,urlPath.indexOf('!'));
+        if (urlPath.startsWith("jar:"))         urlPath=urlPath.substring(4);
+        eurl=new URL(urlPath);
       }
       log.logDetailed(toString(),"Scanning for classes in [" + urlPath + "] matching criteria: "+ tests);
-      File file=new File(urlPath);
-      if (file.isDirectory()) {
+      File file=new File(eurl.getFile());
+      if (file.exists() && file.isDirectory()) {
         loadImplementationsInDirectory(packageName,file,tests);
       }
  else {
-        loadImplementationsInJar(packageName,file,tests);
+        loadImplementationsInJar(packageName,eurl,tests);
       }
     }
- catch (    IOException ioe) {
-      log.logError(toString(),"could not read entries",ioe);
+ catch (    IOException e) {
+      e.printStackTrace();
+      log.logError(toString(),"could not read entries",e);
+    }
+catch (    URISyntaxException se) {
+      log.logError(toString(),"could not read entries",se);
     }
   }
 }
