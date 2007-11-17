@@ -3,26 +3,19 @@
     data.previousMeta=getInputRowMeta().clone();
     data.fieldnr=data.previousMeta.indexOfValue(meta.getSplitField());
     if (data.fieldnr < 0) {
-      logError(Messages.getString("FieldSplitter.Log.CouldNotFindFieldToSplit",meta.getSplitField()));
-      setErrors(1);
-      stopAll();
-      return false;
+      throw new KettleValueException(Messages.getString("FieldSplitter.Log.CouldNotFindFieldToSplit",meta.getSplitField()));
     }
     if (!data.previousMeta.getValueMeta(data.fieldnr).isString()) {
-      logError(Messages.getString("FieldSplitter.Log.SplitFieldNotValid",meta.getSplitField()));
-      setErrors(1);
-      stopAll();
-      return false;
+      throw new KettleValueException((Messages.getString("FieldSplitter.Log.SplitFieldNotValid",meta.getSplitField())));
     }
     data.outputMeta=getInputRowMeta().clone();
     meta.getFields(data.outputMeta,getStepname(),null,null,this);
   }
   String v=data.previousMeta.getString(r,data.fieldnr);
-  RowDataUtil.resizeArray(r,data.outputMeta.size());
-  boolean insert=data.fieldnr < data.previousMeta.size();
-  if (insert) {
-    System.arraycopy(r,data.fieldnr + 1,r,data.fieldnr + meta.getFieldID().length,meta.getFieldID().length);
-  }
+  Object[] outputRow=RowDataUtil.allocateRowData(data.outputMeta.size());
+  int nrExtraFields=meta.getFieldID().length - 1;
+  for (int i=0; i < data.fieldnr; i++)   outputRow[i]=r[i];
+  for (int i=data.fieldnr + 1; i < data.outputMeta.size(); i++)   outputRow[i + nrExtraFields]=r[i];
   boolean use_ids=meta.getFieldID().length > 0 && meta.getFieldID()[0] != null && meta.getFieldID()[0].length() > 0;
   Object value=null;
   if (use_ids) {
@@ -53,12 +46,9 @@
         value=data.outputMeta.getValueMeta(data.fieldnr + i).convertDataFromString(split,data.previousMeta.getValueMeta(data.fieldnr),meta.getFieldDefault()[i],"",ValueMetaInterface.TRIM_TYPE_BOTH);
       }
  catch (      Exception e) {
-        logError(Messages.getString("FieldSplitter.Log.ErrorConvertingSplitValue",split,meta.getSplitField() + "]!"));
-        setErrors(1);
-        stopAll();
-        return false;
+        throw new KettleValueException(Messages.getString("FieldSplitter.Log.ErrorConvertingSplitValue",split,meta.getSplitField() + "]!"),e);
       }
-      r[data.fieldnr + i]=value;
+      outputRow[data.fieldnr + i]=value;
     }
   }
  else {
@@ -72,13 +62,10 @@
         value=data.outputMeta.getValueMeta(data.fieldnr + i).convertDataFromString(pol,data.previousMeta.getValueMeta(data.fieldnr),meta.getFieldDefault()[i],"",ValueMetaInterface.TRIM_TYPE_BOTH);
       }
  catch (      Exception e) {
-        logError(Messages.getString("FieldSplitter.Log.ErrorConvertingSplitValue",pol,meta.getSplitField() + "]!"));
-        setErrors(1);
-        stopAll();
-        return false;
+        throw new KettleValueException(Messages.getString("FieldSplitter.Log.ErrorConvertingSplitValue",pol,meta.getSplitField() + "]!"),e);
       }
-      r[data.fieldnr + i]=value;
+      outputRow[data.fieldnr + i]=value;
     }
   }
-  return true;
+  return outputRow;
 }
