@@ -1,0 +1,27 @@
+{
+  if (!remoteOutputSteps.isEmpty()) {
+    if (!remoteOutputStepsInitialized) {
+      for (int c=0; c < outputRowSets.size(); c++) {
+        RowSet rowSet=outputRowSets.get(c);
+        rowSet.setRemoteSlaveServerName(getVariable(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NAME));
+        if (getVariable(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NAME) == null) {
+          throw new KettleStepException("Variable '" + Const.INTERNAL_VARIABLE_SLAVE_SERVER_NAME + "' is not defined.");
+        }
+      }
+      for (      RemoteStep remoteStep : remoteOutputSteps) {
+        try {
+          if (remoteStep.getTargetSlaveServerName() == null) {
+            throw new KettleStepException("The target slave server name is not defined for remote output step: " + remoteStep);
+          }
+          RowSet rowSet=remoteStep.openWriterSocket();
+          if (log.isDetailed())           logDetailed("Opened a writer socket to remote step: " + remoteStep);
+          outputRowSets.add(rowSet);
+        }
+ catch (        IOException e) {
+          throw new KettleStepException("Error opening writer socket to remote step '" + remoteStep + "'",e);
+        }
+      }
+      remoteOutputStepsInitialized=true;
+    }
+  }
+}
