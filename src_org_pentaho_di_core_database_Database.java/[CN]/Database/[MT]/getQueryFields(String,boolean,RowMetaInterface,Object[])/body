@@ -10,59 +10,27 @@
     }
   }
   if (connection == null)   return null;
-  String debug="";
+  PreparedStatement preparedStatement=null;
   try {
-    if (inform == null && databaseMeta.getDatabaseType() != DatabaseMeta.TYPE_DATABASE_MSSQL) {
-      debug="inform==null";
-      sel_stmt=connection.createStatement(ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
-      debug="isFetchSizeSupported()";
-      if (databaseMeta.isFetchSizeSupported() && sel_stmt.getMaxRows() >= 1) {
-        debug="Set fetchsize";
-        if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL) {
-          sel_stmt.setFetchSize(Integer.MIN_VALUE);
-        }
- else {
-          sel_stmt.setFetchSize(1);
-        }
-      }
-      debug="Set max rows to 1";
-      if (databaseMeta.supportsSetMaxRows())       sel_stmt.setMaxRows(1);
-      debug="exec query";
-      ResultSet r=sel_stmt.executeQuery(databaseMeta.stripCR(sql));
-      debug="getQueryFields get row info";
-      fields=getRowInfo(r.getMetaData(),false,false);
-      debug="close resultset";
-      r.close();
-      debug="close statement";
-      sel_stmt.close();
-      sel_stmt=null;
-    }
- else {
-      debug="prepareStatement";
-      PreparedStatement ps=connection.prepareStatement(databaseMeta.stripCR(sql));
-      if (param) {
-        RowMetaInterface par=inform;
-        debug="getParameterMetaData()";
-        if (par == null || par.isEmpty())         par=getParameterMetaData(ps);
-        debug="getParameterMetaData()";
-        if (par == null || par.isEmpty())         par=getParameterMetaData(sql,inform,data);
-        setValues(par,data,ps);
-      }
-      debug="executeQuery()";
-      ResultSet r=ps.executeQuery();
-      debug="getRowInfo";
-      fields=getRowInfo(ps.getMetaData(),false,false);
-      debug="close resultset";
-      r.close();
-      debug="close preparedStatement";
-      ps.close();
-    }
+    preparedStatement=connection.prepareStatement(databaseMeta.stripCR(sql),ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+    ResultSetMetaData rsmd=preparedStatement.getMetaData();
+    fields=getRowInfo(rsmd,false,false);
   }
  catch (  SQLException ex) {
-    throw new KettleDatabaseException("Couldn't get field info from [" + sql + "]"+ Const.CR+ "Location: "+ debug,ex);
+    throw new KettleDatabaseException("Couldn't get field info from [" + sql + "]"+ Const.CR,ex);
   }
 catch (  Exception e) {
-    throw new KettleDatabaseException("Couldn't get field info in part [" + debug + "]",e);
+    throw new KettleDatabaseException("Couldn't get field info",e);
+  }
+ finally {
+    if (preparedStatement != null) {
+      try {
+        preparedStatement.close();
+      }
+ catch (      SQLException e) {
+        throw new KettleDatabaseException("Unable to close prepared statement after determining SQL layout",e);
+      }
+    }
   }
   if (dbcache != null && entry != null) {
     if (fields != null) {
