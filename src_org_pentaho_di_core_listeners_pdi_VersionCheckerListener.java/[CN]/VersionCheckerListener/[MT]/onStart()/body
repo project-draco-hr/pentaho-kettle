@@ -1,0 +1,42 @@
+{
+  try {
+    final KettleVersionCheckDataProvider dataProvider=new KettleVersionCheckDataProvider();
+    VersionChecker vc=new VersionChecker();
+    vc.setDataProvider(dataProvider);
+    vc.addResultHandler(new IVersionCheckResultHandler(){
+      public void processResults(      String result){
+        try {
+          Document doc=XMLHandler.loadXMLString(result);
+          Node vers=doc.getDocumentElement();
+          Node product=XMLHandler.getNodeWithAttributeValue(vers,"product","id",dataProvider.getApplicationID());
+          if (product != null) {
+            StringBuilder sb=new StringBuilder();
+            Node update=XMLHandler.getSubNode(product,"update");
+            sb.append(Messages.getString("VersionListener.new.version")).append("\n\n");
+            sb.append(update.getAttributes().getNamedItem("title").getTextContent()).append("  v. " + update.getAttributes().getNamedItem("version").getTextContent()).append("\n\n");
+            sb.append(Messages.getString("VersionListener.get.header")).append("\n");
+            sb.append(XMLHandler.getTagValue(update,"downloadurl"));
+            root=new LifecycleException(sb.toString(),false);
+          }
+ else           log.logBasic("VersionChecker","OK",new Object[]{});
+        }
+ catch (        KettleXMLException e) {
+          log.logDebug("XML ERROR",e.getMessage(),new Object[]{});
+          root=new LifecycleException(e,false);
+        }
+      }
+    }
+);
+    vc.addErrorHandler(new IVersionCheckErrorHandler(){
+      public void handleException(      Exception e){
+        root=new LifecycleException(e,false);
+      }
+    }
+);
+    vc.performCheck(false);
+    if (root != null)     throw root;
+  }
+ catch (  IOException e) {
+    throw new LifecycleException(e,false);
+  }
+}
