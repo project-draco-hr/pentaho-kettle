@@ -6,20 +6,25 @@
       baseStep.addRowListener(new RowAdapter(){
         public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
           try {
-            if (stepDebugMeta.isReadingFirstRows() && stepDebugMeta.getRowCount() > 0) {
-              stepDebugMeta.setRowBufferMeta(rowMeta);
-              stepDebugMeta.getRowBuffer().add(rowMeta.cloneRow(row));
-              if (stepDebugMeta.getRowBuffer().size() >= stepDebugMeta.getRowCount()) {
+            int rowCount=stepDebugMeta.getRowCount();
+            if (stepDebugMeta.isReadingFirstRows() && rowCount > 0) {
+              int bufferSize=stepDebugMeta.getRowBuffer().size();
+              if (bufferSize < rowCount) {
+                stepDebugMeta.setRowBufferMeta(rowMeta);
+                stepDebugMeta.getRowBuffer().add(rowMeta.cloneRow(row));
+              }
+ else {
                 trans.pauseRunning();
                 stepDebugMeta.fireBreakPointListeners(self);
               }
             }
  else             if (stepDebugMeta.isPausingOnBreakPoint() && stepDebugMeta.getCondition() != null) {
-              if (stepDebugMeta.getRowCount() > 0) {
+              if (rowCount > 0) {
                 stepDebugMeta.setRowBufferMeta(rowMeta);
                 stepDebugMeta.getRowBuffer().add(0,rowMeta.cloneRow(row));
-                if (stepDebugMeta.getRowBuffer().size() > stepDebugMeta.getRowCount()) {
-                  stepDebugMeta.getRowBuffer().remove(stepDebugMeta.getRowBuffer().size() - 1);
+                int bufferSize=stepDebugMeta.getRowBuffer().size();
+                if (bufferSize > rowCount) {
+                  stepDebugMeta.getRowBuffer().remove(bufferSize - 1);
                 }
               }
  else {
