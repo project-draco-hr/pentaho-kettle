@@ -19,20 +19,53 @@
           database.closeQuery(resultSet);
           if (rowList.size() > 0) {
             wFields.table.clearAll();
+            RowMetaInterface displayMeta=null;
+            ValueMetaInterface durationMeta=null;
             for (int i=0; i < rowList.size(); i++) {
               RowMetaAndData row=rowList.get(i);
-              if (i == 0) {
-                RowMetaInterface rowMeta=row.getRowMeta();
-                for (int v=0; v < rowMeta.size(); v++) {
-                  if (rowMeta.getValueMeta(v).isNumeric())                   rowMeta.getValueMeta(v).setLength(-1,-1);
+              if (displayMeta == null) {
+                displayMeta=row.getRowMeta();
+                durationMeta=new ValueMeta("DURATION",ValueMetaInterface.TYPE_NUMBER);
+                durationMeta.setConversionMask("0");
+                colinf[2].setValueMeta(durationMeta);
+                for (int v=0; v < displayMeta.size(); v++) {
+                  ValueMetaInterface valueMeta=displayMeta.getValueMeta(v);
+                  if (valueMeta.isNumeric()) {
+                    valueMeta.setLength(-1,-1);
+                  }
+                  if (valueMeta.isDate()) {
+                    valueMeta.setConversionMask("yyyy/MM/dd HH:mm:ss");
+                  }
                 }
+                colinf[0].setValueMeta(displayMeta.searchValueMeta("TRANSNAME"));
+                colinf[1].setValueMeta(displayMeta.searchValueMeta("ID_BATCH"));
+                colinf[2].setValueMeta(displayMeta.searchValueMeta("STATUS"));
+                colinf[3].setValueMeta(durationMeta);
+                colinf[4].setValueMeta(displayMeta.searchValueMeta("LINES_READ"));
+                colinf[5].setValueMeta(displayMeta.searchValueMeta("LINES_WRITTEN"));
+                colinf[6].setValueMeta(displayMeta.searchValueMeta("LINES_UPDATED"));
+                colinf[7].setValueMeta(displayMeta.searchValueMeta("LINES_INPUT"));
+                colinf[8].setValueMeta(displayMeta.searchValueMeta("LINES_OUTPUT"));
+                colinf[9].setValueMeta(displayMeta.searchValueMeta("ERRORS"));
+                colinf[10].setValueMeta(displayMeta.searchValueMeta("STARTDATE"));
+                colinf[11].setValueMeta(displayMeta.searchValueMeta("ENDDATE"));
+                colinf[12].setValueMeta(displayMeta.searchValueMeta("LOGDATE"));
+                colinf[13].setValueMeta(displayMeta.searchValueMeta("DEPDATE"));
+                colinf[14].setValueMeta(displayMeta.searchValueMeta("REPLAYDATE"));
               }
               TableItem item=new TableItem(wFields.table,SWT.NONE);
               String batchID=row.getString("ID_BATCH","");
               int index=1;
               item.setText(index++,Const.NVL(row.getString("TRANSNAME",""),""));
+              Date logDate=row.getDate("LOGDATE",null);
+              Date replayDate=row.getDate("REPLAYDATE",null);
+              Double duration=null;
+              if (logDate != null && replayDate != null) {
+                duration=new Double(((double)logDate.getTime() - (double)replayDate.getTime()) / 1000);
+              }
               if (batchID != null)               item.setText(index++,batchID);
               item.setText(index++,Const.NVL(row.getString("STATUS",""),""));
+              item.setText(index++,Const.NVL(durationMeta.getString(duration),""));
               item.setText(index++,Const.NVL(row.getString("LINES_READ",""),""));
               item.setText(index++,Const.NVL(row.getString("LINES_WRITTEN",""),""));
               item.setText(index++,Const.NVL(row.getString("LINES_UPDATED",""),""));
@@ -42,10 +75,15 @@
               item.setText(index++,Const.NVL(row.getString("STARTDATE",""),""));
               item.setText(index++,Const.NVL(row.getString("ENDDATE",""),""));
               item.setText(index++,Const.NVL(row.getString("LOGDATE",""),""));
-              item.setText(index++,Const.NVL(row.getString("DEPDATE",""),""));
-              String replayDate=row.getString("REPLAYDATE","");
-              if (replayDate == null)               replayDate=Const.NULL_STRING;
-              item.setText(index++,replayDate);
+              item.setText(index++,Const.NVL(row.getString("REPLAYDATE",""),""));
+              String status=row.getString("STATUS","");
+              Long errors=row.getInteger("ERRORS",0L);
+              if (errors != null && errors.longValue() > 0L) {
+                item.setBackground(GUIResource.getInstance().getColorRed());
+              }
+ else               if ("stop".equals(status)) {
+                item.setBackground(GUIResource.getInstance().getColorYellow());
+              }
             }
             wFields.removeEmptyRows();
             wFields.setRowNums();
