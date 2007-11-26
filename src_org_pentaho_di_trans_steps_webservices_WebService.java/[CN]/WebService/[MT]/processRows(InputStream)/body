@@ -1,0 +1,134 @@
+{
+  try {
+    XMLInputFactory vFactory=XMLInputFactory.newInstance();
+    XMLStreamReader vReader=vFactory.createXMLStreamReader(anXml);
+    Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    int outputIndex=0;
+    boolean processing=false;
+    boolean oneValueRowProcessing=false;
+    for (int event=vReader.next(); vReader.hasNext(); event=vReader.next()) {
+switch (event) {
+case XMLStreamConstants.START_ELEMENT:
+        System.out.print("START_ELEMENT / ");
+      System.out.print(vReader.getAttributeCount());
+    System.out.print(" / ");
+  System.out.println(vReader.getNamespaceCount());
+System.out.print("vReader.getLocalName = ");
+System.out.println(vReader.getLocalName());
+if (Const.isEmpty(meta.getOutFieldArgumentName())) {
+if (oneValueRowProcessing) {
+WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+if (field != null) {
+  outputRowData[outputIndex++]=getValue(vReader.getElementText(),field);
+  putRow(data.outputRowMeta,outputRowData);
+  oneValueRowProcessing=false;
+}
+ else {
+  if (meta.getOutFieldContainerName().equals(vReader.getLocalName())) {
+    System.out.print("OutFieldContainerName = ");
+    System.out.println(meta.getOutFieldContainerName());
+    oneValueRowProcessing=true;
+  }
+}
+}
+}
+ else {
+System.out.print("OutFieldArgumentName = ");
+System.out.println(meta.getOutFieldArgumentName());
+if (meta.getOutFieldArgumentName().equals(vReader.getLocalName())) {
+System.out.print("vReader.getLocalName = ");
+System.out.print("OutFieldArgumentName = ");
+System.out.println(vReader.getLocalName());
+if (processing) {
+  WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+  if (field != null) {
+    int index=data.outputRowMeta.indexOfValue(field.getName());
+    if (index >= 0) {
+      outputRowData[index]=getValue(vReader.getElementText(),field);
+    }
+  }
+  processing=false;
+}
+ else {
+  WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+  if (meta.getFieldsOut().size() == 1 && field != null) {
+    outputRowData[outputIndex++]=getValue(vReader.getElementText(),field);
+    putRow(data.outputRowMeta,outputRowData);
+  }
+ else {
+    for (    WebServiceField curField : meta.getFieldsOut()) {
+      if (!Const.isEmpty(curField.getName())) {
+        outputRowData[outputIndex++]=getValue(vReader.getElementText(),curField);
+      }
+    }
+    processing=true;
+  }
+}
+}
+ else {
+System.out.print("vReader.getLocalName = ");
+System.out.println(vReader.getLocalName());
+System.out.print("OutFieldArgumentName = ");
+System.out.println(meta.getOutFieldArgumentName());
+}
+}
+break;
+case XMLStreamConstants.END_ELEMENT:
+System.out.println("END_ELEMENT");
+if ((meta.getOutFieldArgumentName() == null && meta.getOperationName().equals(vReader.getLocalName()))) {
+oneValueRowProcessing=false;
+}
+ else if (meta.getOutFieldArgumentName() != null && meta.getOutFieldArgumentName().equals(vReader.getLocalName())) {
+putRow(data.outputRowMeta,outputRowData);
+processing=false;
+}
+break;
+case XMLStreamConstants.PROCESSING_INSTRUCTION:
+System.out.println("PROCESSING_INSTRUCTION");
+break;
+case XMLStreamConstants.CHARACTERS:
+System.out.println("CHARACTERS");
+break;
+case XMLStreamConstants.COMMENT:
+System.out.println("COMMENT");
+break;
+case XMLStreamConstants.SPACE:
+System.out.println("PROCESSING_INSTRUCTION");
+break;
+case XMLStreamConstants.START_DOCUMENT:
+System.out.println("START_DOCUMENT");
+System.out.println(vReader.getText());
+break;
+case XMLStreamConstants.END_DOCUMENT:
+System.out.println("END_DOCUMENT");
+break;
+case XMLStreamConstants.ENTITY_REFERENCE:
+System.out.println("ENTITY_REFERENCE");
+break;
+case XMLStreamConstants.ATTRIBUTE:
+System.out.println("ATTRIBUTE");
+break;
+case XMLStreamConstants.DTD:
+System.out.println("DTD");
+break;
+case XMLStreamConstants.CDATA:
+System.out.println("CDATA");
+break;
+case XMLStreamConstants.NAMESPACE:
+System.out.println("NAMESPACE");
+break;
+case XMLStreamConstants.NOTATION_DECLARATION:
+System.out.println("NOTATION_DECLARATION");
+break;
+case XMLStreamConstants.ENTITY_DECLARATION:
+System.out.println("ENTITY_DECLARATION");
+break;
+default :
+break;
+}
+}
+}
+ catch (Exception e) {
+throw new KettleStepException(Messages.getString("WebServices.ERROR0010.OutputParsingError"),e);
+}
+}
