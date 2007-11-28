@@ -11,7 +11,22 @@
   if (data.files.size() == 0 && r == null) {
     quickSort(data.buffer);
   }
-  if (data.buffer.size() == data.sortSize || (data.files.size() > 0 && r == null && data.buffer.size() > 0)) {
+  data.freeCounter++;
+  if (data.sortSize <= 0 && data.freeCounter >= 1000) {
+    data.freeMemoryPct=Const.getPercentageFreeMemory();
+    data.freeCounter=0;
+    if (log.isDetailed()) {
+      data.memoryReporting++;
+      if (data.memoryReporting >= 10 && log.isDetailed()) {
+        logDetailed("Available memory : " + data.freeMemoryPct + "%");
+        data.memoryReporting=0;
+      }
+    }
+  }
+  boolean doSort=data.buffer.size() == data.sortSize;
+  doSort|=data.files.size() > 0 && r == null && data.buffer.size() > 0;
+  doSort|=data.freeMemoryPctLimit > 0 && data.freeMemoryPct < data.freeMemoryPctLimit && data.buffer.size() >= data.minSortSize;
+  if (doSort) {
     quickSort(data.buffer);
     DataOutputStream dos;
     GZIPOutputStream gzos;
@@ -26,7 +41,7 @@
         dos=new DataOutputStream(gzos);
       }
  else {
-        dos=new DataOutputStream(new BufferedOutputStream(outputStream,5000000));
+        dos=new DataOutputStream(new BufferedOutputStream(outputStream,500000));
         gzos=null;
       }
       if (meta.isOnlyPassingUniqueRows()) {
@@ -53,12 +68,23 @@
       for (p=0; p < data.buffer.size(); p++) {
         data.outputRowMeta.writeData(dos,data.buffer.get(p));
       }
+      if (data.sortSize < 0) {
+        if (data.buffer.size() > data.minSortSize) {
+          data.minSortSize=data.buffer.size();
+          data.minSortSize=(int)Math.round((double)data.minSortSize * 0.90);
+        }
+      }
       data.buffer.clear();
       dos.close();
       if (gzos != null) {
         gzos.close();
       }
       outputStream.close();
+      data.freeMemoryPct=Const.getPercentageFreeMemory();
+      data.freeCounter=0;
+      if (data.sortSize <= 0) {
+        if (log.isDetailed())         logDetailed("Available memory : " + data.freeMemoryPct + "%");
+      }
     }
  catch (    Exception e) {
       throw new KettleException("Error processing temp-file!",e);

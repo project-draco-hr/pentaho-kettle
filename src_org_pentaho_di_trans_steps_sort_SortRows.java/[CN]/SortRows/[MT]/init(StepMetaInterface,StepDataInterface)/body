@@ -2,8 +2,17 @@
   meta=(SortRowsMeta)smi;
   data=(SortRowsData)sdi;
   if (super.init(smi,sdi)) {
-    data.sortSize=Integer.parseInt(environmentSubstitute(meta.getSortSize()));
-    data.buffer=new ArrayList<Object[]>(data.sortSize);
+    data.sortSize=Const.toInt(environmentSubstitute(meta.getSortSize()),-1);
+    data.freeMemoryPctLimit=Const.toInt(meta.getFreeMemoryLimit(),-1);
+    if (data.sortSize <= 0 && data.freeMemoryPctLimit <= 0) {
+      data.freeMemoryPctLimit=25;
+    }
+    if (data.sortSize > 0) {
+      data.buffer=new ArrayList<Object[]>(data.sortSize);
+    }
+ else {
+      data.buffer=new ArrayList<Object[]>(5000);
+    }
     data.compressFiles=getBooleanValueOfVariable(meta.getCompressFilesVariable(),meta.getCompressFiles());
     data.comparator=new Comparator<RowTempFile>(){
       public int compare(      RowTempFile o1,      RowTempFile o2){
@@ -24,6 +33,7 @@
       data.rowbuffer=new ArrayList<Object[]>();
     }
     data.tempRows=new ArrayList<RowTempFile>();
+    data.minSortSize=5000;
     return true;
   }
   return false;
