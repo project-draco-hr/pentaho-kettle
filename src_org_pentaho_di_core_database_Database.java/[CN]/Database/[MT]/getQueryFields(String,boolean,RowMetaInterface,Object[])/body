@@ -10,25 +10,30 @@
     }
   }
   if (connection == null)   return null;
-  PreparedStatement preparedStatement=null;
-  try {
-    preparedStatement=connection.prepareStatement(databaseMeta.stripCR(sql),ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
-    ResultSetMetaData rsmd=preparedStatement.getMetaData();
-    fields=getRowInfo(rsmd,false,false);
+  if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_ORACLE) {
+    return getQueryFieldsFallback(sql,param,inform,data);
   }
- catch (  SQLException ex) {
-    throw new KettleDatabaseException("Couldn't get field info from [" + sql + "]"+ Const.CR,ex);
-  }
-catch (  Exception e) {
-    throw new KettleDatabaseException("Couldn't get field info",e);
-  }
+ else {
+    PreparedStatement preparedStatement=null;
+    try {
+      preparedStatement=connection.prepareStatement(databaseMeta.stripCR(sql),ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      ResultSetMetaData rsmd=preparedStatement.getMetaData();
+      fields=getRowInfo(rsmd,false,false);
+    }
+ catch (    SQLException ex) {
+      throw new KettleDatabaseException("Couldn't get field info from [" + sql + "]"+ Const.CR,ex);
+    }
+catch (    Exception e) {
+      fields=getQueryFieldsFallback(sql,param,inform,data);
+    }
  finally {
-    if (preparedStatement != null) {
-      try {
-        preparedStatement.close();
-      }
- catch (      SQLException e) {
-        throw new KettleDatabaseException("Unable to close prepared statement after determining SQL layout",e);
+      if (preparedStatement != null) {
+        try {
+          preparedStatement.close();
+        }
+ catch (        SQLException e) {
+          throw new KettleDatabaseException("Unable to close prepared statement after determining SQL layout",e);
+        }
       }
     }
   }

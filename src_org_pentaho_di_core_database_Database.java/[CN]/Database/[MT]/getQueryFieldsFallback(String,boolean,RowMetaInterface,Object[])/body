@@ -1,0 +1,39 @@
+{
+  RowMetaInterface fields;
+  try {
+    if (inform == null && databaseMeta.getDatabaseType() != DatabaseMeta.TYPE_DATABASE_MSSQL) {
+      sel_stmt=connection.createStatement(ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
+      if (databaseMeta.isFetchSizeSupported() && sel_stmt.getMaxRows() >= 1) {
+        if (databaseMeta.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MYSQL) {
+          sel_stmt.setFetchSize(Integer.MIN_VALUE);
+        }
+ else {
+          sel_stmt.setFetchSize(1);
+        }
+      }
+      if (databaseMeta.supportsSetMaxRows())       sel_stmt.setMaxRows(1);
+      ResultSet r=sel_stmt.executeQuery(databaseMeta.stripCR(sql));
+      fields=getRowInfo(r.getMetaData(),false,false);
+      r.close();
+      sel_stmt.close();
+      sel_stmt=null;
+    }
+ else {
+      PreparedStatement ps=connection.prepareStatement(databaseMeta.stripCR(sql));
+      if (param) {
+        RowMetaInterface par=inform;
+        if (par == null || par.isEmpty())         par=getParameterMetaData(ps);
+        if (par == null || par.isEmpty())         par=getParameterMetaData(sql,inform,data);
+        setValues(par,data,ps);
+      }
+      ResultSet r=ps.executeQuery();
+      fields=getRowInfo(ps.getMetaData(),false,false);
+      r.close();
+      ps.close();
+    }
+  }
+ catch (  Exception ex) {
+    throw new KettleDatabaseException("Couldn't get field info from [" + sql + "]"+ Const.CR,ex);
+  }
+  return fields;
+}
