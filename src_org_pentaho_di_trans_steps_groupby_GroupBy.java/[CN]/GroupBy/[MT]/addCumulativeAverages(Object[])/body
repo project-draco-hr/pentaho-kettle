@@ -1,0 +1,40 @@
+{
+  for (int i=0; i < data.cumulativeAvgSourceIndexes.size(); i++) {
+    int sourceIndex=data.cumulativeAvgSourceIndexes.get(i);
+    Object previousTarget=data.previousAvgSum[i];
+    Object sourceValue=row[sourceIndex];
+    int targetIndex=data.cumulativeAvgTargetIndexes.get(i);
+    ValueMetaInterface sourceMeta=getInputRowMeta().getValueMeta(sourceIndex);
+    ValueMetaInterface targetMeta=data.outputRowMeta.getValueMeta(targetIndex);
+    Object sum=null;
+    if (targetMeta.isNull(previousTarget)) {
+      sum=sourceMeta.convertToNormalStorageType(sourceValue);
+    }
+ else {
+      if (sourceMeta.isNull(sourceValue)) {
+        sum=previousTarget;
+      }
+ else {
+        if (sourceMeta.isInteger()) {
+          sum=ValueDataUtil.plus(data.valueMetaInteger,data.previousAvgSum[i],sourceMeta,row[sourceIndex]);
+        }
+ else {
+          sum=ValueDataUtil.plus(targetMeta,data.previousAvgSum[i],sourceMeta,row[sourceIndex]);
+        }
+      }
+    }
+    data.previousAvgSum[i]=sum;
+    if (!sourceMeta.isNull(sourceValue))     data.previousAvgCount[i]++;
+    if (sourceMeta.isInteger()) {
+      if (sum == null) {
+        row[targetIndex]=null;
+      }
+ else {
+        row[targetIndex]=new Double(((Long)sum).doubleValue() / data.previousAvgCount[i]);
+      }
+    }
+ else {
+      row[targetIndex]=ValueDataUtil.divide(targetMeta,sum,data.valueMetaInteger,data.previousAvgCount[i]);
+    }
+  }
+}

@@ -11,6 +11,10 @@
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
     data.counts=new long[meta.getSubjectField().length];
     data.subjectnrs=new int[meta.getSubjectField().length];
+    data.cumulativeSumSourceIndexes=new ArrayList<Integer>();
+    data.cumulativeSumTargetIndexes=new ArrayList<Integer>();
+    data.cumulativeAvgSourceIndexes=new ArrayList<Integer>();
+    data.cumulativeAvgTargetIndexes=new ArrayList<Integer>();
     for (int i=0; i < meta.getSubjectField().length; i++) {
       data.subjectnrs[i]=data.inputRowMeta.indexOfValue(meta.getSubjectField()[i]);
       if (data.subjectnrs[i] < 0) {
@@ -19,6 +23,17 @@
         stopAll();
         return false;
       }
+      if (meta.getAggregateType()[i] == GroupByMeta.TYPE_GROUP_CUMULATIVE_SUM) {
+        data.cumulativeSumSourceIndexes.add(data.subjectnrs[i]);
+        data.cumulativeSumTargetIndexes.add(getInputRowMeta().size() + i);
+      }
+      if (meta.getAggregateType()[i] == GroupByMeta.TYPE_GROUP_CUMULATIVE_AVERAGE) {
+        data.cumulativeAvgSourceIndexes.add(data.subjectnrs[i]);
+        data.cumulativeAvgTargetIndexes.add(getInputRowMeta().size() + i);
+      }
+      data.previousSums=new Object[data.cumulativeSumTargetIndexes.size()];
+      data.previousAvgSum=new Object[data.cumulativeAvgTargetIndexes.size()];
+      data.previousAvgCount=new long[data.cumulativeAvgTargetIndexes.size()];
     }
     data.groupnrs=new int[meta.getGroupField().length];
     for (int i=0; i < meta.getGroupField().length; i++) {
@@ -30,6 +45,8 @@
         return false;
       }
     }
+    data.valueMetaInteger=new ValueMeta("count",ValueMetaInterface.TYPE_INTEGER);
+    data.valueMetaNumber=new ValueMeta("sum",ValueMetaInterface.TYPE_NUMBER);
     initGroupMeta(data.inputRowMeta);
     newAggregate(r);
     data.groupAggMeta=new RowMeta();
@@ -52,11 +69,11 @@
         lineNr++;
         if (meta.isAddingLineNrInGroup() && !Const.isEmpty(meta.getLineNrInGroupField())) {
           Object lineNrValue=new Long(lineNr);
-          ValueMetaInterface lineNrValueMeta=new ValueMeta(meta.getLineNrInGroupField(),ValueMetaInterface.TYPE_INTEGER);
-          lineNrValueMeta.setLength(9);
           row=RowDataUtil.addValueData(row,size,lineNrValue);
           size++;
         }
+        addCumulativeSums(row);
+        addCumulativeAverages(row);
         putRow(data.outputRowMeta,row);
         row=getRowFromBuffer();
       }
@@ -95,11 +112,11 @@
         lineNr++;
         if (meta.isAddingLineNrInGroup() && !Const.isEmpty(meta.getLineNrInGroupField())) {
           Object lineNrValue=new Long(lineNr);
-          ValueMetaInterface lineNrValueMeta=new ValueMeta(meta.getLineNrInGroupField(),ValueMetaInterface.TYPE_INTEGER);
-          lineNrValueMeta.setLength(9);
           row=RowDataUtil.addValueData(row,size,lineNrValue);
           size++;
         }
+        addCumulativeSums(row);
+        addCumulativeAverages(row);
         putRow(data.outputRowMeta,row);
         row=getRowFromBuffer();
       }
