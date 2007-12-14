@@ -1,0 +1,36 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  if (previousResult != null) {
+    try {
+      int size=previousResult.getResultFiles().size();
+      log.logBasic(toString(),Messages.getString("JobEntryDeleteResultFilenames.log.FilesFound","" + size));
+      if (!specifywilcard) {
+        previousResult.getResultFiles().clear();
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobEntryDeleteResultFilenames.log.DeletedFiles","" + size));
+      }
+ else {
+        List<ResultFile> resultFiles=result.getResultFilesList();
+        if (resultFiles != null && resultFiles.size() > 0) {
+          for (Iterator<ResultFile> it=resultFiles.iterator(); it.hasNext(); ) {
+            ResultFile resultFile=(ResultFile)it.next();
+            FileObject file=resultFile.getFile();
+            if (file != null && file.exists()) {
+              if (CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcard),true) && !CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcardexclude),false)) {
+                ResultFile removeFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file,parentJob.getName(),toString());
+                previousResult.getResultFiles().remove(removeFile);
+                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobEntryDeleteResultFilenames.log.DeletedFile",file.toString()));
+              }
+            }
+          }
+        }
+      }
+      result.setResult(true);
+    }
+ catch (    Exception e) {
+      log.logError(toString(),Messages.getString("JobEntryDeleteResultFilenames.Error",e.toString()));
+    }
+  }
+  return result;
+}
