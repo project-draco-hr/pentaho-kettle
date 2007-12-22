@@ -1,0 +1,55 @@
+{
+  EnvUtil.environmentInit();
+  try {
+    TransMeta transMeta=new TransMeta();
+    transMeta.setName("transname");
+    for (int i=0; i < databasesXML.length; i++) {
+      DatabaseMeta databaseMeta=new DatabaseMeta(databasesXML[i]);
+      transMeta.addDatabase(databaseMeta);
+    }
+    DatabaseMeta dbInfo=transMeta.findDatabase("db");
+    Database database=new Database(dbInfo);
+    database.connect();
+    createTables(database);
+    createData(database);
+    StepLoader steploader=StepLoader.getInstance();
+    String injectorStepname="injector step";
+    InjectorMeta im=new InjectorMeta();
+    String injectorPid=steploader.getStepPluginID(im);
+    StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,(StepMetaInterface)im);
+    transMeta.addStep(injectorStep);
+    String fromstepname="read from [" + source_table + "]";
+    TableInputMeta tii=new TableInputMeta();
+    tii.setDatabaseMeta(transMeta.findDatabase("db"));
+    tii.setLookupFromStep(injectorStep);
+    tii.setExecuteEachInputRow(true);
+    String selectSQL="SELECT " + Const.CR;
+    selectSQL+="ID, CODE ";
+    selectSQL+="FROM " + source_table + " WHERE CODE = ? ORDER BY ID, CODE;";
+    tii.setSQL(selectSQL);
+    String fromstepid=steploader.getStepPluginID(tii);
+    StepMeta fromstep=new StepMeta(fromstepid,fromstepname,(StepMetaInterface)tii);
+    fromstep.setDescription("Reads information from table [" + source_table + "] on database ["+ dbInfo+ "]");
+    transMeta.addStep(fromstep);
+    TransHopMeta hi=new TransHopMeta(injectorStep,fromstep);
+    transMeta.addTransHop(hi);
+    Trans trans=new Trans(transMeta);
+    trans.prepareExecution(null);
+    StepInterface si=trans.getStepInterface(fromstepname,0);
+    RowStepCollector rc=new RowStepCollector();
+    si.addRowListener(rc);
+    RowProducer rp=trans.addRowProducer(injectorStepname,0);
+    trans.startThreads();
+    List<RowMetaAndData> inputList=createDataRows();
+    for (    RowMetaAndData rm : inputList) {
+      rp.putRow(rm.getRowMeta(),rm.getData());
+    }
+    rp.finished();
+    trans.waitUntilFinished();
+    List<RowMetaAndData> resultRows=rc.getRowsWritten();
+    List<RowMetaAndData> goldRows=createResultDataRows();
+    checkRows(goldRows,resultRows);
+  }
+  finally {
+  }
+}
