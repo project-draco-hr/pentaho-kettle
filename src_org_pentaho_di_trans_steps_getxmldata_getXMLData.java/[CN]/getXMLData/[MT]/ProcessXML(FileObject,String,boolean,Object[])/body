@@ -1,0 +1,104 @@
+{
+  Object[] outputRowData=null;
+  try {
+    if (meta.getIsInFields() && meta.getIsAFile()) {
+      if (file.exists()) {
+        if (file.getType() == FileType.FILE) {
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("getXMLData.Log.IsAFile",file.toString()));
+        }
+ else {
+          log.logError(toString(),Messages.getString("getXMLData.Log.IsNotAFile",file.toString()));
+          throw new KettleException(Messages.getString("getXMLData.Log.IsNotAFile",file.toString()));
+        }
+      }
+ else {
+        log.logError(toString(),Messages.getString("getXMLData.Log.WeCanFindFile",file.toString()));
+        throw new KettleException(Messages.getString("getXMLData.Log.WeCanFindFile",file.toString()));
+      }
+    }
+    String encodage="UTF-8";
+    if (!Const.isEmpty(meta.getEncoding())) {
+      encodage=meta.getEncoding();
+    }
+    DocumentBuilderFactory fabrique=DocumentBuilderFactory.newInstance();
+    fabrique.setNamespaceAware(meta.isNamespaceAware());
+    fabrique.setValidating(meta.isValidating());
+    DocumentBuilder builder=fabrique.newDocumentBuilder();
+    Document document=null;
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("getXMLData.Log.CreateDocumentStart"));
+    if (IsInXMLField) {
+      document=builder.parse(new InputSource(new StringReader(StringXML)));
+    }
+ else {
+      document=builder.parse(new InputSource(new InputStreamReader(new FileInputStream(KettleVFS.getFilename(file)),encodage)));
+    }
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("getXMLData.Log.CreateDocumentEnd"));
+    XPath xpath=XPathFactory.newInstance().newXPath();
+    NodeList widgetNodes=(NodeList)xpath.evaluate(environmentSubstitute(meta.getLoopXPath()),document,XPathConstants.NODESET);
+    if (IsInXMLField) {
+      if (log.isDetailed())       logDetailed(Messages.getString("getXMLData.Log.LoopOccurences","" + widgetNodes.getLength()));
+    }
+ else {
+      if (log.isDetailed())       logDetailed(Messages.getString("getXMLData.Log.LoopFileOccurences","" + widgetNodes.getLength(),KettleVFS.getFilename(file)));
+    }
+    for (int iFileInputXML=0; iFileInputXML < widgetNodes.getLength(); iFileInputXML++) {
+      if ((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) {
+        outputRowData=buildEmptyRow();
+        if (row != null)         outputRowData=row.clone();
+        for (int i=0; i < meta.getInputFields().length; i++) {
+          getXMLDataField xmlInputField=meta.getInputFields()[i];
+          String XPathValue=environmentSubstitute(xmlInputField.getXPath());
+          String Element_Type=xmlInputField.getElementTypeCode();
+          int indexvarstart=XPathValue.indexOf("{$");
+          int indexvarend=XPathValue.indexOf("}");
+          if (indexvarstart >= 0 && indexvarend >= 0) {
+            String NameVarInputField=XPathValue.substring(indexvarstart + 2,indexvarend);
+            for (int k=0; k < meta.getInputFields().length; k++) {
+              getXMLDataField Tmp_xmlInputField=meta.getInputFields()[k];
+              if (Tmp_xmlInputField.getName().equalsIgnoreCase(NameVarInputField)) {
+                XPathValue=XPathValue.replaceAll("\\{\\$" + NameVarInputField + "\\}","'" + getInputRowMeta().getString(outputRowData,data.totalpreviousfields + k) + "'");
+              }
+            }
+          }
+          String value=getValueXML(widgetNodes,iFileInputXML,xpath,XPathValue,Element_Type);
+switch (meta.getInputFields()[i].getTrimType()) {
+case AccessInputField.TYPE_TRIM_LEFT:
+            value=Const.ltrim(value);
+          break;
+case AccessInputField.TYPE_TRIM_RIGHT:
+        value=Const.rtrim(value);
+      break;
+case AccessInputField.TYPE_TRIM_BOTH:
+    value=Const.trim(value);
+  break;
+default :
+break;
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(i);
+outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,value);
+if (meta.getInputFields()[i].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(value)) {
+outputRowData[i]=data.previousRow[i];
+}
+}
+}
+int rowIndex=meta.getInputFields().length;
+if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
+outputRowData[rowIndex++]=KettleVFS.getFilename(data.file);
+}
+if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+outputRowData[rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+data.rownr++;
+putRow(data.outputRowMeta,outputRowData);
+}
+}
+}
+ catch (Exception e) {
+log.logError(toString(),e.toString());
+throw new KettleStepException(e.toString());
+}
+}
