@@ -1,0 +1,87 @@
+{
+  meta=(XsltMeta)smi;
+  data=(XsltData)sdi;
+  Object[] row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (meta.getResultfieldname() != null) {
+      data.fieldposition=getInputRowMeta().indexOfValue(meta.getFieldname());
+      if (data.fieldposition < 0) {
+        logError(Messages.getString("Xslt.Log.ErrorFindingField") + "[" + meta.getFieldname()+ "]");
+        throw new KettleStepException(Messages.getString("Xslt.Exception.CouldnotFindField",meta.getFieldname()));
+      }
+      if (Const.isEmpty(meta.getXslFilename())) {
+        logError(Messages.getString("Xslt.Log.ErrorXSLFile"));
+        throw new KettleStepException(Messages.getString("Xslt.Exception.ErrorXSLFile"));
+      }
+ else {
+        if (meta.useXSLFileFieldUse()) {
+          if (Const.isEmpty(meta.getXSLFileField())) {
+            logError(Messages.getString("Xslt.Log.ErrorXSLFileFieldMissing"));
+            throw new KettleStepException(Messages.getString("Xslt.Exception.ErrorXSLFileFieldMissing"));
+          }
+ else {
+            data.fielxslfiledposition=getInputRowMeta().indexOfValue(meta.getXSLFileField());
+            if (data.fielxslfiledposition < 0) {
+              logError(Messages.getString("Xslt.Log.ErrorXSLFileFieldFinding") + "[" + meta.getXSLFileField()+ "]");
+              throw new KettleStepException(Messages.getString("Xslt.Exception.ErrorXSLFileFieldFinding",meta.getXSLFileField()));
+            }
+          }
+        }
+ else {
+          xslfilename=environmentSubstitute(meta.getXslFilename());
+          java.io.File file=new java.io.File(xslfilename);
+          if (!file.exists()) {
+            logError(Messages.getString("Xslt.Log.ErrorXSLFileNotExists",xslfilename));
+            throw new KettleStepException(Messages.getString("Xslt.Exception.ErrorXSLFileNotExists",xslfilename));
+          }
+          if (!file.isFile()) {
+            logError(Messages.getString("Xslt.Log.ErrorXSLNotAFile",xslfilename));
+            throw new KettleStepException(Messages.getString("Xslt.Exception.ErrorXSLNotAFile",xslfilename));
+          }
+        }
+      }
+    }
+ else {
+      logError(Messages.getString("Xslt.Log.ErrorMatcherMissing"));
+      throw new KettleStepException(Messages.getString("Xslt.Exception.ErrorMatcherMissing"));
+    }
+  }
+  String Fieldvalue=getInputRowMeta().getString(row,data.fieldposition);
+  String xmlString=null;
+  if (meta.useXSLFileFieldUse()) {
+    xslfilename=getInputRowMeta().getString(row,data.fielxslfiledposition);
+    if (log.isDetailed())     logDetailed(Messages.getString("Xslt.Log.XslfileNameFromFied",xslfilename,meta.getXSLFileField()));
+  }
+ else {
+    xslfilename=environmentSubstitute(meta.getXslFilename());
+  }
+  try {
+    logDetailed(Messages.getString("Xslt.Log.Filexsl") + xslfilename);
+    TransformerFactory factory=TransformerFactory.newInstance();
+    if (meta.getXSLFactory().equals("SAXON")) {
+      factory=new net.sf.saxon.TransformerFactoryImpl();
+    }
+    Templates template=factory.newTemplates(new StreamSource(new FileInputStream(xslfilename)));
+    Transformer xformer=template.newTransformer();
+    Source source=new StreamSource(new StringReader(Fieldvalue));
+    StreamResult resultat=new StreamResult(new StringWriter());
+    xformer.transform(source,resultat);
+    xmlString=resultat.getWriter().toString();
+    logDetailed(Messages.getString("Xslt.Log.FileResult"));
+    logDetailed(xmlString);
+  }
+ catch (  Exception e) {
+    logError("ERROR : " + e);
+  }
+  Object[] outputRowData=RowDataUtil.addValueData(row,getInputRowMeta().size(),xmlString);
+  if (log.isRowLevel())   logRowlevel(Messages.getString("Xslt.Log.ReadRow") + " " + getInputRowMeta().getString(row));
+  putRow(data.outputRowMeta,outputRowData);
+  return true;
+}
