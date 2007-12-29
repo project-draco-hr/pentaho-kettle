@@ -62,6 +62,8 @@
  else {
     xslfilename=environmentSubstitute(meta.getXslFilename());
   }
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
   try {
     logDetailed(Messages.getString("Xslt.Log.Filexsl") + xslfilename);
     TransformerFactory factory=TransformerFactory.newInstance();
@@ -76,12 +78,25 @@
     xmlString=resultat.getWriter().toString();
     logDetailed(Messages.getString("Xslt.Log.FileResult"));
     logDetailed(xmlString);
+    Object[] outputRowData=RowDataUtil.addValueData(row,getInputRowMeta().size(),xmlString);
+    if (log.isRowLevel())     logRowlevel(Messages.getString("Xslt.Log.ReadRow") + " " + getInputRowMeta().getString(row));
+    putRow(data.outputRowMeta,outputRowData);
   }
  catch (  Exception e) {
-    logError("ERROR : " + e);
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.getMessage();
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),row,1,errorMessage,meta.getResultfieldname(),"XSLT01");
+    }
+ else {
+      logError(Messages.getString("Xslt.ErrorProcesing") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
   }
-  Object[] outputRowData=RowDataUtil.addValueData(row,getInputRowMeta().size(),xmlString);
-  if (log.isRowLevel())   logRowlevel(Messages.getString("Xslt.Log.ReadRow") + " " + getInputRowMeta().getString(row));
-  putRow(data.outputRowMeta,outputRowData);
   return true;
 }
