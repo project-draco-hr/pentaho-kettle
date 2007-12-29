@@ -16,6 +16,31 @@
       }
     }
  else     if (meta.isCounterUsed()) {
+      boolean doAbort=false;
+      try {
+        data.start=Long.parseLong(environmentSubstitute(meta.getStartAt()));
+      }
+ catch (      NumberFormatException ex) {
+        logError(Messages.getString("AddSequence.Log.CouldNotParseCounterValue","start",meta.getStartAt(),environmentSubstitute(meta.getStartAt()),ex.getMessage()));
+        doAbort=true;
+      }
+      try {
+        data.increment=Long.parseLong(environmentSubstitute(meta.getIncrementBy()));
+      }
+ catch (      NumberFormatException ex) {
+        logError(Messages.getString("AddSequence.Log.CouldNotParseCounterValue","increment",meta.getIncrementBy(),environmentSubstitute(meta.getIncrementBy()),ex.getMessage()));
+        doAbort=true;
+      }
+      try {
+        data.maximum=Long.parseLong(environmentSubstitute(meta.getMaxValue()));
+      }
+ catch (      NumberFormatException ex) {
+        logError(Messages.getString("AddSequence.Log.CouldNotParseCounterValue","increment",meta.getMaxValue(),environmentSubstitute(meta.getMaxValue()),ex.getMessage()));
+        doAbort=true;
+      }
+      if (doAbort) {
+        return false;
+      }
       if (!Const.isEmpty(meta.getCounterName())) {
         data.setLookup("@@sequence:" + meta.getCounterName());
       }
@@ -26,11 +51,11 @@
 synchronized (getTransMeta().getCounters()) {
           data.counter=getTransMeta().getCounters().get(data.getLookup());
           if (data.counter == null) {
-            data.counter=new Counter(meta.getStartAt(),meta.getIncrementBy(),meta.getMaxValue());
+            data.counter=new Counter(data.start,data.increment,data.maximum);
             getTransMeta().getCounters().put(data.getLookup(),data.counter);
           }
  else {
-            if ((data.counter.getStart() != meta.getStartAt()) || (data.counter.getIncrement() != meta.getIncrementBy()) || (data.counter.getMaximum() != meta.getMaxValue())) {
+            if ((data.counter.getStart() != data.start) || (data.counter.getIncrement() != data.increment) || (data.counter.getMaximum() != data.maximum)) {
               logError(Messages.getString("AddSequence.Log.CountersWithDifferentCharacteristics",data.getLookup()));
               return false;
             }
