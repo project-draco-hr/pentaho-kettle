@@ -1,0 +1,62 @@
+{
+  EnvUtil.environmentInit();
+  try {
+    TransMeta transMeta=new TransMeta();
+    transMeta.setName("transname");
+    for (int i=0; i < databasesXML.length; i++) {
+      DatabaseMeta databaseMeta=new DatabaseMeta(databasesXML[i]);
+      transMeta.addDatabase(databaseMeta);
+    }
+    DatabaseMeta dbInfo=transMeta.findDatabase("db");
+    Database database=new Database(dbInfo);
+    database.connect();
+    createTables(database);
+    createData(database);
+    StepLoader steploader=StepLoader.getInstance();
+    String injectorStepname="injector step";
+    InjectorMeta im=new InjectorMeta();
+    String injectorPid=steploader.getStepPluginID(im);
+    StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,(StepMetaInterface)im);
+    transMeta.addStep(injectorStep);
+    String lookupName="look up from [" + lookup_table + "]";
+    DatabaseLookupMeta dbl=new DatabaseLookupMeta();
+    dbl.setDatabaseMeta(transMeta.findDatabase("db"));
+    dbl.setTablename(lookup_table);
+    dbl.setCached(false);
+    dbl.setEatingRowOnLookupFailure(false);
+    dbl.setFailingOnMultipleResults(false);
+    dbl.setOrderByClause("");
+    dbl.setTableKeyField(new String[]{"ID"});
+    dbl.setKeyCondition(new String[]{"="});
+    dbl.setStreamKeyField1(new String[]{"int_field"});
+    dbl.setStreamKeyField2(new String[]{""});
+    dbl.setReturnValueField(new String[]{"CODE","STRING"});
+    dbl.setReturnValueDefaultType(new int[]{ValueMeta.TYPE_INTEGER,ValueMeta.TYPE_STRING});
+    dbl.setReturnValueDefault(new String[]{"-1","UNDEF"});
+    dbl.setReturnValueNewName(new String[]{"RET_CODE","RET_STRING"});
+    String lookupId=steploader.getStepPluginID(dbl);
+    StepMeta lookupStep=new StepMeta(lookupId,lookupName,(StepMetaInterface)dbl);
+    lookupStep.setDescription("Reads information from table [" + lookup_table + "] on database ["+ dbInfo+ "]");
+    transMeta.addStep(lookupStep);
+    TransHopMeta hi=new TransHopMeta(injectorStep,lookupStep);
+    transMeta.addTransHop(hi);
+    Trans trans=new Trans(transMeta);
+    trans.prepareExecution(null);
+    StepInterface si=trans.getStepInterface(lookupName,0);
+    RowStepCollector rc=new RowStepCollector();
+    si.addRowListener(rc);
+    RowProducer rp=trans.addRowProducer(injectorStepname,0);
+    trans.startThreads();
+    List<RowMetaAndData> inputList=createDataRows();
+    for (    RowMetaAndData rm : inputList) {
+      rp.putRow(rm.getRowMeta(),rm.getData());
+    }
+    rp.finished();
+    trans.waitUntilFinished();
+    List<RowMetaAndData> resultRows=rc.getRowsWritten();
+    List<RowMetaAndData> goldRows=createResultDataRows();
+    checkRows(goldRows,resultRows);
+  }
+  finally {
+  }
+}
