@@ -3,6 +3,12 @@
   data=(SetVariableData)sdi;
   Object[] rowData=getRow();
   if (rowData == null) {
+    if (first) {
+      logBasic(Messages.getString("SetVariable.Log.NoInputRowSetDefault"));
+      for (int i=0; i < meta.getFieldName().length; i++) {
+        if (!Const.isEmpty(meta.getDefaultValue()[i]))         setValue(rowData,i,true);
+      }
+    }
     logBasic("Finished after " + linesWritten + " rows.");
     setOutputDone();
     return false;
@@ -10,89 +16,12 @@
   if (first) {
     first=false;
     data.outputMeta=getInputRowMeta().clone();
-    logBasic("Setting environment variables...");
+    logBasic(Messages.getString("SetVariable.Log.SettingVar"));
     for (int i=0; i < meta.getFieldName().length; i++) {
-      int index=data.outputMeta.indexOfValue(meta.getFieldName()[i]);
-      if (index < 0) {
-        throw new KettleException("Unable to find field [" + meta.getFieldName()[i] + "] in input row");
-      }
-      ValueMetaInterface valueMeta=data.outputMeta.getValueMeta(index);
-      Object valueData=rowData[index];
-      String value=valueMeta.getCompatibleString(valueData);
-      if (value == null)       value="";
-      String varname=meta.getVariableName()[i];
-      if (Const.isEmpty(varname)) {
-        if (Const.isEmpty(value)) {
-          throw new KettleException("Variable name nor value was specified on line #" + (i + 1));
-        }
- else {
-          throw new KettleException("There was no variable name specified for value [" + value + "]");
-        }
-      }
-      VariableSpace transVariableSpace=null;
-      Job parentJob=null;
-switch (meta.getVariableType()[i]) {
-case SetVariableMeta.VARIABLE_TYPE_JVM:
-        System.setProperty(varname,value);
-      setVariable(varname,value);
-    transVariableSpace=getTrans();
-  transVariableSpace.setVariable(varname,value);
-parentJob=getTrans().getParentJob();
-while (parentJob != null) {
-parentJob.setVariable(varname,value);
-parentJob=parentJob.getParentJob();
-}
-break;
-case SetVariableMeta.VARIABLE_TYPE_ROOT_JOB:
-{
-setVariable(varname,value);
-transVariableSpace=getTrans();
-transVariableSpace.setVariable(varname,value);
-parentJob=getTrans().getParentJob();
-while (parentJob != null) {
-parentJob.setVariable(varname,value);
-parentJob=parentJob.getParentJob();
-}
-}
-break;
-case SetVariableMeta.VARIABLE_TYPE_GRAND_PARENT_JOB:
-{
-setVariable(varname,value);
-transVariableSpace=getTrans();
-transVariableSpace.setVariable(varname,value);
-parentJob=getTrans().getParentJob();
-if (parentJob != null) {
-parentJob.setVariable(varname,value);
-}
- else {
-throw new KettleStepException("Can't set variable [" + varname + "] on parent job: the parent job is not available");
-}
-VariableSpace gpJob=getTrans().getParentJob().getParentJob();
-if (gpJob != null) {
-gpJob.setVariable(varname,value);
-}
- else {
-throw new KettleStepException("Can't set variable [" + varname + "] on grand parent job: the grand parent job is not available");
-}
-}
-case SetVariableMeta.VARIABLE_TYPE_PARENT_JOB:
-{
-setVariable(varname,value);
-transVariableSpace=getTrans();
-transVariableSpace.setVariable(varname,value);
-parentJob=getTrans().getParentJob();
-if (parentJob != null) {
-parentJob.setVariable(varname,value);
-}
- else {
-throw new KettleStepException("Can't set variable [" + varname + "] on parent job: the parent job is not available");
-}
-}
-}
-logBasic("Set variable " + meta.getVariableName()[i] + " to value ["+ value+ "]");
-}
-putRow(data.outputMeta,rowData);
-return true;
-}
-throw new KettleStepException(Messages.getString("SetVariable.RuntimeError.MoreThanOneRowReceived.SETVARIABLE0007"));
+      setValue(rowData,i,false);
+    }
+    putRow(data.outputMeta,rowData);
+    return true;
+  }
+  throw new KettleStepException(Messages.getString("SetVariable.RuntimeError.MoreThanOneRowReceived.SETVARIABLE0007"));
 }
