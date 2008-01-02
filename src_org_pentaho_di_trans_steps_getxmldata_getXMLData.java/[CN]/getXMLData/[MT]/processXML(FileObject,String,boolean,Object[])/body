@@ -1,5 +1,7 @@
 {
   Object[] outputRowData=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
   try {
     if (meta.getIsInFields() && meta.getIsAFile()) {
       if (file.exists()) {
@@ -20,28 +22,36 @@
     if (!Const.isEmpty(meta.getEncoding())) {
       encoding=meta.getEncoding();
     }
-    DocumentBuilderFactory factory=DocumentBuilderFactory.newInstance();
-    factory.setNamespaceAware(meta.isNamespaceAware());
-    factory.setValidating(meta.isValidating());
-    DocumentBuilder builder=factory.newDocumentBuilder();
-    Document document=null;
+    SAXReader reader=new SAXReader();
+    if (meta.isValidating()) {
+      reader.setValidation(true);
+      reader.setFeature("http://apache.org/xml/features/validation/schema",true);
+    }
+    Document doc=null;
+    HashMap xmlNameSpaceMap=new HashMap();
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("getXMLData.Log.CreateDocumentStart"));
     if (IsInXMLField) {
-      document=builder.parse(new InputSource(new StringReader(StringXML)));
+      doc=reader.read(new StringReader(StringXML));
     }
  else {
-      document=builder.parse(new InputSource(new InputStreamReader(new FileInputStream(KettleVFS.getFilename(file)),encoding)));
+      doc=reader.read(new FileInputStream(KettleVFS.getFilename(file)));
+      doc.setXMLEncoding(encoding);
     }
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("getXMLData.Log.CreateDocumentEnd"));
-    XPath xpath=XPathFactory.newInstance().newXPath();
-    NodeList widgetNodes=(NodeList)xpath.evaluate(environmentSubstitute(meta.getLoopXPath()),document,XPathConstants.NODESET);
+    XPath xpath=doc.createXPath(environmentSubstitute(meta.getLoopXPath()));
+    if (meta.isNamespaceAware()) {
+      String ns=doc.getRootElement().getNamespaceURI();
+      xmlNameSpaceMap.put("ns",ns);
+      xpath.setNamespaceURIs(xmlNameSpaceMap);
+    }
+    List<AbstractNode> an=(List<AbstractNode>)xpath.selectNodes(doc);
     if (IsInXMLField) {
-      if (log.isDetailed())       logDetailed(Messages.getString("getXMLData.Log.LoopOccurences","" + widgetNodes.getLength()));
+      if (log.isDetailed())       logDetailed(Messages.getString("getXMLData.Log.LoopOccurences","" + an.size()));
     }
  else {
-      if (log.isDetailed())       logDetailed(Messages.getString("getXMLData.Log.LoopFileOccurences","" + widgetNodes.getLength(),KettleVFS.getFilename(file)));
+      if (log.isDetailed())       logDetailed(Messages.getString("getXMLData.Log.LoopFileOccurences","" + an.size(),KettleVFS.getFilename(file)));
     }
-    for (int iFileInputXML=0; iFileInputXML < widgetNodes.getLength(); iFileInputXML++) {
+    for (    AbstractNode a : an) {
       if ((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) {
         outputRowData=buildEmptyRow();
         if (row != null)         outputRowData=row.clone();
@@ -58,12 +68,15 @@
               if (Tmp_xmlInputField.getName().equalsIgnoreCase(NameVarInputField)) {
                 XPathValue=XPathValue.replaceAll("\\{\\$" + NameVarInputField + "\\}","'" + outputRowData[k] + "'");
                 if (log.isDetailed()) {
-                  log.logDetailed(toString(),XPathValue);
+                  if (log.isDetailed())                   log.logDetailed(toString(),XPathValue);
                 }
               }
             }
           }
-          String value=getValueXML(widgetNodes,iFileInputXML,xpath,XPathValue,Element_Type);
+          String value=null;
+          if (!Element_Type.equals("node"))           XPathValue='@' + XPathValue;
+          XPath xpathnode=a.createXPath(XPathValue);
+          if (xpathnode != null)           value=xpathnode.valueOf(a);
 switch (meta.getInputFields()[i].getTrimType()) {
 case getXMLDataField.TYPE_TRIM_LEFT:
             value=Const.ltrim(value);
@@ -101,7 +114,16 @@ putRow(data.outputRowMeta,outputRowData);
 }
 }
  catch (Exception e) {
+if (getStepMeta().isDoingErrorHandling()) {
+sendToErrorRow=true;
+errorMessage=e.toString();
+}
+ else {
 log.logError(toString(),e.toString());
 throw new KettleStepException(e.toString());
+}
+if (sendToErrorRow) {
+putError(getInputRowMeta(),row,1,errorMessage,null,"getXMLData001");
+}
 }
 }
