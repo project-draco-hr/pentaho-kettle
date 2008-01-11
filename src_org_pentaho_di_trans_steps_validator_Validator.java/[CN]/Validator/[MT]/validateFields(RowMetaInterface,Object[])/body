@@ -1,0 +1,42 @@
+{
+  for (int i=0; i < meta.getValidatorField().length; i++) {
+    ValidatorField field=meta.getValidatorField()[i];
+    int valueIndex=data.fieldIndexes[i];
+    ValueMetaInterface validatorMeta=data.constantsMeta[i];
+    ValueMetaInterface valueMeta=inputRowMeta.getValueMeta(valueIndex);
+    Object valueData=r[valueIndex];
+    boolean isNull=valueMeta.isNull(valueData);
+    if (!field.isNullAllowed() && isNull) {
+      throw new KettleValidatorException(KettleValidatorException.ERROR_NULL_VALUE_NOT_ALLOWED,Messages.getString("Validator.Exception.NullNotAllowed",field.getName(),inputRowMeta.getString(r)),field.getName());
+    }
+    if (field.getDataType() != ValueMetaInterface.TYPE_NONE) {
+      if (field.getDataType() != valueMeta.getType()) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_UNEXPECTED_DATA_TYPE,Messages.getString("Validator.Exception.UnexpectedDataType",field.getName(),valueMeta.toStringMeta(),validatorMeta.toStringMeta()),field.getName());
+      }
+    }
+    if (!isNull) {
+      String stringValue=valueMeta.getString(valueData);
+      if (field.getMinimumLength() >= 0 && stringValue.length() < field.getMinimumLength()) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_SHORTER_THAN_MINIMUM_LENGTH,Messages.getString("Validator.Exception.ShorterThanMininumLength",field.getName(),inputRowMeta.getString(r)),field.getName());
+      }
+      if (field.getMaximumLength() >= 0 && stringValue.length() > field.getMaximumLength()) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_SHORTER_THAN_MINIMUM_LENGTH,Messages.getString("Validator.Exception.ShorterThanMininumLength",field.getName(),inputRowMeta.getString(r)),field.getName());
+      }
+      if (data.minimumValue != null && valueMeta.compare(valueData,validatorMeta,data.minimumValue[i]) < 0) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_LOWER_THAN_ALLOWED_MINIMUM,Messages.getString("Validator.Exception.LowerThanMinimumValue",field.getName(),valueMeta.getString(valueData),validatorMeta.getString(data.minimumValue)),field.getName());
+      }
+      if (data.maximumValue != null && valueMeta.compare(valueData,validatorMeta,data.maximumValue[i]) > 0) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_HIGHER_THAN_ALLOWED_MAXIMUM,Messages.getString("Validator.Exception.HigherThanMaximumValue",field.getName(),valueMeta.getString(valueData),validatorMeta.getString(data.minimumValue)),field.getName());
+      }
+      boolean found=data.listValues.length == 0;
+      for (      Object object : data.listValues[i]) {
+        if (object != null && valueMeta.compare(valueData,validatorMeta,object) == 0) {
+          found=true;
+        }
+      }
+      if (!found) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_VALUE_NOT_IN_LIST,Messages.getString("Validator.Exception.NotInList",field.getName(),valueMeta.getString(valueData)),field.getName());
+      }
+    }
+  }
+}

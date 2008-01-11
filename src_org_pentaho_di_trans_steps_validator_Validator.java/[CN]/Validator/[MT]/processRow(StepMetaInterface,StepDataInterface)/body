@@ -1,0 +1,41 @@
+{
+  meta=(ValidatorMeta)smi;
+  data=(ValidatorData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.fieldIndexes=new int[meta.getValidatorField().length];
+    for (int i=0; i < meta.getValidatorField().length; i++) {
+      ValidatorField field=meta.getValidatorField()[i];
+      if (!Const.isEmpty(field.getName())) {
+        data.fieldIndexes[i]=getInputRowMeta().indexOfValue(field.getName());
+        if (data.fieldIndexes[i] < 0) {
+          throw new KettleStepException("Unable to find the specified fieldname '" + field.getName() + "' for validation#"+ (i + 1));
+        }
+      }
+ else {
+        throw new KettleStepException("There is no name specified for validator field #" + (i + 1));
+      }
+    }
+  }
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Read row #" + linesRead + " : "+ getInputRowMeta().getString(r));
+  try {
+    validateFields(getInputRowMeta(),r);
+  }
+ catch (  KettleValidatorException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(getInputRowMeta(),r,1,e.getMessage(),e.getFieldname(),e.getCodeDesc());
+    }
+ else {
+      throw new KettleException(e.getMessage(),e);
+    }
+  }
+  putRow(getInputRowMeta(),r);
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Wrote row #" + linesWritten + " : "+ r);
+  if (checkFeedback(linesRead))   logBasic("Linenr " + linesRead);
+  return true;
+}
