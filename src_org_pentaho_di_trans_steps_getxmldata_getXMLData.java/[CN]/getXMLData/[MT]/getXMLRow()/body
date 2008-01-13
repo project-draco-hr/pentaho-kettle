@@ -1,0 +1,39 @@
+{
+  if (!meta.getIsInFields()) {
+    while ((data.nodenr >= data.nodesize || data.file == null)) {
+      if (!openNextFile()) {
+        return null;
+      }
+    }
+  }
+  Object[] r=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  try {
+    if (meta.getIsInFields()) {
+      while ((data.nodenr >= data.nodesize || data.readrow == null)) {
+        if (!ReadNextString()) {
+          return null;
+        }
+        if (data.readrow == null) {
+          return null;
+        }
+      }
+    }
+    if (meta.getIsInFields())     r=processPutRow(data.readrow,(AbstractNode)data.an.get(data.nodenr));
+ else     r=processPutRow(null,(AbstractNode)data.an.get(data.nodenr));
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      throw new KettleException("Unable to read row from XML file",e);
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"GetXMLData001");
+    }
+  }
+  return r;
+}
