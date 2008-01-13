@@ -1,0 +1,47 @@
+{
+  try {
+    getXMLDataMeta meta=new getXMLDataMeta();
+    getInfo(meta);
+    FileInputList fileinputList=meta.getFiles(transMeta);
+    if (fileinputList.nrOfFiles() > 0) {
+      if (fileinputList.getFile(0).exists()) {
+        listpath.clear();
+        parentNodeName="";
+        String encodage="UTF-8";
+        if (!Const.isEmpty(meta.getEncoding())) {
+          encodage=meta.getEncoding();
+        }
+        DocumentBuilder builder=DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        Document document=builder.parse(new InputSource(new InputStreamReader(new FileInputStream(KettleVFS.getFilename(fileinputList.getFile(0))),encodage)));
+        NodeList nodesr=document.getChildNodes();
+        HashSet<String> listr=new HashSet<String>();
+        for (int n=0; n < nodesr.getLength(); n++) {
+          Node node=nodesr.item(n);
+          if (!listr.contains(node.getNodeName())) {
+            listpath.add(node.getNodeName());
+            getLoopNodes(node);
+          }
+          listr.add(node.getNodeName());
+          String[] list_xpath=(String[])listpath.toArray(new String[listpath.size()]);
+          EnterSelectionDialog dialog=new EnterSelectionDialog(shell,list_xpath,Messages.getString("getXMLDataDialog.Dialog.SelectALoopPath.Title"),Messages.getString("getXMLDataDialog.Dialog.SelectALoopPath.Message"));
+          String listxpaths=dialog.open();
+          if (listxpaths != null) {
+            wLoopXPath.setText(listxpaths);
+          }
+        }
+      }
+ else {
+        throw new KettleException(Messages.getString("getXMLDataDialog.Exception.FileDoesNotExist",KettleVFS.getFilename(fileinputList.getFile(0))));
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage(Messages.getString("getXMLDataDialog.FilesMissing.DialogMessage"));
+      mb.setText(Messages.getString("System.Dialog.Error.Title"));
+      mb.open();
+    }
+  }
+ catch (  Throwable e) {
+    new ErrorDialog(shell,Messages.getString("getXMLDataDialog.UnableToGetListOfPaths.Title"),Messages.getString("getXMLDataDialog.UnableToGetListOfPaths.Message"),e);
+  }
+}
