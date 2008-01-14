@@ -9,7 +9,7 @@
     if (!field.isNullAllowed() && isNull) {
       throw new KettleValidatorException(KettleValidatorException.ERROR_NULL_VALUE_NOT_ALLOWED,Messages.getString("Validator.Exception.NullNotAllowed",field.getName(),inputRowMeta.getString(r)),field.getName());
     }
-    if (field.getDataType() != ValueMetaInterface.TYPE_NONE) {
+    if (field.isDataTypeVerified() && field.getDataType() != ValueMetaInterface.TYPE_NONE) {
       if (field.getDataType() != valueMeta.getType()) {
         throw new KettleValidatorException(KettleValidatorException.ERROR_UNEXPECTED_DATA_TYPE,Messages.getString("Validator.Exception.UnexpectedDataType",field.getName(),valueMeta.toStringMeta(),validatorMeta.toStringMeta()),field.getName());
       }
@@ -17,20 +17,20 @@
     if (!isNull) {
       String stringValue=valueMeta.getString(valueData);
       if (field.getMinimumLength() >= 0 && stringValue.length() < field.getMinimumLength()) {
-        throw new KettleValidatorException(KettleValidatorException.ERROR_SHORTER_THAN_MINIMUM_LENGTH,Messages.getString("Validator.Exception.ShorterThanMininumLength",field.getName(),inputRowMeta.getString(r)),field.getName());
+        throw new KettleValidatorException(KettleValidatorException.ERROR_SHORTER_THAN_MINIMUM_LENGTH,Messages.getString("Validator.Exception.ShorterThanMininumLength",field.getName(),valueMeta.getString(valueData),Integer.toString(stringValue.length()),Integer.toString(field.getMinimumLength())),field.getName());
       }
       if (field.getMaximumLength() >= 0 && stringValue.length() > field.getMaximumLength()) {
-        throw new KettleValidatorException(KettleValidatorException.ERROR_SHORTER_THAN_MINIMUM_LENGTH,Messages.getString("Validator.Exception.ShorterThanMininumLength",field.getName(),inputRowMeta.getString(r)),field.getName());
+        throw new KettleValidatorException(KettleValidatorException.ERROR_LONGER_THAN_MAXIMUM_LENGTH,Messages.getString("Validator.Exception.LongerThanMaximumLength",field.getName(),valueMeta.getString(valueData),Integer.toString(stringValue.length()),Integer.toString(field.getMaximumLength())),field.getName());
       }
-      if (data.minimumValue != null && valueMeta.compare(valueData,validatorMeta,data.minimumValue[i]) < 0) {
-        throw new KettleValidatorException(KettleValidatorException.ERROR_LOWER_THAN_ALLOWED_MINIMUM,Messages.getString("Validator.Exception.LowerThanMinimumValue",field.getName(),valueMeta.getString(valueData),validatorMeta.getString(data.minimumValue)),field.getName());
+      if (data.minimumValue[i] != null && valueMeta.compare(valueData,validatorMeta,data.minimumValue[i]) < 0) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_LOWER_THAN_ALLOWED_MINIMUM,Messages.getString("Validator.Exception.LowerThanMinimumValue",field.getName(),valueMeta.getString(valueData),data.constantsMeta[i].getString(data.minimumValue[i])),field.getName());
       }
-      if (data.maximumValue != null && valueMeta.compare(valueData,validatorMeta,data.maximumValue[i]) > 0) {
-        throw new KettleValidatorException(KettleValidatorException.ERROR_HIGHER_THAN_ALLOWED_MAXIMUM,Messages.getString("Validator.Exception.HigherThanMaximumValue",field.getName(),valueMeta.getString(valueData),validatorMeta.getString(data.minimumValue)),field.getName());
+      if (data.maximumValue[i] != null && valueMeta.compare(valueData,validatorMeta,data.maximumValue[i]) > 0) {
+        throw new KettleValidatorException(KettleValidatorException.ERROR_HIGHER_THAN_ALLOWED_MAXIMUM,Messages.getString("Validator.Exception.HigherThanMaximumValue",field.getName(),valueMeta.getString(valueData),data.constantsMeta[i].getString(data.maximumValue[i])),field.getName());
       }
-      boolean found=data.listValues.length == 0;
+      boolean found=data.listValues[i].length == 0;
       for (      Object object : data.listValues[i]) {
-        if (object != null && valueMeta.compare(valueData,validatorMeta,object) == 0) {
+        if (object != null && data.listValues[i] != null && valueMeta.compare(valueData,validatorMeta,object) == 0) {
           found=true;
         }
       }

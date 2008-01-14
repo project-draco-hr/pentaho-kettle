@@ -3,6 +3,9 @@
   data=(ValidatorData)sdi;
   if (super.init(smi,sdi)) {
     data.constantsMeta=new ValueMetaInterface[meta.getValidatorField().length];
+    data.minimumValue=new Object[meta.getValidatorField().length];
+    data.maximumValue=new Object[meta.getValidatorField().length];
+    data.listValues=new Object[meta.getValidatorField().length][];
     for (int i=0; i < data.constantsMeta.length; i++) {
       ValidatorField field=meta.getValidatorField()[i];
       data.constantsMeta[i]=new ValueMeta(field.getName(),field.getDataType());
@@ -12,16 +15,21 @@
       ValueMetaInterface stringMeta=data.constantsMeta[i].clone();
       stringMeta.setType(ValueMetaInterface.TYPE_STRING);
       try {
-        data.minimumValue[i]=data.constantsMeta[i].convertData(stringMeta,field.getMinimumValue());
-        data.maximumValue[i]=data.constantsMeta[i].convertData(stringMeta,field.getMaximumValue());
+        data.minimumValue[i]=Const.isEmpty(field.getMinimumValue()) ? null : data.constantsMeta[i].convertData(stringMeta,field.getMinimumValue());
+        data.maximumValue[i]=Const.isEmpty(field.getMaximumValue()) ? null : data.constantsMeta[i].convertData(stringMeta,field.getMaximumValue());
         int listSize=field.getAllowedValues() != null ? field.getAllowedValues().length : 0;
         data.listValues[i]=new Object[listSize];
         for (int s=0; s < listSize; s++) {
-          data.listValues[i][s]=data.constantsMeta[i].convertData(stringMeta,field.getAllowedValues()[s]);
+          data.listValues[i][s]=Const.isEmpty(field.getAllowedValues()[s]) ? null : data.constantsMeta[i].convertData(stringMeta,field.getAllowedValues()[s]);
         }
       }
  catch (      KettleValueException e) {
-        logError(Messages.getString("Validator.Exception.DataConversionErrorEncountered"),e);
+        if (field.getDataType() == ValueMetaInterface.TYPE_NONE) {
+          logError(Messages.getString("Validator.Exception.SpecifyDataType"),e);
+        }
+ else {
+          logError(Messages.getString("Validator.Exception.DataConversionErrorEncountered"),e);
+        }
         return false;
       }
     }
