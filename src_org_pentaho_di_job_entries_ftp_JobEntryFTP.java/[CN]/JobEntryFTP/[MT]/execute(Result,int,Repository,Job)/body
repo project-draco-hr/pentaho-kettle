@@ -10,7 +10,20 @@
     ftpclient=new FTPClient();
     String realServername=environmentSubstitute(serverName);
     ftpclient.setRemoteAddr(InetAddress.getByName(realServername));
-    log.logDetailed(toString(),Messages.getString("JobEntryFTP.OpenedConnection",realServername));
+    if (!Const.isEmpty(proxyHost)) {
+      String realProxy_host=environmentSubstitute(proxyHost);
+      ftpclient.setRemoteAddr(InetAddress.getByName(realProxy_host));
+      if (log.isDetailed())       log.logDetailed(toString(),"Opened FTP connection to proxy server [" + realProxy_host + "]");
+      int port=Const.toInt(environmentSubstitute(proxyPort),0);
+      if (port != 0) {
+        ftpclient.setRemotePort(port);
+      }
+    }
+ else {
+      ftpclient.setRemoteAddr(InetAddress.getByName(realServername));
+      if (log.isDetailed())       log.logDetailed(toString(),"Opened FTP connection to server [" + realServername + "]");
+    }
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobEntryFTP.OpenedConnection",realServername));
     if (activeConnection) {
       ftpclient.setConnectMode(FTPConnectMode.ACTIVE);
       log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetActive"));
@@ -19,13 +32,13 @@
       ftpclient.setConnectMode(FTPConnectMode.PASV);
       log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetPassive"));
     }
-    ftpclient.setTimeout(timeout);
+    ftpclient.setTimeout(timeout * 1000);
     log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetTimeout",String.valueOf(timeout)));
     ftpclient.setControlEncoding(controlEncoding);
     log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetEncoding",controlEncoding));
     ftpclient.connect();
-    String realUsername=environmentSubstitute(userName);
-    String realPassword=environmentSubstitute(password);
+    String realUsername=environmentSubstitute(userName) + (!Const.isEmpty(proxyUsername) ? "@" + environmentSubstitute(proxyUsername) : "") + (!Const.isEmpty(proxyHost) ? "@" + realServername : "");
+    String realPassword=environmentSubstitute(password) + (!Const.isEmpty(proxyPassword) ? "@" + environmentSubstitute(proxyPassword) : "");
     ftpclient.login(realUsername,realPassword);
     log.logDetailed(toString(),Messages.getString("JobEntryFTP.LoggedIn",realUsername));
     if (!Const.isEmpty(ftpDirectory)) {
