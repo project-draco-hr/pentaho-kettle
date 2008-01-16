@@ -1,0 +1,117 @@
+{
+  Rectangle bounds=canvas.getBounds();
+  if (bounds.width <= 0 || bounds.height <= 0)   return;
+  DefaultCategoryDataset dataset=new DefaultCategoryDataset();
+  String[] selectedSteps=stepsList.getSelection();
+  if (selectedSteps == null || selectedSteps.length == 0) {
+    selectedSteps=new String[]{steps[0]};
+    stepsList.select(0);
+  }
+  int[] dataIndices=dataList.getSelectionIndices();
+  if (dataIndices == null || dataIndices.length == 0) {
+    dataIndices=new int[]{DATA_CHOICE_WRITTEN};
+    dataList.select(0);
+  }
+  boolean multiStep=stepsList.getSelectionCount() > 1;
+  boolean multiData=dataList.getSelectionCount() > 1;
+  boolean calcMoving=!multiStep && !multiData;
+  List<Double> movingList=new ArrayList<Double>();
+  int movingSize=10;
+  double movingTotal=0;
+  int totalTimeInSeconds=0;
+  for (int t=0; t < selectedSteps.length; t++) {
+    String stepNameCopy=selectedSteps[t];
+    List<StepPerformanceSnapShot> snapShotList=stepPerformanceSnapShots.get(stepNameCopy);
+    if (snapShotList != null && snapShotList.size() > 1) {
+      totalTimeInSeconds=(int)Math.round(((double)(snapShotList.get(snapShotList.size() - 1).getDate().getTime() - snapShotList.get(0).getDate().getTime())) / 1000);
+      for (int i=0; i < snapShotList.size(); i++) {
+        StepPerformanceSnapShot snapShot=snapShotList.get(i);
+        if (snapShot.getTimeDifference() != 0) {
+          double factor=(double)1000 / (double)snapShot.getTimeDifference();
+          for (int d=0; d < dataIndices.length; d++) {
+            String dataType;
+            if (multiStep) {
+              dataType=stepNameCopy;
+            }
+ else {
+              dataType=dataChoices[dataIndices[d]];
+            }
+            String xLabel=Integer.toString((int)Math.round(i * timeDifference / 1000));
+            Double metric=null;
+switch (dataIndices[d]) {
+case DATA_CHOICE_INPUT:
+              metric=snapShot.getLinesInput() * factor;
+            break;
+case DATA_CHOICE_OUTPUT:
+          metric=snapShot.getLinesOutput() * factor;
+        break;
+case DATA_CHOICE_READ:
+      metric=snapShot.getLinesRead() * factor;
+    break;
+case DATA_CHOICE_WRITTEN:
+  metric=snapShot.getLinesWritten() * factor;
+break;
+case DATA_CHOICE_UPDATED:
+metric=snapShot.getLinesUpdated() * factor;
+break;
+case DATA_CHOICE_REJECTED:
+metric=snapShot.getLinesRejected() * factor;
+break;
+case DATA_CHOICE_INPUT_BUFFER_SIZE:
+metric=(double)snapShot.getInputBufferSize();
+break;
+case DATA_CHOICE_OUTPUT_BUFFER_SIZE:
+metric=(double)snapShot.getOutputBufferSize();
+break;
+}
+if (metric != null) {
+dataset.addValue(metric,dataType,xLabel);
+if (calcMoving) {
+movingTotal+=metric;
+movingList.add(metric);
+if (movingList.size() > movingSize) {
+movingTotal-=movingList.get(0);
+movingList.remove(0);
+}
+double movingAverage=movingTotal / movingList.size();
+dataset.addValue(movingAverage,dataType + "(Avg)",xLabel);
+}
+}
+}
+}
+}
+}
+}
+String chartTitle=title;
+if (multiStep) {
+chartTitle+=" (" + dataChoices[dataIndices[0]] + ")";
+}
+ else {
+chartTitle+=" (" + selectedSteps[0] + ")";
+}
+final JFreeChart chart=ChartFactory.createLineChart(chartTitle,Messages.getString("StepPerformanceSnapShotDialog.TimeInSeconds.Label",Integer.toString(totalTimeInSeconds),Long.toString(timeDifference)),Messages.getString("StepPerformanceSnapShotDialog.RowsPerSecond.Label"),dataset,PlotOrientation.VERTICAL,true,true,false);
+chart.setBackgroundPaint(Color.white);
+CategoryPlot plot=(CategoryPlot)chart.getPlot();
+plot.setBackgroundPaint(Color.white);
+plot.setForegroundAlpha(0.5f);
+plot.setRangeGridlinesVisible(true);
+NumberAxis rangeAxis=(NumberAxis)plot.getRangeAxis();
+rangeAxis.setStandardTickUnits(NumberAxis.createIntegerTickUnits());
+CategoryAxis domainAxis=plot.getDomainAxis();
+domainAxis.setTickLabelsVisible(false);
+LineAndShapeRenderer renderer=(LineAndShapeRenderer)plot.getRenderer();
+renderer.setBaseShapesVisible(true);
+renderer.setDrawOutlines(true);
+renderer.setUseFillPaint(true);
+renderer.setBaseFillPaint(Color.white);
+renderer.setSeriesStroke(0,new BasicStroke(1.5f));
+renderer.setSeriesOutlineStroke(0,new BasicStroke(1.5f));
+renderer.setSeriesStroke(1,new BasicStroke(2.5f));
+renderer.setSeriesOutlineStroke(1,new BasicStroke(2.5f));
+renderer.setSeriesShape(0,new Ellipse2D.Double(-3.0,-3.0,6.0,6.0));
+BufferedImage bufferedImage=chart.createBufferedImage(bounds.width,bounds.height);
+ImageData imageData=ImageUtil.convertToSWT(bufferedImage);
+if (image != null) image.dispose();
+image=new Image(display,imageData);
+canvas.redraw();
+}
