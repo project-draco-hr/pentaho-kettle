@@ -10,12 +10,12 @@
     try {
       FileObject fileObject=KettleVFS.getFileObject(vfsFilename);
       if (!(fileObject instanceof LocalFile)) {
-        throw new KettleException("Only local files are supported at this time, file [" + vfsFilename + "] is not a local file.");
+        throw new KettleException(Messages.getString("JobMssqlBulkLoad.Error.OnlyLocalFileSupported",vfsFilename));
       }
       String realFilename=KettleVFS.getFilename(fileObject);
       File file=new File(realFilename);
       if (file.exists() && file.canRead()) {
-        log.logDetailed(toString(),"File [" + realFilename + "] exists.");
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobMssqlBulkLoad.FileExists.Label",realFilename));
         if (connection != null) {
           Database db=new Database(connection);
           if (db.getDatabaseMeta().getDatabaseType() != DatabaseMeta.TYPE_DATABASE_MSSQL) {
@@ -28,10 +28,8 @@
             String realSchemaname=environmentSubstitute(schemaname);
             String realTablename=environmentSubstitute(tablename);
             if (db.checkTableExists(realTablename)) {
-              log.logDetailed(toString(),"Table [" + realTablename + "] exists.");
-              if (schemaname != null) {
-                realTablename=realSchemaname + "." + realTablename;
-              }
+              log.logDetailed(toString(),Messages.getString("JobMssqlBulkLoad.TableExists.Label",realTablename));
+              if (schemaname != null)               realTablename=realSchemaname + "." + realTablename;
               String nblinesTake=getRealTakelines();
               if (Const.toInt(nblinesTake,0) > 0)               TakeFirstNbrLines="FIRSTROW=" + nblinesTake;
               String Fieldterminator=getRealSeparator();
@@ -54,7 +52,6 @@
                 result.setResult(true);
               }
  catch (              KettleDatabaseException je) {
-                db.disconnect();
                 result.setNrErrors(1);
                 log.logError(toString(),"An error occurred executing this job entry : " + je.getMessage());
               }
@@ -62,11 +59,17 @@ catch (              IOException e) {
                 log.logError(toString(),"An error occurred executing this job entry : " + e.getMessage());
                 result.setNrErrors(1);
               }
+ finally {
+                if (db != null) {
+                  db.disconnect();
+                  db=null;
+                }
+              }
             }
  else {
               db.disconnect();
               result.setNrErrors(1);
-              log.logDetailed(toString(),"Table [" + realTablename + "] doesn't exist!");
+              log.logDetailed(toString(),Messages.getString("JobMssqlBulkLoad.Error.TableNotExists",realTablename));
             }
           }
  catch (          KettleDatabaseException dbe) {
@@ -82,7 +85,7 @@ catch (              IOException e) {
       }
  else {
         result.setNrErrors(1);
-        log.logError(toString(),"File [" + realFilename + "] doesn't exist!");
+        log.logError(toString(),Messages.getString("JobMssqlBulkLoad.Error.FileNotExists",realFilename));
       }
     }
  catch (    Exception e) {
