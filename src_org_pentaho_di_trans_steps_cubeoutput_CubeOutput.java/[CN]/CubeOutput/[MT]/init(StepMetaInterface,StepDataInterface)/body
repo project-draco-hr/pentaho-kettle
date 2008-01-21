@@ -2,21 +2,17 @@
   meta=(CubeOutputMeta)smi;
   data=(CubeOutputData)sdi;
   if (super.init(smi,sdi)) {
-    try {
-      String filename=environmentSubstitute(meta.getFilename());
-      if (meta.isAddToResultFiles()) {
-        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(filename),getTransMeta().getName(),getStepname());
-        resultFile.setComment("This file was created with a cube file output step");
-        addResultFile(resultFile);
+    if (!meta.isDoNotOpenNewFileInit()) {
+      try {
+        PrepareFile();
+        data.oneFileOpened=true;
+        return true;
       }
-      data.fos=KettleVFS.getOutputStream(filename,false);
-      data.zip=new GZIPOutputStream(data.fos);
-      data.dos=new DataOutputStream(data.zip);
-      return true;
+ catch (      IOException ioe) {
+        logError(Messages.getString("CubeOutput.Log.ErrorOpeningCubeOutputFile") + ioe.toString());
+      }
     }
- catch (    IOException ioe) {
-      logError(Messages.getString("CubeOutput.Log.ErrorOpeningCubeOutputFile") + ioe.toString());
-    }
+ else     return true;
   }
   return false;
 }
