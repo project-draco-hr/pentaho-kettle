@@ -46,24 +46,35 @@
     controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
     results=ctx.search(searchbase,filter.replace("\n\r","").replace("\n",""),controls);
     Attribute attr=null;
-    String attrvalue=null;
-    while (((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) && (results.hasMore())) {
+    while (((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) && (results.hasMoreElements())) {
       SearchResult searchResult=(SearchResult)results.next();
-      Attributes attributes=searchResult.getAttributes();
-      outputRowData=buildEmptyRow();
-      for (int i=0; i < meta.getInputFields().length; i++) {
-        attr=attributes.get(environmentSubstitute(meta.getInputFields()[i].getAttribute()));
-        if (attr != null)         attrvalue=(String)attr.get();
+      Attributes attributes=null;
+      attributes=searchResult.getAttributes();
+      if (attributes != null) {
+        outputRowData=buildEmptyRow();
+        for (int i=0; i < meta.getInputFields().length; i++) {
+          String attrvalue=null;
+          attr=attributes.get(environmentSubstitute(meta.getInputFields()[i].getAttribute()));
+          if (attr != null) {
+            StringBuilder attrStr=new StringBuilder();
+            for (NamingEnumeration eattr=attr.getAll(); eattr.hasMore(); ) {
+              if (attrStr.length() > 0) {
+                attrStr.append("$");
+              }
+              attrStr.append(eattr.next().toString());
+            }
+            attrvalue=attrStr.toString();
+          }
 switch (meta.getInputFields()[i].getTrimType()) {
 case LDAPInputField.TYPE_TRIM_LEFT:
-          attrvalue=Const.ltrim(attrvalue);
-        break;
+            attrvalue=Const.ltrim(attrvalue);
+          break;
 case LDAPInputField.TYPE_TRIM_RIGHT:
-      attrvalue=Const.rtrim(attrvalue);
-    break;
+        attrvalue=Const.rtrim(attrvalue);
+      break;
 case LDAPInputField.TYPE_TRIM_BOTH:
-  attrvalue=Const.trim(attrvalue);
-break;
+    attrvalue=Const.trim(attrvalue);
+  break;
 default :
 break;
 }
@@ -85,6 +96,7 @@ data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRo
 data.rownr++;
 linesInput++;
 putRow(data.outputRowMeta,outputRowData);
+}
 }
 ctx.close();
 log.logBasic(Messages.getString("LDAPInput.log.Deconnection"),Messages.getString("LDAPInput.log.Deconnection.Done"));
