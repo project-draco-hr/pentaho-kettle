@@ -1,16 +1,4 @@
 {
-  String port=environmentSubstitute(meta.getPort());
-  String hostname=environmentSubstitute(meta.getHost());
-  String username=environmentSubstitute(meta.getUserName());
-  String password=environmentSubstitute(meta.getPassword());
-  String filter=environmentSubstitute(meta.getFilterString());
-  String searchbase=environmentSubstitute(meta.getSearchBase());
-  NamingEnumeration<SearchResult> results=null;
-  DirContext ctx=null;
-  data.rownr=0;
-  linesInput=0;
-  String[] attrReturned=new String[meta.getInputFields().length];
-  Object[] outputRowData=null;
   if (first) {
     first=false;
     data.outputRowMeta=new RowMeta();
@@ -21,109 +9,39 @@
     for (int i=0; i < data.convertRowMeta.size(); i++) {
       data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
     }
-    for (int i=0; i < meta.getInputFields().length; i++) {
-      attrReturned[i]=environmentSubstitute(meta.getInputFields()[i].getAttribute());
+    connectServerLdap();
+    data.multi_valuedFieldSeparator=environmentSubstitute(meta.getMultiValuedSeparator());
+    data.nrfields=meta.getInputFields().length;
+  }
+  Object[] outputRowData=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  try {
+    outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (log.isDebug())     log.logDebug(Messages.getString("LDAPInput.log.ReadRow"),outputRowData.toString());
+    if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)     logBasic(Messages.getString("LDAPInput.log.LineRow") + linesInput);
+    return true;
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("LDAPInput.log.Exception",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),outputRowData,1,errorMessage,null,"LDAPINPUT001");
     }
   }
-  try {
-    ctx=connectServerLdap(hostname,username,password,port);
-    if (ctx == null) {
-      logError(Messages.getString("LDAPInput.Error.UnableToConnectToServer"));
-    }
-    logBasic(Messages.getString("LDAPInput.ConnectedToServer.Message",hostname,username));
-    if (log.isDetailed())     logDetailed(Messages.getString("LDAPInput.ClassUsed.Message",ctx.getClass().getName()));
-    DirContext schema=ctx.getSchema("");
-    if (log.isDetailed())     logDetailed(Messages.getString("LDAPInput.SchemaList.Message","" + schema.list("")));
-    SearchControls controls=new SearchControls();
-    controls.setCountLimit(meta.getRowLimit());
-    controls.setReturningAttributes(attrReturned);
-    if (Const.isEmpty(searchbase)) {
-      Attributes attrs=ctx.getAttributes("",new String[]{"namingContexts"});
-      Attribute attr=attrs.get("namingContexts");
-      searchbase=attr.get().toString();
-      if (log.isDetailed())       logBasic(Messages.getString("LDAPInput.SearchBaseFound",searchbase));
-    }
-    controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-    results=ctx.search(searchbase,filter.replace("\n\r","").replace("\n",""),controls);
-    Attribute attr=null;
-    while (((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) && (results.hasMoreElements())) {
-      SearchResult searchResult=(SearchResult)results.next();
-      Attributes attributes=null;
-      attributes=searchResult.getAttributes();
-      if (attributes != null) {
-        outputRowData=buildEmptyRow();
-        for (int i=0; i < meta.getInputFields().length; i++) {
-          String attrvalue=null;
-          attr=attributes.get(environmentSubstitute(meta.getInputFields()[i].getAttribute()));
-          if (attr != null) {
-            StringBuilder attrStr=new StringBuilder();
-            for (NamingEnumeration eattr=attr.getAll(); eattr.hasMore(); ) {
-              if (attrStr.length() > 0) {
-                attrStr.append("$");
-              }
-              attrStr.append(eattr.next().toString());
-            }
-            attrvalue=attrStr.toString();
-          }
-switch (meta.getInputFields()[i].getTrimType()) {
-case LDAPInputField.TYPE_TRIM_LEFT:
-            attrvalue=Const.ltrim(attrvalue);
-          break;
-case LDAPInputField.TYPE_TRIM_RIGHT:
-        attrvalue=Const.rtrim(attrvalue);
-      break;
-case LDAPInputField.TYPE_TRIM_BOTH:
-    attrvalue=Const.trim(attrvalue);
-  break;
-default :
-break;
-}
-ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(i);
-ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(i);
-outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,attrvalue);
-if (meta.getInputFields()[i].isRepeated()) {
-if (data.previousRow != null && Const.isEmpty(attrvalue)) {
-outputRowData[i]=data.previousRow[i];
-}
-}
-}
-int rowIndex=meta.getInputFields().length;
-if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
-outputRowData[rowIndex++]=new Long(data.rownr);
-}
-RowMetaInterface irow=getInputRowMeta();
-data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
-data.rownr++;
-linesInput++;
-putRow(data.outputRowMeta,outputRowData);
-}
-}
-ctx.close();
-log.logBasic(Messages.getString("LDAPInput.log.Deconnection"),Messages.getString("LDAPInput.log.Deconnection.Done"));
-if (log.isDebug()) log.logDebug(Messages.getString("LDAPInput.log.ReadRow"),outputRowData.toString());
-if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0) logBasic(Messages.getString("LDAPInput.log.LineRow") + linesInput);
-}
- catch (Exception e) {
-logError(Messages.getString("LDAPInput.log.Exception"),e);
-stopAll();
-setErrors(1);
-}
- finally {
-if (results != null) {
-try {
-results.close();
-}
- catch (Exception e) {
-}
-}
-if (ctx != null) {
-try {
-ctx.close();
-}
- catch (Exception e) {
-}
-}
-}
-setOutputDone();
-return false;
+  return true;
 }
