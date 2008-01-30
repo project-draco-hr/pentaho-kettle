@@ -2,13 +2,48 @@
   meta=(GetFilesRowsCountMeta)smi;
   data=(GetFilesRowsCountData)sdi;
   if (super.init(smi,sdi)) {
-    data.files=meta.getFiles(this).getFiles();
-    if (data.files == null || data.files.size() == 0) {
-      logError(Messages.getString("GetFilesRowsCount.Log.NoFiles"));
-      return false;
+    if ((meta.getRowSeparatorFormat().equals("CUSTOM")) && (Const.isEmpty(meta.getRowSeparator()))) {
+      log.logError(Messages.getString("GetFilesRowsCount.Error.NoSeparator.Title"),Messages.getString("GetFilesRowsCount.Error.NoSeparator.Msg"));
+      setErrors(1);
+      stopAll();
     }
-    data.rownr=1L;
-    data.filesnr=0;
+ else {
+      if (meta.getRowSeparatorFormat().equals("CR")) {
+        data.separator='\n';
+        if (log.isDetailed())         log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " \\n");
+      }
+ else       if (meta.getRowSeparatorFormat().equals("LF")) {
+        data.separator='\r';
+        if (log.isDetailed())         log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " \\r");
+      }
+ else       if (meta.getRowSeparatorFormat().equals("TAB")) {
+        data.separator='\t';
+        if (log.isDetailed())         log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " \\t");
+      }
+ else {
+        data.separator=environmentSubstitute(meta.getRowSeparator()).charAt(0);
+        if (log.isDetailed())         log.logDetailed(Messages.getString("GetFilesRowsCount.Log.Separator.Title"),Messages.getString("GetFilesRowsCount.Log.Separatoris.Infos") + " " + data.separator);
+      }
+    }
+    if (!meta.isFileField()) {
+      data.files=meta.getFiles(this);
+      if (data.files == null || data.files.nrOfFiles() == 0) {
+        logError(Messages.getString("GetFilesRowsCount.Log.NoFiles"));
+        return false;
+      }
+      try {
+        data.outputRowMeta=new RowMeta();
+        meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+      }
+ catch (      Exception e) {
+        logError("Error initializing step: " + e.toString());
+        logError(Const.getStackTracker(e));
+        return false;
+      }
+    }
+    data.rownr=0;
+    data.filenr=0;
+    data.totalpreviousfields=0;
     return true;
   }
   return false;
