@@ -1,39 +1,34 @@
 {
-  data.rownr=0;
-  if (data.filenr >= data.files.size()) {
-    setOutputDone();
-    return false;
-  }
-  if (first) {
-    first=false;
-    data.outputRowMeta=new RowMeta();
-    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
-    data.convertRowMeta=data.outputRowMeta.clone();
-    for (int i=0; i < data.convertRowMeta.size(); i++)     data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
-    data.convertRowMeta=data.outputRowMeta.clone();
-    for (int i=0; i < data.convertRowMeta.size(); i++) {
-      data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+  Object[] r=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  try {
+    Object[] outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (meta.getRowLimit() > 0 && data.rownr > meta.getRowLimit()) {
+      setOutputDone();
+      return false;
     }
   }
-  for (int i=0; i < data.files.size(); i++) {
-    if ((meta.getRowLimit() > 0 && data.rownr < meta.getRowLimit()) || meta.getRowLimit() == 0) {
-      data.file=(FileObject)data.files.get(i);
-      logBasic(Messages.getString("AccessInput.Log.OpeningFile",data.file.toString()));
-      Processfile(data.file);
-      if (log.isDetailed())       logDetailed(Messages.getString("AccessInput.Log.FileOpened",data.file.toString()));
-    }
-    ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
-    resultFile.setComment(Messages.getString("AccessInput.Log.FileAddedResult"));
-    addResultFile(resultFile);
-    data.filenr++;
-    if (meta.resetRowNumber()) {
-      data.rownr=0;
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
     }
  else {
-      data.rownr++;
+      logError(Messages.getString("AccessInput.ErrorInStepRunning",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"AccessInput001");
     }
   }
-  linesInput++;
-  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
   return true;
 }

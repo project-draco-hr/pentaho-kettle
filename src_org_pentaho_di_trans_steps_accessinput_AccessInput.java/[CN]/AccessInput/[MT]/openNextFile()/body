@@ -1,0 +1,64 @@
+{
+  try {
+    if (!meta.isFileField()) {
+      if (data.filenr >= data.files.nrOfFiles()) {
+        if (log.isDetailed())         logDetailed(Messages.getString("AccessInput.Log.FinishedProcessing"));
+        return false;
+      }
+      data.last_file=(data.filenr == data.files.nrOfFiles() - 1);
+      data.file=(FileObject)data.files.getFile(data.filenr);
+      data.filenr++;
+    }
+ else {
+      data.readrow=getRow();
+      if (data.readrow == null) {
+        if (log.isDetailed())         logDetailed(Messages.getString("AccessInput.Log.FinishedProcessing"));
+        return false;
+      }
+      if (first) {
+        first=false;
+        data.inputRowMeta=getInputRowMeta();
+        data.outputRowMeta=data.inputRowMeta.clone();
+        meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+        data.totalpreviousfields=data.inputRowMeta.size();
+        data.convertRowMeta=data.outputRowMeta.clone();
+        for (int i=0; i < data.convertRowMeta.size(); i++)         data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+        data.convertRowMeta=data.outputRowMeta.clone();
+        for (int i=0; i < data.convertRowMeta.size(); i++) {
+          data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+        }
+        if (Const.isEmpty(meta.getFilename_Field())) {
+          logError(Messages.getString("AccessInput.Log.NoField"));
+          throw new KettleException(Messages.getString("AccessInput.Log.NoField"));
+        }
+        if (data.indexOfFilenameField < 0) {
+          data.indexOfFilenameField=getInputRowMeta().indexOfValue(meta.getFilename_Field());
+          if (data.indexOfFilenameField < 0) {
+            logError(Messages.getString("AccessInput.Log.ErrorFindingField") + "[" + meta.getFilename_Field()+ "]");
+            throw new KettleException(Messages.getString("AccessInput.Exception.CouldnotFindField",meta.getFilename_Field()));
+          }
+        }
+      }
+      String filename=getInputRowMeta().getString(data.readrow,data.indexOfFilenameField);
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("AccessInput.Log.FilenameInStream",meta.getFilename_Field(),filename));
+      data.file=KettleVFS.getFileObject(filename);
+    }
+    if (meta.resetRowNumber())     data.rownr=0;
+    if (log.isDetailed())     logDetailed(Messages.getString("AccessInput.Log.OpeningFile",data.file.toString()));
+    if (meta.isAddResultFile()) {
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
+      resultFile.setComment(Messages.getString("AccessInput.Log.FileAddedResult"));
+      addResultFile(resultFile);
+    }
+    data.d=Database.open(new File(KettleVFS.getFilename(data.file)));
+    data.t=data.d.getTable(environmentSubstitute(meta.getTableName()));
+    if (log.isDetailed())     logDetailed(Messages.getString("AccessInput.Log.FileOpened",data.file.toString()));
+  }
+ catch (  Exception e) {
+    logError(Messages.getString("AccessInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+    stopAll();
+    setErrors(1);
+    return false;
+  }
+  return true;
+}
