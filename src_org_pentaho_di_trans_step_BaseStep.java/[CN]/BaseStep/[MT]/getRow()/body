@@ -26,10 +26,18 @@
   if (inputRowSets.isEmpty()) {
     return null;
   }
+  RowSet inputRowSet=null;
+  Object[] row=null;
   if (blockPointer >= NR_OF_ROWS_IN_BLOCK) {
-    nextInputStream();
+    for (int r=0; r < inputRowSets.size() && row == null; r++) {
+      nextInputStream();
+      inputRowSet=currentInputStream();
+      row=inputRowSet.getRowImmediate();
+    }
   }
-  RowSet inputRowSet=currentInputStream();
+ else {
+    inputRowSet=currentInputStream();
+  }
   while (isUsingThreadPriorityManagment() && !inputRowSet.isDone() && inputRowSet.size() <= (transMeta.getSizeRowset() >> 6) && !isStopped()) {
     try {
       Thread.sleep(0,10);
@@ -37,16 +45,15 @@
  catch (    InterruptedException e) {
     }
   }
-  Object[] row=null;
   while (row == null && !isStopped()) {
-    row=inputRowSet.getRowWait(2,TimeUnit.MILLISECONDS);
+    row=inputRowSet.getRowWait(1,TimeUnit.MILLISECONDS);
     if (row != null) {
       linesRead++;
       blockPointer++;
     }
  else {
       if (inputRowSet.isDone()) {
-        row=inputRowSet.getRowWait(2,TimeUnit.MILLISECONDS);
+        row=inputRowSet.getRowWait(1,TimeUnit.MILLISECONDS);
         if (row == null) {
           inputRowSets.remove(currentInputRowSetNr);
           if (inputRowSets.isEmpty())           return null;
