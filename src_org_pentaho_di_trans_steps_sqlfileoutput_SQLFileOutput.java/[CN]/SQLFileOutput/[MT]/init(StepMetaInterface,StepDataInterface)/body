@@ -1,0 +1,59 @@
+{
+  meta=(SQLFileOutputMeta)smi;
+  data=(SQLFileOutputData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      if (meta.getDatabaseMeta() == null) {
+        throw new KettleStepException("The connection is not defined (empty)");
+      }
+      data.db=new Database(meta.getDatabaseMeta());
+      data.db.shareVariablesWith(this);
+      logBasic("Connected to database [" + meta.getDatabaseMeta() + "]");
+      if (meta.isCreateParentFolder()) {
+        FileObject parentfolder=null;
+        try {
+          String filename=environmentSubstitute(meta.getFileName());
+          parentfolder=KettleVFS.getFileObject(filename).getParent();
+          if (!parentfolder.exists()) {
+            log.logBasic("Folder parent","Folder parent " + parentfolder.getName() + " does not exist !");
+            parentfolder.createFolder();
+            log.logBasic("Folder parent","Folder parent was created.");
+          }
+        }
+ catch (        Exception e) {
+          logError("Couldn't created parent folder " + parentfolder.getName());
+          setErrors(1L);
+          stopAll();
+        }
+ finally {
+          if (parentfolder != null) {
+            try {
+              parentfolder.close();
+            }
+ catch (            Exception ex) {
+            }
+            ;
+          }
+        }
+      }
+      if (!openNewFile()) {
+        logError("Couldn't open file [" + buildFilename() + "]");
+        setErrors(1L);
+        stopAll();
+      }
+      tableName=environmentSubstitute(meta.getTablename());
+      schemaName=environmentSubstitute(meta.getSchemaName());
+      if (Const.isEmpty(tableName)) {
+        throw new KettleStepException("The tablename is not defined (empty)");
+      }
+      schemaTable=data.db.getDatabaseMeta().getQuotedSchemaTableCombination(schemaName,tableName);
+    }
+ catch (    Exception e) {
+      logError("An error occurred intialising this step: " + e.getMessage());
+      stopAll();
+      setErrors(1);
+    }
+    return true;
+  }
+  return false;
+}

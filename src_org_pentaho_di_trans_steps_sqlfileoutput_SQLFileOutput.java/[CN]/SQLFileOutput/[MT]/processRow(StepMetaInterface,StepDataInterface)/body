@@ -1,0 +1,78 @@
+{
+  meta=(SQLFileOutputMeta)smi;
+  data=(SQLFileOutputData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.insertRowMeta=getInputRowMeta().clone();
+  }
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  if (r != null && linesOutput > 0 && meta.getSplitEvery() > 0 && ((linesOutput + 1) % meta.getSplitEvery()) == 0) {
+    closeFile();
+    if (r != null) {
+      if (!openNewFile()) {
+        logError("Unable to open new file (split #" + data.splitnr + "...");
+        setErrors(1);
+        return false;
+      }
+    }
+  }
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  try {
+    if (linesOutput == 0) {
+      if (meta.createTable()) {
+        String cr_table=data.db.getDDLCreationTable(schemaTable,data.insertRowMeta);
+        if (log.isRowLevel())         logRowlevel(Messages.getString("SQLFileOutputLog.OutputSQL",cr_table));
+        data.writer.write(cr_table + Const.CR + Const.CR);
+      }
+      if (meta.truncateTable()) {
+        String truncatetable=data.db.getDDLTruncateTable(schemaName,tableName + ";" + Const.CR+ Const.CR);
+        data.writer.write(truncatetable);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleStepException(e.getMessage());
+  }
+  try {
+    String sql=data.db.getSQLOutput(schemaName,tableName,data.insertRowMeta,r,meta.getDateFormat()) + ";";
+    if (meta.StartNewLine())     sql=sql + Const.CR;
+    if (log.isRowLevel())     logRowlevel(Messages.getString("SQLFileOutputLog.OutputSQL",sql));
+    try {
+      data.writer.write(sql.toCharArray());
+    }
+ catch (    Exception e) {
+      throw new KettleStepException(e.getMessage());
+    }
+    putRow(data.outputRowMeta,r);
+    linesOutput++;
+    if (checkFeedback(linesRead))     logBasic("linenr " + linesRead);
+  }
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("SQLFileOutputMeta.Log.ErrorInStep") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(data.outputRowMeta,r,1,errorMessage,null,"SFO001");
+      r=null;
+    }
+  }
+  return true;
+}
