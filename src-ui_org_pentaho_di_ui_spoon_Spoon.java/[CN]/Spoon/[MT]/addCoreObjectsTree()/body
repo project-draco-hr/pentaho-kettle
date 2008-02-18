@@ -1,0 +1,65 @@
+{
+  coreObjectsTree=new Tree(variableComposite,SWT.V_SCROLL | SWT.SINGLE);
+  props.setLook(coreObjectsTree);
+  coreObjectsTree.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      TreeItem[] selection=coreObjectsTree.getSelection();
+      if (selection.length == 1) {
+        TreeItem top=selection[0];
+        while (top.getParentItem() != null)         top=top.getParentItem();
+        if (top == selection[0]) {
+          boolean expanded=top.getExpanded();
+          for (          TreeItem item : coreObjectsTree.getItems()) {
+            item.setExpanded(false);
+          }
+          top.setExpanded(!expanded);
+        }
+      }
+    }
+  }
+);
+  coreObjectsTree.addTreeListener(new TreeAdapter(){
+    public void treeExpanded(    TreeEvent treeEvent){
+      TreeItem treeItem=(TreeItem)treeEvent.item;
+      for (      TreeItem item : coreObjectsTree.getItems()) {
+        item.setExpanded(false);
+      }
+      treeItem.setExpanded(true);
+    }
+  }
+);
+  coreObjectsTree.addMouseMoveListener(new MouseMoveListener(){
+    public void mouseMove(    MouseEvent move){
+      toolTip.hide();
+      TreeItem item=searchMouseOverTreeItem(coreObjectsTree.getItems(),move.x,move.y);
+      if (item != null) {
+        String name=item.getText();
+        String tip=coreStepToolTipMap.get(name);
+        if (tip != null) {
+          StepPlugin plugin=StepLoader.getInstance().findStepPluginWithDescription(name);
+          Image image=GUIResource.getInstance().getImagesSteps().get(plugin.getID()[0]);
+          toolTip.setImage(image);
+          toolTip.setText(name + Const.CR + Const.CR+ tip);
+          toolTip.show(new org.eclipse.swt.graphics.Point(move.x + 10,move.y + 10));
+        }
+        tip=coreJobToolTipMap.get(name);
+        if (tip != null) {
+          JobPlugin plugin=JobEntryLoader.getInstance().findJobEntriesWithDescription(name);
+          if (plugin != null) {
+            Image image=GUIResource.getInstance().getImagesJobentries().get(plugin.getID());
+            toolTip.setImage(image);
+            toolTip.setText(name + Const.CR + Const.CR+ tip);
+            toolTip.show(new org.eclipse.swt.graphics.Point(move.x + 10,move.y + 10));
+          }
+        }
+      }
+    }
+  }
+);
+  addDragSourceToTree(coreObjectsTree);
+  toolTip=new DefaultToolTip(variableComposite,ToolTip.RECREATE,true);
+  toolTip.setRespectMonitorBounds(true);
+  toolTip.setRespectDisplayBounds(true);
+  toolTip.setPopupDelay(350);
+  toolTip.setShift(new org.eclipse.swt.graphics.Point(ConstUI.TOOLTIP_OFFSET,ConstUI.TOOLTIP_OFFSET));
+}
