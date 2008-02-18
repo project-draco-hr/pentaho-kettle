@@ -1,8 +1,27 @@
 {
+  nrOfFinishedSteps=0;
+  final Trans self=this;
   for (int i=0; i < steps.size(); i++) {
     final StepMetaDataCombi sid=steps.get(i);
     sid.step.markStart();
     sid.step.initBeforeStart();
+    StepListener stepListener=new StepListener(){
+      public void stepFinished(      Trans trans,      StepMeta stepMeta,      StepInterface step){
+        nrOfFinishedSteps++;
+        if (nrOfFinishedSteps >= steps.size()) {
+          for (          TransListener transListener : transListeners) {
+            transListener.transFinished(self);
+          }
+        }
+        if (step.getErrors() > 0) {
+          log.logMinimal(toString(),Messages.getString("Trans.Log.TransformationDetectedErrors"));
+          log.logMinimal(toString(),Messages.getString("Trans.Log.TransformationIsKillingTheOtherSteps"));
+          killAll();
+        }
+      }
+    }
+;
+    sid.step.addStepListener(stepListener);
   }
   if (transMeta.isCapturingStepPerformanceSnapShots()) {
     stepPerformanceSnapShots=new HashMap<String,List<StepPerformanceSnapShot>>();
@@ -18,6 +37,17 @@
   for (int i=0; i < steps.size(); i++) {
     steps.get(i).step.start();
   }
+  finished=false;
+  TransListener transListener=new TransListener(){
+    public void transFinished(    Trans trans){
+      if (transMeta.isCapturingStepPerformanceSnapShots() && stepPerformanceSnapShotTimer != null) {
+        stepPerformanceSnapShotTimer.cancel();
+      }
+      finished=true;
+    }
+  }
+;
+  addTransListener(transListener);
   running=true;
   log.logDetailed(toString(),Messages.getString("Trans.Log.TransformationHasAllocated",String.valueOf(steps.size()),String.valueOf(rowsets.size())));
 }
