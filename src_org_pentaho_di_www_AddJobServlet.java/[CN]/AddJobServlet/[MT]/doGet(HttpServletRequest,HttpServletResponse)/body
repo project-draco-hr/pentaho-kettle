@@ -25,13 +25,16 @@
     JobMeta jobMeta=jobConfiguration.getJobMeta();
     JobExecutionConfiguration jobExecutionConfiguration=jobConfiguration.getJobExecutionConfiguration();
     log.setLogLevel(jobExecutionConfiguration.getLogLevel());
-    jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
+    jobMeta.setArguments(jobExecutionConfiguration.getArgumentStrings());
     final Repository repository=jobConfiguration.getJobExecutionConfiguration().getRepository();
     final Job job=new Job(LogWriter.getInstance(),StepLoader.getInstance(),repository,jobMeta);
     Job oldOne=jobMap.getJob(job.getName());
     if (oldOne != null && oldOne.isActive()) {
       throw new Exception("A job with the same name exists and is not idle." + Const.CR + "Please stop this job first.");
     }
+    job.initializeVariablesFrom(null);
+    job.getJobMeta().setInternalKettleVariables(job);
+    job.injectVariables(jobConfiguration.getJobExecutionConfiguration().getVariables());
     jobMap.addJob(jobMeta.getName(),job,jobConfiguration);
     if (repository != null) {
       new Thread(new Runnable(){
