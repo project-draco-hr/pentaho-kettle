@@ -1,10 +1,16 @@
 {
   RowMetaInterface row=new RowMeta();
   if (stepMeta == null)   return row;
+  String fromToCacheEntry=stepMeta.getName() + (targetStep != null ? ("-" + targetStep.getName()) : "");
+  RowMetaInterface rowMeta=stepsFieldsCache.get(fromToCacheEntry);
+  if (rowMeta != null) {
+    return rowMeta;
+  }
   if (targetStep != null && stepMeta.isSendingErrorRowsToStep(targetStep)) {
     row=getPrevStepFields(stepMeta);
     StepErrorMeta stepErrorMeta=stepMeta.getStepErrorMeta();
     row.addRowMeta(stepErrorMeta.getErrorFields());
+    stepsFieldsCache.put(fromToCacheEntry,row);
     return row;
   }
   log.logDebug(toString(),Messages.getString("TransMeta.Log.FromStepALookingAtPreviousStep",stepMeta.getName(),String.valueOf(findNrPrevSteps(stepMeta))));
@@ -29,5 +35,7 @@
       }
     }
   }
-  return getThisStepFields(stepMeta,targetStep,row,monitor);
+  rowMeta=getThisStepFields(stepMeta,targetStep,row,monitor);
+  stepsFieldsCache.put(fromToCacheEntry,rowMeta);
+  return rowMeta;
 }
