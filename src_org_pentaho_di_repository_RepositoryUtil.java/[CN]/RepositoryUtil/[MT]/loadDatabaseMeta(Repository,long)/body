@@ -1,0 +1,38 @@
+{
+  DatabaseMeta databaseMeta=new DatabaseMeta();
+  try {
+    RowMetaAndData r=rep.getDatabase(id_database);
+    if (r != null) {
+      long id_database_type=r.getInteger("ID_DATABASE_TYPE",0);
+      String dbTypeDesc=rep.getDatabaseTypeCode(id_database_type);
+      if (dbTypeDesc != null) {
+        databaseMeta.setDatabaseInterface(DatabaseMeta.getDatabaseInterface(dbTypeDesc));
+        databaseMeta.setAttributes(new Properties());
+      }
+ else {
+      }
+      databaseMeta.setID(id_database);
+      databaseMeta.setName(r.getString("NAME",""));
+      long id_database_contype=r.getInteger("ID_DATABASE_CONTYPE",0);
+      databaseMeta.setAccessType(DatabaseMeta.getAccessType(rep.getDatabaseConTypeCode(id_database_contype)));
+      databaseMeta.setHostname(r.getString("HOST_NAME",""));
+      databaseMeta.setDBName(r.getString("DATABASE_NAME",""));
+      databaseMeta.setDBPort(r.getString("PORT",""));
+      databaseMeta.setUsername(r.getString("USERNAME",""));
+      databaseMeta.setPassword(Encr.decryptPasswordOptionallyEncrypted(r.getString("PASSWORD","")));
+      databaseMeta.setServername(r.getString("SERVERNAME",""));
+      databaseMeta.setDataTablespace(r.getString("DATA_TBS",""));
+      databaseMeta.setIndexTablespace(r.getString("INDEX_TBS",""));
+      final Collection<RowMetaAndData> attrs=rep.getDatabaseAttributes(id_database);
+      for (      RowMetaAndData row : attrs) {
+        String code=row.getString("CODE","");
+        String attribute=row.getString("VALUE_STR","");
+        databaseMeta.getAttributes().put(code,Const.NVL(attribute,""));
+      }
+    }
+    return databaseMeta;
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleException("Error loading database connection from repository (id_database=" + id_database + ")",dbe);
+  }
+}
