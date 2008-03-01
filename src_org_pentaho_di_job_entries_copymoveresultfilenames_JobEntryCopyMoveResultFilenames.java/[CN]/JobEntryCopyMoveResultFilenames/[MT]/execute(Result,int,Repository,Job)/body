@@ -1,0 +1,50 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  String realdestinationFolder=environmentSubstitute(getDestinationFolder());
+  if (!CreateDestinationFolder(realdestinationFolder,log)) {
+    result.setResult(false);
+    result.setNrErrors(1);
+  }
+  if (previousResult != null) {
+    NrErrors=0;
+    DoNotProcessRest=false;
+    try {
+      int size=result.getResultFiles().size();
+      log.logBasic(toString(),Messages.getString("JobEntryCopyMoveResultFilenames.log.FilesFound","" + size));
+      List<ResultFile> resultFiles=result.getResultFilesList();
+      if (resultFiles != null && resultFiles.size() > 0) {
+        for (Iterator<ResultFile> it=resultFiles.iterator(); it.hasNext(); ) {
+          ResultFile resultFile=(ResultFile)it.next();
+          FileObject file=resultFile.getFile();
+          if (file != null && file.exists()) {
+            if (!specifywilcard || (CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcard),true) && !CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcardexclude),false) && specifywilcard)) {
+              if (!DoNotProcessRest) {
+                if (!ProcessFile(file,realdestinationFolder,log)) {
+                  updateErrors();
+                }
+              }
+ else {
+                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobEntryCopyMoveResultFilenames.log.IgnoringFile",file.toString()));
+              }
+            }
+          }
+ else {
+            log.logError(toString(),Messages.getString("JobEntryCopyMoveResultFilenames.log.ErrorCanNotFindFile",file.toString()));
+            updateErrors();
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      log.logError(toString(),Messages.getString("JobEntryCopyMoveResultFilenames.Error",e.toString()));
+    }
+  }
+  if (getStatus()) {
+    result.setResult(false);
+    result.setNrErrors(NrErrors);
+  }
+ else   result.setResult(true);
+  return result;
+}
