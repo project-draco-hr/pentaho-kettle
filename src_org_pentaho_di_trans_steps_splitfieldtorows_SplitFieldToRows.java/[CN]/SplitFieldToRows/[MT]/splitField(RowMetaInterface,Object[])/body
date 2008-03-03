@@ -1,0 +1,38 @@
+{
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.fieldnr=rowMeta.indexOfValue(meta.getSplitField());
+    int numErrors=0;
+    if (Const.isEmpty(meta.getNewFieldname())) {
+      logError(Messages.getString("SplitFieldToRows.Log.NewFieldNameIsNull"));
+      numErrors++;
+    }
+    if (data.fieldnr < 0) {
+      logError(Messages.getString("SplitFieldToRows.Log.CouldNotFindFieldToSplit",meta.getSplitField()));
+      numErrors++;
+    }
+    if (!rowMeta.getValueMeta(data.fieldnr).isString()) {
+      logError(Messages.getString("SplitFieldToRows.Log.SplitFieldNotValid",meta.getSplitField()));
+      numErrors++;
+    }
+    if (numErrors > 0) {
+      setErrors(numErrors);
+      stopAll();
+      return false;
+    }
+    data.splitMeta=rowMeta.getValueMeta(data.fieldnr);
+  }
+  String originalString=data.splitMeta.getString(rowData[data.fieldnr]);
+  if (originalString == null) {
+    originalString="";
+  }
+  SimpleTokenizer tokenizer=new SimpleTokenizer(originalString,meta.getDelimiter());
+  while (tokenizer.hasMoreTokens()) {
+    Object[] outputRow=RowDataUtil.createResizedCopy(rowData,data.outputRowMeta.size());
+    outputRow[rowMeta.size()]=tokenizer.nextToken();
+    putRow(data.outputRowMeta,outputRow);
+  }
+  return true;
+}
