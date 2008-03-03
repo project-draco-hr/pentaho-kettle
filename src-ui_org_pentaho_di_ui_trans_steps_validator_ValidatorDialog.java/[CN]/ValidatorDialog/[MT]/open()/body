@@ -37,11 +37,13 @@
   wStepname.setLayoutData(fdStepname);
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText(Messages.getString("System.Button.OK"));
+  wNew=new Button(shell,SWT.PUSH);
+  wNew.setText(Messages.getString("ValidatorDialog.NewButton.Label"));
   wClear=new Button(shell,SWT.PUSH);
   wClear.setText(Messages.getString("ValidatorDialog.ClearButton.Label"));
   wCancel=new Button(shell,SWT.PUSH);
   wCancel.setText(Messages.getString("System.Button.Cancel"));
-  setButtonPositions(new Button[]{wOK,wClear,wCancel},margin,null);
+  setButtonPositions(new Button[]{wOK,wNew,wClear,wCancel},margin,null);
   Label wlFieldList=new Label(shell,SWT.LEFT);
   wlFieldList.setText(Messages.getString("ValidatorDialog.FieldList.Label"));
   props.setLook(wlFieldList);
@@ -50,18 +52,11 @@
   fdlFieldList.right=new FormAttachment(100,0);
   fdlFieldList.top=new FormAttachment(wStepname,margin);
   wlFieldList.setLayoutData(fdlFieldList);
-  wFieldList=new List(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER| SWT.V_SCROLL| SWT.H_SCROLL);
-  try {
-    inputFields=transMeta.getPrevStepFields(stepMeta);
-    wFieldList.setItems(inputFields.getFieldNames());
-  }
- catch (  KettleStepException ex) {
-    new ErrorDialog(shell,Messages.getString("ValidatorDialog.Exception.CantGetFieldsFromPreviousSteps.Title"),Messages.getString("ValidatorDialog.Exception.CantGetFieldsFromPreviousSteps.Message"),ex);
-  }
-  props.setLook(wFieldList);
-  wFieldList.addSelectionListener(new SelectionAdapter(){
+  wValidationsList=new List(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER| SWT.V_SCROLL| SWT.H_SCROLL);
+  props.setLook(wValidationsList);
+  wValidationsList.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent event){
-      showSelectedValidatorField(wFieldList.getSelection()[0]);
+      showSelectedValidatorField(wValidationsList.getSelection()[0]);
     }
   }
 );
@@ -70,7 +65,7 @@
   fdFieldList.top=new FormAttachment(wlFieldList,margin);
   fdFieldList.right=new FormAttachment(middle,-margin);
   fdFieldList.bottom=new FormAttachment(wOK,-margin * 2);
-  wFieldList.setLayoutData(fdFieldList);
+  wValidationsList.setLayoutData(fdFieldList);
   ScrolledComposite wSComp=new ScrolledComposite(shell,SWT.H_SCROLL | SWT.V_SCROLL);
   props.setLook(wSComp);
   wSComp.setLayout(new FillLayout());
@@ -86,6 +81,87 @@
   compLayout.marginWidth=3;
   compLayout.marginHeight=3;
   wComp.setLayout(compLayout);
+  wlDescription=new Label(wComp,SWT.RIGHT);
+  wlDescription.setText(Messages.getString("ValidatorDialog.Description.Label"));
+  props.setLook(wlDescription);
+  FormData fdlDescription=new FormData();
+  fdlDescription.left=new FormAttachment(0,0);
+  fdlDescription.right=new FormAttachment(middle,-margin);
+  fdlDescription.top=new FormAttachment(0,0);
+  wlDescription.setLayoutData(fdlDescription);
+  wDescription=new Text(wComp,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wDescription);
+  FormData fdDescription=new FormData();
+  fdDescription.left=new FormAttachment(middle,margin);
+  fdDescription.right=new FormAttachment(100,0);
+  fdDescription.top=new FormAttachment(0,0);
+  wDescription.setLayoutData(fdDescription);
+  wDescription.addModifyListener(new ModifyListener(){
+    public void modifyText(    ModifyEvent event){
+      if (wValidationsList != null && wValidationsList.getItemCount() > 0 && wValidationsList.getSelection().length == 1) {
+        int index=wValidationsList.getSelectionIndex();
+        String description=wValidationsList.getItem(index);
+        Validation validation=Validation.findValidation(selectionList,description);
+        String newDescription=wDescription.getText();
+        validation.setName(newDescription);
+        wValidationsList.setItem(index,newDescription);
+        wValidationsList.select(index);
+      }
+    }
+  }
+);
+  wlFieldName=new Label(wComp,SWT.RIGHT);
+  wlFieldName.setText(Messages.getString("ValidatorDialog.FieldName.Label"));
+  props.setLook(wlFieldName);
+  FormData fdlFieldName=new FormData();
+  fdlFieldName.left=new FormAttachment(0,0);
+  fdlFieldName.right=new FormAttachment(middle,-margin);
+  fdlFieldName.top=new FormAttachment(wDescription,margin);
+  wlFieldName.setLayoutData(fdlFieldName);
+  wFieldName=new CCombo(wComp,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wFieldName);
+  FormData fdFieldName=new FormData();
+  fdFieldName.left=new FormAttachment(middle,margin);
+  fdFieldName.right=new FormAttachment(100,0);
+  fdFieldName.top=new FormAttachment(wDescription,margin);
+  wFieldName.setLayoutData(fdFieldName);
+  try {
+    inputFields=transMeta.getPrevStepFields(stepMeta);
+    wFieldName.setItems(inputFields.getFieldNames());
+  }
+ catch (  KettleStepException ex) {
+    new ErrorDialog(shell,Messages.getString("ValidatorDialog.Exception.CantGetFieldsFromPreviousSteps.Title"),Messages.getString("ValidatorDialog.Exception.CantGetFieldsFromPreviousSteps.Message"),ex);
+  }
+  wlErrorCode=new Label(wComp,SWT.RIGHT);
+  wlErrorCode.setText(Messages.getString("ValidatorDialog.ErrorCode.Label"));
+  props.setLook(wlErrorCode);
+  FormData fdlErrorCode=new FormData();
+  fdlErrorCode.left=new FormAttachment(0,0);
+  fdlErrorCode.right=new FormAttachment(middle,-margin);
+  fdlErrorCode.top=new FormAttachment(wFieldName,margin);
+  wlErrorCode.setLayoutData(fdlErrorCode);
+  wErrorCode=new Text(wComp,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wErrorCode);
+  FormData fdErrorCode=new FormData();
+  fdErrorCode.left=new FormAttachment(middle,margin);
+  fdErrorCode.right=new FormAttachment(100,0);
+  fdErrorCode.top=new FormAttachment(wFieldName,margin);
+  wErrorCode.setLayoutData(fdErrorCode);
+  wlErrorDescription=new Label(wComp,SWT.RIGHT);
+  wlErrorDescription.setText(Messages.getString("ValidatorDialog.ErrorDescription.Label"));
+  props.setLook(wlErrorDescription);
+  FormData fdlErrorDescription=new FormData();
+  fdlErrorDescription.left=new FormAttachment(0,0);
+  fdlErrorDescription.right=new FormAttachment(middle,-margin);
+  fdlErrorDescription.top=new FormAttachment(wErrorCode,margin);
+  wlErrorDescription.setLayoutData(fdlErrorDescription);
+  wErrorDescription=new Text(wComp,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wErrorDescription);
+  FormData fdErrorDescription=new FormData();
+  fdErrorDescription.left=new FormAttachment(middle,margin);
+  fdErrorDescription.right=new FormAttachment(100,0);
+  fdErrorDescription.top=new FormAttachment(wErrorCode,margin);
+  wErrorDescription.setLayoutData(fdErrorDescription);
   wgType=new Group(wComp,SWT.NONE);
   props.setLook(wgType);
   wgType.setText(Messages.getString("ValidatorDialog.TypeGroup.Label"));
@@ -96,7 +172,7 @@
   FormData fdType=new FormData();
   fdType.left=new FormAttachment(0,0);
   fdType.right=new FormAttachment(100,0);
-  fdType.top=new FormAttachment(0,0);
+  fdType.top=new FormAttachment(wErrorDescription,margin * 2);
   wgType.setLayoutData(fdType);
   wlDataTypeVerified=new Label(wgType,SWT.RIGHT);
   wlDataTypeVerified.setText(Messages.getString("ValidatorDialog.DataTypeVerified.Label"));
@@ -104,14 +180,14 @@
   FormData fdldataTypeVerified=new FormData();
   fdldataTypeVerified.left=new FormAttachment(0,0);
   fdldataTypeVerified.right=new FormAttachment(middle,-margin);
-  fdldataTypeVerified.top=new FormAttachment(wlFieldList,margin);
+  fdldataTypeVerified.top=new FormAttachment(0,0);
   wlDataTypeVerified.setLayoutData(fdldataTypeVerified);
   wDataTypeVerified=new Button(wgType,SWT.CHECK);
   props.setLook(wDataTypeVerified);
   FormData fddataTypeVerified=new FormData();
   fddataTypeVerified.left=new FormAttachment(middle,margin);
   fddataTypeVerified.right=new FormAttachment(100,0);
-  fddataTypeVerified.top=new FormAttachment(wlFieldList,margin);
+  fddataTypeVerified.top=new FormAttachment(0,0);
   wDataTypeVerified.setLayoutData(fddataTypeVerified);
   wlDataType=new Label(wgType,SWT.RIGHT);
   wlDataType.setText(Messages.getString("ValidatorDialog.DataType.Label"));
@@ -192,29 +268,59 @@
   FormData fdlNullAllowed=new FormData();
   fdlNullAllowed.left=new FormAttachment(0,0);
   fdlNullAllowed.right=new FormAttachment(middle,-margin);
-  fdlNullAllowed.top=new FormAttachment(wlFieldList,margin);
+  fdlNullAllowed.top=new FormAttachment(0,0);
   wlNullAllowed.setLayoutData(fdlNullAllowed);
   wNullAllowed=new Button(wgData,SWT.CHECK);
   props.setLook(wNullAllowed);
   FormData fdNullAllowed=new FormData();
   fdNullAllowed.left=new FormAttachment(middle,margin);
   fdNullAllowed.right=new FormAttachment(100,0);
-  fdNullAllowed.top=new FormAttachment(wlFieldList,margin);
+  fdNullAllowed.top=new FormAttachment(0,0);
   wNullAllowed.setLayoutData(fdNullAllowed);
+  wlOnlyNullAllowed=new Label(wgData,SWT.RIGHT);
+  wlOnlyNullAllowed.setText(Messages.getString("ValidatorDialog.OnlyNullAllowed.Label"));
+  props.setLook(wlOnlyNullAllowed);
+  FormData fdlOnlyNullAllowed=new FormData();
+  fdlOnlyNullAllowed.left=new FormAttachment(0,0);
+  fdlOnlyNullAllowed.right=new FormAttachment(middle,-margin);
+  fdlOnlyNullAllowed.top=new FormAttachment(wNullAllowed,margin);
+  wlOnlyNullAllowed.setLayoutData(fdlOnlyNullAllowed);
+  wOnlyNullAllowed=new Button(wgData,SWT.CHECK);
+  props.setLook(wOnlyNullAllowed);
+  FormData fdOnlyNullAllowed=new FormData();
+  fdOnlyNullAllowed.left=new FormAttachment(middle,margin);
+  fdOnlyNullAllowed.right=new FormAttachment(100,0);
+  fdOnlyNullAllowed.top=new FormAttachment(wNullAllowed,margin);
+  wOnlyNullAllowed.setLayoutData(fdOnlyNullAllowed);
+  wlOnlyNumeric=new Label(wgData,SWT.RIGHT);
+  wlOnlyNumeric.setText(Messages.getString("ValidatorDialog.OnlyNumeric.Label"));
+  props.setLook(wlOnlyNumeric);
+  FormData fdlOnlyNumeric=new FormData();
+  fdlOnlyNumeric.left=new FormAttachment(0,0);
+  fdlOnlyNumeric.right=new FormAttachment(middle,-margin);
+  fdlOnlyNumeric.top=new FormAttachment(wOnlyNullAllowed,margin);
+  wlOnlyNumeric.setLayoutData(fdlOnlyNumeric);
+  wOnlyNumeric=new Button(wgData,SWT.CHECK);
+  props.setLook(wOnlyNumeric);
+  FormData fdOnlyNumeric=new FormData();
+  fdOnlyNumeric.left=new FormAttachment(middle,margin);
+  fdOnlyNumeric.right=new FormAttachment(100,0);
+  fdOnlyNumeric.top=new FormAttachment(wOnlyNullAllowed,margin);
+  wOnlyNumeric.setLayoutData(fdOnlyNumeric);
   wlMaxLength=new Label(wgData,SWT.RIGHT);
   wlMaxLength.setText(Messages.getString("ValidatorDialog.MaxLength.Label"));
   props.setLook(wlMaxLength);
   FormData fdlMaxLength=new FormData();
   fdlMaxLength.left=new FormAttachment(0,0);
   fdlMaxLength.right=new FormAttachment(middle,-margin);
-  fdlMaxLength.top=new FormAttachment(wNullAllowed,margin);
+  fdlMaxLength.top=new FormAttachment(wOnlyNumeric,margin);
   wlMaxLength.setLayoutData(fdlMaxLength);
   wMaxLength=new Text(wgData,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wMaxLength);
   FormData fdMaxLength=new FormData();
   fdMaxLength.left=new FormAttachment(middle,margin);
   fdMaxLength.right=new FormAttachment(100,0);
-  fdMaxLength.top=new FormAttachment(wNullAllowed,margin);
+  fdMaxLength.top=new FormAttachment(wOnlyNumeric,margin);
   wMaxLength.setLayoutData(fdMaxLength);
   wlMinLength=new Label(wgData,SWT.RIGHT);
   wlMinLength.setText(Messages.getString("ValidatorDialog.MinLength.Label"));
@@ -261,11 +367,101 @@
   fdMinValue.right=new FormAttachment(100,0);
   fdMinValue.top=new FormAttachment(wMaxValue,margin);
   wMinValue.setLayoutData(fdMinValue);
+  wlStartStringExpected=new Label(wgData,SWT.RIGHT);
+  wlStartStringExpected.setText(Messages.getString("ValidatorDialog.StartStringExpected.Label"));
+  props.setLook(wlStartStringExpected);
+  FormData fdlStartStringExpected=new FormData();
+  fdlStartStringExpected.left=new FormAttachment(0,0);
+  fdlStartStringExpected.right=new FormAttachment(middle,-margin);
+  fdlStartStringExpected.top=new FormAttachment(wMinValue,margin);
+  wlStartStringExpected.setLayoutData(fdlStartStringExpected);
+  wStartStringExpected=new Text(wgData,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wStartStringExpected);
+  FormData fdStartStringExpected=new FormData();
+  fdStartStringExpected.left=new FormAttachment(middle,margin);
+  fdStartStringExpected.right=new FormAttachment(100,0);
+  fdStartStringExpected.top=new FormAttachment(wMinValue,margin);
+  wStartStringExpected.setLayoutData(fdStartStringExpected);
+  wlEndStringExpected=new Label(wgData,SWT.RIGHT);
+  wlEndStringExpected.setText(Messages.getString("ValidatorDialog.EndStringExpected.Label"));
+  props.setLook(wlEndStringExpected);
+  FormData fdlEndStringExpected=new FormData();
+  fdlEndStringExpected.left=new FormAttachment(0,0);
+  fdlEndStringExpected.right=new FormAttachment(middle,-margin);
+  fdlEndStringExpected.top=new FormAttachment(wStartStringExpected,margin);
+  wlEndStringExpected.setLayoutData(fdlEndStringExpected);
+  wEndStringExpected=new Text(wgData,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wEndStringExpected);
+  FormData fdEndStringExpected=new FormData();
+  fdEndStringExpected.left=new FormAttachment(middle,margin);
+  fdEndStringExpected.right=new FormAttachment(100,0);
+  fdEndStringExpected.top=new FormAttachment(wStartStringExpected,margin);
+  wEndStringExpected.setLayoutData(fdEndStringExpected);
+  wlStartStringDisallowed=new Label(wgData,SWT.RIGHT);
+  wlStartStringDisallowed.setText(Messages.getString("ValidatorDialog.StartStringDisallowed.Label"));
+  props.setLook(wlStartStringDisallowed);
+  FormData fdlStartStringDisallowed=new FormData();
+  fdlStartStringDisallowed.left=new FormAttachment(0,0);
+  fdlStartStringDisallowed.right=new FormAttachment(middle,-margin);
+  fdlStartStringDisallowed.top=new FormAttachment(wEndStringExpected,margin);
+  wlStartStringDisallowed.setLayoutData(fdlStartStringDisallowed);
+  wStartStringDisallowed=new Text(wgData,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wStartStringDisallowed);
+  FormData fdStartStringDisallowed=new FormData();
+  fdStartStringDisallowed.left=new FormAttachment(middle,margin);
+  fdStartStringDisallowed.right=new FormAttachment(100,0);
+  fdStartStringDisallowed.top=new FormAttachment(wEndStringExpected,margin);
+  wStartStringDisallowed.setLayoutData(fdStartStringDisallowed);
+  wlEndStringDisallowed=new Label(wgData,SWT.RIGHT);
+  wlEndStringDisallowed.setText(Messages.getString("ValidatorDialog.EndStringDisallowed.Label"));
+  props.setLook(wlEndStringDisallowed);
+  FormData fdlEndStringDisallowed=new FormData();
+  fdlEndStringDisallowed.left=new FormAttachment(0,0);
+  fdlEndStringDisallowed.right=new FormAttachment(middle,-margin);
+  fdlEndStringDisallowed.top=new FormAttachment(wStartStringDisallowed,margin);
+  wlEndStringDisallowed.setLayoutData(fdlEndStringDisallowed);
+  wEndStringDisallowed=new Text(wgData,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wEndStringDisallowed);
+  FormData fdEndStringDisallowed=new FormData();
+  fdEndStringDisallowed.left=new FormAttachment(middle,margin);
+  fdEndStringDisallowed.right=new FormAttachment(100,0);
+  fdEndStringDisallowed.top=new FormAttachment(wStartStringDisallowed,margin);
+  wEndStringDisallowed.setLayoutData(fdEndStringDisallowed);
+  wlRegExpExpected=new Label(wgData,SWT.RIGHT);
+  wlRegExpExpected.setText(Messages.getString("ValidatorDialog.RegExpExpected.Label"));
+  props.setLook(wlRegExpExpected);
+  FormData fdlRegExpExpected=new FormData();
+  fdlRegExpExpected.left=new FormAttachment(0,0);
+  fdlRegExpExpected.right=new FormAttachment(middle,-margin);
+  fdlRegExpExpected.top=new FormAttachment(wEndStringDisallowed,margin);
+  wlRegExpExpected.setLayoutData(fdlRegExpExpected);
+  wRegExpExpected=new Text(wgData,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wRegExpExpected);
+  FormData fdRegExpExpected=new FormData();
+  fdRegExpExpected.left=new FormAttachment(middle,margin);
+  fdRegExpExpected.right=new FormAttachment(100,0);
+  fdRegExpExpected.top=new FormAttachment(wEndStringDisallowed,margin);
+  wRegExpExpected.setLayoutData(fdRegExpExpected);
+  wlRegExpDisallowed=new Label(wgData,SWT.RIGHT);
+  wlRegExpDisallowed.setText(Messages.getString("ValidatorDialog.RegExpDisallowed.Label"));
+  props.setLook(wlRegExpDisallowed);
+  FormData fdlRegExpDisallowed=new FormData();
+  fdlRegExpDisallowed.left=new FormAttachment(0,0);
+  fdlRegExpDisallowed.right=new FormAttachment(middle,-margin);
+  fdlRegExpDisallowed.top=new FormAttachment(wRegExpExpected,margin);
+  wlRegExpDisallowed.setLayoutData(fdlRegExpDisallowed);
+  wRegExpDisallowed=new Text(wgData,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wRegExpDisallowed);
+  FormData fdRegExpDisallowed=new FormData();
+  fdRegExpDisallowed.left=new FormAttachment(middle,margin);
+  fdRegExpDisallowed.right=new FormAttachment(100,0);
+  fdRegExpDisallowed.top=new FormAttachment(wRegExpExpected,margin);
+  wRegExpDisallowed.setLayoutData(fdRegExpDisallowed);
   wbAddAllowed=new Button(wgData,SWT.PUSH);
   wbAddAllowed.setText(Messages.getString("ValidatorDialog.ButtonAddAllowed.Label"));
   FormData fdbAddAllowed=new FormData();
   fdbAddAllowed.right=new FormAttachment(100,0);
-  fdbAddAllowed.top=new FormAttachment(wMinValue,margin);
+  fdbAddAllowed.top=new FormAttachment(wRegExpDisallowed,margin);
   wbAddAllowed.setLayoutData(fdbAddAllowed);
   wbAddAllowed.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
@@ -291,15 +487,15 @@
   FormData fdlAllowedValues=new FormData();
   fdlAllowedValues.left=new FormAttachment(0,0);
   fdlAllowedValues.right=new FormAttachment(middle,-margin);
-  fdlAllowedValues.top=new FormAttachment(wMinValue,margin);
+  fdlAllowedValues.top=new FormAttachment(wRegExpDisallowed,margin);
   wlAllowedValues.setLayoutData(fdlAllowedValues);
   wAllowedValues=new List(wgData,SWT.MULTI | SWT.LEFT | SWT.BORDER);
   props.setLook(wAllowedValues);
   FormData fdAllowedValues=new FormData();
   fdAllowedValues.left=new FormAttachment(middle,margin);
-  fdAllowedValues.right=new FormAttachment(wbRemoveAllowed,-margin);
-  fdAllowedValues.top=new FormAttachment(wMinValue,margin);
-  fdAllowedValues.bottom=new FormAttachment(wMinValue,200);
+  fdAllowedValues.right=new FormAttachment(wbRemoveAllowed,-20);
+  fdAllowedValues.top=new FormAttachment(wRegExpDisallowed,margin);
+  fdAllowedValues.bottom=new FormAttachment(wRegExpDisallowed,150);
   wAllowedValues.setLayoutData(fdAllowedValues);
   wComp.pack();
   Rectangle bounds=wComp.getBounds();
@@ -324,13 +520,36 @@
   wOK.addListener(SWT.Selection,lsOK);
   wClear.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      int index=wFieldList.getSelectionIndex();
+      int index=wValidationsList.getSelectionIndex();
       if (index >= 0) {
-        String fieldName=wFieldList.getItem(index);
-        selectionMap.remove(fieldName);
+        selectionList.remove(index);
         selectedField=null;
-        wFieldList.deselectAll();
+        wValidationsList.remove(index);
         enableFields();
+      }
+    }
+  }
+);
+  wNew.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      EnterStringDialog enterStringDialog=new EnterStringDialog(shell,"",Messages.getString("ValidatorDialog.EnterValidationRuleName.Title"),Messages.getString("ValidatorDialog.EnterValidationRuleName.Message"));
+      String description=enterStringDialog.open();
+      if (description != null) {
+        if (Validation.findValidation(selectionList,description) != null) {
+          MessageBox messageBox=new MessageBox(shell,SWT.ICON_ERROR);
+          messageBox.setText(Messages.getString("ValidatorDialog.ValidationRuleNameAlreadyExists.Title"));
+          messageBox.setMessage(Messages.getString("ValidatorDialog.ValidationRuleNameAlreadyExists.Message"));
+          messageBox.open();
+          return;
+        }
+        saveChanges();
+        Validation validation=new Validation();
+        validation.setName(description);
+        selectionList.add(validation);
+        selectedField=validation;
+        refreshValidationsList();
+        wValidationsList.select(selectionList.size() - 1);
+        getValidatorFieldData(validation);
       }
     }
   }

@@ -2,13 +2,15 @@
   meta=(ValidatorMeta)smi;
   data=(ValidatorData)sdi;
   if (super.init(smi,sdi)) {
-    data.constantsMeta=new ValueMetaInterface[meta.getValidatorField().length];
-    data.minimumValue=new Object[meta.getValidatorField().length];
-    data.maximumValue=new Object[meta.getValidatorField().length];
-    data.listValues=new Object[meta.getValidatorField().length][];
-    for (int i=0; i < data.constantsMeta.length; i++) {
-      ValidatorField field=meta.getValidatorField()[i];
-      data.constantsMeta[i]=new ValueMeta(field.getName(),field.getDataType());
+    data.constantsMeta=new ValueMetaInterface[meta.getValidations().length];
+    data.minimumValue=new Object[meta.getValidations().length];
+    data.maximumValue=new Object[meta.getValidations().length];
+    data.listValues=new Object[meta.getValidations().length][];
+    data.patternExpected=new Pattern[meta.getValidations().length];
+    data.patternDisallowed=new Pattern[meta.getValidations().length];
+    for (int i=0; i < meta.getValidations().length; i++) {
+      Validation field=meta.getValidations()[i];
+      data.constantsMeta[i]=new ValueMeta(field.getFieldName(),field.getDataType());
       data.constantsMeta[i].setConversionMask(field.getConversionMask());
       data.constantsMeta[i].setDecimalSymbol(field.getDecimalSymbol());
       data.constantsMeta[i].setGroupingSymbol(field.getGroupingSymbol());
@@ -31,6 +33,12 @@
           logError(Messages.getString("Validator.Exception.DataConversionErrorEncountered"),e);
         }
         return false;
+      }
+      if (!Const.isEmpty(field.getRegularExpression())) {
+        data.patternExpected[i]=Pattern.compile(field.getRegularExpression());
+      }
+      if (!Const.isEmpty(field.getRegularExpressionNotAllowed())) {
+        data.patternDisallowed[i]=Pattern.compile(field.getRegularExpressionNotAllowed());
       }
     }
     return true;
