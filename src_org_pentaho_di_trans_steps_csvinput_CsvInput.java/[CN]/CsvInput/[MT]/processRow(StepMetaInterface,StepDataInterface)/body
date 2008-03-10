@@ -5,6 +5,13 @@
     first=false;
     data.outputRowMeta=new RowMeta();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (data.filenames == null) {
+      getFilenamesFromPreviousSteps();
+    }
+    if (!openNextFile()) {
+      setOutputDone();
+      return false;
+    }
     data.convertRowMeta=data.outputRowMeta.clone();
     for (    ValueMetaInterface valueMeta : data.convertRowMeta.getValueMetaList()) {
       valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_BINARY_STRING);
@@ -15,10 +22,17 @@
   }
   Object[] outputRowData=readOneRow(true);
   if (outputRowData == null) {
-    setOutputDone();
-    return false;
+    if (openNextFile()) {
+      return true;
+    }
+ else {
+      setOutputDone();
+      return false;
+    }
   }
-  putRow(data.outputRowMeta,outputRowData);
-  if (checkFeedback(linesInput))   logBasic(Messages.getString("CsvInput.Log.LineNumber",Long.toString(linesInput)));
+ else {
+    putRow(data.outputRowMeta,outputRowData);
+    if (checkFeedback(linesInput))     logBasic(Messages.getString("CsvInput.Log.LineNumber",Long.toString(linesInput)));
+  }
   return true;
 }

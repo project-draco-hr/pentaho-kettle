@@ -2,34 +2,27 @@
   meta=(CsvInputMeta)smi;
   data=(CsvInputData)sdi;
   if (super.init(smi,sdi)) {
-    try {
-      data.preferredBufferSize=Integer.parseInt(environmentSubstitute(meta.getBufferSize()));
-      data.filename=environmentSubstitute(meta.getFilename());
-      if (Const.isEmpty(data.filename)) {
+    data.preferredBufferSize=Integer.parseInt(environmentSubstitute(meta.getBufferSize()));
+    if (getTransMeta().findNrPrevSteps(getStepMeta()) == 0) {
+      String filename=environmentSubstitute(meta.getFilename());
+      if (Const.isEmpty(filename)) {
         logError(Messages.getString("CsvInput.MissingFilename.Message"));
         return false;
       }
-      FileObject fileObject=KettleVFS.getFileObject(data.filename);
-      if (!(fileObject instanceof LocalFile)) {
-        logError(Messages.getString("CsvInput.Log.OnlyLocalFilesAreSupported"));
-        return false;
-      }
-      FileInputStream fis=(FileInputStream)((LocalFile)fileObject).getInputStream();
-      data.fc=fis.getChannel();
-      data.bb=ByteBuffer.allocateDirect(data.preferredBufferSize);
-      data.delimiter=environmentSubstitute(meta.getDelimiter()).getBytes();
-      if (Const.isEmpty(meta.getEnclosure())) {
-        data.enclosure=null;
-      }
+      data.filenames=new String[]{filename};
+    }
  else {
-        data.enclosure=environmentSubstitute(meta.getEnclosure()).getBytes();
-      }
-      return true;
+      data.filenames=null;
+      data.filenr=0;
     }
- catch (    IOException e) {
-      logError("Error opening file '" + meta.getFilename() + "' : "+ e.toString());
-      logError(Const.getStackTracker(e));
+    data.delimiter=environmentSubstitute(meta.getDelimiter()).getBytes();
+    if (Const.isEmpty(meta.getEnclosure())) {
+      data.enclosure=null;
     }
+ else {
+      data.enclosure=environmentSubstitute(meta.getEnclosure()).getBytes();
+    }
+    return true;
   }
   return false;
 }
