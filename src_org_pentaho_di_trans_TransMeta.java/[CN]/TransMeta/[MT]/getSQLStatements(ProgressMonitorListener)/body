@@ -12,16 +12,26 @@
     if (monitor != null)     monitor.worked(1);
   }
   if (monitor != null)   monitor.subTask(Messages.getString("TransMeta.Monitor.GettingTheSQLForTransformationTask.Title2"));
-  if (logConnection != null && logTable != null && logTable.length() > 0) {
+  if (logConnection != null && (!Const.isEmpty(logTable) || !Const.isEmpty(stepPerformanceLogTable))) {
     Database db=new Database(logConnection);
     db.shareVariablesWith(this);
     try {
       db.connect();
-      RowMetaInterface fields=Database.getTransLogrecordFields(false,useBatchId,logfieldUsed);
-      String sql=db.getDDL(logTable,fields);
-      if (sql != null && sql.length() > 0) {
-        SQLStatement stat=new SQLStatement("<this transformation>",logConnection,sql);
-        stats.add(stat);
+      if (!Const.isEmpty(logTable)) {
+        RowMetaInterface fields=Database.getTransLogrecordFields(false,useBatchId,logfieldUsed);
+        String sql=db.getDDL(logTable,fields);
+        if (sql != null && sql.length() > 0) {
+          SQLStatement stat=new SQLStatement("<this transformation>",logConnection,sql);
+          stats.add(stat);
+        }
+      }
+      if (!Const.isEmpty(stepPerformanceLogTable)) {
+        RowMetaInterface fields=Database.getStepPerformanceLogrecordFields();
+        String sql=db.getDDL(logTable,fields);
+        if (sql != null && sql.length() > 0) {
+          SQLStatement stat=new SQLStatement("<this transformation>",logConnection,sql);
+          stats.add(stat);
+        }
       }
     }
  catch (    KettleDatabaseException dbe) {
