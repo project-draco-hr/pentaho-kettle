@@ -1,0 +1,147 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  boolean entrystatus=false;
+  FileObject sourcefilefolder=null;
+  FileObject destinationfilefolder=null;
+  FileObject movetofolderfolder=null;
+  FileObject Currentfile=null;
+  String realSourceFilefoldername=environmentSubstitute(sourcefilefoldername);
+  String realDestinationFilefoldername=environmentSubstitute(destinationfilefoldername);
+  String realWildcard=environmentSubstitute(wildcard);
+  try {
+    System.gc();
+    sourcefilefolder=KettleVFS.getFileObject(realSourceFilefoldername);
+    destinationfilefolder=KettleVFS.getFileObject(realDestinationFilefoldername);
+    movetofolderfolder=KettleVFS.getFileObject(MoveToFolder);
+    if (sourcefilefolder.exists()) {
+      if (CreateDestinationFolder(destinationfilefolder)) {
+        if (sourcefilefolder.getType().equals(FileType.FOLDER) && destination_is_a_file) {
+          log.logError(Messages.getString("JobMoveFiles.Log.Forbidden"),Messages.getString("JobMoveFiles.Log.CanNotMoveFolderToFile",realSourceFilefoldername,realDestinationFilefoldername));
+          updateErrors();
+        }
+ else {
+          if (destinationfilefolder.getType().equals(FileType.FOLDER) && sourcefilefolder.getType().equals(FileType.FILE)) {
+            String shortfilename=sourcefilefolder.getName().getBaseName();
+            try {
+              shortfilename=getDestinationFilename(sourcefilefolder.getName().getBaseName());
+            }
+ catch (            Exception e) {
+              log.logError(toString(),Messages.getString(Messages.getString("JobMoveFiles.Error.GettingFilename",sourcefilefolder.getName().getBaseName(),e.toString())));
+              return entrystatus;
+            }
+            String destinationfilenamefull=destinationfilefolder.toString() + Const.FILE_SEPARATOR + shortfilename;
+            FileObject destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
+            entrystatus=MoveFile(shortfilename,sourcefilefolder,destinationfile,movetofolderfolder,log,parentJob,result);
+          }
+ else           if (sourcefilefolder.getType().equals(FileType.FILE) && destination_is_a_file) {
+            FileObject destinationfile=KettleVFS.getFileObject(realDestinationFilefoldername);
+            String shortfilename=destinationfile.getName().getBaseName();
+            try {
+              shortfilename=getDestinationFilename(destinationfile.getName().getBaseName());
+            }
+ catch (            Exception e) {
+              log.logError(toString(),Messages.getString(Messages.getString("JobMoveFiles.Error.GettingFilename",sourcefilefolder.getName().getBaseName(),e.toString())));
+              return entrystatus;
+            }
+            String destinationfilenamefull=destinationfilefolder.getParent().toString() + Const.FILE_SEPARATOR + shortfilename;
+            destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
+            entrystatus=MoveFile(shortfilename,sourcefilefolder,destinationfile,movetofolderfolder,log,parentJob,result);
+          }
+ else {
+            if (log.isDetailed()) {
+              log.logDetailed(toString(),"  ");
+              log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FetchFolder",sourcefilefolder.toString()));
+            }
+            FileObject[] fileObjects=sourcefilefolder.findFiles(new AllFileSelector(){
+              public boolean traverseDescendents(              FileSelectInfo info){
+                return true;
+              }
+              public boolean includeFile(              FileSelectInfo info){
+                FileObject fileObject=info.getFile();
+                try {
+                  if (fileObject == null)                   return false;
+                }
+ catch (                Exception ex) {
+                  return false;
+                }
+ finally {
+                  if (fileObject != null) {
+                    try {
+                      fileObject.close();
+                    }
+ catch (                    IOException ex) {
+                    }
+                    ;
+                  }
+                }
+                return true;
+              }
+            }
+);
+            if (fileObjects != null) {
+              for (int j=0; j < fileObjects.length; j++) {
+                Currentfile=fileObjects[j];
+                if (!DoNotProcessRest) {
+                  if (!MoveOneFile(Currentfile,sourcefilefolder,realDestinationFilefoldername,realWildcard,log,parentJob,result,movetofolderfolder)) {
+                    updateErrors();
+                  }
+                }
+ else {
+                  if (log.isDetailed())                   log.logDetailed(toString(),Messages.getString("JobEntryMoveFiles.log.IgnoringFile",Currentfile.toString()));
+                }
+              }
+            }
+          }
+        }
+        entrystatus=true;
+      }
+ else {
+        log.logError(toString(),Messages.getString("JobMoveFiles.Error.DestinationFolderNotFound",realDestinationFilefoldername));
+        updateErrors();
+      }
+    }
+ else {
+      log.logError(toString(),Messages.getString("JobMoveFiles.Error.SourceFileNotExists",realSourceFilefoldername));
+      updateErrors();
+    }
+  }
+ catch (  IOException e) {
+    log.logError(toString(),Messages.getString("JobMoveFiles.Error.Exception.MoveProcess",realSourceFilefoldername.toString(),destinationfilefolder.toString(),e.getMessage()));
+    updateErrors();
+  }
+ finally {
+    if (sourcefilefolder != null) {
+      try {
+        sourcefilefolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (destinationfilefolder != null) {
+      try {
+        destinationfilefolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (Currentfile != null) {
+      try {
+        Currentfile.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (movetofolderfolder != null) {
+      try {
+        movetofolderfolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return entrystatus;
+}

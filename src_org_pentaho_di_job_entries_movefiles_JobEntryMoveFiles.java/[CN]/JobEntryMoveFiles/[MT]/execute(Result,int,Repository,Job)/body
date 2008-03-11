@@ -5,10 +5,51 @@
   RowMetaAndData resultRow=null;
   NrErrors=0;
   DoNotProcessRest=false;
+  String MoveToFolder=environmentSubstitute(destinationFolder);
   String vsourcefilefolder[]=source_filefolder;
   String vdestinationfilefolder[]=destination_filefolder;
   String vwildcard[]=wildcard;
   result.setResult(true);
+  if (iffileexists.equals("move_file")) {
+    if (Const.isEmpty(MoveToFolder)) {
+      log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.MoveToFolderMissing"));
+      result.setResult(false);
+      result.setNrErrors(1);
+      return result;
+    }
+    FileObject folder=null;
+    try {
+      folder=KettleVFS.getFileObject(MoveToFolder);
+      if (!folder.exists()) {
+        log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.FolderMissing",MoveToFolder));
+        result.setResult(false);
+        result.setNrErrors(1);
+        return result;
+      }
+      if (!folder.getType().equals(FileType.FOLDER)) {
+        log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.NotFolder",MoveToFolder));
+        result.setResult(false);
+        result.setNrErrors(1);
+        return result;
+      }
+    }
+ catch (    Exception e) {
+      log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.GettingMoveToFolder",MoveToFolder,e.getMessage()));
+      result.setResult(false);
+      result.setNrErrors(1);
+      return result;
+    }
+ finally {
+      if (folder != null) {
+        try {
+          folder.close();
+        }
+ catch (        IOException ex) {
+        }
+        ;
+      }
+    }
+  }
   if (arg_from_previous) {
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
   }
@@ -21,7 +62,7 @@
       if (!Const.isEmpty(vsourcefilefolder_previous) && !Const.isEmpty(vdestinationfilefolder_previous)) {
         if (!DoNotProcessRest) {
           if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.ProcessingRow",vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous));
-          if (!ProcessFileFolder(vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous,parentJob,result)) {
+          if (!ProcessFileFolder(vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous,parentJob,result,MoveToFolder)) {
             updateErrors();
           }
         }
@@ -39,7 +80,7 @@
       if (!Const.isEmpty(vsourcefilefolder[i]) && !Const.isEmpty(vdestinationfilefolder[i])) {
         if (!DoNotProcessRest) {
           if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.ProcessingRow",vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i]));
-          if (!ProcessFileFolder(vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i],parentJob,result)) {
+          if (!ProcessFileFolder(vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i],parentJob,result,MoveToFolder)) {
             updateErrors();
           }
         }

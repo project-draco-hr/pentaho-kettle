@@ -1,0 +1,62 @@
+{
+  boolean entrystatus=false;
+  FileObject file_name=null;
+  try {
+    if (!Currentfile.toString().equals(sourcefilefolder.toString())) {
+      String shortfilename=Currentfile.getName().getBaseName();
+      try {
+        shortfilename=getDestinationFilename(Currentfile.getName().getBaseName());
+      }
+ catch (      Exception e) {
+        log.logError(toString(),Messages.getString(Messages.getString("JobMoveFiles.Error.GettingFilename",Currentfile.getName().getBaseName(),e.toString())));
+        return entrystatus;
+      }
+      int lenCurrent=Currentfile.getName().getBaseName().length();
+      String short_filename_from_basefolder=shortfilename;
+      if (!isDoNotKeepFolderStructure())       short_filename_from_basefolder=Currentfile.toString().substring(sourcefilefolder.toString().length(),Currentfile.toString().length());
+      short_filename_from_basefolder=short_filename_from_basefolder.substring(0,short_filename_from_basefolder.length() - lenCurrent) + shortfilename;
+      file_name=KettleVFS.getFileObject(realDestinationFilefoldername + Const.FILE_SEPARATOR + short_filename_from_basefolder);
+      if (!Currentfile.getParent().toString().equals(sourcefilefolder.toString())) {
+        if (include_subfolders) {
+          if (Currentfile.getType() == FileType.FOLDER) {
+            if (include_subfolders && move_empty_folders && Const.isEmpty(wildcard)) {
+              entrystatus=MoveFile(shortfilename,Currentfile,file_name,movetofolderfolder,log,parentJob,result);
+            }
+          }
+ else {
+            if (GetFileWildcard(shortfilename,realWildcard)) {
+              entrystatus=MoveFile(shortfilename,Currentfile,file_name,movetofolderfolder,log,parentJob,result);
+            }
+          }
+        }
+      }
+ else {
+        if (Currentfile.getType() == FileType.FOLDER) {
+          if (include_subfolders && move_empty_folders && Const.isEmpty(wildcard)) {
+            entrystatus=MoveFile(shortfilename,Currentfile,file_name,movetofolderfolder,log,parentJob,result);
+          }
+        }
+ else {
+          if (GetFileWildcard(shortfilename,realWildcard)) {
+            entrystatus=MoveFile(shortfilename,Currentfile,file_name,movetofolderfolder,log,parentJob,result);
+          }
+        }
+      }
+    }
+    entrystatus=true;
+  }
+ catch (  Exception e) {
+    log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error",e.toString()));
+  }
+ finally {
+    if (file_name != null) {
+      try {
+        file_name.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return entrystatus;
+}
