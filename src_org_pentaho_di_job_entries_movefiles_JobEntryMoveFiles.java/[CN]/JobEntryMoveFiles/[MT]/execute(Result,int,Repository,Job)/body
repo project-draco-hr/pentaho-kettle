@@ -4,6 +4,7 @@
   List<RowMetaAndData> rows=result.getRows();
   RowMetaAndData resultRow=null;
   NrErrors=0;
+  NrSuccess=0;
   DoNotProcessRest=false;
   String MoveToFolder=environmentSubstitute(destinationFolder);
   String vsourcefilefolder[]=source_filefolder;
@@ -21,10 +22,16 @@
     try {
       folder=KettleVFS.getFileObject(MoveToFolder);
       if (!folder.exists()) {
-        log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.FolderMissing",MoveToFolder));
-        result.setResult(false);
-        result.setNrErrors(1);
-        return result;
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.Error.FolderMissing",MoveToFolder));
+        if (create_move_to_folder) {
+          folder.createFolder();
+        }
+ else {
+          log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.FolderMissing",MoveToFolder));
+          result.setResult(false);
+          result.setNrErrors(1);
+          return result;
+        }
       }
       if (!folder.getType().equals(FileType.FOLDER)) {
         log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.NotFolder",MoveToFolder));
@@ -98,5 +105,12 @@
     result.setNrErrors(NrErrors);
   }
  else   result.setResult(true);
+  result.setNrLinesWritten(NrSuccess);
+  if (log.isDetailed()) {
+    log.logDetailed(toString(),"----------------------------");
+    log.logDetailed(toString(),"Total files in error : " + NrErrors);
+    log.logDetailed(toString(),"Total files moved : " + NrSuccess);
+    log.logDetailed(toString(),"----------------------------");
+  }
   return result;
 }

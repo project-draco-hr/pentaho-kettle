@@ -6,12 +6,15 @@
       sourcefilename.moveTo(destinationfilename);
       if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileMoved",sourcefilename.getName().toString(),destinationfilename.getName().toString()));
       if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))       addFileToResultFilenames(destinationfilename.toString(),log,result,parentJob);
+      updateSuccess();
     }
  else {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileExists",destinationfilename.toString()));
       if (iffileexists.equals("overwrite_file")) {
         sourcefilename.moveTo(destinationfilename);
         if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileOverwrite",destinationfilename.getName().toString()));
         if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))         addFileToResultFilenames(destinationfilename.toString(),log,result,parentJob);
+        updateSuccess();
       }
  else       if (iffileexists.equals("unique_name")) {
         String short_filename=shortfilename;
@@ -25,8 +28,9 @@
         String movetofilenamefull=destinationfilename.getParent().toString() + Const.FILE_SEPARATOR + short_filename;
         destinationfile=KettleVFS.getFileObject(movetofilenamefull);
         sourcefilename.moveTo(destinationfile);
-        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileOverwrite",destinationfile.getName().toString()));
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileMoved",sourcefilename.getName().toString(),destinationfile.getName().toString()));
         if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))         addFileToResultFilenames(destinationfile.toString(),log,result,parentJob);
+        updateSuccess();
       }
  else       if (iffileexists.equals("delete_file")) {
         destinationfilename.delete();
@@ -43,25 +47,34 @@
         }
         String movetofilenamefull=movetofolderfolder.toString() + Const.FILE_SEPARATOR + short_filename;
         destinationfile=KettleVFS.getFileObject(movetofilenamefull);
-        if (ifmovedfileexists.equals("overwrite_file")) {
-          sourcefilename.moveTo(destinationfile);
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileOverwrite",destinationfile.getName().toString()));
+        if (!destinationfile.exists()) {
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileMoved",sourcefilename.getName().toString(),destinationfile.getName().toString()));
           if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))           addFileToResultFilenames(destinationfile.toString(),log,result,parentJob);
+          updateSuccess();
         }
- else         if (ifmovedfileexists.equals("unique_name")) {
-          SimpleDateFormat daf=new SimpleDateFormat();
-          Date now=new Date();
-          daf.applyPattern("ddMMyyyy_HHmmssSSS");
-          String dt=daf.format(now);
-          short_filename+="_" + dt;
-          String destinationfilenamefull=movetofolderfolder.toString() + Const.FILE_SEPARATOR + short_filename;
-          destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
-          sourcefilename.moveTo(destinationfile);
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileMoved",destinationfile.getName().toString()));
-          if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))           addFileToResultFilenames(destinationfile.toString(),log,result,parentJob);
-        }
- else         if (ifmovedfileexists.equals("fail")) {
-          updateErrors();
+ else {
+          if (ifmovedfileexists.equals("overwrite_file")) {
+            sourcefilename.moveTo(destinationfile);
+            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileOverwrite",destinationfile.getName().toString()));
+            if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))             addFileToResultFilenames(destinationfile.toString(),log,result,parentJob);
+            updateSuccess();
+          }
+ else           if (ifmovedfileexists.equals("unique_name")) {
+            SimpleDateFormat daf=new SimpleDateFormat();
+            Date now=new Date();
+            daf.applyPattern("ddMMyyyy_HHmmssSSS");
+            String dt=daf.format(now);
+            short_filename+="_" + dt;
+            String destinationfilenamefull=movetofolderfolder.toString() + Const.FILE_SEPARATOR + short_filename;
+            destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
+            sourcefilename.moveTo(destinationfile);
+            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.FileMoved",destinationfile.getName().toString()));
+            if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))             addFileToResultFilenames(destinationfile.toString(),log,result,parentJob);
+            updateSuccess();
+          }
+ else           if (ifmovedfileexists.equals("fail")) {
+            updateErrors();
+          }
         }
       }
  else       if (iffileexists.equals("fail")) {
