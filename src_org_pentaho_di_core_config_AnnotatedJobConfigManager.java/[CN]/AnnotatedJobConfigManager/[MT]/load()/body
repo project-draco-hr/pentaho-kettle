@@ -1,12 +1,42 @@
 {
+  int oldLogLevel=LogWriter.getInstance().getLogLevel();
   ResolverUtil<JobPluginMeta> resolver=new ResolverUtil<JobPluginMeta>();
-  resolver.find(new ResolverUtil.AnnotatedWith(Job.class),packages != null ? packages.split(",") : new String[]{});
+  String allPackages=packages;
+  String extraPackages=System.getProperty(Const.KETTLE_PLUGIN_PACKAGES);
+  if (!Const.isEmpty(extraPackages)) {
+    allPackages+="," + extraPackages;
+  }
+  resolver.find(new ResolverUtil.AnnotatedWith(Job.class),allPackages != null ? allPackages.split(",") : new String[]{});
   Collection<JobPluginMeta> jobs=new LinkedHashSet<JobPluginMeta>(resolver.size());
   for (  Class<?> clazz : resolver.getClasses()) {
     Job job=clazz.getAnnotation(Job.class);
     String jobId=job.id();
     if (jobId.equals(""))     jobId=clazz.getName();
-    jobs.add(new JobPluginMeta(clazz,jobId,job.type(),Messages.getString(job.tooltip()),job.image()));
+    String packageName=job.i18nPackageName();
+    if (Const.isEmpty(packageName))     packageName=org.pentaho.di.job.entry.Messages.class.getPackage().getName();
+    String altPackageName=clazz.getPackage().getName();
+    LogWriter.getInstance().setLogLevel(LogWriter.LOG_LEVEL_BASIC);
+    String description=BaseMessages.getString(packageName,job.description());
+    if (description.startsWith("!") && description.endsWith("!"))     description=Messages.getString(job.description());
+    LogWriter.getInstance().setLogLevel(oldLogLevel);
+    if (description.startsWith("!") && description.endsWith("!"))     description=BaseMessages.getString(altPackageName,job.description());
+    LogWriter.getInstance().setLogLevel(LogWriter.LOG_LEVEL_BASIC);
+    String tooltip=BaseMessages.getString(packageName,job.tooltip());
+    if (tooltip.startsWith("!") && tooltip.endsWith("!"))     tooltip=Messages.getString(job.tooltip());
+    LogWriter.getInstance().setLogLevel(oldLogLevel);
+    if (tooltip.startsWith("!") && tooltip.endsWith("!"))     tooltip=BaseMessages.getString(altPackageName,job.tooltip());
+    String category;
+    if (job.category() != JobEntryCategory.CATEGORY_USER_DEFINED) {
+      category=JobEntryCategory.STANDARD_CATEGORIES[job.category()].getName();
+    }
+ else {
+      LogWriter.getInstance().setLogLevel(LogWriter.LOG_LEVEL_BASIC);
+      category=BaseMessages.getString(packageName,job.categoryDescription());
+      if (category.startsWith("!") && category.endsWith("!"))       category=Messages.getString(job.categoryDescription());
+      LogWriter.getInstance().setLogLevel(oldLogLevel);
+      if (category.startsWith("!") && category.endsWith("!"))       category=BaseMessages.getString(altPackageName,job.categoryDescription());
+    }
+    jobs.add(new JobPluginMeta(clazz,jobId,job.type(),description,tooltip,job.image(),category));
   }
   return (Collection<T>)jobs;
 }
