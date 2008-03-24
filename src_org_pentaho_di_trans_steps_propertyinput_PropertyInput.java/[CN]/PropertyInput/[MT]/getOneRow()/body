@@ -1,0 +1,64 @@
+{
+  try {
+    if (meta.isFileField()) {
+      while ((data.readrow == null) || (!data.it.hasNext())) {
+        if (!openNextFile())         return null;
+      }
+    }
+ else {
+      while ((data.file == null) || (!data.it.hasNext())) {
+        if (!openNextFile())         return null;
+      }
+    }
+  }
+ catch (  Exception IO) {
+    return null;
+  }
+  Object[] r=buildEmptyRow();
+  if (meta.isFileField())   r=data.readrow.clone();
+  try {
+    String key=null;
+    key=data.it.next().toString();
+    for (int i=0; i < meta.getInputFields().length; i++) {
+      String value=null;
+      if (meta.getInputFields()[i].getColumnCode().equals(PropertyInputField.ColumnCode[PropertyInputField.COLUMN_KEY]))       value=key;
+ else       value=data.pro.getProperty(key);
+switch (meta.getInputFields()[i].getTrimType()) {
+case PropertyInputField.TYPE_TRIM_LEFT:
+        value=Const.ltrim(value);
+      break;
+case PropertyInputField.TYPE_TRIM_RIGHT:
+    value=Const.rtrim(value);
+  break;
+case PropertyInputField.TYPE_TRIM_BOTH:
+value=Const.trim(value);
+break;
+default :
+break;
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(data.totalpreviousfields + i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(data.totalpreviousfields + i);
+r[data.totalpreviousfields + i]=targetValueMeta.convertData(sourceValueMeta,value);
+if (meta.getInputFields()[i].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(value)) {
+r[data.totalpreviousfields + i]=data.previousRow[data.totalpreviousfields + i];
+}
+}
+}
+int rowIndex=meta.getInputFields().length;
+if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
+r[data.totalpreviousfields + rowIndex++]=KettleVFS.getFilename(data.file);
+}
+if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+r[data.totalpreviousfields + rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? r : (Object[])irow.cloneRow(r);
+linesInput++;
+data.rownr++;
+}
+ catch (Exception e) {
+throw new KettleException("Unable to read row from Access file",e);
+}
+return r;
+}
