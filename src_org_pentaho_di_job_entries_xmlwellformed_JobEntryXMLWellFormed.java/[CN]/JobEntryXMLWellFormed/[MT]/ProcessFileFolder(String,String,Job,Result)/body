@@ -1,0 +1,99 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  boolean entrystatus=false;
+  FileObject sourcefilefolder=null;
+  FileObject CurrentFile=null;
+  String realSourceFilefoldername=environmentSubstitute(sourcefilefoldername);
+  if (Const.isEmpty(realSourceFilefoldername)) {
+    log.logError(toString(),Messages.getString("JobXMLWellFormed.log.FileFolderEmpty",sourcefilefoldername));
+    updateErrors();
+    return entrystatus;
+  }
+  String realWildcard=environmentSubstitute(wildcard);
+  try {
+    sourcefilefolder=KettleVFS.getFileObject(realSourceFilefoldername);
+    if (sourcefilefolder.exists()) {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobXMLWellFormed.Log.FileExists",sourcefilefolder.toString()));
+      if (sourcefilefolder.getType() == FileType.FILE) {
+        entrystatus=checkOneFile(sourcefilefolder,log,result,parentJob);
+      }
+ else       if (sourcefilefolder.getType() == FileType.FOLDER) {
+        FileObject[] fileObjects=sourcefilefolder.findFiles(new AllFileSelector(){
+          public boolean traverseDescendents(          FileSelectInfo info){
+            return true;
+          }
+          public boolean includeFile(          FileSelectInfo info){
+            FileObject fileObject=info.getFile();
+            try {
+              if (fileObject == null)               return false;
+              if (fileObject.getType() != FileType.FILE)               return false;
+            }
+ catch (            Exception ex) {
+              return false;
+            }
+ finally {
+              if (fileObject != null) {
+                try {
+                  fileObject.close();
+                }
+ catch (                IOException ex) {
+                }
+                ;
+              }
+            }
+            return true;
+          }
+        }
+);
+        if (fileObjects != null) {
+          for (int j=0; j < fileObjects.length; j++) {
+            CurrentFile=fileObjects[j];
+            if (!CurrentFile.getParent().toString().equals(sourcefilefolder.toString())) {
+              if (include_subfolders) {
+                if (GetFileWildcard(CurrentFile.toString(),realWildcard)) {
+                  checkOneFile(CurrentFile,log,result,parentJob);
+                }
+              }
+            }
+ else {
+              if (GetFileWildcard(CurrentFile.toString(),realWildcard)) {
+                checkOneFile(CurrentFile,log,result,parentJob);
+              }
+            }
+          }
+        }
+      }
+ else {
+        log.logError(toString(),Messages.getString("JobXMLWellFormed.Error.UnknowFileFormat",sourcefilefolder.toString()));
+        updateErrors();
+      }
+    }
+ else {
+      log.logError(toString(),Messages.getString("JobXMLWellFormed.Error.SourceFileNotExists",realSourceFilefoldername));
+      updateErrors();
+    }
+  }
+ catch (  IOException e) {
+    log.logError(toString(),Messages.getString("JobXMLWellFormed.Error.Exception.Processing",realSourceFilefoldername.toString(),e.getMessage()));
+    updateErrors();
+  }
+ finally {
+    if (sourcefilefolder != null) {
+      try {
+        sourcefilefolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (CurrentFile != null) {
+      try {
+        CurrentFile.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return entrystatus;
+}
