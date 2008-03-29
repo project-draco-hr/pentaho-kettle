@@ -1,0 +1,53 @@
+{
+  EnvUtil.environmentInit();
+  try {
+    TransMeta transMeta=new TransMeta();
+    transMeta.setName("table output JIRA897 test");
+    for (int i=0; i < databasesXML.length; i++) {
+      DatabaseMeta databaseMeta=new DatabaseMeta(databasesXML[i]);
+      transMeta.addDatabase(databaseMeta);
+    }
+    DatabaseMeta dbInfo=transMeta.findDatabase("db");
+    Database database=new Database(dbInfo);
+    database.connect();
+    createTable(database,target_table1,createSourceRowMetaInterface1());
+    createTable(database,target_table2,createSourceRowMetaInterface1());
+    StepLoader steploader=StepLoader.getInstance();
+    String injectorStepname="injector step";
+    InjectorMeta im=new InjectorMeta();
+    String injectorPid=steploader.getStepPluginID(im);
+    StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,(StepMetaInterface)im);
+    transMeta.addStep(injectorStep);
+    String outputname="output to [" + target_table1 + "] and ["+ target_table2+ "]";
+    TableOutputMeta tom=new TableOutputMeta();
+    tom.setDatabaseMeta(transMeta.findDatabase("db"));
+    tom.setTableNameInField(true);
+    tom.setTableNameField("TABLE");
+    tom.setTableNameInTable(false);
+    String fromid=steploader.getStepPluginID(tom);
+    StepMeta fromstep=new StepMeta(fromid,outputname,(StepMetaInterface)tom);
+    fromstep.setDescription("write data to tables on database [" + dbInfo + "]");
+    transMeta.addStep(fromstep);
+    TransHopMeta hi=new TransHopMeta(injectorStep,fromstep);
+    transMeta.addTransHop(hi);
+    Trans trans=new Trans(transMeta);
+    trans.prepareExecution(null);
+    StepInterface si=trans.getStepInterface(outputname,0);
+    RowStepCollector rc=new RowStepCollector();
+    si.addRowListener(rc);
+    RowProducer rp=trans.addRowProducer(injectorStepname,0);
+    trans.startThreads();
+    List<RowMetaAndData> inputList=createJIRA897DataRows();
+    for (    RowMetaAndData rm : inputList) {
+      rp.putRow(rm.getRowMeta(),rm.getData());
+    }
+    rp.finished();
+    trans.waitUntilFinished();
+    List<RowMetaAndData> resultRows=rc.getRowsWritten();
+    List<RowMetaAndData> goldRows=createJIRA897DataRows();
+    checkRows(goldRows,resultRows);
+    checkResultsJIRA897(database);
+  }
+  finally {
+  }
+}
