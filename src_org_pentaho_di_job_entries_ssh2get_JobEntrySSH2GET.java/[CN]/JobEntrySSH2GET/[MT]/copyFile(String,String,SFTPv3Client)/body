@@ -1,0 +1,62 @@
+{
+  SFTPv3FileHandle sftpFileHandle=null;
+  FileOutputStream fos=null;
+  File transferFile=null;
+  long remoteFileSize=-1;
+  boolean filecopied=true;
+  try {
+    transferFile=new File(targetLocation);
+    if ((onlyGettingNewFiles == false) || (onlyGettingNewFiles == true) && !FileExists(transferFile.getAbsolutePath())) {
+      new File(transferFile.getParent()).mkdirs();
+      remoteFileSize=this.getFileSize(sftpClient,sourceLocation);
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobSSH2GET.Log.ReceivingFile",sourceLocation,transferFile.getAbsolutePath(),"" + remoteFileSize));
+      sftpFileHandle=sftpClient.openFileRO(sourceLocation);
+      fos=null;
+      long offset=0;
+      fos=new FileOutputStream(transferFile);
+      byte[] buffer=new byte[2048];
+      while (true) {
+        int len=sftpClient.read(sftpFileHandle,offset,buffer,0,buffer.length);
+        if (len <= 0)         break;
+        fos.write(buffer,0,len);
+        offset+=len;
+      }
+      fos.flush();
+      fos.close();
+      fos=null;
+      nbfilestoget++;
+      if (remoteFileSize > 0 && remoteFileSize != transferFile.length()) {
+        filecopied=false;
+        nbrerror++;
+        log.logError(toString(),Messages.getString("JobSSH2GET.Log.Error.RemoteFileLocalDifferent","" + remoteFileSize,transferFile.length() + "","" + offset));
+      }
+ else {
+        nbgot++;
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobSSH2GET.Log.RemoteFileLocalCopied",sourceLocation,transferFile + ""));
+      }
+    }
+    if (filecopied && !afterftpput.equals("do_nothing")) {
+      deleteOrMoveFiles(sftpClient,sourceLocation,environmentSubstitute(destinationfolder));
+    }
+  }
+ catch (  Exception e) {
+    nbrerror++;
+    log.logError(toString(),Messages.getString("JobSSH2GET.Log.Error.WritingFile",transferFile.getAbsolutePath(),e.getMessage()));
+  }
+ finally {
+    try {
+      if (sftpFileHandle != null) {
+        sftpClient.closeFile(sftpFileHandle);
+        sftpFileHandle=null;
+      }
+      if (fos != null)       try {
+        fos.close();
+        fos=null;
+      }
+ catch (      Exception ex) {
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+}
