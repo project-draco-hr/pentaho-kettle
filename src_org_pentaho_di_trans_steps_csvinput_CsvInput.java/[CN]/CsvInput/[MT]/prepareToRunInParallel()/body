@@ -1,0 +1,29 @@
+{
+  try {
+    for (    String filename : data.filenames) {
+      long size=KettleVFS.getFileObject(filename).getContent().getSize();
+      data.fileSizes.add(size);
+      data.totalFileSize+=size;
+    }
+    data.blockToRead=Math.round((double)data.totalFileSize / (double)data.totalNumberOfSteps);
+    data.startPosition=data.blockToRead * data.stepNumber;
+    data.endPosition=data.startPosition + data.blockToRead;
+    long totalFileSize=0L;
+    for (int i=0; i < data.fileSizes.size(); i++) {
+      long size=data.fileSizes.get(i);
+      if (data.startPosition >= totalFileSize && data.startPosition <= totalFileSize + size) {
+        data.filenr=i;
+        data.bytesToSkipInFirstFile=totalFileSize - data.startPosition;
+        if (data.bytesToSkipInFirstFile < 0) {
+          data.bytesToSkipInFirstFile+=size;
+        }
+        break;
+      }
+      totalFileSize+=size;
+    }
+    logBasic(Messages.getString("CsvInput.Log.ParallelFileNrAndPositionFeedback",Integer.toString(data.filenr),Long.toString(data.bytesToSkipInFirstFile),Long.toString(data.blockToRead)));
+  }
+ catch (  Exception e) {
+    throw new KettleException(Messages.getString("CsvInput.Exception.ErrorPreparingParallelRun"),e);
+  }
+}
