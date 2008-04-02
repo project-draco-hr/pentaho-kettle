@@ -19,20 +19,24 @@
     data.fis=(FileInputStream)((LocalFile)fileObject).getInputStream();
     data.fc=data.fis.getChannel();
     data.bb=ByteBuffer.allocateDirect(data.preferredBufferSize);
-    if (meta.isRunningInParallel() && data.bytesToSkipInFirstFile > 0) {
-      data.fc.position(data.bytesToSkipInFirstFile);
-      data.bytesToSkipInFirstFile=-1L;
+    if (data.parallel) {
+      if (data.bytesToSkipInFirstFile > 0) {
+        data.fc.position(data.bytesToSkipInFirstFile);
+        readOneRow(false);
+      }
     }
     if (meta.isAddResultFile()) {
       ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,fileObject,getTransMeta().getName(),toString());
       resultFile.setComment("File was read by a Csv input step");
       addResultFile(resultFile);
     }
+    if ((meta.isHeaderPresent() && !data.parallel) || (data.parallel && data.filenr == data.startFilenr && data.bytesToSkipInFirstFile <= 0) || (data.parallel && data.filenr > data.startFilenr && data.bytesToSkipInFirstFile <= 0)) {
+      readOneRow(false);
+      logBasic(Messages.getString("CsvInput.Log.HeaderRowSkipped",data.filenames[data.filenr]));
+    }
     data.filenr++;
     data.rowNumber=1L;
-    if (meta.isHeaderPresent()) {
-      readOneRow(false);
-    }
+    data.bytesToSkipInFirstFile=-1L;
     return true;
   }
  catch (  Exception e) {
