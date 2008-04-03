@@ -1,0 +1,47 @@
+{
+  StringBuffer sb=new StringBuffer(300);
+  if (meta.getPsqlpath() != null) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getPsqlpath()));
+      String psqlexec=KettleVFS.getFilename(fileObject);
+      sb.append(psqlexec);
+    }
+ catch (    IOException ex) {
+      throw new KettleException("Error retrieving sqlldr string",ex);
+    }
+  }
+ else {
+    throw new KettleException("No psql application specified");
+  }
+  if (meta.getControlFile() != null) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getControlFile()));
+      sb.append(" -f ");
+      sb.append(KettleVFS.getFilename(fileObject));
+    }
+ catch (    IOException ex) {
+      throw new KettleException("Error retrieving controlfile string",ex);
+    }
+  }
+ else {
+    throw new KettleException("No control file specified");
+  }
+  DatabaseMeta dm=meta.getDatabaseMeta();
+  if (dm != null) {
+    String user=Const.NVL(dm.getUsername(),"");
+    sb.append(" -U ").append(environmentSubstitute(user));
+    String dns=Const.NVL(dm.getDatabaseName(),"");
+    sb.append(" -d ");
+    String overrideName=meta.getDbNameOverride();
+    if (Const.isEmpty(Const.rtrim(overrideName))) {
+      sb.append(environmentSubstitute(dns));
+    }
+ else {
+      sb.append(environmentSubstitute(overrideName));
+    }
+  }
+ else {
+    throw new KettleException("No connection specified");
+  }
+  return sb.toString();
+}

@@ -1,0 +1,45 @@
+{
+  meta=(GPBulkLoaderMeta)smi;
+  data=(GPBulkLoaderData)sdi;
+  try {
+    Object[] r=getRow();
+    if (r == null) {
+      setOutputDone();
+      if (!preview) {
+        if (output != null) {
+          try {
+            output.close();
+          }
+ catch (          IOException e) {
+            throw new KettleException("Error while closing output",e);
+          }
+          output=null;
+        }
+        String loadMethod=meta.getLoadMethod();
+        if (GPBulkLoaderMeta.METHOD_AUTO_END.equals(loadMethod)) {
+          execute(meta,true);
+        }
+      }
+      return false;
+    }
+    if (!preview) {
+      if (first) {
+        first=false;
+        createControlFile(environmentSubstitute(meta.getControlFile()),r,meta);
+        output=new GPBulkDataOutput(meta);
+        output.open(this,psqlProcess);
+      }
+      output.writeLine(getInputRowMeta(),r);
+    }
+    putRow(getInputRowMeta(),r);
+    linesOutput++;
+  }
+ catch (  KettleException e) {
+    logError(Messages.getString("GPBulkLoader.Log.ErrorInStep") + e.getMessage());
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  return true;
+}

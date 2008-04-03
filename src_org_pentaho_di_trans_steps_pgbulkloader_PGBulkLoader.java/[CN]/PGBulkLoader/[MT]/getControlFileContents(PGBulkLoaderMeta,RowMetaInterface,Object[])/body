@@ -1,0 +1,27 @@
+{
+  DatabaseMeta dm=meta.getDatabaseMeta();
+  String loadAction=meta.getLoadAction();
+  StringBuffer contents=new StringBuffer(500);
+  String tableName=dm.getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTableName()));
+  if (loadAction.equalsIgnoreCase("truncate")) {
+    contents.append(loadAction + " ");
+    contents.append(tableName + ";");
+    contents.append(Const.CR);
+  }
+  contents.append("\\COPY ");
+  contents.append(tableName);
+  contents.append(" ( ");
+  String streamFields[]=meta.getFieldStream();
+  String tableFields[]=meta.getFieldTable();
+  if (streamFields == null || streamFields.length == 0) {
+    throw new KettleException("No fields defined to load to database");
+  }
+  for (int i=0; i < streamFields.length; i++) {
+    if (i != 0)     contents.append(", ");
+    contents.append(dm.quoteField(tableFields[i]));
+  }
+  contents.append(" ) ");
+  contents.append(" FROM /tmp/load0.dat");
+  contents.append(" WITH CSV DELIMITER AS ';' QUOTE AS '\"'");
+  return contents.toString();
+}

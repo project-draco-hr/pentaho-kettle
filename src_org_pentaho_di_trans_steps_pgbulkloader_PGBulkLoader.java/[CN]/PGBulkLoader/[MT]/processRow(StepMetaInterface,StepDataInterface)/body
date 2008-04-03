@@ -1,0 +1,35 @@
+{
+  meta=(PGBulkLoaderMeta)smi;
+  data=(PGBulkLoaderData)sdi;
+  try {
+    Object[] r=getRow();
+    if (r == null) {
+      setOutputDone();
+      data.pgOutputStream.flush();
+      data.pgOutputStream.close();
+      int exitVal=data.psqlProcess.waitFor();
+      logBasic(Messages.getString("GPBulkLoader.Log.ExitValuePsqlPath","" + exitVal));
+      return false;
+    }
+    if (first) {
+      first=false;
+      createControlFile(environmentSubstitute(meta.getControlFile()),r,meta);
+      data.keynrs=new int[meta.getFieldStream().length];
+      for (int i=0; i < data.keynrs.length; i++) {
+        data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
+      }
+      execute(meta,true);
+    }
+    writeRowToPostgres(getInputRowMeta(),r);
+    putRow(getInputRowMeta(),r);
+    linesOutput++;
+    return true;
+  }
+ catch (  Exception e) {
+    logError(Messages.getString("GPBulkLoader.Log.ErrorInStep"),e);
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+}

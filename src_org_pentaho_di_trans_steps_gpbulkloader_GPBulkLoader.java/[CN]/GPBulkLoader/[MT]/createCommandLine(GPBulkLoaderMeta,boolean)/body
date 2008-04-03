@@ -1,0 +1,67 @@
+{
+  StringBuffer sb=new StringBuffer(300);
+  if (meta.getPsqlpath() != null) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getPsqlpath()));
+      String psqlexec=KettleVFS.getFilename(fileObject);
+      sb.append('\'').append(psqlexec).append('\'');
+    }
+ catch (    IOException ex) {
+      throw new KettleException("Error retrieving sqlldr string",ex);
+    }
+  }
+ else {
+    throw new KettleException("No psql application specified");
+  }
+  if (meta.getControlFile() != null) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getControlFile()));
+      sb.append(" -n -f ");
+      sb.append('\'').append(KettleVFS.getFilename(fileObject)).append('\'');
+    }
+ catch (    IOException ex) {
+      throw new KettleException("Error retrieving controlfile string",ex);
+    }
+  }
+ else {
+    throw new KettleException("No control file specified");
+  }
+  if (meta.getLogFile() != null) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getLogFile()));
+      sb.append(" -o ");
+      sb.append('\'').append(KettleVFS.getFilename(fileObject)).append('\'');
+    }
+ catch (    IOException ex) {
+      throw new KettleException("Error retrieving logfile string",ex);
+    }
+  }
+  DatabaseMeta dm=meta.getDatabaseMeta();
+  if (dm != null) {
+    String user=Const.NVL(dm.getUsername(),"");
+    String pass=Const.NVL(dm.getPassword(),"");
+    if (password && !pass.equalsIgnoreCase("")) {
+      throw new KettleException("Passwords are not supported directly, try configuring your connection for trusted access using pg_hba.conf");
+    }
+    sb.append(" -U ").append(environmentSubstitute(user));
+    String hostname=Const.NVL(dm.getHostname(),"");
+    String portnum=Const.NVL(dm.getDatabasePortNumberString(),"");
+    sb.append(" -h ");
+    sb.append(hostname);
+    sb.append(" -p ");
+    sb.append(portnum);
+    String dns=Const.NVL(dm.getDatabaseName(),"");
+    sb.append(" -d ");
+    String overrideName=meta.getDbNameOverride();
+    if (Const.isEmpty(Const.rtrim(overrideName))) {
+      sb.append(environmentSubstitute(dns));
+    }
+ else {
+      sb.append(environmentSubstitute(overrideName));
+    }
+  }
+ else {
+    throw new KettleException("No connection specified");
+  }
+  return sb.toString();
+}
