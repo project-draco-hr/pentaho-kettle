@@ -1,0 +1,34 @@
+{
+  Object[] r=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  try {
+    Object[] outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (meta.getRowLimit() > 0 && data.rownr > meta.getRowLimit()) {
+      setOutputDone();
+      return false;
+    }
+  }
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("LDIFInput.ErrorInStepRunning",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"LDIFInput001");
+    }
+  }
+  return true;
+}

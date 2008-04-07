@@ -1,0 +1,80 @@
+{
+  try {
+    while ((data.file == null) || ((data.recordLDIF=data.InputLDIF.nextRecord()) == null)) {
+      if (!openNextFile())       return null;
+    }
+  }
+ catch (  Exception IO) {
+    return null;
+  }
+  LDIFContent contentLDIF=data.recordLDIF.getContent();
+  String contentTYPE="ATTRIBUTE_CONTENT";
+  if (contentLDIF.getType() == LDIFContent.DELETE_CONTENT) {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("LDIFInput.Log.ContentType","DELETE_CONTENT"));
+    contentTYPE="DELETE_CONTENT";
+  }
+ else   if (contentLDIF.getType() == LDIFContent.ADD_CONTENT) {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("LDIFInput.Log.ContentType","ADD_CONTENT"));
+    contentTYPE="ADD_CONTENT";
+  }
+ else   if (contentLDIF.getType() == LDIFContent.MODDN_CONTENT) {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("LDIFInput.Log.ContentType","MODDN_CONTENT"));
+    contentTYPE="MODDN_CONTENT";
+  }
+ else   if (contentLDIF.getType() == LDIFContent.MODIFICATION_CONTENT) {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("LDIFInput.Log.ContentType","MODIFICATION_CONTENT"));
+    contentTYPE="MODIFICATION_CONTENT";
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("LDIFInput.Log.ContentType","ATTRIBUTE_CONTENT"));
+  }
+  LDIFAttributeContent attrContentLDIF=(LDIFAttributeContent)contentLDIF;
+  data.attributes_LDIF=attrContentLDIF.getAttributes();
+  Object[] outputRowData=buildEmptyRow();
+  try {
+    for (int i=0; i < meta.getInputFields().length; i++) {
+      LDIFInputField ldifInputField=meta.getInputFields()[i];
+      String AttributValue=environmentSubstitute(ldifInputField.getAttribut());
+      String Value=GetValue(data.attributes_LDIF,AttributValue);
+switch (ldifInputField.getTrimType()) {
+case LDIFInputField.TYPE_TRIM_LEFT:
+        Value=Const.ltrim(Value);
+      break;
+case LDIFInputField.TYPE_TRIM_RIGHT:
+    Value=Const.rtrim(Value);
+  break;
+case LDIFInputField.TYPE_TRIM_BOTH:
+Value=Const.trim(Value);
+break;
+default :
+break;
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(+i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(+i);
+outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,Value);
+if (meta.getInputFields()[i].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(Value)) {
+outputRowData[i]=data.previousRow[i];
+}
+}
+}
+int rowIndex=data.nrInputFields;
+if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
+outputRowData[rowIndex++]=KettleVFS.getFilename(data.file);
+}
+if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+outputRowData[rowIndex++]=new Long(data.rownr);
+}
+if (meta.includeContentType() && !Const.isEmpty(meta.getContentTypeField())) {
+outputRowData[rowIndex++]=contentTYPE;
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+linesInput++;
+data.rownr++;
+}
+ catch (Exception e) {
+throw new KettleException("Unable to read row from LDIF file",e);
+}
+return outputRowData;
+}
