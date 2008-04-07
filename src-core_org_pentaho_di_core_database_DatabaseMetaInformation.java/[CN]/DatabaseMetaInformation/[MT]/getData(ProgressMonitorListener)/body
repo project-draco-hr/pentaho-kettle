@@ -15,29 +15,30 @@
     if (monitor != null)     monitor.subTask("Getting catalog information");
     if (dbInfo.supportsCatalogs() && dbmd.supportsCatalogsInTableDefinitions()) {
       ArrayList<Catalog> catalogList=new ArrayList<Catalog>();
-      ResultSet catalogs=dbmd.getCatalogs();
-      while (catalogs != null && catalogs.next()) {
-        String catalogName=catalogs.getString(1);
-        ArrayList<String> catalogItems=new ArrayList<String>();
-        ResultSet tables=null;
+      ResultSet catalogResultSet=dbmd.getCatalogs();
+      while (catalogResultSet != null && catalogResultSet.next()) {
+        String catalogName=catalogResultSet.getString(1);
+        catalogList.add(new Catalog(catalogName));
+      }
+      catalogResultSet.close();
+      for (      Catalog catalog : catalogList) {
+        ArrayList<String> catalogTables=new ArrayList<String>();
         try {
-          tables=dbmd.getTables(catalogName,null,null,null);
-          while (tables.next()) {
-            String table_name=tables.getString(3);
-            if (!db.isSystemTable(table_name)) {
-              catalogItems.add(table_name);
+          ResultSet catalogTablesResultSet=dbmd.getTables(catalog.getCatalogName(),null,null,null);
+          while (catalogTablesResultSet.next()) {
+            String tableName=catalogTablesResultSet.getString(3);
+            if (!db.isSystemTable(tableName)) {
+              catalogTables.add(tableName);
             }
           }
+          catalogTablesResultSet.close();
+          Collections.sort(catalogTables);
         }
  catch (        Exception e) {
+          LogWriter.getInstance().logError(getClass().getName(),"Unexpected error getting catalog information",e);
         }
- finally {
-          if (tables != null)           tables.close();
-        }
-        Catalog catalog=new Catalog(catalogName,catalogItems.toArray(new String[catalogItems.size()]));
-        catalogList.add(catalog);
+        catalog.setItems(catalogTables.toArray(new String[catalogTables.size()]));
       }
-      catalogs.close();
       setCatalogs(catalogList.toArray(new Catalog[catalogList.size()]));
     }
     if (monitor != null)     monitor.worked(1);
@@ -45,34 +46,33 @@
     if (monitor != null)     monitor.subTask("Getting schema information");
     if (dbInfo.supportsSchemas() && dbmd.supportsSchemasInTableDefinitions()) {
       ArrayList<Schema> schemaList=new ArrayList<Schema>();
-      ResultSet schemas=null;
       try {
-        schemas=dbmd.getSchemas();
-        while (schemas != null && schemas.next()) {
-          ArrayList<String> schemaItems=new ArrayList<String>();
-          String schemaName=schemas.getString(1);
-          ResultSet tables=null;
+        ResultSet schemaResultSet=dbmd.getSchemas();
+        while (schemaResultSet != null && schemaResultSet.next()) {
+          String schemaName=schemaResultSet.getString(1);
+          schemaList.add(new Schema(schemaName));
+        }
+        schemaResultSet.close();
+        for (        Schema schema : schemaList) {
+          ArrayList<String> schemaTables=new ArrayList<String>();
           try {
-            tables=dbmd.getTables(null,schemaName,null,null);
-            while (tables.next()) {
-              String table_name=tables.getString(3);
-              if (!db.isSystemTable(table_name)) {
-                schemaItems.add(table_name);
+            ResultSet schemaTablesResultSet=dbmd.getTables(null,schema.getSchemaName(),null,null);
+            while (schemaTablesResultSet.next()) {
+              String tableName=schemaTablesResultSet.getString(3);
+              if (!db.isSystemTable(tableName)) {
+                schemaTables.add(tableName);
               }
             }
-            Collections.sort(schemaItems);
+            schemaTablesResultSet.close();
+            Collections.sort(schemaTables);
           }
  catch (          Exception e) {
           }
- finally {
-            if (tables != null)             tables.close();
-          }
-          Schema schema=new Schema(schemaName,schemaItems.toArray(new String[schemaItems.size()]));
-          schemaList.add(schema);
+          schema.setItems(schemaTables.toArray(new String[schemaTables.size()]));
         }
       }
-  finally {
-        if (schemas != null)         schemas.close();
+ catch (      Exception e) {
+        LogWriter.getInstance().logError(getClass().getName(),"Unexpected error getting schema information",e);
       }
       setSchemas(schemaList.toArray(new Schema[schemaList.size()]));
     }

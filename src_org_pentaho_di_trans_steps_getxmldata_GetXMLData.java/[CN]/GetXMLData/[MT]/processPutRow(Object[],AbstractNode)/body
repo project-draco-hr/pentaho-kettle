@@ -1,0 +1,71 @@
+{
+  Object[] outputRowData=buildEmptyRow();
+  try {
+    data.nodenr++;
+    if (row != null)     outputRowData=row.clone();
+    Object extraData[]=new Object[data.nrInputFields];
+    for (int i=0; i < data.nrInputFields; i++) {
+      GetXMLDataField xmlDataField=meta.getInputFields()[i];
+      String XPathValue=environmentSubstitute(xmlDataField.getXPath());
+      String Element_Type=xmlDataField.getElementTypeCode();
+      if (meta.isuseToken()) {
+        int indexvarstart=XPathValue.indexOf(data.tokenStart);
+        int indexvarend=XPathValue.indexOf(data.tokenEnd);
+        if (indexvarstart >= 0 && indexvarend >= 0) {
+          String NameVarInputField=XPathValue.substring(indexvarstart + 2,indexvarend);
+          for (int k=0; k < meta.getInputFields().length; k++) {
+            GetXMLDataField Tmp_xmlInputField=meta.getInputFields()[k];
+            if (Tmp_xmlInputField.getName().equalsIgnoreCase(NameVarInputField)) {
+              XPathValue=XPathValue.replaceAll(data.tokenStart + NameVarInputField + data.tokenEnd,"'" + outputRowData[k] + "'");
+              if (log.isDetailed()) {
+                if (log.isDetailed())                 log.logDetailed(toString(),XPathValue);
+              }
+            }
+          }
+        }
+      }
+      String nodevalue=null;
+      if (!Element_Type.equals("node"))       XPathValue='@' + XPathValue;
+      nodevalue=node.valueOf(XPathValue);
+switch (xmlDataField.getTrimType()) {
+case GetXMLDataField.TYPE_TRIM_LEFT:
+        nodevalue=Const.ltrim(nodevalue);
+      break;
+case GetXMLDataField.TYPE_TRIM_RIGHT:
+    nodevalue=Const.rtrim(nodevalue);
+  break;
+case GetXMLDataField.TYPE_TRIM_BOTH:
+nodevalue=Const.trim(nodevalue);
+break;
+default :
+break;
+}
+if (meta.getIsInFields()) {
+extraData[i]=nodevalue;
+outputRowData=RowDataUtil.addRowData(outputRowData,data.totalpreviousfields,extraData);
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(data.totalpreviousfields + i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(data.totalpreviousfields + i);
+outputRowData[data.totalpreviousfields + i]=targetValueMeta.convertData(sourceValueMeta,nodevalue);
+if (meta.getInputFields()[i].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(nodevalue)) {
+outputRowData[i]=data.previousRow[i];
+}
+}
+}
+int rowIndex=data.nrInputFields;
+if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
+outputRowData[rowIndex++]=KettleVFS.getFilename(data.file);
+}
+if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+outputRowData[rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+}
+ catch (Exception e) {
+log.logError(toString(),e.toString());
+throw new KettleException(e.toString());
+}
+return outputRowData;
+}
