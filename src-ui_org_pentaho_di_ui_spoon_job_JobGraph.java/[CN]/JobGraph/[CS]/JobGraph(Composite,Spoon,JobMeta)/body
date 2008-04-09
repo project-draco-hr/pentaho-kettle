@@ -4,15 +4,44 @@
   this.log=LogWriter.getInstance();
   this.spoon=spoon;
   this.jobMeta=jobMeta;
+  jobLogDelegate=new JobLogDelegate(spoon,this);
+  jobHistoryDelegate=new JobHistoryDelegate(spoon,this);
+  jobGridDelegate=new JobGridDelegate(spoon,this);
+  setLayout(new FormLayout());
+  addToolBar();
+  mainComposite=new Composite(this,SWT.NONE);
+  mainComposite.setLayout(new FillLayout());
+  FormData fdMainComposite=new FormData();
+  fdMainComposite.left=new FormAttachment(0,0);
+  fdMainComposite.top=new FormAttachment((Control)toolbar.getNativeObject(),0);
+  fdMainComposite.right=new FormAttachment(100,0);
+  fdMainComposite.bottom=new FormAttachment(100,0);
+  mainComposite.setLayoutData(fdMainComposite);
+  sashForm=new SashForm(mainComposite,SWT.VERTICAL);
+  canvas=new Canvas(sashForm,SWT.V_SCROLL | SWT.H_SCROLL | SWT.NO_BACKGROUND);
+  sashForm.setWeights(new int[]{100});
+  filenameLabel=new Text(this,SWT.LEFT | SWT.ON_TOP | SWT.NO_BACKGROUND| SWT.READ_ONLY| SWT.NO_FOCUS| SWT.BORDER);
+  filenameLabel.setText(Const.NVL(jobMeta.getFilename(),""));
+  filenameLabel.setBackground(GUIResource.getInstance().getColorBackground());
+  FormData fdFilenameLabel=new FormData();
+  fdFilenameLabel.left=new FormAttachment((Control)toolbar.getNativeObject(),10);
+  fdFilenameLabel.top=new FormAttachment(0,0);
+  fdFilenameLabel.right=new FormAttachment(100,0);
+  filenameLabel.setLayoutData(fdFilenameLabel);
+  jobMeta.addFilenameChangedListener(new FilenameChangedListener(){
+    public void filenameChanged(    Object object,    String oldFilename,    String newFilename){
+      filenameLabel.setText(Const.NVL(newFilename,""));
+      canvas.layout(true,true);
+    }
+  }
+);
   try {
-    menuMap=XulHelper.createPopupMenus(SpoonInterface.XUL_FILE_MENUS,shell,new XulMessages(),"job-graph-hop","job-graph-note","job-graph-background","job-graph-entry");
+    menuMap=XulHelper.createPopupMenus(SpoonInterface.XUL_FILE_MENUS,shell,new org.pentaho.di.ui.spoon.job.XulMessages(),"job-graph-hop","job-graph-note","job-graph-background","job-graph-entry");
   }
  catch (  Throwable t) {
     log.logError(toString(),Const.getStackTracker(t));
     new ErrorDialog(shell,Messages.getString("JobGraph.Exception.ErrorReadingXULFile.Title"),Messages.getString("JobGraph.Exception.ErrorReadingXULFile.Message",Spoon.XUL_FILE_MENUS),new Exception(t));
   }
-  setLayout(new FillLayout());
-  canvas=new Canvas(this,SWT.V_SCROLL | SWT.H_SCROLL | SWT.NO_BACKGROUND);
   newProps();
   selrect=null;
   hop_candidate=null;

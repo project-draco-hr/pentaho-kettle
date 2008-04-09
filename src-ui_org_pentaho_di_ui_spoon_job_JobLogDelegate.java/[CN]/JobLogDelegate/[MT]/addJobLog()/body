@@ -1,0 +1,49 @@
+{
+  if (jobGraph.extraViewComposite == null || jobGraph.extraViewComposite.isDisposed()) {
+    jobGraph.addExtraView();
+  }
+ else {
+    if (jobLogTab != null && !jobLogTab.isDisposed()) {
+      jobGraph.extraViewTabFolder.setSelection(jobLogTab);
+      return;
+    }
+  }
+  jobLogTab=new CTabItem(jobGraph.extraViewTabFolder,SWT.CLOSE | SWT.MAX);
+  jobLogTab.setImage(GUIResource.getInstance().getImageShowLog());
+  jobLogTab.setText(Messages.getString("Spoon.TransGraph.LogTab.Name"));
+  jobLogText=new Text(jobGraph.extraViewTabFolder,SWT.READ_ONLY | SWT.MULTI | SWT.V_SCROLL| SWT.H_SCROLL);
+  jobLogTab.setControl(jobLogText);
+  final Log4jStringAppender stringAppender=LogWriter.createStringAppender();
+  stringAppender.setMaxNrLines(Props.getInstance().getMaxNrLinesInLog());
+  stringAppender.addBufferChangedListener(new BufferChangedListener(){
+    public void contentWasAdded(    final StringBuffer content,    final String extra,    final int nrLines){
+      spoon.getDisplay().asyncExec(new Runnable(){
+        public void run(){
+          if (!jobLogText.isDisposed()) {
+            textSize++;
+            if (textSize >= nrLines + 200) {
+              jobLogText.setText(content.toString());
+              jobLogText.setSelection(content.length());
+              jobLogText.showSelection();
+              jobLogText.clearSelection();
+              textSize=nrLines;
+            }
+ else {
+              jobLogText.append(extra);
+            }
+          }
+        }
+      }
+);
+    }
+  }
+);
+  log.addAppender(stringAppender);
+  jobLogTab.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent e){
+      log.removeAppender(stringAppender);
+    }
+  }
+);
+  jobGraph.extraViewTabFolder.setSelection(jobLogTab);
+}
