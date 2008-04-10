@@ -20,16 +20,20 @@
   Thread.currentThread().setContextClassLoader(jei.getClass().getClassLoader());
   JobEntryInterface cloneJei=(JobEntryInterface)jei.clone();
   ((VariableSpace)cloneJei).copyVariablesFrom(this);
-  Result result=cloneJei.execute(prevResult,nr,rep,this);
+  final Result result=cloneJei.execute(prevResult,nr,rep,this);
   Thread.currentThread().setContextClassLoader(cl);
   addErrors((int)result.getNrErrors());
   JobEntryResult jerAfter=new JobEntryResult(result,Messages.getString("Job.Comment.JobFinished"),null,startpoint);
   jobTracker.addJobTracker(new JobTracker(jobMeta,jerAfter));
+  final List<Thread> threads=new ArrayList<Thread>();
+  final List<Result> threadResults=new ArrayList<Result>();
+  final List<KettleException> threadExceptions=new ArrayList<KettleException>();
+  final List<JobEntryCopy> threadEntries=new ArrayList<JobEntryCopy>();
   int nrNext=jobMeta.findNrNextJobEntries(startpoint);
   for (int i=0; i < nrNext && !isStopped(); i++) {
-    JobEntryCopy nextEntry=jobMeta.findNextJobEntry(startpoint,i);
-    JobHopMeta hi=jobMeta.findJobHop(startpoint,nextEntry);
-    String nextComment=null;
+    final JobEntryCopy nextEntry=jobMeta.findNextJobEntry(startpoint,i);
+    final JobHopMeta hi=jobMeta.findJobHop(startpoint,nextEntry);
+    final String nextComment;
     if (hi.isUnconditional()) {
       nextComment=Messages.getString("Job.Comment.FollowedUnconditional");
     }
@@ -46,18 +50,69 @@
       if (nextEntry.resetErrorsBeforeExecution()) {
         result.setNrErrors(0);
       }
-      try {
-        res=execute(nr + 1,result,nextEntry,startpoint,nextComment);
+      if (startpoint.isLaunchingInParallel()) {
+        threadEntries.add(nextEntry);
+        Runnable runnable=new Runnable(){
+          public void run(){
+            try {
+              Result threadResult=execute(nr + 1,result,nextEntry,startpoint,nextComment);
+              threadResults.add(threadResult);
+            }
+ catch (            Throwable e) {
+              log.logError(toString(),Const.getStackTracker(e));
+              threadExceptions.add(new KettleException(Messages.getString("Job.Log.UnexpectedError",nextEntry.toString()),e));
+              Result threadResult=new Result();
+              threadResult.setResult(false);
+              threadResult.setNrErrors(1L);
+              threadResults.add(threadResult);
+            }
+          }
+        }
+;
+        Thread thread=new Thread(runnable);
+        threads.add(thread);
+        thread.start();
+        log.logBasic(jobMeta.toString(),Messages.getString("Job.Log.LaunchedJobEntryInParallel",nextEntry.getName()));
       }
- catch (      Throwable e) {
-        log.logError(toString(),Const.getStackTracker(e));
-        throw new KettleException(Messages.getString("Job.Log.UnexpectedError",nextEntry.toString()),e);
+ else {
+        try {
+          res=execute(nr + 1,result,nextEntry,startpoint,nextComment);
+        }
+ catch (        Throwable e) {
+          log.logError(toString(),Const.getStackTracker(e));
+          throw new KettleException(Messages.getString("Job.Log.UnexpectedError",nextEntry.toString()),e);
+        }
+        log.logBasic(jobMeta.toString(),Messages.getString("Job.Log.FinishedJobEntry",nextEntry.getName(),res.getResult() + ""));
       }
-      log.logBasic(jobMeta.toString(),Messages.getString("Job.Log.FinishedJobEntry",nextEntry.getName(),res.getResult() + ""));
     }
+  }
+  if (startpoint.isLaunchingInParallel()) {
+    for (int i=0; i < threads.size(); i++) {
+      Thread thread=threads.get(i);
+      JobEntryCopy nextEntry=threadEntries.get(i);
+      try {
+        thread.join();
+      }
+ catch (      InterruptedException e) {
+        log.logError(jobMeta.toString(),Messages.getString("Job.Log.UnexpectedErrorWhileWaitingForJobEntry",nextEntry.getName()));
+        threadExceptions.add(new KettleException(Messages.getString("Job.Log.UnexpectedErrorWhileWaitingForJobEntry",nextEntry.getName()),e));
+      }
+    }
+    log.logBasic(jobMeta.toString(),Messages.getString("Job.Log.FinishedJobEntry",startpoint.getName()));
   }
   if (res == null) {
     res=prevResult;
+  }
+  if (threadExceptions.size() > 0) {
+    res.setResult(false);
+    res.setNrErrors(threadExceptions.size());
+    for (    KettleException e : threadExceptions) {
+      log.logError(jobMeta.toString(),e.getMessage(),e);
+    }
+    throw threadExceptions.get(0);
+  }
+  for (  Result threadResult : threadResults) {
+    res.add(threadResult);
   }
   return res;
 }
