@@ -1,0 +1,47 @@
+{
+  Shell parent=getParent();
+  InputStream in=XulDatabaseDialog.class.getClassLoader().getResourceAsStream("org/pentaho/ui/database/databasedialog.xul");
+  Document doc=null;
+  SAXReader rdr=new SAXReader();
+  try {
+    doc=rdr.read(in);
+  }
+ catch (  DocumentException e1) {
+    e1.printStackTrace();
+  }
+  XulDomContainer container=null;
+  try {
+    container=new SwtXulLoader().loadXul(doc);
+    dataHandler=container.getEventHandler("dataHandler");
+    if (databaseMeta != null) {
+      dataHandler.setData(databaseMeta);
+    }
+  }
+ catch (  XulException e1) {
+    e1.printStackTrace();
+  }
+  XulComponent boxElement=container.getDocumentRoot().getElementById("test-button-box");
+  XulComponent parentElement=boxElement.getParent();
+  XulDomContainer fragmentContainer=null;
+  try {
+    String pkg=getClass().getPackage().getName().replace('.','/');
+    fragmentContainer=container.loadFragment(pkg.concat("/feature_override.xul"));
+    XulComponent newBox=fragmentContainer.getDocumentRoot().getFirstChild();
+    parentElement.replaceChild(boxElement,newBox);
+    container.addEventHandler("featureHandler",DataOverrideHandler.class.getName());
+    ((DataOverrideHandler)container.getEventHandler("featureHandler")).setDatabases(databases);
+  }
+ catch (  XulException e) {
+    e.printStackTrace(System.out);
+  }
+  XulWindow dialog=(XulWindow)container.getDocumentRoot().getRootElement();
+  dialog.open();
+  try {
+    databaseMeta=(DatabaseMeta)dataHandler.getData();
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+  }
+  databaseName=databaseMeta.getDatabaseName();
+  return databaseName;
+}
