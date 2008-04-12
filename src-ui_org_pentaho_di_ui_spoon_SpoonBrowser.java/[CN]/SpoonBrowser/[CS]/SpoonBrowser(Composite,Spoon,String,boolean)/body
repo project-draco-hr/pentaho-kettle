@@ -1,50 +1,44 @@
 {
+  composite=new Composite(parent,SWT.NONE);
   this.shell=parent.getShell();
   this.spoon=spoon;
   this.stringUrl=stringUrl;
-  composite=new Composite(parent,SWT.NONE);
-  composite.setLayout(new GridLayout());
-  Composite compTools=new Composite(composite,SWT.NONE);
-  GridData data=new GridData(GridData.FILL_HORIZONTAL);
-  compTools.setLayoutData(data);
-  compTools.setLayout(new GridLayout(2,false));
-  ToolBar navBar=new ToolBar(compTools,SWT.NONE);
-  navBar.setLayoutData(new GridData(GridData.FILL_HORIZONTAL | GridData.HORIZONTAL_ALIGN_END));
-  final ToolItem back=new ToolItem(navBar,SWT.PUSH);
-  back.setText(Messages.getString("SpoonBrowser.Dialog.Back"));
-  back.setEnabled(false);
-  final ToolItem forward=new ToolItem(navBar,SWT.PUSH);
+  composite.setLayout(new FormLayout());
+  addToolBar();
+  addToolBarListeners();
+  Control swtToolBar=(Control)toolbar.getNativeObject();
+  FormData fdToolBar=(FormData)swtToolBar.getLayoutData();
+  fdToolBar.right=null;
+  final Text urlText=new Text(composite,SWT.SINGLE | SWT.LEFT | SWT.READ_ONLY| SWT.BORDER);
+  FormData fdUrlText=new FormData();
+  fdUrlText.top=new FormAttachment(swtToolBar,0,SWT.CENTER);
+  fdUrlText.left=new FormAttachment(swtToolBar,20);
+  fdUrlText.right=new FormAttachment(100,0);
+  urlText.setLayoutData(fdUrlText);
+  final XulToolbarButton back=toolbar.getButtonById("browse-back");
+  back.setEnable(false);
+  final XulToolbarButton forward=toolbar.getButtonById("browse-forward");
   forward.setText(Messages.getString("SpoonBrowser.Dialog.Forward"));
-  forward.setEnabled(false);
-  final Composite comp=new Composite(composite,SWT.NONE);
-  data=new GridData(GridData.FILL_BOTH);
-  comp.setLayoutData(data);
-  comp.setLayout(new FillLayout());
-  browser=new Browser(comp,SWT.NONE);
-  back.addListener(SWT.Selection,new Listener(){
-    public void handleEvent(    Event event){
-      browser.back();
-    }
-  }
-);
-  forward.addListener(SWT.Selection,new Listener(){
-    public void handleEvent(    Event event){
-      browser.forward();
-    }
-  }
-);
+  forward.setEnable(false);
+  browser=new Browser(composite,SWT.NONE);
+  FormData fdBrowser=new FormData();
+  fdBrowser.left=new FormAttachment(0,0);
+  fdBrowser.right=new FormAttachment(100,0);
+  fdBrowser.top=new FormAttachment((Control)toolbar.getNativeObject(),2);
+  fdBrowser.bottom=new FormAttachment(100,0);
+  browser.setLayoutData(fdBrowser);
   LocationListener locationListener=new LocationListener(){
     public void changed(    LocationEvent event){
       Browser browser=(Browser)event.widget;
-      back.setEnabled(browser.isBackEnabled());
-      forward.setEnabled(browser.isForwardEnabled());
+      back.setEnable(browser.isBackEnabled());
+      forward.setEnable(browser.isForwardEnabled());
+      urlText.setText(browser.getUrl());
     }
     public void changing(    LocationEvent event){
     }
   }
 ;
   browser.addLocationListener(locationListener);
-  comp.addKeyListener(spoon.defKeys);
   composite.addKeyListener(spoon.defKeys);
   browser.addKeyListener(spoon.defKeys);
   if (isURL)   browser.setUrl(stringUrl);
