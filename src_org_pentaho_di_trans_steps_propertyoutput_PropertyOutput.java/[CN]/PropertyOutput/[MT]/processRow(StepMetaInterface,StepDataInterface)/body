@@ -1,0 +1,68 @@
+{
+  meta=(PropertyOutputMeta)smi;
+  data=(PropertyOutputData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    if (!first) {
+      saveProperties(data.pro,data.filename);
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.inputRowMeta=getInputRowMeta();
+    data.outputRowMeta=data.inputRowMeta.clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.indexOfKeyField=data.inputRowMeta.indexOfValue(meta.getKeyField());
+    if (data.indexOfKeyField < 0) {
+      logError(Messages.getString("PropertyOutput.Log.ErrorFindingField",meta.getKeyField()));
+      throw new KettleException(Messages.getString("PropertyOutput.Log.ErrorFindingField",meta.getKeyField()));
+    }
+    data.indexOfValueField=data.inputRowMeta.indexOfValue(meta.getValueField());
+    if (data.indexOfValueField < 0) {
+      logError(Messages.getString("PropertyOutput.Log.ErrorFindingField",meta.getValueField()));
+      throw new KettleException(Messages.getString("PropertyOutput.Log.ErrorFindingField",meta.getValueField()));
+    }
+    data.filename=buildFilename();
+    if (Const.isEmpty(data.filename)) {
+      logError(Messages.getString("PropertyOutput.Log.FilenameEmpty"));
+      throw new KettleException(Messages.getString("PropertyOutput.Log.FilenameEmpty"));
+    }
+    createParentFolder();
+  }
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  String propkey=null;
+  String propvalue=null;
+  if (data.indexOfKeyField > -1)   propkey=data.inputRowMeta.getString(r,data.indexOfKeyField);
+  if (data.indexOfValueField > -1)   propvalue=data.inputRowMeta.getString(r,data.indexOfValueField);
+  try {
+    if (!data.KeySet.contains(propkey)) {
+      log.logBasic(toString(),"Key :" + propkey);
+      log.logBasic(toString(),"Value :" + propvalue);
+      data.pro.setProperty(propkey,propvalue);
+      putRow(data.outputRowMeta,r);
+      linesOutput++;
+      if (checkFeedback(linesRead))       logBasic("linenr " + linesRead);
+      data.KeySet.add(propkey);
+    }
+  }
+ catch (  KettleStepException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("PropertyOutputMeta.Log.ErrorInStep") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(data.outputRowMeta,r,1L,errorMessage,null,"PROPSOUTPUTO001");
+    }
+  }
+  return true;
+}
