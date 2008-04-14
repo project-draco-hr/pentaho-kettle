@@ -11,14 +11,16 @@
   jobHistoryTab=new CTabItem(jobGraph.extraViewTabFolder,SWT.CLOSE | SWT.MAX);
   jobHistoryTab.setImage(GUIResource.getInstance().getImageShowHistory());
   jobHistoryTab.setText(Messages.getString("Spoon.TransGraph.HistoryTab.Name"));
-  final Composite historyComposite=new Composite(jobGraph.extraViewTabFolder,SWT.NONE);
-  historyComposite.setLayout(new FormLayout());
-  spoon.props.setLook(historyComposite);
-  SashForm sash=new SashForm(historyComposite,SWT.VERTICAL);
+  jobHistoryComposite=new Composite(jobGraph.extraViewTabFolder,SWT.NONE);
+  jobHistoryComposite.setLayout(new FormLayout());
+  spoon.props.setLook(jobHistoryComposite);
+  addToolBar();
+  addToolBarListeners();
+  SashForm sash=new SashForm(jobHistoryComposite,SWT.VERTICAL);
   spoon.props.setLook(sash);
   sash.setLayout(new FillLayout());
   final int FieldsRows=1;
-  colinf=new ColumnInfo[]{new ColumnInfo(Messages.getString("TransHistory.Column.Name"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.BatchID"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Status"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.Duration"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Read"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Written"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Updated"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Input"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Output"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Errors"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.StartDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.EndDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.LogDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.DependencyDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.ReplayDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true)};
+  colinf=new ColumnInfo[]{new ColumnInfo(Messages.getString("JobHistory.Column.Name"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.BatchID"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Status"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.Duration"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Read"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Written"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Updated"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Input"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Output"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.Errors"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(Messages.getString("TransHistory.Column.StartDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.EndDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.LogDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.DependencyDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(Messages.getString("TransHistory.Column.ReplayDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true)};
   for (int i=3; i < 10; i++)   colinf[i].setAllignement(SWT.RIGHT);
   durationMeta=new ValueMeta("DURATION",ValueMetaInterface.TYPE_NUMBER);
   durationMeta.setConversionMask("0");
@@ -27,24 +29,6 @@
   wText=new Text(sash,SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL| SWT.READ_ONLY);
   spoon.props.setLook(wText);
   wText.setVisible(true);
-  wRefresh=new Button(historyComposite,SWT.PUSH);
-  wRefresh.setText(Messages.getString("TransHistory.Button.Refresh"));
-  fdRefresh=new FormData();
-  fdRefresh.left=new FormAttachment(15,0);
-  fdRefresh.bottom=new FormAttachment(100,0);
-  wRefresh.setLayoutData(fdRefresh);
-  wReplay=new Button(historyComposite,SWT.PUSH);
-  wReplay.setText(Messages.getString("TransHistory.Button.Replay"));
-  fdReplay=new FormData();
-  fdReplay.left=new FormAttachment(wRefresh,Const.MARGIN);
-  fdReplay.bottom=new FormAttachment(100,0);
-  wReplay.setLayoutData(fdReplay);
-  wClear=new Button(historyComposite,SWT.PUSH);
-  wClear.setText(Messages.getString("JobHistory.Button.Clear"));
-  fdClear=new FormData();
-  fdClear.left=new FormAttachment(wReplay,Const.MARGIN);
-  fdClear.bottom=new FormAttachment(100,0);
-  wClear.setLayoutData(fdClear);
   fdText=new FormData();
   fdText.left=new FormAttachment(0,0);
   fdText.top=new FormAttachment(0,0);
@@ -53,20 +37,12 @@
   wText.setLayoutData(fdText);
   fdSash=new FormData();
   fdSash.left=new FormAttachment(0,0);
-  fdSash.top=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment((Control)toolbar.getNativeObject(),0);
   fdSash.right=new FormAttachment(100,0);
-  fdSash.bottom=new FormAttachment(wRefresh,-5);
+  fdSash.bottom=new FormAttachment(100,0);
   sash.setLayoutData(fdSash);
   sash.setWeights(new int[]{60,40});
-  historyComposite.pack();
-  setupReplayListener();
-  SelectionAdapter lsRefresh=new SelectionAdapter(){
-    public void widgetSelected(    SelectionEvent e){
-      refreshHistory();
-    }
-  }
-;
-  wRefresh.addSelectionListener(lsRefresh);
+  jobHistoryComposite.pack();
   wFields.table.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
       showLogEntry();
@@ -81,7 +57,7 @@
     }
   }
 );
-  jobHistoryTab.setControl(historyComposite);
+  jobHistoryTab.setControl(jobHistoryComposite);
   jobGraph.extraViewTabFolder.setSelection(jobHistoryTab);
   final RefreshListener jobRefreshListener=new RefreshListener(){
     public void refreshNeeded(){
@@ -104,7 +80,7 @@
   jobGraph.getDisplay().asyncExec(new Runnable(){
     public void run(){
       refreshHistory();
-      historyComposite.layout(true,true);
+      if (!jobHistoryComposite.isDisposed())       jobHistoryComposite.layout(true,true);
     }
   }
 );
