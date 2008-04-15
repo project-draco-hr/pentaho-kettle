@@ -23,25 +23,37 @@
   for (int i=data.fieldnr + 1; i < data.previousMeta.size(); i++)   outputRow[i + nrExtraFields]=r[i];
   boolean use_ids=meta.getFieldID().length > 0 && meta.getFieldID()[0] != null && meta.getFieldID()[0].length() > 0;
   Object value=null;
+  final String delimiter=meta.getDelimiter();
   if (use_ids) {
     if (log.isDebug())     logDebug(Messages.getString("FieldSplitter.Log.UsingIds"));
-    String pol[]=new String[meta.getField().length];
+    int polSize=0;
+    if (v != null) {
+      polSize++;
+      for (int i=0; i < v.length(); i++) {
+        i=v.indexOf(delimiter,i);
+        if (i == -1)         break;
+ else         polSize++;
+      }
+    }
+    final String pol[]=new String[polSize];
     int prev=0;
     int i=0;
     while (v != null && prev < v.length() && i < pol.length) {
-      pol[i]=polNext(v,meta.getDelimiter(),prev);
+      pol[i]=polNext(v,delimiter,prev);
       if (log.isDebug())       logDebug(Messages.getString("FieldSplitter.Log.SplitFieldsInfo",pol[i],String.valueOf(prev)));
-      prev+=pol[i].length() + meta.getDelimiter().length();
+      prev+=pol[i].length() + delimiter.length();
       i++;
     }
-    for (i=0; i < meta.getField().length; i++) {
+    for (i=0; i < meta.getFieldName().length; i++) {
       String split=null;
       for (int p=0; p < pol.length && split == null; p++) {
-        if (pol[p] != null && pol[p].indexOf(meta.getFieldID()[i]) >= 0)         split=pol[p];
+        if (pol[p] != null) {
+          if (Const.trimToType(pol[p],meta.getFieldTrimType()[i]).indexOf(meta.getFieldID()[i]) == 0)           split=pol[p];
+        }
       }
-      if (split != null && meta.removeID()[i]) {
-        StringBuffer sb=new StringBuffer(split);
-        int idx=sb.indexOf(meta.getFieldID()[i]);
+      if (split != null && meta.getFieldRemoveID()[i]) {
+        final StringBuilder sb=new StringBuilder(split);
+        final int idx=sb.indexOf(meta.getFieldID()[i]);
         sb.delete(idx,idx + meta.getFieldID()[i].length());
         split=sb.toString();
       }
@@ -50,7 +62,7 @@
       try {
         ValueMetaInterface valueMeta=data.outputMeta.getValueMeta(data.fieldnr + i);
         ValueMetaInterface conversionValueMeta=data.conversionMeta.getValueMeta(data.fieldnr + i);
-        value=valueMeta.convertDataFromString(split,conversionValueMeta,meta.getFieldDefault()[i],"",ValueMetaInterface.TRIM_TYPE_BOTH);
+        value=valueMeta.convertDataFromString(split,conversionValueMeta,meta.getFieldNullIf()[i],meta.getFieldIfNull()[i],meta.getFieldTrimType()[i]);
       }
  catch (      Exception e) {
         throw new KettleValueException(Messages.getString("FieldSplitter.Log.ErrorConvertingSplitValue",split,meta.getSplitField() + "]!"),e);
@@ -61,14 +73,14 @@
  else {
     if (log.isDebug())     logDebug(Messages.getString("FieldSplitter.Log.UsingPositionOfValue"));
     int prev=0;
-    for (int i=0; i < meta.getField().length; i++) {
-      String pol=polNext(v,meta.getDelimiter(),prev);
+    for (int i=0; i < meta.getFieldName().length; i++) {
+      String pol=polNext(v,delimiter,prev);
       if (log.isDebug())       logDebug(Messages.getString("FieldSplitter.Log.SplitFieldsInfo",pol,String.valueOf(prev)));
-      prev+=(pol == null ? 0 : pol.length()) + meta.getDelimiter().length();
+      prev+=(pol == null ? 0 : pol.length()) + delimiter.length();
       try {
         ValueMetaInterface valueMeta=data.outputMeta.getValueMeta(data.fieldnr + i);
         ValueMetaInterface conversionValueMeta=data.conversionMeta.getValueMeta(data.fieldnr + i);
-        value=valueMeta.convertDataFromString(pol,conversionValueMeta,meta.getFieldDefault()[i],"",ValueMetaInterface.TRIM_TYPE_BOTH);
+        value=valueMeta.convertDataFromString(pol,conversionValueMeta,meta.getFieldNullIf()[i],meta.getFieldIfNull()[i],meta.getFieldTrimType()[i]);
       }
  catch (      Exception e) {
         throw new KettleValueException(Messages.getString("FieldSplitter.Log.ErrorConvertingSplitValue",pol,meta.getSplitField() + "]!"),e);
