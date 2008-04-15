@@ -24,10 +24,12 @@
   }
   Object[] add=null;
   boolean cache_now=false;
+  boolean cacheHit=false;
   if (meta.isCached()) {
     TimedRow timedRow=(TimedRow)data.look.get(new RowMetaAndData(data.lookupMeta,lookupRow));
     if (timedRow != null) {
       add=timedRow.getRow();
+      cacheHit=true;
     }
   }
  else   add=null;
@@ -58,12 +60,14 @@
   }
  else {
     if (log.isRowLevel())     logRowlevel(Messages.getString("DatabaseLookup.Log.FoundResultsAfterLookup") + add);
-    int types[]=meta.getReturnValueDefaultType();
-    for (int i=0; i < types.length; i++) {
-      ValueMetaInterface returned=data.db.getReturnRowMeta().getValueMeta(i);
-      ValueMetaInterface expected=data.returnMeta.getValueMeta(i);
-      if (returned != null && types[i] > 0 && types[i] != returned.getType()) {
-        add[i]=expected.convertData(returned,add[i]);
+    if (!cacheHit) {
+      int types[]=meta.getReturnValueDefaultType();
+      for (int i=0; i < types.length; i++) {
+        ValueMetaInterface returned=data.db.getReturnRowMeta().getValueMeta(i);
+        ValueMetaInterface expected=data.returnMeta.getValueMeta(i);
+        if (returned != null && types[i] > 0 && types[i] != returned.getType()) {
+          add[i]=expected.convertData(returned,add[i]);
+        }
       }
     }
   }
