@@ -1,6 +1,13 @@
 {
   Image img=new Image(device,area.x,area.y);
   GC gc=new GC(img);
+  if (props.isAntiAliasingEnabled())   gc.setAntialias(SWT.ON);
+  areaOwners.clear();
+  gridSize=props.getCanvasGridSize();
+  shadowsize=props.getShadowSize();
+  Point max=transMeta.getMaximum();
+  Point thumb=getThumb(area,max);
+  offset=getOffset(thumb,area);
   gc.setBackground(background);
   gc.fillRectangle(0,0,area.x,area.y);
   if (branded) {
@@ -10,19 +17,22 @@
     org.eclipse.swt.graphics.Rectangle logoBounds=logo.getBounds();
     gc.drawImage(logo,20,area.y - logoBounds.height);
   }
-  Transform shadow=new Transform(device);
-  shadow.scale(magnification,magnification);
-  shadow.translate(translationX,translationY);
-  shadowsize=props.getShadowSize();
   if (shadowsize > 0) {
-    shadow.translate(translationX + props.getShadowSize(),translationY + props.getShadowSize());
-    gc.setAlpha(30);
-    gc.setTransform(shadow);
-    drawTrans(gc,true);
-    shadow.translate(translationX,translationY);
-    gc.setAlpha(255);
+    shadow=true;
+    Transform transform=new Transform(device);
+    transform.translate(translationX + shadowsize * magnification,translationY + shadowsize * magnification);
+    transform.scale(magnification,magnification);
+    gc.setTransform(transform);
+    gc.setAlpha(20);
+    drawTrans(gc,thumb);
   }
-  drawTrans(gc,false);
+  shadow=false;
+  Transform transform=new Transform(device);
+  transform.translate(translationX,translationY);
+  transform.scale(magnification,magnification);
+  gc.setTransform(transform);
+  gc.setAlpha(255);
+  drawTrans(gc,thumb);
   gc.dispose();
   return img;
 }
