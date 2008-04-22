@@ -1,19 +1,11 @@
 {
   String debug="insertRow start";
   boolean rowsAreSafe=false;
-  Integer batchCounter=null;
   try {
     boolean useBatchInsert=batch && getDatabaseMetaData().supportsBatchUpdates() && databaseMeta.supportsBatchUpdates()&& Const.isEmpty(connectionGroup);
     if (!isAutoCommit()) {
       if (useBatchInsert) {
         debug="insertRow add batch";
-        batchCounter=batchCounterMap.get(ps);
-        if (batchCounter == null) {
-          batchCounterMap.put(ps,1);
-        }
- else {
-          batchCounterMap.put(ps,Integer.valueOf(batchCounter.intValue() + 1));
-        }
         ps.addBatch();
       }
  else {
@@ -25,20 +17,6 @@
       ps.executeUpdate();
     }
     written++;
-    if (!isAutoCommit() && (written % commitsize) == 0) {
-      if (useBatchInsert) {
-        debug="insertRow executeBatch commit";
-        ps.executeBatch();
-        commit();
-        ps.clearBatch();
-        batchCounterMap.put(ps,Integer.valueOf(0));
-      }
- else {
-        debug="insertRow normal commit";
-        commit();
-      }
-      rowsAreSafe=true;
-    }
     return rowsAreSafe;
   }
  catch (  BatchUpdateException ex) {

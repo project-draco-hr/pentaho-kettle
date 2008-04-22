@@ -1,10 +1,11 @@
 {
-  Object[] outputRowData=r;
   if (r == null) {
     if (log.isDetailed())     logDetailed("Last line inserted: stop");
     return null;
   }
   PreparedStatement insertStatement=null;
+  Object[] insertRowData;
+  Object[] outputRowData=r;
   String tableName=null;
   boolean sendToErrorRow=false;
   String errorMessage=null;
@@ -27,7 +28,10 @@
     }
     tableName=rowMeta.getString(r,data.indexOfTableNameField);
     if (!meta.isTableNameInTable()) {
-      r=RowDataUtil.removeItem(r,data.indexOfTableNameField);
+      insertRowData=RowDataUtil.removeItem(rowMeta.cloneRow(r),data.indexOfTableNameField);
+    }
+ else {
+      insertRowData=r;
     }
   }
  else   if (meta.isPartitioningEnabled() && (meta.isPartitioningDaily() || meta.isPartitioningMonthly()) && (meta.getPartitioningField() != null && meta.getPartitioningField().length() > 0)) {
@@ -49,24 +53,72 @@
     }
     Object partitioningValueData=rowMeta.getDate(r,data.indexOfPartitioningField);
     tableName=environmentSubstitute(meta.getTablename()) + "_" + data.dateFormater.format((Date)partitioningValueData);
+    insertRowData=r;
   }
  else {
     tableName=data.tableName;
+    insertRowData=r;
   }
   if (Const.isEmpty(tableName)) {
     throw new KettleStepException("The tablename is not defined (empty)");
   }
-  String schemaTable=data.db.getDatabaseMeta().getQuotedSchemaTableCombination(meta.getSchemaName(),tableName);
-  insertStatement=(PreparedStatement)data.preparedStatements.get(schemaTable);
+  insertStatement=(PreparedStatement)data.preparedStatements.get(tableName);
   if (insertStatement == null) {
     String sql=data.db.getInsertStatement(environmentSubstitute(meta.getSchemaName()),tableName,data.insertRowMeta);
     if (log.isDetailed())     logDetailed("Prepared statement : " + sql);
     insertStatement=data.db.prepareSQL(sql,meta.isReturningGeneratedKeys());
-    data.preparedStatements.put(schemaTable,insertStatement);
+    data.preparedStatements.put(tableName,insertStatement);
   }
   try {
-    data.db.setValues(data.insertRowMeta,r,insertStatement);
-    rowIsSafe=data.db.insertRow(insertStatement,data.batchMode);
+    if (data.specialErrorHandling) {
+      data.savepoint=data.db.setSavepoint();
+    }
+    data.db.setValues(data.insertRowMeta,insertRowData,insertStatement);
+    data.db.insertRow(insertStatement,data.batchMode);
+    if (log.isRowLevel()) {
+      logRowlevel("Written row: " + data.insertRowMeta.getString(insertRowData));
+    }
+    Integer commitCounter=data.commitCounterMap.get(tableName);
+    if (commitCounter == null)     commitCounter=Integer.valueOf(0);
+    data.commitCounterMap.put(tableName,Integer.valueOf(commitCounter.intValue() + 1));
+    if (data.specialErrorHandling) {
+      data.db.releaseSavepoint(data.savepoint);
+    }
+    if (commitCounter > 0 && (commitCounter % meta.getCommitSize()) == 0) {
+      if (data.batchMode) {
+        try {
+          insertStatement.executeBatch();
+          data.db.commit();
+          insertStatement.clearBatch();
+        }
+ catch (        BatchUpdateException ex) {
+          KettleDatabaseBatchException kdbe=new KettleDatabaseBatchException("Error updating batch",ex);
+          kdbe.setUpdateCounts(ex.getUpdateCounts());
+          List<Exception> exceptions=new ArrayList<Exception>();
+          SQLException nextException=ex;
+          do {
+            exceptions.add(nextException);
+          }
+ while ((nextException=nextException.getNextException()) != null);
+          kdbe.setExceptionsList(exceptions);
+          throw kdbe;
+        }
+catch (        SQLException ex) {
+          throw new KettleDatabaseException("Error inserting row",ex);
+        }
+catch (        Exception ex) {
+          throw new KettleDatabaseException("Unexpected error inserting row",ex);
+        }
+      }
+ else {
+        data.db.commit();
+      }
+      data.commitCounterMap.put(tableName,Integer.valueOf(0));
+      rowIsSafe=true;
+    }
+ else {
+      rowIsSafe=false;
+    }
     if (meta.isReturningGeneratedKeys()) {
       RowMetaAndData extraKeys=data.db.getGeneratedKeys(insertStatement);
       if (extraKeys.getRowMeta().size() > 0) {
@@ -85,7 +137,7 @@
     exceptionsList=be.getExceptionsList();
     if (getStepMeta().isDoingErrorHandling()) {
       data.db.clearBatch(insertStatement);
-      data.db.commit();
+      data.db.commit(true);
     }
  else {
       data.db.clearBatch(insertStatement);
@@ -102,6 +154,13 @@
   }
 catch (  KettleDatabaseException dbe) {
     if (getStepMeta().isDoingErrorHandling()) {
+      if (log.isRowLevel()) {
+        logRowlevel("Written row to error handling : " + getInputRowMeta().getString(r));
+      }
+      if (data.specialErrorHandling) {
+        data.db.rollback(data.savepoint);
+        data.db.releaseSavepoint(data.savepoint);
+      }
       sendToErrorRow=true;
       errorMessage=dbe.toString();
     }
@@ -133,7 +192,7 @@ catch (  KettleDatabaseException dbe) {
         processBatchException(errorMessage,updateCounts,exceptionsList);
       }
  else {
-        putError(data.outputRowMeta,outputRowData,1L,errorMessage,null,"TOP001");
+        putError(rowMeta,r,1L,errorMessage,null,"TOP001");
         outputRowData=null;
       }
     }
@@ -152,8 +211,8 @@ catch (  KettleDatabaseException dbe) {
   }
  else {
     if (sendToErrorRow) {
-      putError(data.outputRowMeta,outputRowData,1,errorMessage,null,"TOP001");
-      outputRowData=null;
+      putError(rowMeta,r,1,errorMessage,null,"TOP001");
+      insertRowData=null;
     }
   }
   return outputRowData;

@@ -3,8 +3,10 @@
   data=(TableOutputData)sdi;
   if (super.init(smi,sdi)) {
     try {
+      data.databaseMeta=meta.getDatabaseMeta();
       data.batchMode=meta.getCommitSize() > 0 && meta.useBatchUpdate();
-      if (data.batchMode && getStepMeta().isDoingErrorHandling() && (meta.getDatabaseMeta().getDatabaseType() == DatabaseMeta.TYPE_DATABASE_POSTGRES || meta.getDatabaseMeta().getDatabaseType() == DatabaseMeta.TYPE_DATABASE_GREENPLUM)) {
+      data.specialErrorHandling=getStepMeta().isDoingErrorHandling() && (meta.getDatabaseMeta().getDatabaseType() == DatabaseMeta.TYPE_DATABASE_POSTGRES || meta.getDatabaseMeta().getDatabaseType() == DatabaseMeta.TYPE_DATABASE_GREENPLUM);
+      if (data.batchMode && data.specialErrorHandling) {
         data.batchMode=false;
         if (log.isBasic())         log.logBasic(toString(),Messages.getString("TableOutput.Log.BatchModeDisabled"));
       }
@@ -21,9 +23,9 @@ synchronized (getTrans()) {
       if (log.isBasic())       logBasic("Connected to database [" + meta.getDatabaseMeta() + "] (commit="+ meta.getCommitSize()+ ")");
       data.db.setCommit(meta.getCommitSize());
       if (!meta.isPartitioningEnabled() && !meta.isTableNameInField()) {
-        data.tableName=environmentSubstitute(meta.getTablename());
+        data.tableName=meta.getDatabaseMeta().getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTablename()));
         if (meta.truncateTable() && ((getCopy() == 0 && getUniqueStepNrAcrossSlaves() == 0) || !Const.isEmpty(getPartitionID()))) {
-          data.db.truncateTable(environmentSubstitute(meta.getSchemaName()),data.tableName);
+          data.db.truncateTable(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTablename()));
         }
       }
       return true;
