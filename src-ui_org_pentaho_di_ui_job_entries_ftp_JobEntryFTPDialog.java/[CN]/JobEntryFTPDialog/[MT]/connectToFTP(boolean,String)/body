@@ -1,0 +1,40 @@
+{
+  boolean retval=false;
+  try {
+    if (ftpclient == null || !ftpclient.connected()) {
+      ftpclient=new FTPClient();
+      String realServername=jobMeta.environmentSubstitute(wServerName.getText());
+      ftpclient.setRemoteAddr(InetAddress.getByName(realServername));
+      if (!Const.isEmpty(wProxyHost.getText())) {
+        String realProxy_host=jobMeta.environmentSubstitute(wProxyHost.getText());
+        ftpclient.setRemoteAddr(InetAddress.getByName(realProxy_host));
+        int port=Const.toInt(jobMeta.environmentSubstitute(wProxyHost.getText()),21);
+        if (port != 0) {
+          ftpclient.setRemotePort(port);
+        }
+      }
+ else {
+        ftpclient.setRemoteAddr(InetAddress.getByName(realServername));
+      }
+      ftpclient.connect();
+      String realUsername=jobMeta.environmentSubstitute(wUserName.getText()) + (!Const.isEmpty(wProxyHost.getText()) ? "@" + realServername : "") + (!Const.isEmpty(wProxyUsername.getText()) ? " " + jobMeta.environmentSubstitute(wProxyUsername.getText()) : "");
+      String realPassword=jobMeta.environmentSubstitute(wPassword.getText()) + (!Const.isEmpty(wProxyPassword.getText()) ? " " + jobMeta.environmentSubstitute(wProxyPassword.getText()) : "");
+      ftpclient.login(realUsername,realPassword);
+    }
+    if (checkfolder) {
+      if (!Const.isEmpty(remoteFoldername)) {
+        String realFtpDirectory=jobMeta.environmentSubstitute(remoteFoldername);
+        ftpclient.chdir(realFtpDirectory);
+      }
+      retval=true;
+    }
+    retval=true;
+  }
+ catch (  Exception e) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage(Messages.getString("JobFTP.ErrorConnect.NOK",e.getMessage()) + Const.CR);
+    mb.setText(Messages.getString("JobFTP.ErrorConnect.Title.Bad"));
+    mb.open();
+  }
+  return retval;
+}
