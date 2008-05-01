@@ -1,40 +1,32 @@
 {
-  Document doc=null;
-  try {
-    InputStream in=XulDatabaseDialog.class.getClassLoader().getResourceAsStream("org/pentaho/ui/database/databasedialog.xul");
-    SAXReader rdr=new SAXReader();
-    doc=rdr.read(in);
-  }
- catch (  Exception e) {
-    new ErrorDialog(parentShell,Messages.getString("XulDatabaseDialog.Error.Titel"),Messages.getString("XulDatabaseDialog.Error.SAXReader"),e);
-    return null;
-  }
   XulDomContainer container=null;
   try {
-    SwtXulLoader loader=new SwtXulLoader();
-    loader.register("VARIABLETEXTBOX","org.pentaho.di.ui.core.database.dialog.tags.ExtTextbox");
-    container=loader.loadXul(doc);
-    container.addEventHandler("dataHandler",DataOverrideHandler.class.getName());
-    dataHandler=container.getEventHandler("dataHandler");
+    DatabaseConnectionDialog dcDialog=new DatabaseConnectionDialog();
+    dcDialog.registerClass(EXTENDED_WIDGET_ID,EXTENDED_WIDGET_CLASSNAME);
+    container=dcDialog.getSwtInstance();
+    container.addEventHandler(EVENT_ID,DataOverrideHandler.class.getName());
+    dataHandler=(DataOverrideHandler)container.getEventHandler(EVENT_ID);
     if (databaseMeta != null) {
       dataHandler.setData(databaseMeta);
     }
-    ((DataOverrideHandler)container.getEventHandler("dataHandler")).setDatabases(databases);
-    ((DataOverrideHandler)container.getEventHandler("dataHandler")).getControls();
+    dataHandler.setDatabases(databases);
+    dataHandler.getControls();
   }
- catch (  XulException e1) {
-    e1.printStackTrace();
+ catch (  XulException e) {
+    new ErrorDialog(parentShell,Messages.getString("XulDatabaseDialog.Error.Titel"),Messages.getString("XulDatabaseDialog.Error.HandleXul"),e);
+    return null;
   }
   try {
-    XulComponent boxElement=container.getDocumentRoot().getElementById("test-button-box");
+    XulComponent boxElement=container.getDocumentRoot().getElementById(FRAGMENT_ID);
     XulComponent parentElement=boxElement.getParent();
     XulDomContainer fragmentContainer=null;
+    ResourceBundle res=ResourceBundle.getBundle(MESSAGES);
     String pkg=getClass().getPackage().getName().replace('.','/');
-    fragmentContainer=container.loadFragment(pkg.concat("/feature_override.xul"));
+    fragmentContainer=container.loadFragment(pkg.concat(DIALOG_FRAGMENT_FILE),res);
     XulComponent newBox=fragmentContainer.getDocumentRoot().getFirstChild();
     parentElement.replaceChild(boxElement,newBox);
   }
- catch (  XulException e) {
+ catch (  Exception e) {
     new ErrorDialog(parentShell,Messages.getString("XulDatabaseDialog.Error.Titel"),Messages.getString("XulDatabaseDialog.Error.HandleXul"),e);
     return null;
   }
