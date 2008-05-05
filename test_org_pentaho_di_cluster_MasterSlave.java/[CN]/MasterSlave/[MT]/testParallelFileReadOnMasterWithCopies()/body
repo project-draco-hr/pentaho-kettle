@@ -1,0 +1,34 @@
+{
+  init();
+  ClusterGenerator clusterGenerator=new ClusterGenerator();
+  try {
+    clusterGenerator.launchSlaveServers();
+    TransMeta transMeta=generateParallelFileReadOnMasterWithCopiesTransMeta(clusterGenerator);
+    TransExecutionConfiguration config=new TransExecutionConfiguration();
+    config.setExecutingClustered(true);
+    config.setExecutingLocally(false);
+    config.setExecutingRemotely(false);
+    config.setClusterPosting(true);
+    config.setClusterPreparing(true);
+    config.setClusterStarting(true);
+    config.setLogLevel(LogWriter.LOG_LEVEL_BASIC);
+    TransSplitter transSplitter=Trans.executeClustered(transMeta,config);
+    long nrErrors=Trans.monitorClusteredTransformation("testParallelFileReadOnMasterWithCopies",transSplitter,null);
+    assertEquals(0L,nrErrors);
+    String result=loadFileContent(transMeta,"${java.io.tmpdir}/test-parallel-file-read-on-master-result-with-copies.txt");
+    assertEqualsIgnoreWhitespacesAndCase("100",result);
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    fail(e.toString());
+  }
+ finally {
+    try {
+      clusterGenerator.stopSlaveServers();
+    }
+ catch (    Exception e) {
+      e.printStackTrace();
+      fail(e.toString());
+    }
+  }
+}
