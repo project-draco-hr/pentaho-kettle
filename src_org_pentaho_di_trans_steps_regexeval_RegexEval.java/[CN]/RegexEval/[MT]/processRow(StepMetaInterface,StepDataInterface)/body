@@ -8,16 +8,22 @@
   }
   if (first) {
     first=false;
+    data.previousRowMeta=getInputRowMeta().clone();
     data.outputRowMeta=getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.nrExtraFields=meta.isAllowCaptureGroupsFlagSet() ? meta.getFieldName().length : 0;
     if (meta.getMatcher() != null) {
       if (data.indexOfFieldToEvaluate < 0) {
-        data.indexOfFieldToEvaluate=getInputRowMeta().indexOfValue(meta.getMatcher());
+        data.indexOfFieldToEvaluate=data.previousRowMeta.indexOfValue(meta.getMatcher());
+        data.indexOfMatchResultField=data.outputRowMeta.indexOfValue(meta.getResultFieldName());
+        if (data.nrExtraFields > 0) {
+          data.indexOfFirstCaptureGroupField=data.outputRowMeta.indexOfValue(meta.getFieldName()[0]);
+        }
         if (data.indexOfFieldToEvaluate < 0) {
           logError(Messages.getString("RegexEval.Log.ErrorFindingField") + "[" + meta.getMatcher()+ "]");
           throw new KettleStepException(Messages.getString("RegexEval.Exception.CouldnotFindField",meta.getMatcher()));
         }
-        if (environmentSubstitute(meta.getResultfieldname()) == null) {
+        if (environmentSubstitute(meta.getResultFieldName()) == null) {
           logError(Messages.getString("RegexEval.Log.ErrorResultFieldMissing"));
           throw new KettleStepException(Messages.getString("RegexEval.Exception.ErrorResultFieldMissing"));
         }
@@ -27,12 +33,39 @@
       log.logError("Error",Messages.getString("RegexEval.Log.ErrorMatcherMissing"));
       throw new KettleStepException(Messages.getString("RegexEval.Exception.ErrorMatcherMissing"));
     }
+    data.conversionRowMeta=data.outputRowMeta.clone();
+    for (    ValueMetaInterface valueMeta : data.conversionRowMeta.getValueMetaList()) {
+      valueMeta.setType(ValueMetaInterface.TYPE_STRING);
+    }
   }
-  String Fieldvalue=getInputRowMeta().getString(row,data.indexOfFieldToEvaluate);
-  Matcher m=data.pattern.matcher(Fieldvalue);
-  boolean b=m.matches();
-  Object[] outputRowData2=RowDataUtil.addValueData(row,getInputRowMeta().size(),b);
+  Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+  for (int i=0; i < data.previousRowMeta.size(); i++) {
+    outputRow[i]=row[i];
+  }
+  String fieldValue=getInputRowMeta().getString(row,data.indexOfFieldToEvaluate);
+  if (fieldValue == null) {
+    outputRow[data.indexOfMatchResultField]=false;
+  }
+ else {
+    Matcher m=data.pattern.matcher(fieldValue);
+    boolean isMatch=m.matches();
+    outputRow[data.indexOfMatchResultField]=isMatch;
+    String[] values=new String[data.nrExtraFields];
+    for (int i=0; i < data.nrExtraFields; i++) {
+      if (isMatch) {
+        if (data.nrExtraFields != m.groupCount()) {
+          log.logError("Error",Messages.getString("RegexEval.Log.ErrorCaptureGroupFieldsMismatch",String.valueOf(m.groupCount()),String.valueOf(data.nrExtraFields)));
+          throw new KettleStepException(Messages.getString("RegexEval.Exception.ErrorCaptureGroupFieldsMismatch",String.valueOf(m.groupCount()),String.valueOf(data.nrExtraFields)));
+        }
+        values[i]=m.group(i + 1);
+      }
+      ValueMetaInterface valueMeta=data.outputRowMeta.getValueMeta(data.indexOfFirstCaptureGroupField + i);
+      ValueMetaInterface conversionValueMeta=data.conversionRowMeta.getValueMeta(data.indexOfFirstCaptureGroupField + i);
+      Object convertedValue=valueMeta.convertDataFromString(values[i],conversionValueMeta,meta.getFieldNullIf()[i],meta.getFieldIfNull()[i],meta.getFieldTrimType()[i]);
+      outputRow[data.indexOfFirstCaptureGroupField + i]=convertedValue;
+    }
+  }
   if (log.isRowLevel())   logRowlevel(Messages.getString("RegexEval.Log.ReadRow") + " " + getInputRowMeta().getString(row));
-  putRow(data.outputRowMeta,outputRowData2);
+  putRow(data.outputRowMeta,outputRow);
   return true;
 }

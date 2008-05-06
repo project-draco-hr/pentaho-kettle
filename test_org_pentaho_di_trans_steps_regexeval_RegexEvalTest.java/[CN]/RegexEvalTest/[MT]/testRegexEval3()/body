@@ -1,0 +1,34 @@
+{
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("regexeval2");
+  RegexEvalMeta regexEvalMeta=new RegexEvalMeta();
+  regexEvalMeta.setScript("((a)|([A1]))([B2]?).*");
+  regexEvalMeta.setMatcher("field1");
+  regexEvalMeta.setResultFieldName("res");
+  regexEvalMeta.setAllowCaptureGroupsFlag(true);
+  regexEvalMeta.allocate(4);
+  regexEvalMeta.getFieldName()[0]="cap";
+  regexEvalMeta.getFieldType()[0]=ValueMeta.TYPE_STRING;
+  regexEvalMeta.getFieldName()[1]="capIfNull";
+  regexEvalMeta.getFieldType()[1]=ValueMeta.TYPE_STRING;
+  regexEvalMeta.getFieldIfNull()[1]="x";
+  regexEvalMeta.getFieldName()[2]="capNullIf";
+  regexEvalMeta.getFieldType()[2]=ValueMeta.TYPE_STRING;
+  regexEvalMeta.getFieldNullIf()[2]="1";
+  regexEvalMeta.getFieldName()[3]="capIfNullNullIf";
+  regexEvalMeta.getFieldType()[3]=ValueMeta.TYPE_INTEGER;
+  regexEvalMeta.getFieldIfNull()[3]="0";
+  regexEvalMeta.getFieldNullIf()[3]="B";
+  StepMeta injectorStep=createInjectorStepForTrans("injector step",transMeta);
+  StepMeta dummyStep=createConnectedDummyStepForTrans("dummy step",transMeta,injectorStep);
+  StepMeta regexEvalStep=createConnectedStepForTrans("regexeval step",regexEvalMeta,transMeta,dummyStep);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  RowProducer rp=trans.addRowProducer(injectorStep.getName(),0);
+  RowStepCollector rc=new RowStepCollector();
+  trans.getStepInterface(regexEvalStep.getName(),0).addRowListener(rc);
+  trans.startThreads();
+  feedSourceRows(rp,createSourceData());
+  trans.waitUntilFinished();
+  checkRows(createResultData3(),rc.getRowsWritten());
+}
