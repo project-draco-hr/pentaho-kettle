@@ -1,0 +1,39 @@
+{
+  if (saveFiles()) {
+    java.util.List<MessagesStore> messagesStores=store.getMessagesStores(selectedLocale,null);
+    if (messagesStores.size() > 0) {
+      StringBuffer msg=new StringBuffer();
+      for (      MessagesStore messagesStore : messagesStores) {
+        MessagesStore mainLocaleMessagesStore=store.findMainLocaleMessagesStore(messagesStore.getMessagesPackage());
+        String sourceDirectory=mainLocaleMessagesStore.getSourceDirectory(rootDirectories);
+        String filename=messagesStore.getSaveFilename(sourceDirectory);
+        messagesStore.setFilename(filename);
+        msg.append(filename).append(Const.CR);
+      }
+      FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+      dialog.setFilterExtensions(new String[]{"*.zip","*"});
+      dialog.setFilterNames(new String[]{Messages.getString("System.FileType.ZIPFiles"),Messages.getString("System.FileType.AllFiles")});
+      if (dialog.open() != null) {
+        String zipFilename=dialog.getFilterPath() + System.getProperty("file.separator") + dialog.getFileName();
+        try {
+          ZipOutputStream out=new ZipOutputStream(new FileOutputStream(zipFilename));
+          byte[] buf=new byte[1024];
+          for (          MessagesStore messagesStore : messagesStores) {
+            FileInputStream in=new FileInputStream(messagesStore.getFilename());
+            out.putNextEntry(new ZipEntry(messagesStore.getFilename()));
+            int len;
+            while ((len=in.read(buf)) > 0) {
+              out.write(buf,0,len);
+            }
+            out.closeEntry();
+            in.close();
+          }
+          out.close();
+        }
+ catch (        Exception e) {
+          new ErrorDialog(shell,Messages.getString("i18n.UnexpectedError"),"There was an error saving the changed messages files:",e);
+        }
+      }
+    }
+  }
+}
