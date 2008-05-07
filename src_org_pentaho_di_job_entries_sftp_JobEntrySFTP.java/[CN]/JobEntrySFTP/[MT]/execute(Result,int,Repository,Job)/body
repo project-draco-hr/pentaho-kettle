@@ -1,9 +1,34 @@
 {
   LogWriter log=LogWriter.getInstance();
   Result result=previousResult;
+  List<RowMetaAndData> rows=result.getRows();
   result.setResult(false);
   long filesRetrieved=0;
-  if (log.isDetailed())   log.logDetailed(toString(),"Start of SFTP job entry");
+  if (log.isDetailed())   log.logDetailed(toString(),Messages.getString("JobSFTP.Log.StartJobEntry"));
+  HashSet<String> list_previous_filenames=new HashSet<String>();
+  if (copyprevious) {
+    if (rows.size() == 0) {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobSFTP.ArgsFromPreviousNothing"));
+      result.setResult(true);
+      return result;
+    }
+    try {
+      RowMetaAndData resultRow=null;
+      for (int iteration=0; iteration < rows.size(); iteration++) {
+        resultRow=rows.get(iteration);
+        String file_previous=resultRow.getString(0,null);
+        if (!Const.isEmpty(file_previous)) {
+          list_previous_filenames.add(file_previous);
+          if (log.isDebug())           log.logDebug(toString(),Messages.getString("JobSFTP.Log.FilenameFromResult",file_previous));
+        }
+      }
+    }
+ catch (    Exception e) {
+      log.logError(toString(),Messages.getString("JobSFTP.Error.ArgFromPrevious"));
+      result.setNrErrors(1);
+      return result;
+    }
+  }
   SFTPClient sftpclient=null;
   String realServerName=environmentSubstitute(serverName);
   String realServerPort=environmentSubstitute(serverPort);
@@ -49,6 +74,7 @@
       }
       if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobSFTP.Log.ChangedDirectory",realSftpDirString));
     }
+    Pattern pattern=null;
     String[] filelist=sftpclient.dir();
     if (filelist == null) {
       result.setResult(true);
@@ -56,17 +82,16 @@
       return result;
     }
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobSFTP.Log.Found","" + filelist.length));
-    Pattern pattern=null;
-    if (!Const.isEmpty(realWildcard)) {
-      pattern=Pattern.compile(realWildcard);
+    if (!copyprevious) {
+      if (!Const.isEmpty(realWildcard))       pattern=Pattern.compile(realWildcard);
     }
     for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
       boolean getIt=true;
-      if (pattern != null) {
+      if (!copyprevious && pattern != null) {
         Matcher matcher=pattern.matcher(filelist[i]);
         getIt=matcher.matches();
       }
-      if (getIt) {
+      if (getIt && list_previous_filenames.contains(filelist[i])) {
         if (log.isDebug())         log.logDebug(toString(),Messages.getString("JobSFTP.Log.GettingFiles",filelist[i],realTargetDirectory));
         String targetFilename=realTargetDirectory + Const.FILE_SEPARATOR + filelist[i];
         sftpclient.get(targetFilename,filelist[i]);
@@ -102,6 +127,7 @@
         TargetFolder.close();
         TargetFolder=null;
       }
+      if (list_previous_filenames != null)       list_previous_filenames=null;
     }
  catch (    Exception e) {
     }
