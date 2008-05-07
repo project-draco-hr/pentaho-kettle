@@ -1,0 +1,36 @@
+{
+  DatabaseMeta dbMeta=meta.getDatabaseMeta();
+  try {
+    String sql="SELECT ";
+    for (int i=0; i < meta.getTableKeyField().length; i++) {
+      if (i > 0)       sql+=", ";
+      sql+=dbMeta.quoteField(meta.getTableKeyField()[i]);
+    }
+    for (int i=0; i < meta.getReturnValueField().length; i++) {
+      sql+=", " + dbMeta.quoteField(meta.getReturnValueField()[i]);
+    }
+    sql+=" FROM " + dbMeta.getQuotedSchemaTableCombination(meta.getSchemaName(),meta.getTablename());
+    List<Object[]> rows=data.db.getRows(sql,0);
+    if (rows != null && rows.size() > 0) {
+      for (      Object[] row : rows) {
+        int index=0;
+        Object[] lookupData=new Object[data.lookupMeta.size()];
+        for (int i=0; i < data.lookupMeta.size(); i++) {
+          lookupData[i]=row[index++];
+        }
+        Object[] returnData=new Object[data.returnMeta.size()];
+        for (int i=0; i < data.returnMeta.size(); i++) {
+          returnData[i]=row[index++];
+        }
+        storeRowInCache(data.lookupMeta,lookupData,returnData);
+        linesInput++;
+      }
+    }
+ else {
+      throw new KettleException("Unable to find rows in the specified lookup table");
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+}
