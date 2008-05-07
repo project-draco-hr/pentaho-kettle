@@ -2,7 +2,7 @@
   DatabaseMeta dbMeta=meta.getDatabaseMeta();
   try {
     String sql="SELECT ";
-    for (int i=0; i < meta.getTableKeyField().length; i++) {
+    for (int i=0; i < meta.getStreamKeyField1().length; i++) {
       if (i > 0)       sql+=", ";
       sql+=dbMeta.quoteField(meta.getTableKeyField()[i]);
     }
@@ -12,17 +12,20 @@
     sql+=" FROM " + dbMeta.getQuotedSchemaTableCombination(meta.getSchemaName(),meta.getTablename());
     List<Object[]> rows=data.db.getRows(sql,0);
     if (rows != null && rows.size() > 0) {
+      RowMetaInterface returnRowMeta=data.db.getReturnRowMeta();
       for (      Object[] row : rows) {
         int index=0;
-        Object[] lookupData=new Object[data.lookupMeta.size()];
-        for (int i=0; i < data.lookupMeta.size(); i++) {
-          lookupData[i]=row[index++];
+        RowMeta keyMeta=new RowMeta();
+        Object[] keyData=new Object[meta.getStreamKeyField1().length];
+        for (int i=0; i < meta.getStreamKeyField1().length; i++) {
+          keyData[i]=row[index];
+          keyMeta.addValueMeta(returnRowMeta.getValueMeta(index++));
         }
-        Object[] returnData=new Object[data.returnMeta.size()];
+        Object[] valueData=new Object[data.returnMeta.size()];
         for (int i=0; i < data.returnMeta.size(); i++) {
-          returnData[i]=row[index++];
+          valueData[i]=row[index++];
         }
-        storeRowInCache(data.lookupMeta,lookupData,returnData);
+        storeRowInCache(keyMeta,keyData,valueData);
         linesInput++;
       }
     }
