@@ -15,11 +15,12 @@
   try {
     XMLInputFactory vFactory=XMLInputFactory.newInstance();
     XMLStreamReader vReader=vFactory.createXMLStreamReader(stringReader);
-    Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
-    int outputIndex=0;
+    Object[] outputRowData=rowData == null ? RowDataUtil.allocateRowData(data.outputRowMeta.size()) : RowDataUtil.createResizedCopy(rowData,data.outputRowMeta.size());
+    int outputIndex=rowData == null ? 0 : rowMeta.size();
     boolean processing=false;
     boolean oneValueRowProcessing=false;
-    for (int event=vReader.next(); vReader.hasNext(); event=vReader.next()) {
+    while (vReader.hasNext()) {
+      int event=vReader.next();
 switch (event) {
 case XMLStreamConstants.START_ELEMENT:
         if (log.isRowLevel())         logRowlevel("START_ELEMENT / " + vReader.getAttributeCount() + " / "+ vReader.getNamespaceCount());
@@ -59,7 +60,29 @@ case XMLStreamConstants.START_ELEMENT:
           WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
           if (meta.getFieldsOut().size() == 1 && field != null) {
             try {
-              outputRowData[outputIndex++]=getValue(vReader.getElementText(),field);
+              StringBuffer content=new StringBuffer();
+              if (vReader.hasText()) {
+                content.append(vReader.getElementText());
+              }
+ else {
+                boolean first=true;
+                while (vReader.hasNext()) {
+                  while ((!vReader.hasText() || vReader.isWhiteSpace()) && vReader.hasNext()) {
+                    vReader.next();
+                  }
+                  if (vReader.hasText()) {
+                    if (!first) {
+                      content.append('\t');
+                    }
+ else {
+                      first=false;
+                    }
+                    content.append(vReader.getText());
+                  }
+                  if (vReader.hasNext())                   vReader.next();
+                }
+              }
+              outputRowData[outputIndex++]=getValue(content.toString(),field);
               putRow(data.outputRowMeta,outputRowData);
             }
  catch (            WstxParsingException e) {

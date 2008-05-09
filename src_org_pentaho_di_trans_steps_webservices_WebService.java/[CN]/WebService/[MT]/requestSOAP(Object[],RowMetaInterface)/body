@@ -1,10 +1,13 @@
 {
+  Wsdl wsdl;
+  try {
+    wsdl=new Wsdl(new java.net.URI(meta.getUrl()),null,null);
+  }
+ catch (  Exception e) {
+    throw new KettleStepException(Messages.getString("WebServices.ERROR0013.ExceptionLoadingWSDL"),e);
+  }
+  String vURLService=wsdl.getServiceEndpoint();
   HttpClient vHttpClient=new HttpClient();
-  String vURLSansVariable=environmentSubstitute(meta.getUrl());
-  String vURLService;
-  int questionMarkIndex=vURLSansVariable.lastIndexOf("?");
-  if (questionMarkIndex < 0)   vURLService=vURLSansVariable;
- else   vURLService=vURLSansVariable.substring(0,questionMarkIndex);
   PostMethod vHttpMethod=new PostMethod(vURLService);
   HostConfiguration vHostConfiguration=new HostConfiguration();
   String httpLogin=environmentSubstitute(meta.getHttpLogin());
@@ -26,7 +29,7 @@
     long currentRequestTime=Const.nanoTime();
     int responseCode=vHttpClient.executeMethod(vHostConfiguration,vHttpMethod);
     if (responseCode == 200) {
-      processRows(vHttpMethod.getResponseBodyAsStream());
+      processRows(vHttpMethod.getResponseBodyAsStream(),rowData,rowMeta);
     }
  else     if (responseCode == 401) {
       throw new KettleStepException(Messages.getString("WebServices.ERROR0011.Authentication"));
