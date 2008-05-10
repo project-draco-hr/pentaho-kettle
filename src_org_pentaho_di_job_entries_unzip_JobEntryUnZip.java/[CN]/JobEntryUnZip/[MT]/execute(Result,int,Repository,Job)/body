@@ -2,168 +2,139 @@
   LogWriter log=LogWriter.getInstance();
   Result result=previousResult;
   result.setResult(false);
-  String realZipfilename=environmentSubstitute(zipFilename);
+  result.setEntryNr(1);
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  String realFilenameSource=environmentSubstitute(zipFilename);
+  String realWildcardSource=environmentSubstitute(wildcardSource);
   String realWildcard=environmentSubstitute(wildcard);
   String realWildcardExclude=environmentSubstitute(wildcardexclude);
   String realTargetdirectory=environmentSubstitute(targetdirectory);
   String realMovetodirectory=environmentSubstitute(movetodirectory);
-  if (!Const.isEmpty(zipFilename)) {
-    FileObject fileObject=null;
-    FileObject targetdir=null;
-    FileObject movetodir=null;
-    ZipFile zipfile=null;
-    try {
-      fileObject=KettleVFS.getFileObject(realZipfilename);
-      if (fileObject.exists()) {
-        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobUnZip.Zip_FileExists.Label",realZipfilename));
-        if (!Const.isEmpty(targetdirectory)) {
-          targetdir=KettleVFS.getFileObject(realTargetdirectory);
-          if ((targetdir.exists()) && (targetdir.getType() == FileType.FOLDER)) {
-            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobUnZip.TargetFolderNotExists.Label",realTargetdirectory));
-            if ((afterunzip == 2) && (Const.isEmpty(movetodirectory))) {
-              log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.MoveToDirectoryEmpty.Label"));
-            }
+  limitFiles=Const.toInt(environmentSubstitute(getLimit()),10);
+  NrErrors=0;
+  NrSuccess=0;
+  successConditionBroken=false;
+  successConditionBrokenExit=false;
+  if (isfromprevious) {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobUnZip.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+    if (rows.size() == 0)     return result;
+  }
  else {
-              boolean move_tofolder=false;
-              if (afterunzip == 2) {
-                movetodir=KettleVFS.getFileObject(realMovetodirectory);
-                if (!movetodir.exists())                 move_tofolder=true;
-              }
-              if (move_tofolder) {
-                log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.MoveToDirectoryNotExists.Label"));
-              }
- else {
-                zipfile=new ZipFile(new File(realZipfilename));
-                Enumeration<? extends ZipEntry> zipEnum=zipfile.entries();
-                File folder=new File(realTargetdirectory);
-                String foldername=folder.getAbsolutePath();
-                Pattern pattern=null;
-                if (!Const.isEmpty(realWildcard)) {
-                  pattern=Pattern.compile(realWildcard);
-                }
-                Pattern patternexclude=null;
-                if (!Const.isEmpty(realWildcardExclude)) {
-                  patternexclude=Pattern.compile(realWildcardExclude);
-                }
-                while (zipEnum.hasMoreElements()) {
-                  ZipEntry item=(ZipEntry)zipEnum.nextElement();
-                  if (item.isDirectory()) {
-                    File newdir=new File(foldername + Const.FILE_SEPARATOR + item.getName());
-                    if (log.isDetailed())                     log.logDetailed(toString(),Messages.getString("JobUnZip.CreatingDirectory.Label",newdir.getAbsolutePath()));
-                    if (!newdir.exists())                     newdir.mkdir();
-                  }
- else {
-                    boolean getIt=true;
-                    boolean getItexclude=false;
-                    if (pattern != null) {
-                      Matcher matcher=pattern.matcher(item.getName());
-                      getIt=matcher.matches();
-                    }
-                    if (patternexclude != null) {
-                      Matcher matcherexclude=patternexclude.matcher(item.getName());
-                      getItexclude=matcherexclude.matches();
-                    }
-                    if (getIt && !getItexclude) {
-                      String newfile=foldername + Const.FILE_SEPARATOR + item.getName();
-                      if (log.isDetailed())                       log.logDetailed(toString(),Messages.getString("JobUnZip.ExtractingEntry.Label",item.getName(),newfile));
-                      InputStream is=zipfile.getInputStream(item);
-                      FileOutputStream fos=new FileOutputStream(newfile);
-                      if (is != null) {
-                        byte[] buff=new byte[2048];
-                        int len;
-                        while ((len=is.read(buff)) > 0) {
-                          fos.write(buff,0,len);
-                        }
-                        if (is != null)                         is.close();
-                        if (fos != null)                         fos.close();
-                        if (addfiletoresult) {
-                          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(newfile),parentJob.getName(),toString());
-                          result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-                        }
-                      }
-                    }
-                  }
-                }
-                zipfile.close();
-                System.gc();
-                if (afterunzip == 1) {
-                  boolean deleted=fileObject.delete();
-                  if (!deleted) {
-                    result.setResult(false);
-                    result.setNrErrors(1);
-                    log.logError(toString(),Messages.getString("JobUnZip.Cant_Delete_File.Label",realZipfilename));
-                  }
-                  log.logDebug(toString(),Messages.getString("JobUnZip.File_Deleted.Label",realZipfilename));
-                }
- else                 if (afterunzip == 2) {
-                  try {
-                    fileObject.moveTo(movetodir);
-                  }
- catch (                  IOException e) {
-                    log.logError(toString(),Messages.getString("JobUnZip.Cant_Move_File.Label",realZipfilename,realMovetodirectory,e.getMessage()));
-                    result.setResult(false);
-                    result.setNrErrors(1);
-                  }
-                  log.logDebug(toString(),Messages.getString("JobUnZip.File_Moved.Label",realZipfilename,realMovetodirectory));
-                }
-                result.setResult(true);
-              }
-            }
-          }
- else {
-            log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.TargetFolderNotFound.Label"));
-          }
-        }
- else {
-          log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.TargetFolderMissing.Label"));
-        }
+    if (Const.isEmpty(zipFilename)) {
+      log.logError(toString(),Messages.getString("JobUnZip.No_ZipFile_Defined.Label"));
+      return result;
+    }
+  }
+  FileObject fileObject=null;
+  FileObject targetdir=null;
+  FileObject movetodir=null;
+  try {
+    boolean exitjobentry=false;
+    targetdir=KettleVFS.getFileObject(realTargetdirectory);
+    if (!targetdir.exists()) {
+      if (createfolder) {
+        targetdir.createFolder();
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobUnZip.Log.TargetFolderCreated",realTargetdirectory));
       }
  else {
-        log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.ZipFile.NotExists.Label",realZipfilename));
+        log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.TargetFolderNotFound.Label"));
+        exitjobentry=true;
       }
     }
- catch (    IOException e) {
-      log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.ErrorUnzip.Label",realZipfilename,e.getMessage()));
-      result.setResult(false);
-      result.setNrErrors(1);
+ else {
+      if (!(targetdir.getType() == FileType.FOLDER)) {
+        log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.TargetFolderNotFolder.Label",realTargetdirectory));
+        exitjobentry=true;
+      }
+ else {
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobUnZip.TargetFolderExists.Label",realTargetdirectory));
+      }
     }
+    if (afterunzip == 2) {
+      if (Const.isEmpty(movetodirectory)) {
+        log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.MoveToDirectoryEmpty.Label"));
+        exitjobentry=true;
+      }
+ else {
+        movetodir=KettleVFS.getFileObject(realMovetodirectory);
+        if (!(movetodir.exists()) || !(movetodir.getType() == FileType.FOLDER)) {
+          log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.MoveToDirectoryNotExists.Label"));
+          exitjobentry=true;
+        }
+      }
+    }
+    if (exitjobentry)     return result;
+    if (isfromprevious) {
+      if (rows != null) {
+        for (int iteration=0; iteration < rows.size(); iteration++) {
+          if (successConditionBroken) {
+            if (!successConditionBrokenExit) {
+              log.logError(toString(),Messages.getString("JobUnZip.Error.SuccessConditionbroken","" + NrErrors));
+              successConditionBrokenExit=true;
+            }
+            result.setEntryNr(NrErrors);
+            return result;
+          }
+          resultRow=rows.get(iteration);
+          realFilenameSource=resultRow.getString(0,null);
+          realWildcardSource=resultRow.getString(1,null);
+          fileObject=KettleVFS.getFileObject(realFilenameSource);
+          if (fileObject.exists()) {
+            processOneFile(log,result,parentJob,fileObject,realTargetdirectory,realWildcard,realWildcardExclude,movetodir,realMovetodirectory,realWildcardSource);
+          }
+ else {
+            updateErrors();
+            log.logError(toString(),Messages.getString("JobUnZip.Error.CanNotFindFile",realFilenameSource));
+          }
+        }
+      }
+    }
+ else {
+      fileObject=KettleVFS.getFileObject(realFilenameSource);
+      if (!fileObject.exists()) {
+        log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.ZipFile.NotExists.Label",realFilenameSource));
+        return result;
+      }
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobUnZip.Zip_FileExists.Label",realFilenameSource));
+      if (Const.isEmpty(targetdirectory)) {
+        log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.TargetFolderNotFound.Label"));
+        return result;
+      }
+      processOneFile(log,result,parentJob,fileObject,realTargetdirectory,realWildcard,realWildcardExclude,movetodir,realMovetodirectory,realWildcardSource);
+    }
+  }
+ catch (  Exception e) {
+    log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.ErrorUnzip.Label",realFilenameSource,e.getMessage()));
+    updateErrors();
+  }
  finally {
-      if (fileObject != null) {
-        try {
-          fileObject.close();
-        }
- catch (        IOException ex) {
-        }
-        ;
+    if (fileObject != null) {
+      try {
+        fileObject.close();
       }
-      if (targetdir != null) {
-        try {
-          targetdir.close();
-        }
- catch (        IOException ex) {
-        }
-        ;
+ catch (      IOException ex) {
       }
-      if (movetodir != null) {
-        try {
-          movetodir.close();
-        }
- catch (        IOException ex) {
-        }
-        ;
+      ;
+    }
+    if (targetdir != null) {
+      try {
+        targetdir.close();
       }
-      if (zipfile != null) {
-        try {
-          zipfile.close();
-        }
- catch (        IOException ex) {
-        }
-        ;
+ catch (      IOException ex) {
       }
+      ;
+    }
+    if (movetodir != null) {
+      try {
+        movetodir.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
     }
   }
- else {
-    log.logError(toString(),Messages.getString("JobUnZip.No_ZipFile_Defined.Label"));
-  }
+  result.setNrErrors(NrErrors);
+  if (getSuccessStatus())   result.setResult(true);
   return result;
 }

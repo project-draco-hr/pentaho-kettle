@@ -1,0 +1,52 @@
+{
+  boolean retval=false;
+  try {
+    String sourceFilename=KettleVFS.getFilename(fileObject);
+    if (fileObject.getType() == FileType.FILE) {
+      if (!unzipFile(log,sourceFilename,fileObject.getName().getBaseName(),realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))       updateErrors();
+ else       updateSuccess();
+    }
+ else {
+      File[] children=new File(sourceFilename).listFiles();
+      for (int i=0; i < children.length; i++) {
+        if (successConditionBroken) {
+          if (!successConditionBrokenExit) {
+            log.logError(toString(),Messages.getString("JobUnZip.Error.SuccessConditionbroken","" + NrErrors));
+            successConditionBrokenExit=true;
+          }
+          return false;
+        }
+        if (!children[i].isDirectory()) {
+          boolean unzip=true;
+          String filename=children[i].getAbsolutePath();
+          String shortfilename=children[i].getName();
+          Pattern patternSource=null;
+          if (!Const.isEmpty(realWildcardSource))           patternSource=Pattern.compile(realWildcardSource);
+          if (patternSource != null) {
+            Matcher matcher=patternSource.matcher(filename);
+            unzip=matcher.matches();
+          }
+          if (unzip) {
+            if (!unzipFile(log,filename,shortfilename,realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))             updateErrors();
+ else             updateSuccess();
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    updateErrors();
+    log.logError(toString(),Messages.getString("JobUnZip.Error.Label",e.getMessage()));
+  }
+ finally {
+    if (fileObject != null) {
+      try {
+        fileObject.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return retval;
+}
