@@ -3,9 +3,13 @@
   Result result=previousResult;
   List<RowMetaAndData> rows=result.getRows();
   RowMetaAndData resultRow=null;
+  result.setEntryNr(1);
+  result.setResult(false);
   NrErrors=0;
   NrSuccess=0;
-  DoNotProcessRest=false;
+  successConditionBroken=false;
+  successConditionBrokenExit=false;
+  limitFiles=0;
   if (simulate) {
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.SimulationOn"));
   }
@@ -20,8 +24,6 @@
   if (iffileexists.equals("move_file")) {
     if (Const.isEmpty(MoveToFolder)) {
       log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.MoveToFolderMissing"));
-      result.setResult(false);
-      result.setNrErrors(1);
       return result;
     }
     FileObject folder=null;
@@ -34,22 +36,16 @@
         }
  else {
           log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.FolderMissing",MoveToFolder));
-          result.setResult(false);
-          result.setNrErrors(1);
           return result;
         }
       }
       if (!folder.getType().equals(FileType.FOLDER)) {
         log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.NotFolder",MoveToFolder));
-        result.setResult(false);
-        result.setNrErrors(1);
         return result;
       }
     }
  catch (    Exception e) {
       log.logError(toString(),Messages.getString("JobMoveFiles.Log.Error.GettingMoveToFolder",MoveToFolder,e.getMessage()));
-      result.setResult(false);
-      result.setNrErrors(1);
       return result;
     }
  finally {
@@ -68,19 +64,22 @@
   }
   if (arg_from_previous && rows != null) {
     for (int iteration=0; iteration < rows.size(); iteration++) {
+      if (successConditionBroken) {
+        if (!successConditionBrokenExit) {
+          log.logError(toString(),Messages.getString("JobMoveFiles.Error.SuccessConditionbroken","" + NrErrors));
+          successConditionBrokenExit=true;
+        }
+        result.setNrErrors(NrErrors);
+        return result;
+      }
       resultRow=rows.get(iteration);
       String vsourcefilefolder_previous=resultRow.getString(0,null);
       String vdestinationfilefolder_previous=resultRow.getString(1,null);
       String vwildcard_previous=resultRow.getString(2,null);
       if (!Const.isEmpty(vsourcefilefolder_previous) && !Const.isEmpty(vdestinationfilefolder_previous)) {
-        if (!DoNotProcessRest) {
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.ProcessingRow",vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous));
-          if (!ProcessFileFolder(vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous,parentJob,result,MoveToFolder)) {
-            updateErrors();
-          }
-        }
- else {
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobEntryMoveFiles.log.IgnoringFile",vsourcefilefolder_previous));
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.ProcessingRow",vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous));
+        if (!ProcessFileFolder(vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous,parentJob,result,MoveToFolder)) {
+          updateErrors();
         }
       }
  else {
@@ -90,15 +89,18 @@
   }
  else   if (vsourcefilefolder != null && vdestinationfilefolder != null) {
     for (int i=0; i < vsourcefilefolder.length; i++) {
-      if (!Const.isEmpty(vsourcefilefolder[i]) && !Const.isEmpty(vdestinationfilefolder[i])) {
-        if (!DoNotProcessRest) {
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.ProcessingRow",vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i]));
-          if (!ProcessFileFolder(vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i],parentJob,result,MoveToFolder)) {
-            updateErrors();
-          }
+      if (successConditionBroken) {
+        if (!successConditionBrokenExit) {
+          log.logError(toString(),Messages.getString("JobMoveFiles.Error.SuccessConditionbroken","" + NrErrors));
+          successConditionBrokenExit=true;
         }
- else {
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobEntryMoveFiles.log.IgnoringFile",vsourcefilefolder[i]));
+        result.setEntryNr(NrErrors);
+        return result;
+      }
+      if (!Const.isEmpty(vsourcefilefolder[i]) && !Const.isEmpty(vdestinationfilefolder[i])) {
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.ProcessingRow",vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i]));
+        if (!ProcessFileFolder(vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i],parentJob,result,MoveToFolder)) {
+          updateErrors();
         }
       }
  else {
@@ -106,12 +108,9 @@
       }
     }
   }
-  if (getStatus()) {
-    result.setResult(false);
-    result.setNrErrors(NrErrors);
-  }
- else   result.setResult(true);
+  result.setNrErrors(NrErrors);
   result.setNrLinesWritten(NrSuccess);
+  if (getSuccessStatus())   result.setResult(true);
   if (log.isDetailed()) {
     log.logDetailed(toString(),"=======================================");
     log.logDetailed(toString(),Messages.getString("JobMoveFiles.Log.Info.FilesInError","" + NrErrors));
