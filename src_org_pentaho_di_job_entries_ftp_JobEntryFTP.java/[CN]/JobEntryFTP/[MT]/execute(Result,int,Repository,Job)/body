@@ -2,10 +2,12 @@
   LogWriter log=LogWriter.getInstance();
   log4j.info(Messages.getString("JobEntryFTP.Started",serverName));
   Result result=previousResult;
+  result.setNrErrors(1);
   result.setResult(false);
   NrErrors=0;
   NrfilesRetrieved=0;
   successConditionBroken=false;
+  limitFiles=Const.toInt(environmentSubstitute(getLimit()),10);
   if (movefiles) {
     if (Const.isEmpty(movetodirectory)) {
       log.logError(toString(),Messages.getString("JobEntryFTP.MoveToFolderEmpty"));
@@ -96,7 +98,10 @@
     }
     if (!getSuccessCondition().equals(SUCCESS_IF_NO_ERRORS))     limitFiles=Const.toInt(environmentSubstitute(getLimit()),10);
     for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
-      if (successConditionBroken)       throw new Exception(Messages.getString("JobEntryFTP.SuccesConditionBroken"));
+      if (successConditionBroken) {
+        log.logError(toString(),Messages.getString("JobEntryFTP.Error.SuccessConditionbroken","" + NrErrors));
+        throw new Exception(Messages.getString("JobEntryFTP.SuccesConditionBroken","" + NrErrors));
+      }
       boolean getIt=true;
       if (log.isDebug())       log.logDebug(toString(),Messages.getString("JobEntryFTP.AnalysingFile",filelist[i]));
       try {
@@ -164,8 +169,8 @@
       }
     }
   }
-  result.setResult(!successConditionBroken);
-  result.setNrFilesRetrieved(NrfilesRetrieved);
   result.setNrErrors(NrErrors);
+  result.setNrFilesRetrieved(NrfilesRetrieved);
+  if (getSuccessStatus())   result.setResult(true);
   return result;
 }

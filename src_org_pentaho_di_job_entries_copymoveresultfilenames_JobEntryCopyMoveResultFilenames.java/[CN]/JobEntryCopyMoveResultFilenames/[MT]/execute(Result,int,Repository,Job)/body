@@ -1,15 +1,19 @@
 {
   LogWriter log=LogWriter.getInstance();
   Result result=previousResult;
+  result.setNrErrors(1);
   result.setResult(false);
   String realdestinationFolder=environmentSubstitute(getDestinationFolder());
   if (!CreateDestinationFolder(realdestinationFolder,log)) {
-    result.setResult(false);
-    result.setNrErrors(1);
+    return result;
   }
   if (previousResult != null) {
     NrErrors=0;
-    DoNotProcessRest=false;
+    limitFiles=Const.toInt(environmentSubstitute(getNrErrorsLessThan()),10);
+    NrErrors=0;
+    NrSuccess=0;
+    successConditionBroken=false;
+    successConditionBrokenExit=false;
     FileObject file=null;
     try {
       int size=result.getResultFiles().size();
@@ -17,17 +21,16 @@
       List<ResultFile> resultFiles=result.getResultFilesList();
       if (resultFiles != null && resultFiles.size() > 0) {
         for (Iterator<ResultFile> it=resultFiles.iterator(); it.hasNext(); ) {
+          if (successConditionBroken) {
+            log.logError(toString(),Messages.getString("JobEntryCopyMoveResultFilenames.Error.SuccessConditionbroken","" + NrErrors));
+            throw new Exception(Messages.getString("JobEntryCopyMoveResultFilenames.Error.SuccessConditionbroken","" + NrErrors));
+          }
           ResultFile resultFile=(ResultFile)it.next();
           file=resultFile.getFile();
           if (file != null && file.exists()) {
             if (!specifywilcard || (CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcard),true) && !CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcardexclude),false) && specifywilcard)) {
-              if (!DoNotProcessRest) {
-                if (!ProcessFile(file,realdestinationFolder,log,result,parentJob)) {
-                  updateErrors();
-                }
-              }
- else {
-                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobEntryCopyMoveResultFilenames.log.IgnoringFile",file.toString()));
+              if (!ProcessFile(file,realdestinationFolder,log,result,parentJob)) {
+                updateErrors();
               }
             }
           }
@@ -52,10 +55,8 @@
       }
     }
   }
-  if (getStatus()) {
-    result.setResult(false);
-    result.setNrErrors(NrErrors);
-  }
- else   result.setResult(true);
+  result.setNrErrors(NrErrors);
+  result.setNrLinesWritten(NrSuccess);
+  if (getSuccessStatus())   result.setResult(true);
   return result;
 }
