@@ -1,12 +1,14 @@
 {
   if (!meta.isFileField()) {
-    if (data.filenr >= data.files.nrOfFiles()) {
+    if (data.filenr >= data.filessize) {
       setOutputDone();
       return false;
     }
   }
  else {
-    data.readrow=getRow();
+    if (data.filenr >= data.filessize) {
+      data.readrow=getRow();
+    }
     if (data.readrow == null) {
       setOutputDone();
       return false;
@@ -28,6 +30,15 @@
           throw new KettleException(Messages.getString("GetFileNames.Exception.CouldnotFindField",meta.getDynamicFilenameField()));
         }
       }
+      if (!Const.isEmpty(meta.getDynamicWildcardField())) {
+        if (data.indexOfWildcardField < 0) {
+          data.indexOfWildcardField=data.inputRowMeta.indexOfValue(meta.getDynamicWildcardField());
+          if (data.indexOfWildcardField < 0) {
+            logError(Messages.getString("GetFileNames.Log.ErrorFindingField") + "[" + meta.getDynamicWildcardField()+ "]");
+            throw new KettleException(Messages.getString("GetFileNames.Exception.CouldnotFindField",meta.getDynamicWildcardField()));
+          }
+        }
+      }
     }
   }
   try {
@@ -35,50 +46,59 @@
     int outputIndex=0;
     Object extraData[]=new Object[data.nrStepFields];
     if (meta.isFileField()) {
-      String filename=getInputRowMeta().getString(data.readrow,data.indexOfFilenameField);
-      data.file=KettleVFS.getFileObject(filename);
+      if (data.filenr >= data.filessize) {
+        String filename=getInputRowMeta().getString(data.readrow,data.indexOfFilenameField);
+        String wildcard=".*";
+        if (data.indexOfWildcardField >= 0)         wildcard=getInputRowMeta().getString(data.readrow,data.indexOfWildcardField);
+        String[] filesname={filename};
+        String[] filesmask={wildcard};
+        String[] filesrequired={"N"};
+        data.files=meta.getDynamicTextFileList(getTransMeta(),filesname,filesmask,filesrequired);
+        data.filessize=data.files.nrOfFiles();
+        data.filenr=0;
+      }
       outputRow=data.readrow.clone();
     }
- else {
+    if (data.filessize > 0) {
       data.file=data.files.getFile(data.filenr);
-    }
-    if (meta.getFilterFileType() == null || meta.getFilterFileType().equals("all_files") || (meta.getFilterFileType().equals("only_files") && data.file.getType() == FileType.FILE) || meta.getFilterFileType().equals("only_folders") && data.file.getType() == FileType.FOLDER) {
-      if (meta.isAddResultFile()) {
-        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
-        resultFile.setComment("File was read by a get file names step");
-        addResultFile(resultFile);
-      }
-      extraData[outputIndex++]=KettleVFS.getFilename(data.file);
-      extraData[outputIndex++]=data.file.getName().getBaseName();
-      try {
-        extraData[outputIndex++]=KettleVFS.getFilename(data.file.getParent());
-        extraData[outputIndex++]=data.file.getType().toString();
-        extraData[outputIndex++]=Boolean.valueOf(data.file.exists());
-        extraData[outputIndex++]=Boolean.valueOf(data.file.isHidden());
-        extraData[outputIndex++]=Boolean.valueOf(data.file.isReadable());
-        extraData[outputIndex++]=Boolean.valueOf(data.file.isWriteable());
-        extraData[outputIndex++]=new Date(data.file.getContent().getLastModifiedTime());
-        Long size=null;
-        if (data.file.getType().equals(FileType.FILE)) {
-          size=new Long(data.file.getContent().getSize());
+      if (meta.getFilterFileType() == null || meta.getFilterFileType().equals("all_files") || (meta.getFilterFileType().equals("only_files") && data.file.getType() == FileType.FILE) || meta.getFilterFileType().equals("only_folders") && data.file.getType() == FileType.FOLDER) {
+        if (meta.isAddResultFile()) {
+          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
+          resultFile.setComment(Messages.getString("GetFileNames.Log.FileReadByStep"));
+          addResultFile(resultFile);
         }
-        extraData[outputIndex++]=size;
-      }
- catch (      IOException e) {
-        throw new KettleException(e);
-      }
-      extraData[outputIndex++]=data.file.getName().getExtension();
-      extraData[outputIndex++]=data.file.getName().getURI();
-      extraData[outputIndex++]=data.file.getName().getRootURI();
-      if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
-        extraData[outputIndex++]=new Long(data.rownr);
-      }
-      data.rownr++;
-      outputRow=RowDataUtil.addRowData(outputRow,data.totalpreviousfields,extraData);
-      putRow(data.outputRowMeta,outputRow);
-      if (meta.getRowLimit() > 0 && data.rownr >= meta.getRowLimit()) {
-        setOutputDone();
-        return false;
+        extraData[outputIndex++]=KettleVFS.getFilename(data.file);
+        extraData[outputIndex++]=data.file.getName().getBaseName();
+        try {
+          extraData[outputIndex++]=KettleVFS.getFilename(data.file.getParent());
+          extraData[outputIndex++]=data.file.getType().toString();
+          extraData[outputIndex++]=Boolean.valueOf(data.file.exists());
+          extraData[outputIndex++]=Boolean.valueOf(data.file.isHidden());
+          extraData[outputIndex++]=Boolean.valueOf(data.file.isReadable());
+          extraData[outputIndex++]=Boolean.valueOf(data.file.isWriteable());
+          extraData[outputIndex++]=new Date(data.file.getContent().getLastModifiedTime());
+          Long size=null;
+          if (data.file.getType().equals(FileType.FILE)) {
+            size=new Long(data.file.getContent().getSize());
+          }
+          extraData[outputIndex++]=size;
+        }
+ catch (        IOException e) {
+          throw new KettleException(e);
+        }
+        extraData[outputIndex++]=data.file.getName().getExtension();
+        extraData[outputIndex++]=data.file.getName().getURI();
+        extraData[outputIndex++]=data.file.getName().getRootURI();
+        if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+          extraData[outputIndex++]=new Long(data.rownr);
+        }
+        data.rownr++;
+        outputRow=RowDataUtil.addRowData(outputRow,data.totalpreviousfields,extraData);
+        putRow(data.outputRowMeta,outputRow);
+        if (meta.getRowLimit() > 0 && data.rownr >= meta.getRowLimit()) {
+          setOutputDone();
+          return false;
+        }
       }
     }
   }
@@ -86,6 +106,8 @@
     throw new KettleStepException(e);
   }
   data.filenr++;
-  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0)   logBasic("linenr " + linesInput);
+  if ((linesInput > 0) && (linesInput % Const.ROWS_UPDATE) == 0) {
+    if (log.isBasic())     logBasic(Messages.getString("GetFileNames.Log.NrLine","" + linesInput));
+  }
   return true;
 }
