@@ -1,7 +1,14 @@
 {
   try {
-    while ((data.file == null) || ((data.recordLDIF=data.InputLDIF.nextRecord()) == null)) {
-      if (!openNextFile())       return null;
+    if (meta.isFileField()) {
+      while ((data.readrow == null || ((data.recordLDIF=data.InputLDIF.nextRecord()) == null))) {
+        if (!openNextFile())         return null;
+      }
+    }
+ else {
+      while ((data.file == null) || ((data.recordLDIF=data.InputLDIF.nextRecord()) == null)) {
+        if (!openNextFile())         return null;
+      }
     }
   }
  catch (  Exception IO) {
@@ -31,6 +38,7 @@
   LDIFAttributeContent attrContentLDIF=(LDIFAttributeContent)contentLDIF;
   data.attributes_LDIF=attrContentLDIF.getAttributes();
   Object[] outputRowData=buildEmptyRow();
+  if (meta.isFileField())   outputRowData=data.readrow.clone();
   try {
     for (int i=0; i < meta.getInputFields().length; i++) {
       LDIFInputField ldifInputField=meta.getInputFields()[i];
@@ -49,24 +57,24 @@ break;
 default :
 break;
 }
-ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(+i);
-ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(+i);
-outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,Value);
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(data.totalpreviousfields + i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(data.totalpreviousfields + i);
+outputRowData[data.totalpreviousfields + i]=targetValueMeta.convertData(sourceValueMeta,Value);
 if (meta.getInputFields()[i].isRepeated()) {
 if (data.previousRow != null && Const.isEmpty(Value)) {
-outputRowData[i]=data.previousRow[i];
+outputRowData[data.totalpreviousfields + i]=data.previousRow[data.totalpreviousfields + i];
 }
 }
 }
-int rowIndex=data.nrInputFields;
+int rowIndex=meta.getInputFields().length;
 if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
-outputRowData[rowIndex++]=KettleVFS.getFilename(data.file);
+outputRowData[data.totalpreviousfields + rowIndex++]=KettleVFS.getFilename(data.file);
 }
 if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
-outputRowData[rowIndex++]=new Long(data.rownr);
+outputRowData[data.totalpreviousfields + rowIndex++]=new Long(data.rownr);
 }
 if (meta.includeContentType() && !Const.isEmpty(meta.getContentTypeField())) {
-outputRowData[rowIndex++]=contentTYPE;
+outputRowData[data.totalpreviousfields + rowIndex++]=contentTYPE;
 }
 RowMetaInterface irow=getInputRowMeta();
 data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
@@ -74,7 +82,7 @@ linesInput++;
 data.rownr++;
 }
  catch (Exception e) {
-throw new KettleException("Unable to read row from LDIF file",e);
+throw new KettleException(Messages.getString("LDIFInput.Exception.UnableToReadFile",data.file.toString()),e);
 }
 return outputRowData;
 }
