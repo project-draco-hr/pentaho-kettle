@@ -1,0 +1,70 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  result.setNrErrors(1);
+  result.setResult(false);
+  NrErrors=0;
+  NrSuccess=0;
+  successConditionBroken=false;
+  successConditionBrokenExit=false;
+  limitFolders=Const.toInt(environmentSubstitute(getLimitFolders()),10);
+  if (argFromPrevious) {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobEntryDeleteFolders.FoundPreviousRows",String.valueOf((rows != null ? rows.size() : 0))));
+  }
+  if (argFromPrevious && rows != null) {
+    for (int iteration=0; iteration < rows.size(); iteration++) {
+      if (successConditionBroken) {
+        log.logError(toString(),Messages.getString("JobEntryDeleteFolders.Error.SuccessConditionbroken","" + NrErrors));
+        result.setNrErrors(NrErrors);
+        result.setNrLinesDeleted(NrSuccess);
+        return result;
+      }
+      resultRow=rows.get(iteration);
+      String args_previous=resultRow.getString(0,null);
+      if (!Const.isEmpty(args_previous)) {
+        if (deleteFolder(args_previous)) {
+          updateSuccess();
+        }
+ else {
+          updateErrors();
+        }
+      }
+ else {
+        log.logError(toString(),Messages.getString("JobEntryDeleteFolders.Error.EmptyLine"));
+      }
+    }
+  }
+ else   if (arguments != null) {
+    for (int i=0; i < arguments.length; i++) {
+      if (successConditionBroken) {
+        log.logError(toString(),Messages.getString("JobEntryDeleteFolders.Error.SuccessConditionbroken","" + NrErrors));
+        result.setNrErrors(NrErrors);
+        result.setNrLinesDeleted(NrSuccess);
+        return result;
+      }
+      String realfilename=environmentSubstitute(arguments[i]);
+      if (!Const.isEmpty(realfilename)) {
+        if (deleteFolder(realfilename)) {
+          updateSuccess();
+        }
+ else {
+          updateErrors();
+        }
+      }
+ else {
+        log.logError(toString(),Messages.getString("JobEntryDeleteFolders.Error.EmptyLine"));
+      }
+    }
+  }
+  if (log.isDetailed()) {
+    log.logDetailed(toString(),"=======================================");
+    log.logDetailed(toString(),Messages.getString("JobEntryDeleteFolders.Log.Info.NrError","" + NrErrors));
+    log.logDetailed(toString(),Messages.getString("JobEntryDeleteFolders.Log.Info.NrDeletedFolders","" + NrSuccess));
+    log.logDetailed(toString(),"=======================================");
+  }
+  result.setNrErrors(NrErrors);
+  result.setNrLinesDeleted(NrSuccess);
+  if (getSuccessStatus())   result.setResult(true);
+  return result;
+}
