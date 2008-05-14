@@ -1,0 +1,39 @@
+{
+  meta=(SwitchCaseMeta)smi;
+  data=(SwitchCaseData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(getInputRowMeta(),getStepname(),null,null,this);
+    data.fieldIndex=getInputRowMeta().indexOfValue(meta.getFieldname());
+    if (data.fieldIndex < 0) {
+      throw new KettleException(Messages.getString("SwitchCase.Exception.UnableToFindFieldName",meta.getFieldname()));
+    }
+    data.inputValueMeta=getInputRowMeta().getValueMeta(data.fieldIndex);
+  }
+  Object lookupData=data.valueMeta.convertData(data.inputValueMeta,r[data.fieldIndex]);
+  RowSet rowSet=null;
+  if (data.inputValueMeta.isNull(lookupData)) {
+    rowSet=data.nullRowSet;
+  }
+ else {
+    rowSet=data.outputMap.get(lookupData);
+  }
+  if (rowSet == null) {
+    if (data.defaultRowSet != null) {
+      putRowTo(data.outputRowMeta,r,data.defaultRowSet);
+    }
+  }
+ else {
+    putRowTo(data.outputRowMeta,r,rowSet);
+  }
+  if (checkFeedback(linesRead)) {
+    if (log.isBasic())     logBasic(Messages.getString("SwitchCase.Log.LineNumber") + linesRead);
+  }
+  return true;
+}
