@@ -53,7 +53,7 @@
         String[] filesname={filename};
         String[] filesmask={wildcard};
         String[] filesrequired={"N"};
-        data.files=meta.getDynamicTextFileList(getTransMeta(),filesname,filesmask,filesrequired);
+        data.files=meta.getDynamicFileList(getTransMeta(),filesname,filesmask,filesrequired);
         data.filessize=data.files.nrOfFiles();
         data.filenr=0;
       }
@@ -61,44 +61,42 @@
     }
     if (data.filessize > 0) {
       data.file=data.files.getFile(data.filenr);
-      if (meta.getFilterFileType() == null || meta.getFilterFileType().equals("all_files") || (meta.getFilterFileType().equals("only_files") && data.file.getType() == FileType.FILE) || meta.getFilterFileType().equals("only_folders") && data.file.getType() == FileType.FOLDER) {
-        if (meta.isAddResultFile()) {
-          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
-          resultFile.setComment(Messages.getString("GetFileNames.Log.FileReadByStep"));
-          addResultFile(resultFile);
+      if (meta.isAddResultFile()) {
+        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
+        resultFile.setComment(Messages.getString("GetFileNames.Log.FileReadByStep"));
+        addResultFile(resultFile);
+      }
+      extraData[outputIndex++]=KettleVFS.getFilename(data.file);
+      extraData[outputIndex++]=data.file.getName().getBaseName();
+      try {
+        extraData[outputIndex++]=KettleVFS.getFilename(data.file.getParent());
+        extraData[outputIndex++]=data.file.getType().toString();
+        extraData[outputIndex++]=Boolean.valueOf(data.file.exists());
+        extraData[outputIndex++]=Boolean.valueOf(data.file.isHidden());
+        extraData[outputIndex++]=Boolean.valueOf(data.file.isReadable());
+        extraData[outputIndex++]=Boolean.valueOf(data.file.isWriteable());
+        extraData[outputIndex++]=new Date(data.file.getContent().getLastModifiedTime());
+        Long size=null;
+        if (data.file.getType().equals(FileType.FILE)) {
+          size=new Long(data.file.getContent().getSize());
         }
-        extraData[outputIndex++]=KettleVFS.getFilename(data.file);
-        extraData[outputIndex++]=data.file.getName().getBaseName();
-        try {
-          extraData[outputIndex++]=KettleVFS.getFilename(data.file.getParent());
-          extraData[outputIndex++]=data.file.getType().toString();
-          extraData[outputIndex++]=Boolean.valueOf(data.file.exists());
-          extraData[outputIndex++]=Boolean.valueOf(data.file.isHidden());
-          extraData[outputIndex++]=Boolean.valueOf(data.file.isReadable());
-          extraData[outputIndex++]=Boolean.valueOf(data.file.isWriteable());
-          extraData[outputIndex++]=new Date(data.file.getContent().getLastModifiedTime());
-          Long size=null;
-          if (data.file.getType().equals(FileType.FILE)) {
-            size=new Long(data.file.getContent().getSize());
-          }
-          extraData[outputIndex++]=size;
-        }
- catch (        IOException e) {
-          throw new KettleException(e);
-        }
-        extraData[outputIndex++]=data.file.getName().getExtension();
-        extraData[outputIndex++]=data.file.getName().getURI();
-        extraData[outputIndex++]=data.file.getName().getRootURI();
-        if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
-          extraData[outputIndex++]=new Long(data.rownr);
-        }
-        data.rownr++;
-        outputRow=RowDataUtil.addRowData(outputRow,data.totalpreviousfields,extraData);
-        putRow(data.outputRowMeta,outputRow);
-        if (meta.getRowLimit() > 0 && data.rownr >= meta.getRowLimit()) {
-          setOutputDone();
-          return false;
-        }
+        extraData[outputIndex++]=size;
+      }
+ catch (      IOException e) {
+        throw new KettleException(e);
+      }
+      extraData[outputIndex++]=data.file.getName().getExtension();
+      extraData[outputIndex++]=data.file.getName().getURI();
+      extraData[outputIndex++]=data.file.getName().getRootURI();
+      if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+        extraData[outputIndex++]=new Long(data.rownr);
+      }
+      data.rownr++;
+      outputRow=RowDataUtil.addRowData(outputRow,data.totalpreviousfields,extraData);
+      putRow(data.outputRowMeta,outputRow);
+      if (meta.getRowLimit() > 0 && data.rownr >= meta.getRowLimit()) {
+        setOutputDone();
+        return false;
       }
     }
   }
