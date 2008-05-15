@@ -1,9 +1,36 @@
 {
-  EnvUtil.environmentInit();
-  List<String> args=new ArrayList<String>(java.util.Arrays.asList(a));
-  Display display=new Display();
-  PropsUI.init(display,Props.TYPE_PROPERTIES_SPOON);
-  Spoon spoon=new Spoon(display);
-  spoon.run(args);
+  try {
+    EnvUtil.environmentInit();
+    List<String> args=new ArrayList<String>(java.util.Arrays.asList(a));
+    Display display=new Display();
+    Splash splash=new Splash(display);
+    CommandLineOption[] commandLineOptions=getCommandLineArgs(args);
+    initLogging(commandLineOptions);
+    initPlugins();
+    PropsUI.init(display,Props.TYPE_PROPERTIES_SPOON);
+    staticSpoon=new Spoon(display);
+    staticSpoon.init(null);
+    SpoonFactory.setSpoonInstance(staticSpoon);
+    staticSpoon.setDestroy(true);
+    GUIFactory.setThreadDialogs(new ThreadGuiResources());
+    if (LogWriter.getInstance().isBasic()) {
+      LogWriter.getInstance().logBasic(APP_NAME,Messages.getString("Spoon.Log.MainWindowCreated"));
+    }
+    try {
+      staticSpoon.lcsup.onStart(staticSpoon);
+    }
+ catch (    LifecycleException e) {
+      MessageBox box=new MessageBox(staticSpoon.shell,(e.isSevere() ? SWT.ICON_ERROR : SWT.ICON_WARNING) | SWT.OK);
+      box.setMessage(e.getMessage());
+      box.open();
+    }
+    staticSpoon.setArguments(args.toArray(new String[args.size()]));
+    staticSpoon.start(splash,commandLineOptions);
+  }
+ catch (  Throwable t) {
+    LogWriter.getInstance().logError(APP_NAME,"Fatal error : " + Const.NVL(t.toString(),Const.NVL(t.getMessage(),"Unknown error")));
+    LogWriter.getInstance().logError(APP_NAME,Const.getStackTracker(t));
+    new ErrorDialog(staticSpoon.shell,Messages.getString("Spoon.Dialog.FatalError"),"Fatal error : " + Const.NVL(t.toString(),Const.NVL(t.getMessage(),"Unknown error")),t);
+  }
   System.exit(0);
 }
