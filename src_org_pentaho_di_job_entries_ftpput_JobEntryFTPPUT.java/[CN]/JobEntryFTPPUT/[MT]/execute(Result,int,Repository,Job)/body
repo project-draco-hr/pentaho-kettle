@@ -15,8 +15,22 @@
   try {
     ftpclient=new FTPClient();
     ftpclient.setRemoteAddr(InetAddress.getByName(realServerName));
-    ftpclient.setRemotePort(Const.toInt(realServerPort,21));
-    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.OpenConnection",realServerName));
+    if (Const.isEmpty(realServerPort)) {
+      ftpclient.setRemotePort(Const.toInt(realServerPort,21));
+    }
+    if (!Const.isEmpty(proxyHost)) {
+      String realProxy_host=environmentSubstitute(proxyHost);
+      ftpclient.setRemoteAddr(InetAddress.getByName(realProxy_host));
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobEntryFTPPUT.OpenedProxyConnectionOn",realProxy_host));
+      int port=Const.toInt(environmentSubstitute(proxyPort),21);
+      if (port != 0) {
+        ftpclient.setRemotePort(port);
+      }
+    }
+ else {
+      ftpclient.setRemoteAddr(InetAddress.getByName(realServerName));
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobEntryFTPPUT.OpenConnection",realServerName));
+    }
     if (activeConnection) {
       ftpclient.setConnectMode(FTPConnectMode.ACTIVE);
       if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobFTPPUT.Log.SetActiveConnection"));
