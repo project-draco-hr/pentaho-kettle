@@ -8,7 +8,32 @@
     first=false;
     data.outputRowMeta=getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
-    if (meta.isDoNotOpenNewFileInit()) {
+    if (meta.isFileNameInField()) {
+      RowSet zero=(RowSet)inputRowSets.get(0);
+      RowMetaInterface inputRowMeta=zero.getRowMeta();
+      data.fileNameFieldIndex=inputRowMeta.indexOfValue(meta.getFileNameField());
+      String fileName="";
+      if (data.fileNameFieldIndex != -1) {
+        fileName=(String)r[data.fileNameFieldIndex];
+      }
+ else {
+        throw new KettleStepException("File name field [" + meta.getFileNameField() + "] couldn't be found in the input stream!");
+      }
+      meta.setFileName(fileName);
+      if (openNewFile()) {
+        data.oneFileOpened=true;
+        try {
+          setSettings();
+        }
+ catch (        UnsupportedEncodingException e) {
+          logError("Encoding problem: " + e.toString());
+          logError(Const.getStackTracker(e));
+          return false;
+        }
+        data.previouslyOpenedFiles.add(buildFilename(true));
+      }
+    }
+    if (meta.isDoNotOpenNewFileInit() && !meta.isFileNameInField()) {
       if (openNewFile()) {
         data.oneFileOpened=true;
         try {
@@ -61,6 +86,22 @@
     }
     setOutputDone();
     return false;
+  }
+  if (meta.isFileNameInField()) {
+    String fileName=(String)r[data.fileNameFieldIndex];
+    if (!meta.getFileName().equals(fileName)) {
+      closeFile();
+      meta.setFileName(fileName);
+      if (!openNewFile()) {
+        logError("Unable to open new file " + fileName + "...");
+        setErrors(1);
+        return false;
+      }
+      if (!checkPreviouslyOpened(buildFilename(true))) {
+        data.previouslyOpenedFiles.add(buildFilename(true));
+        if (!meta.isFileAppended() && (meta.isHeaderEnabled() || meta.isFooterEnabled()))         if (writeHeader())         linesOutput++;
+      }
+    }
   }
   writeRowToFile(data.outputRowMeta,r);
   putRow(data.outputRowMeta,r);
