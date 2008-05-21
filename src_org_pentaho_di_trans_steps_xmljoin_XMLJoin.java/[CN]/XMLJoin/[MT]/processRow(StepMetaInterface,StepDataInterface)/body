@@ -1,0 +1,117 @@
+{
+  meta=(XMLJoinMeta)smi;
+  data=(XMLJoinData)sdi;
+  XPath xpath=XPathFactory.newInstance().newXPath();
+  if (first) {
+    first=false;
+    int target_field_id=-1;
+    XMLJoinMeta meta=(XMLJoinMeta)smi;
+    data.TargetRowSet=findInputRowSet(meta.getTargetXMLstep());
+    data.SourceRowSet=findInputRowSet(meta.getSourceXMLstep());
+    Object[] rTarget=getRowFrom(data.TargetRowSet);
+    meta.getTargetXMLstep();
+    String[] target_field_names=data.TargetRowSet.getRowMeta().getFieldNames();
+    for (int i=0; i < target_field_names.length; i++) {
+      if (meta.getTargetXMLfield().equals(target_field_names[i])) {
+        target_field_id=i;
+      }
+    }
+    if (target_field_id == -1)     throw new KettleException(Messages.getString("XMLJoin.Exception.FieldNotFound",meta.getTargetXMLfield()));
+    data.outputRowMeta=data.TargetRowSet.getRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),new RowMetaInterface[]{data.TargetRowSet.getRowMeta()},null,this);
+    data.outputRowData=rTarget.clone();
+    String strTarget=(String)rTarget[target_field_id];
+    InputSource inputSource=new InputSource(new StringReader(strTarget));
+    data.XPathStatement=meta.getTargetXPath();
+    try {
+      DocumentBuilder builder=DocumentBuilderFactory.newInstance().newDocumentBuilder();
+      data.targetDOM=builder.parse(inputSource);
+      if (!meta.isComplexJoin()) {
+        data.targetNode=(Node)xpath.evaluate(data.XPathStatement,data.targetDOM,XPathConstants.NODE);
+        if (data.targetNode == null) {
+          throw new KettleXMLException("XPath statement returned no reuslt [" + data.XPathStatement + "]");
+        }
+      }
+    }
+ catch (    Exception e) {
+      throw new KettleXMLException(e);
+    }
+  }
+  Object[] rJoinSource=getRowFrom(data.SourceRowSet);
+  if (rJoinSource == null) {
+    try {
+      String strOmitXMLHeader;
+      if (meta.isOmitXMLHeader()) {
+        strOmitXMLHeader="yes";
+      }
+ else {
+        strOmitXMLHeader="no";
+      }
+      serializer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,strOmitXMLHeader);
+      serializer.setOutputProperty(OutputKeys.INDENT,"no");
+      StringWriter sw=new StringWriter();
+      StreamResult resultXML=new StreamResult(sw);
+      DOMSource source=new DOMSource(data.targetDOM);
+      serializer.transform(source,resultXML);
+      String output=sw.toString();
+      int outputIndex=data.outputRowMeta.size() - 1;
+      putRow(data.outputRowMeta,RowDataUtil.addValueData(data.outputRowData,outputIndex,output));
+      setOutputDone();
+      return false;
+    }
+ catch (    Exception e) {
+      throw new KettleException(e);
+    }
+  }
+  if (data.iSourceXMLField == -1) {
+    String[] source_field_names=data.SourceRowSet.getRowMeta().getFieldNames();
+    for (int i=0; i < source_field_names.length; i++) {
+      if (meta.getSourceXMLfield().equals(source_field_names[i])) {
+        data.iSourceXMLField=i;
+      }
+    }
+    if (data.iSourceXMLField == -1)     throw new KettleException(Messages.getString("XMLJoin.Exception.FieldNotFound",meta.getSourceXMLfield()));
+  }
+  if (meta.isComplexJoin() && data.iCompareFieldID == -1) {
+    String[] source_field_names=data.SourceRowSet.getRowMeta().getFieldNames();
+    for (int i=0; i < source_field_names.length; i++) {
+      if (meta.getJoinCompareField().equals(source_field_names[i])) {
+        data.iCompareFieldID=i;
+      }
+    }
+    if (data.iCompareFieldID == -1)     throw new KettleException(Messages.getString("XMLJoin.Exception.FieldNotFound",meta.getJoinCompareField()));
+  }
+  Document joinDocument;
+  if (rJoinSource != null) {
+    String strJoinXML=(String)rJoinSource[data.iSourceXMLField];
+    DocumentBuilderFactory factory=DocumentBuilderFactory.newInstance();
+    try {
+      DocumentBuilder builder=factory.newDocumentBuilder();
+      joinDocument=builder.parse(new InputSource(new StringReader(strJoinXML)));
+    }
+ catch (    Exception e) {
+      throw new KettleException(e);
+    }
+    Node node=data.targetDOM.importNode(joinDocument.getDocumentElement(),true);
+    if (meta.isComplexJoin()) {
+      String strCompareValue=rJoinSource[data.iCompareFieldID].toString();
+      String strXPathStatement=data.XPathStatement.replace("?",strCompareValue);
+      try {
+        data.targetNode=(Node)xpath.evaluate(strXPathStatement,data.targetDOM,XPathConstants.NODE);
+        if (data.targetNode == null) {
+          throw new KettleXMLException("XPath statement returned no reuslt [" + strXPathStatement + "]");
+        }
+ else {
+          data.targetNode.appendChild(node);
+        }
+      }
+ catch (      Exception e) {
+        throw new KettleException(e);
+      }
+    }
+ else {
+      data.targetNode.appendChild(node);
+    }
+  }
+  return true;
+}
