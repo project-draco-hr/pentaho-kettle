@@ -9,45 +9,21 @@
     data.outputRowMeta=getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
     if (meta.isFileNameInField()) {
-      RowSet zero=(RowSet)inputRowSets.get(0);
-      RowMetaInterface inputRowMeta=zero.getRowMeta();
-      data.fileNameFieldIndex=inputRowMeta.indexOfValue(meta.getFileNameField());
-      String fileName="";
-      if (data.fileNameFieldIndex != -1) {
-        fileName=(String)r[data.fileNameFieldIndex];
+      data.fileNameFieldIndex=getInputRowMeta().indexOfValue(meta.getFileNameField());
+      if (data.fileNameFieldIndex < 0) {
+        throw new KettleStepException(Messages.getString("TextFileOutput.Exception.FileNameFieldNotFound",meta.getFileNameField()));
       }
- else {
-        throw new KettleStepException("File name field [" + meta.getFileNameField() + "] couldn't be found in the input stream!");
-      }
-      meta.setFileName(fileName);
-      if (openNewFile()) {
-        data.oneFileOpened=true;
-        try {
-          setSettings();
-        }
- catch (        UnsupportedEncodingException e) {
-          logError("Encoding problem: " + e.toString());
-          logError(Const.getStackTracker(e));
-          return false;
-        }
-        data.previouslyOpenedFiles.add(buildFilename(true));
-      }
+      data.fileNameMeta=getInputRowMeta().getValueMeta(data.fileNameFieldIndex);
+      data.fileName=data.fileNameMeta.getString(r[data.fileNameFieldIndex]);
+      setDataWriterForFilename(data.fileName);
     }
-    if (meta.isDoNotOpenNewFileInit() && !meta.isFileNameInField()) {
-      if (openNewFile()) {
-        data.oneFileOpened=true;
-        try {
-          setSettings();
-        }
- catch (        UnsupportedEncodingException e) {
-          logError("Encoding problem: " + e.toString());
-          logError(Const.getStackTracker(e));
-          return false;
-        }
-      }
+ else     if (meta.isDoNotOpenNewFileInit() && !meta.isFileNameInField()) {
+      openNewFile(meta.getFileName());
+      data.oneFileOpened=true;
+      initBinaryDataFields();
     }
     if (!meta.isFileAppended() && (meta.isHeaderEnabled() || meta.isFooterEnabled())) {
-      if (meta.isHeaderEnabled() && data.outputRowMeta != null) {
+      if (!meta.isFileNameInField() && meta.isHeaderEnabled() && data.outputRowMeta != null) {
         writeHeader();
       }
     }
@@ -71,11 +47,7 @@
     }
     closeFile();
     if (r != null) {
-      if (!openNewFile()) {
-        logError("Unable to open new file (split #" + data.splitnr + "...");
-        setErrors(1);
-        return false;
-      }
+      openNewFile(meta.getFileName());
       if (meta.isHeaderEnabled() && data.outputRowMeta != null)       if (writeHeader())       linesOutput++;
     }
   }
@@ -88,20 +60,8 @@
     return false;
   }
   if (meta.isFileNameInField()) {
-    String fileName=(String)r[data.fileNameFieldIndex];
-    if (!meta.getFileName().equals(fileName)) {
-      closeFile();
-      meta.setFileName(fileName);
-      if (!openNewFile()) {
-        logError("Unable to open new file " + fileName + "...");
-        setErrors(1);
-        return false;
-      }
-      if (!checkPreviouslyOpened(buildFilename(true))) {
-        data.previouslyOpenedFiles.add(buildFilename(true));
-        if (!meta.isFileAppended() && (meta.isHeaderEnabled() || meta.isFooterEnabled()))         if (writeHeader())         linesOutput++;
-      }
-    }
+    String baseFilename=data.fileNameMeta.getString(r[data.fileNameFieldIndex]);
+    setDataWriterForFilename(baseFilename);
   }
   writeRowToFile(data.outputRowMeta,r);
   putRow(data.outputRowMeta,r);

@@ -1,7 +1,7 @@
 {
-  if (first && meta.isFileNameInField())   return false;
-  boolean retval=false;
   data.writer=null;
+  ResultFile resultFile=null;
+  String filename=buildFilename(environmentSubstitute(baseFilename),true);
   try {
     if (meta.isFileAsCommand()) {
       if (log.isDebug())       logDebug("Spawning external process");
@@ -26,15 +26,11 @@
       StreamLogger stderrLogger=new StreamLogger(data.cmdProc.getErrorStream(),"(stderr)");
       new Thread(stdoutLogger).start();
       new Thread(stderrLogger).start();
-      retval=true;
     }
  else {
-      String filename=buildFilename(true);
-      if (meta.isAddToResultFiles()) {
-        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(filename),getTransMeta().getName(),getStepname());
-        resultFile.setComment("This file was created with a text file output step");
-        addResultFile(resultFile);
-      }
+      resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(filename),getTransMeta().getName(),getStepname());
+      resultFile.setComment("This file was created with a text file output step");
+      addResultFile(resultFile);
       OutputStream outputStream;
       if (!Const.isEmpty(meta.getFileCompression()) && !meta.getFileCompression().equals(FILE_COMPRESSION_TYPE_NONE)) {
         if (meta.getFileCompression().equals(FILE_COMPRESSION_TYPE_ZIP)) {
@@ -46,7 +42,7 @@
             data.fos=KettleVFS.getOutputStream(filename,meta.isFileAppended());
           }
           data.zip=new ZipOutputStream(data.fos);
-          File entry=new File(buildFilename(false));
+          File entry=new File(filename);
           ZipEntry zipentry=new ZipEntry(entry.getName());
           zipentry.setComment("Compressed by Kettle");
           data.zip.putNextEntry(zipentry);
@@ -86,12 +82,13 @@
         data.writer=new BufferedOutputStream(outputStream,5000);
       }
       if (log.isDetailed())       logDetailed("Opened new file with name [" + filename + "]");
-      retval=true;
     }
   }
  catch (  Exception e) {
-    logError("Error opening new file : " + e.toString());
+    throw new KettleException("Error opening new file : " + e.toString());
   }
   data.splitnr++;
-  return retval;
+  if (resultFile != null && meta.isAddToResultFiles()) {
+    addResultFile(resultFile);
+  }
 }
