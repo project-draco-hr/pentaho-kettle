@@ -11,7 +11,6 @@
   if (movefiles) {
     if (Const.isEmpty(movetodirectory)) {
       log.logError(toString(),Messages.getString("JobEntryFTP.MoveToFolderEmpty"));
-      result.setNrErrors(1);
       return result;
     }
   }
@@ -63,7 +62,13 @@
     }
     if (movefiles && !Const.isEmpty(movetodirectory)) {
       realMoveToFolder=environmentSubstitute(movetodirectory);
-      if (!ftpclient.exists(realMoveToFolder)) {
+      boolean folderExist=true;
+      try {
+        folderExist=ftpclient.exists(realMoveToFolder);
+      }
+ catch (      Exception e) {
+      }
+      if (!folderExist) {
         if (createmovefolder) {
           ftpclient.mkdir(realMoveToFolder);
           if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobEntryFTP.MoveToFolderCreated",realMoveToFolder));
@@ -102,6 +107,7 @@
     for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
       if (successConditionBroken) {
         log.logError(toString(),Messages.getString("JobEntryFTP.Error.SuccessConditionbroken","" + NrErrors));
+        displayResults(log);
         throw new Exception(Messages.getString("JobEntryFTP.SuccesConditionBroken","" + NrErrors));
       }
       boolean getIt=true;
@@ -111,6 +117,8 @@
           Matcher matcher=pattern.matcher(filelist[i]);
           getIt=matcher.matches();
         }
+        FTPFile[] finfo=ftpclient.dirDetails(filelist[i]);
+        if (finfo[0].isDir() || !filelist[i].equals(finfo[0].getName()))         getIt=false;
         if (getIt) {
           targetFilename=getTargetFilename(filelist[i]);
           if ((!onlyGettingNewFiles) || (onlyGettingNewFiles && needsDownload(targetFilename))) {
@@ -118,33 +126,16 @@
             ftpclient.get(targetFilename,filelist[i]);
             updateRetrievedFiles();
             if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobEntryFTP.GotFile",filelist[i]));
-            if (isaddresult) {
-              FileObject targetFile=null;
-              try {
-                targetFile=KettleVFS.getFileObject(targetFilename);
-                ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,targetFile,parentJob.getJobname(),toString());
-                resultFile.setComment(Messages.getString("JobEntryFTP.Downloaded",serverName));
-                result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobEntryFTP.FileAddedToResult",filelist[i]));
-              }
-  finally {
-                try {
-                  targetFile.close();
-                  targetFile=null;
-                }
- catch (                Exception e) {
-                }
-              }
+            addFilenameToResultFilenames(log,result,parentJob,targetFilename);
+            if (remove) {
+              ftpclient.delete(filelist[i]);
+              if (log.isDetailed())               if (log.isDetailed())               log.logDetailed(toString(),Messages.getString("JobEntryFTP.DeletedFile",filelist[i]));
             }
-          }
-          if (remove) {
-            ftpclient.delete(filelist[i]);
-            if (log.isDetailed())             if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobEntryFTP.DeletedFile",filelist[i]));
-          }
  else {
-            if (movefiles) {
-              ftpclient.rename(filelist[i],realMoveToFolder + '/' + filelist[i]);
-              if (log.isDetailed())               log.logDetailed(toString(),Messages.getString("JobEntryFTP.MovedFile",filelist[i],realMoveToFolder));
+              if (movefiles) {
+                ftpclient.rename(filelist[i],realMoveToFolder + '/' + filelist[i]);
+                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobEntryFTP.MovedFile",filelist[i],realMoveToFolder));
+              }
             }
           }
         }
@@ -152,7 +143,6 @@
  catch (      Exception e) {
         updateErrors();
         log.logError(toString(),Messages.getString("JobFTP.UnexpectedError",e.getMessage()));
-        if (successConditionBroken)         throw new Exception(Messages.getString("JobEntryFTP.SuccesConditionBroken"));
       }
     }
   }
@@ -174,5 +164,6 @@
   result.setNrErrors(NrErrors);
   result.setNrFilesRetrieved(NrfilesRetrieved);
   if (getSuccessStatus())   result.setResult(true);
+  displayResults(log);
   return result;
 }
