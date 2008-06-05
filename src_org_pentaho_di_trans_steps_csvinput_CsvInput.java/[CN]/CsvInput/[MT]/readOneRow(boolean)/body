@@ -4,12 +4,9 @@
     int outputIndex=0;
     boolean newLineFound=false;
     int newLines=0;
-    while (!newLineFound && outputIndex < data.convertRowMeta.size()) {
-      if (data.endBuffer >= data.bufferSize) {
-        data.resizeByteBuffer();
-        if (!data.readBufferFromFile()) {
-          return null;
-        }
+    while (!newLineFound && outputIndex < meta.getInputFields().length) {
+      if (checkBufferSize()) {
+        return null;
       }
       boolean delimiterFound=false;
       boolean enclosureFound=false;
@@ -66,13 +63,10 @@
  else {
           data.endBuffer++;
           data.totalBytesRead++;
-          if (data.endBuffer >= data.bufferSize) {
-            data.resizeByteBuffer();
-            if (!data.readBufferFromFile()) {
-              if (data.endBuffer >= data.bufferSize) {
-                newLineFound=true;
-                break;
-              }
+          if (checkBufferSize()) {
+            if (data.endBuffer > data.bufferSize) {
+              newLineFound=true;
+              break;
             }
           }
         }
@@ -112,16 +106,35 @@
       }
       data.startBuffer=data.endBuffer;
     }
+    if (!newLineFound) {
+      System.out.println("Trailing content on line!!");
+      do {
+        if (checkBufferSize()) {
+          break;
+        }
+        data.endBuffer++;
+        data.totalBytesRead++;
+      }
+ while (data.byteBuffer[data.endBuffer] != '\n' && data.byteBuffer[data.endBuffer] != '\r');
+      while (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+        if (checkBufferSize()) {
+          break;
+        }
+        data.endBuffer++;
+        data.totalBytesRead++;
+      }
+      data.startBuffer=data.endBuffer;
+    }
     if (meta.isIncludingFilename() && !Const.isEmpty(meta.getFilenameField())) {
       if (meta.isLazyConversionActive()) {
-        outputRowData[outputIndex++]=data.binaryFilename;
+        outputRowData[data.filenameFieldIndex]=data.binaryFilename;
       }
  else {
-        outputRowData[outputIndex++]=data.filenames[data.filenr - 1];
+        outputRowData[data.filenameFieldIndex]=data.filenames[data.filenr - 1];
       }
     }
     if (data.isAddingRowNumber) {
-      outputRowData[outputIndex++]=new Long(data.rowNumber++);
+      outputRowData[data.rownumFieldIndex]=new Long(data.rowNumber++);
     }
     incrementLinesInput();
     return outputRowData;
