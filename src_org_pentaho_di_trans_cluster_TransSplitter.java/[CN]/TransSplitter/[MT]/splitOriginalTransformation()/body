@@ -35,39 +35,35 @@
               masterStep.setLocation(masterStep.getLocation().x,masterStep.getLocation().y);
               master.addStep(masterStep);
             }
-            int slaveStepCopyNr=-1;
+            int nrOfSourceCopies=previousStep.getCopies();
+            if (masterStep.getCopies() != 1 && masterStep.getCopies() != (previousClusterSchema.findNrSlaves() * nrOfSourceCopies)) {
+              throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + referenceClusterSchema.findNrSlaves() + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
+            }
+            Queue<Integer> masterStepCopyNumbers=new LinkedList<Integer>();
+            for (int i=0; i < masterStep.getCopies(); i++) {
+              masterStepCopyNumbers.add(i);
+            }
             int nrSlaves=previousClusterSchema.getSlaveServers().size();
             for (int slaveNr=0; slaveNr < nrSlaves; slaveNr++) {
               SlaveServer slaveServer=(SlaveServer)previousClusterSchema.getSlaveServers().get(slaveNr);
               if (!slaveServer.isMaster()) {
-                slaveStepCopyNr++;
                 TransMeta slave=getSlaveTransformation(previousClusterSchema,slaveServer);
                 StepMeta slaveStep=slave.findStep(previousStep.getName());
                 if (slaveStep == null) {
                   slaveStep=addSlaveCopy(slave,previousStep,slaveServer);
                 }
-                int nrOfSourceCopies=slaveStep.getCopies();
-                if (masterStep.getCopies() != 1 && masterStep.getCopies() != (referenceClusterSchema.findNrSlaves() * nrOfSourceCopies)) {
-                  throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + referenceClusterSchema.findNrSlaves() + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
-                }
-                Map<PartitionSchema,List<String>> partitionsMap=slaveServerPartitionsMap.get(slaveServer);
                 StepPartitioningMeta previousStepPartitioningMeta=previousStep.getStepPartitioningMeta();
                 PartitionSchema previousPartitionSchema=previousStepPartitioningMeta.getPartitionSchema();
-                int nrOfPreviousPartitions=1;
-                if (slaveStep.isPartitioned() && previousPartitionSchema != null) {
-                  List<String> sourcePartitionsList=partitionsMap.get(previousPartitionSchema);
-                  nrOfPreviousPartitions=sourcePartitionsList.size();
-                }
-                for (int sourceCopyNr=0; sourceCopyNr < (nrOfPreviousPartitions * nrOfSourceCopies); sourceCopyNr++) {
-                  slaveStepCopyNr+=sourceCopyNr;
-                  if (masterStep.getCopies() == 1) {
-                    slaveStepCopyNr=0;
+                for (int sourceCopyNr=0; sourceCopyNr < nrOfSourceCopies; sourceCopyNr++) {
+                  Integer masterStepCopyNr=masterStepCopyNumbers.poll();
+                  if (masterStepCopyNr == null) {
+                    masterStepCopyNr=0;
                   }
-                  int port=getPort(previousClusterSchema,slaveServer,slaveServer + "-" + masterStep.getName()+ "."+ slaveStepCopyNr+ " --> "+ slaveStep.getName()+ "."+ sourceCopyNr);
-                  RemoteStep remoteMasterStep=new RemoteStep(slaveServer.getHostname(),masterServer.getHostname(),Integer.toString(port),slaveStep.getName(),sourceCopyNr,masterStep.getName(),slaveStepCopyNr,masterServer.getName(),socketsBufferSize,compressingSocketStreams);
-                  slaveStep.getRemoteOutputSteps().add(remoteMasterStep);
-                  RemoteStep remoteSlaveStep=new RemoteStep(slaveServer.getHostname(),masterServer.getHostname(),Integer.toString(port),slaveStep.getName(),sourceCopyNr,masterStep.getName(),slaveStepCopyNr,masterServer.getName(),socketsBufferSize,compressingSocketStreams);
-                  masterStep.getRemoteInputSteps().add(remoteSlaveStep);
+                  int port=getPort(previousClusterSchema,slaveServer,slaveServer + "-" + masterStep.getName()+ "."+ masterStepCopyNr+ " --> "+ slaveStep.getName()+ "."+ sourceCopyNr);
+                  RemoteStep remoteMasterStep=new RemoteStep(slaveServer.getHostname(),masterServer.getHostname(),Integer.toString(port),slaveStep.getName(),sourceCopyNr,masterStep.getName(),masterStepCopyNr,masterServer.getName(),socketsBufferSize,compressingSocketStreams);
+                  masterStep.getRemoteInputSteps().add(remoteMasterStep);
+                  RemoteStep remoteSlaveStep=new RemoteStep(masterServer.getHostname(),slaveServer.getHostname(),Integer.toString(port),slaveStep.getName(),sourceCopyNr,masterStep.getName(),masterStepCopyNr,masterServer.getName(),socketsBufferSize,compressingSocketStreams);
+                  slaveStep.getRemoteOutputSteps().add(remoteSlaveStep);
                   if (slaveStep.isPartitioned()) {
                     slaveStepCopyPartitionDistribution.addPartition(slaveServer.getName(),previousPartitionSchema.getName(),sourceCopyNr);
                   }
@@ -96,38 +92,34 @@
         }
  else {
           if (previousClusterSchema == null) {
-            int masterStepCopyNr=-1;
+            StepMeta masterStep=master.findStep(previousStep.getName());
+            if (masterStep == null) {
+              masterStep=(StepMeta)previousStep.clone();
+              masterStep.setLocation(previousStep.getLocation().x,previousStep.getLocation().y);
+              master.addStep(masterStep);
+            }
+            int nrOfTargetCopies=referenceStep.getCopies();
+            if (masterStep.getCopies() != 1 && masterStep.getCopies() != (referenceClusterSchema.findNrSlaves() * nrOfTargetCopies)) {
+              throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + referenceClusterSchema.findNrSlaves() + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
+            }
+            Queue<Integer> masterStepCopyNumbers=new LinkedList<Integer>();
+            for (int i=0; i < masterStep.getCopies(); i++) {
+              masterStepCopyNumbers.add(i);
+            }
             int nrSlaves=referenceClusterSchema.getSlaveServers().size();
             for (int s=0; s < nrSlaves; s++) {
               SlaveServer slaveServer=(SlaveServer)referenceClusterSchema.getSlaveServers().get(s);
               if (!slaveServer.isMaster()) {
-                masterStepCopyNr++;
-                StepMeta masterStep=master.findStep(previousStep.getName());
-                if (masterStep == null) {
-                  masterStep=(StepMeta)previousStep.clone();
-                  masterStep.setLocation(previousStep.getLocation().x,previousStep.getLocation().y);
-                  master.addStep(masterStep);
-                }
-                int nrOfTargetCopies=referenceStep.getCopies();
-                if (masterStep.getCopies() != 1 && masterStep.getCopies() != (referenceClusterSchema.findNrSlaves() * nrOfTargetCopies)) {
-                  throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + referenceClusterSchema.findNrSlaves() + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
-                }
                 TransMeta slave=getSlaveTransformation(referenceClusterSchema,slaveServer);
                 StepMeta slaveStep=slave.findStep(referenceStep.getName());
                 if (slaveStep == null) {
                   slaveStep=addSlaveCopy(slave,referenceStep,slaveServer);
                 }
-                Map<PartitionSchema,List<String>> partitionsMap=slaveServerPartitionsMap.get(slaveServer);
                 StepPartitioningMeta targetStepPartitioningMeta=referenceStep.getStepPartitioningMeta();
                 PartitionSchema targetPartitionSchema=targetStepPartitioningMeta.getPartitionSchema();
-                int nrOfTargetPartitions=1;
-                if (slaveStep.isPartitioned() && targetPartitionSchema != null) {
-                  List<String> targetPartitionsList=partitionsMap.get(targetPartitionSchema);
-                  nrOfTargetPartitions=targetPartitionsList.size();
-                }
-                for (int targetCopyNr=0; targetCopyNr < (nrOfTargetPartitions * nrOfTargetCopies); targetCopyNr++) {
-                  masterStepCopyNr+=targetCopyNr;
-                  if (masterStep.getCopies() == 1) {
+                for (int targetCopyNr=0; targetCopyNr < nrOfTargetCopies; targetCopyNr++) {
+                  Integer masterStepCopyNr=masterStepCopyNumbers.poll();
+                  if (masterStepCopyNr == null) {
                     masterStepCopyNr=0;
                   }
                   int port=getPort(referenceClusterSchema,slaveServer,slaveServer + "-" + masterStep.getName()+ "."+ masterStepCopyNr+ " --> "+ slaveStep.getName()+ "."+ targetCopyNr);
