@@ -1,0 +1,27 @@
+{
+  init();
+  ClusterGenerator clusterGenerator=new ClusterGenerator();
+  try {
+    clusterGenerator.launchSlaveServers();
+    TransMeta transMeta=generateMultipleCopiesOnMultipleSlaves2(clusterGenerator);
+    TransExecutionConfiguration config=createClusteredTransExecutionConfiguration();
+    TransSplitter transSplitter=Trans.executeClustered(transMeta,config);
+    long nrErrors=Trans.monitorClusteredTransformation("cluster unit test <testMultipleCopiesOnMultipleSlaves2>",transSplitter,null,1);
+    assertEquals(0L,nrErrors);
+    String result=loadFileContent(transMeta,"${java.io.tmpdir}/test-multiple-copies-on-multiple-slaves2.txt");
+    assertEqualsIgnoreWhitespacesAndCase("90000",result);
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    fail(e.toString());
+  }
+ finally {
+    try {
+      clusterGenerator.stopSlaveServers();
+    }
+ catch (    Exception e) {
+      e.printStackTrace();
+      fail(e.toString());
+    }
+  }
+}
