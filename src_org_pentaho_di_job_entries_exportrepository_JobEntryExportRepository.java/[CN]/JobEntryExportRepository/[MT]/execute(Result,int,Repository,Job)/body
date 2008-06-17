@@ -1,0 +1,133 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  String realrepName=environmentSubstitute(repositoryname);
+  String realoutfilename=environmentSubstitute(targetfilename);
+  String realusername=environmentSubstitute(username);
+  String realpassword=environmentSubstitute(password);
+  String realfoldername=environmentSubstitute(directoryPath);
+  NrErrors=0;
+  successConditionBroken=false;
+  limitErr=Const.toInt(environmentSubstitute(getNrLimit()),10);
+  try {
+    file=KettleVFS.getFileObject(realoutfilename);
+    if (file.exists()) {
+      if (export_type.equals(Export_All) || export_type.equals(Export_Jobs) || export_type.equals(Export_Trans)|| export_type.equals(Export_One_Folder)) {
+        if (iffileexists.equals(If_FileExists_Fail)) {
+          log.logError(toString(),Messages.getString("JobExportRepository.Log.Failing",realoutfilename));
+          return result;
+        }
+ else         if (iffileexists.equals(If_FileExists_Skip)) {
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.Exit",realoutfilename));
+          result.setResult(true);
+          result.setNrErrors(0);
+          return result;
+        }
+ else         if (iffileexists.equals(If_FileExists_Uniquename)) {
+          String parentFolder=KettleVFS.getFilename(file.getParent());
+          String shortFilename=file.getName().getBaseName();
+          shortFilename=buildUniqueFilename(shortFilename);
+          file=KettleVFS.getFileObject(parentFolder + Const.FILE_SEPARATOR + shortFilename);
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.NewFilename",file.toString()));
+        }
+      }
+ else       if (export_type.equals(Export_By_Folder)) {
+        if (file.getType() != FileType.FOLDER) {
+          log.logError(toString(),Messages.getString("JobExportRepository.Log.NotFolder","" + file.getName()));
+          return result;
+        }
+      }
+    }
+ else {
+      if (export_type.equals(Export_By_Folder)) {
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.FolderNotExists","" + file.getName()));
+        if (!createfolder) {
+          return result;
+        }
+        file.createFolder();
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.FolderCreated",file.toString()));
+      }
+ else       if (export_type.equals(Export_All) || export_type.equals(Export_Jobs) || export_type.equals(Export_Trans)|| export_type.equals(Export_One_Folder)) {
+        if (!file.getParent().exists()) {
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.FolderNotExists","" + file.getParent().toString()));
+          file.getParent().createFolder();
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.FolderCreated",file.getParent().toString()));
+        }
+      }
+    }
+    realoutfilename=KettleVFS.getFilename(this.file);
+    connectRep(log,realrepName,realusername,realpassword);
+    if (export_type.equals(Export_All)) {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.StartingExportAllRep",realoutfilename));
+      this.repo.exportAllObjects(null,realoutfilename,null,"all");
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.EndExportAllRep",realoutfilename));
+      if (add_result_filesname)       addFileToResultFilenames(realoutfilename,log,result,parentJob);
+    }
+ else     if (export_type.equals(Export_Jobs)) {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.StartingExportJobsRep",realoutfilename));
+      this.repo.exportAllObjects(null,realoutfilename,null,"jobs");
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.EndExportJobsRep",realoutfilename));
+      if (add_result_filesname)       addFileToResultFilenames(realoutfilename,log,result,parentJob);
+    }
+ else     if (export_type.equals(Export_Trans)) {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.StartingExportTransRep",realoutfilename));
+      this.repo.exportAllObjects(null,realoutfilename,null,"trans");
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.EndExportTransRep",realoutfilename));
+      if (add_result_filesname)       addFileToResultFilenames(realoutfilename,log,result,parentJob);
+    }
+ else     if (export_type.equals(Export_One_Folder)) {
+      RepositoryDirectory directory=new RepositoryDirectory();
+      directory=repo.getDirectoryTree().findDirectory(realfoldername);
+      if (directory != null) {
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.ExpAllFolderRep",directoryPath,realoutfilename));
+        this.repo.exportAllObjects(null,realoutfilename,directory,"all");
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.EndExpAllFolderRep",directoryPath,realoutfilename));
+        if (add_result_filesname)         addFileToResultFilenames(realoutfilename,log,result,parentJob);
+      }
+ else {
+        log.logError(toString(),Messages.getString("JobExportRepository.Error.CanNotFindFolderInRep",realfoldername,realrepName));
+        return result;
+      }
+    }
+ else     if (export_type.equals(Export_By_Folder)) {
+      RepositoryDirectory directory=new RepositoryDirectory();
+      directory=this.repo.getDirectoryTree().findRoot();
+      long dirids[]=directory.getDirectoryIDs();
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobExportRepository.Log.TotalFolders","" + dirids.length));
+      for (int d=0; d < dirids.length && !parentJob.isStopped(); d++) {
+        if (successConditionBroken) {
+          log.logError(toString(),Messages.getString("JobExportRepository.Error.SuccessConditionbroken","" + NrErrors));
+          throw new Exception(Messages.getString("JobExportRepository.Error.SuccessConditionbroken","" + NrErrors));
+        }
+        RepositoryDirectory repdir=directory.findDirectory(dirids[d]);
+        if (!processOneFolder(parentJob,result,log,repdir,realoutfilename,d,dirids.length)) {
+          updateErrors();
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    updateErrors();
+    log.logError(toString(),Messages.getString("JobExportRepository.UnExpectedError",e.toString()));
+    log.logError(toString(),"Stack trace: " + Const.CR + Const.getStackTracker(e));
+  }
+ finally {
+    if (this.repo != null)     this.repo.disconnect();
+    if (this.repinfo != null)     this.repinfo=null;
+    if (this.userinfo != null)     this.userinfo=null;
+    if (this.repsinfo != null) {
+      this.repsinfo.clear();
+      this.repsinfo=null;
+    }
+    if (this.file != null)     try {
+      this.file.close();
+    }
+ catch (    Exception e) {
+    }
+  }
+  result.setNrErrors(NrErrors);
+  if (getSuccessStatus())   result.setResult(true);
+  return result;
+}

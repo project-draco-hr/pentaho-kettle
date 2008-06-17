@@ -1,0 +1,43 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  RepositoriesMeta reps_info=null;
+  RepositoryMeta rep_info=null;
+  UserInfo user_info=null;
+  Repository repos=null;
+  try {
+    reps_info=new RepositoriesMeta(log);
+    if (!reps_info.readData()) {
+      displayMsg(Messages.getString("JobExportRepository.Error.NoRepsDefined"),Messages.getString("JobExportRepository.Error.NoRepsDefinedMsg"),true);
+    }
+    rep_info=reps_info.findRepository(jobMeta.environmentSubstitute(wRepositoryname.getText()));
+    if (rep_info == null) {
+      displayMsg(Messages.getString("JobExportRepository.Error.CanNotFindRep"),Messages.getString("JobExportRepository.Error.CanNotFindRepMsg",wRepositoryname.getText()),true);
+    }
+    repos=new Repository(log,rep_info,user_info);
+    try {
+      if (!repos.connect("Export job entry")) {
+        displayMsg(Messages.getString("JobExportRepository.Error.CanNotConnect"),Messages.getString("JobExportRepository.Error.CanNotConnectMsg",wRepositoryname.getText()),true);
+      }
+    }
+ catch (    Exception e) {
+    }
+    SelectDirectoryDialog sdd=new SelectDirectoryDialog(shell,SWT.NONE,repos);
+    RepositoryDirectory rd=sdd.open();
+    if (rd != null) {
+      newDirectory=rd;
+      wFoldername.setText(rd.getPath());
+    }
+  }
+ catch (  Exception e) {
+    displayMsg(Messages.getString("System.Dialog.Error.Title"),Messages.getString("JobExportRepository.ErrorGettingFolderds.DialogMessage") + Const.CR + ":"+ e.getMessage(),true);
+  }
+ finally {
+    if (repos != null) {
+      repos.disconnect();
+      repos=null;
+    }
+    if (rep_info != null)     rep_info=null;
+    if (user_info != null)     user_info=null;
+    reps_info.clear();
+  }
+}
