@@ -1,0 +1,35 @@
+{
+  meta=(ColumnExistsMeta)smi;
+  data=(ColumnExistsData)sdi;
+  if (super.init(smi,sdi)) {
+    if (!meta.isTablenameInField()) {
+      if (Const.isEmpty(meta.getTablename())) {
+        log.logError(toString(),Messages.getString("ColumnExists.Error.TablenameMissing"));
+        return false;
+      }
+      data.tablename=environmentSubstitute(meta.getTablename());
+    }
+    if (Const.isEmpty(meta.getResultFieldName())) {
+      log.logError(toString(),Messages.getString("ColumnExists.Error.ResultFieldMissing"));
+      return false;
+    }
+    data.db=new Database(meta.getDatabase());
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      if (log.isDetailed())       logDetailed(Messages.getString("ColumnExists.Log.ConnectedToDB"));
+      return true;
+    }
+ catch (    KettleException e) {
+      logError(Messages.getString("ColumnExists.Log.DBException") + e.getMessage());
+      data.db.disconnect();
+    }
+  }
+  return false;
+}
