@@ -1,0 +1,38 @@
+{
+  meta=(CloneRowMeta)smi;
+  data=(CloneRowData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    if (meta.isAddCloneFlag()) {
+      String realflagfield=environmentSubstitute(meta.getCloneFlagField());
+      if (Const.isEmpty(realflagfield)) {
+        logError(Messages.getString("CloneRow.Error.CloneFlagFieldMissing"));
+        throw new KettleException(Messages.getString("CloneRow.Error.CloneFlagFieldMissing"));
+      }
+      data.outputRowMeta=getInputRowMeta().clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    }
+    String nrclonesString=environmentSubstitute(meta.getNrClones());
+    data.nrclones=Const.toInt(nrclonesString,0);
+    if (log.isDebug())     log.logDebug(toString(),Messages.getString("CloneRow.Log.NrClones","" + data.nrclones));
+  }
+  boolean isclonerow=false;
+  for (int i=0; i <= data.nrclones; i++) {
+    if (meta.isAddCloneFlag()) {
+      if (i == 0)       isclonerow=false;
+ else       isclonerow=true;
+      Object[] outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),isclonerow);
+      putRow(data.outputRowMeta,outputRowData);
+    }
+ else     putRow(getInputRowMeta(),r);
+  }
+  if (checkFeedback(getLinesRead())) {
+    if (log.isDetailed())     logDetailed(Messages.getString("CloneRow.Log.LineNumber","" + getLinesRead()));
+  }
+  return true;
+}
