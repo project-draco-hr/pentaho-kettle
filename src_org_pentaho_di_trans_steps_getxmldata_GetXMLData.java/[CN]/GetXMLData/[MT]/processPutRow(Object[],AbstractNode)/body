@@ -15,17 +15,22 @@
           for (int k=0; k < meta.getInputFields().length; k++) {
             GetXMLDataField Tmp_xmlInputField=meta.getInputFields()[k];
             if (Tmp_xmlInputField.getName().equalsIgnoreCase(NameVarInputField)) {
-              XPathValue=XPathValue.replaceAll(data.tokenStart + NameVarInputField + data.tokenEnd,"'" + outputRowData[k] + "'");
-              if (log.isDetailed()) {
-                if (log.isDetailed())                 log.logDetailed(toString(),XPathValue);
-              }
+              XPathValue=XPathValue.replaceAll(data.tokenStart + NameVarInputField + data.tokenEnd,"'" + outputRowData[data.totalpreviousfields + k] + "'");
+              if (log.isDetailed())               log.logDetailed(toString(),XPathValue);
             }
           }
         }
       }
       String nodevalue=null;
       if (!Element_Type.equals("node"))       XPathValue='@' + XPathValue;
-      nodevalue=node.valueOf(XPathValue);
+      if (meta.isNamespaceAware()) {
+        XPath xpathField=node.createXPath(addNSPrefix(XPathValue,data.PathValue));
+        xpathField.setNamespaceURIs(data.NAMESPACE);
+        nodevalue=xpathField.valueOf(node);
+      }
+ else {
+        nodevalue=node.valueOf(XPathValue);
+      }
 switch (xmlDataField.getTrimType()) {
 case GetXMLDataField.TYPE_TRIM_LEFT:
         nodevalue=Const.ltrim(nodevalue);
@@ -47,7 +52,7 @@ ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(data.totalpr
 outputRowData[data.totalpreviousfields + i]=targetValueMeta.convertData(sourceValueMeta,nodevalue);
 if (meta.getInputFields()[i].isRepeated()) {
 if (data.previousRow != null && Const.isEmpty(nodevalue)) {
-outputRowData[i]=data.previousRow[i];
+outputRowData[data.totalpreviousfields + i]=data.previousRow[data.totalpreviousfields + i];
 }
 }
 }
