@@ -1,0 +1,46 @@
+{
+  meta=(DelayMeta)smi;
+  data=(DelayData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    String msgScale=Messages.getString("DelayDialog.SScaleTime.Label");
+    data.Multiple=1000;
+    if (meta.getScaleTime().equals(meta.ScaleTimeCode[2])) {
+      data.Multiple=60000;
+      msgScale=Messages.getString("DelayDialog.MnScaleTime.Label");
+    }
+ else     if (meta.getScaleTime().equals(meta.ScaleTimeCode[3])) {
+      data.Multiple=3600000;
+      msgScale=Messages.getString("DelayDialog.HrScaleTime.Label");
+    }
+    String timeOut=environmentSubstitute(meta.getTimeOut());
+    data.timeout=Const.toInt(timeOut,0);
+    if (log.isDebug())     log.logDebug(toString(),Messages.getString("Delay.Log.TimeOut","" + data.timeout,msgScale));
+  }
+  long timeStart=System.currentTimeMillis() / data.Multiple;
+  boolean continueLoop=true;
+  while (continueLoop) {
+    long now=System.currentTimeMillis() / data.Multiple;
+    if (now >= (timeStart + data.timeout)) {
+      if (log.isDebug())       log.logDebug(toString(),Messages.getString("Delay.WaitTimeIsElapsed.Label"));
+      continueLoop=false;
+    }
+ else {
+      try {
+        Thread.sleep(1000);
+      }
+ catch (      Exception e) {
+      }
+    }
+  }
+  putRow(getInputRowMeta(),r);
+  if (checkFeedback(getLinesRead())) {
+    if (log.isDetailed())     logDetailed(Messages.getString("Delay.Log.LineNumber","" + getLinesRead()));
+  }
+  return true;
+}
