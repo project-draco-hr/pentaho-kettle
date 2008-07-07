@@ -2,149 +2,157 @@
   LogWriter log=LogWriter.getInstance();
   Result result=previousResult;
   result.setResult(false);
-  String realServerName=environmentSubstitute(serverName);
-  int realServerPort=Const.toInt(environmentSubstitute(serverPort),22);
-  String realUserName=environmentSubstitute(userName);
-  String realServerPassword=environmentSubstitute(password);
-  String realProxyHost=environmentSubstitute(httpproxyhost);
-  int realProxyPort=Const.toInt(environmentSubstitute(httpproxyport),22);
-  String realproxyUserName=environmentSubstitute(httpproxyusername);
-  String realProxyPassword=environmentSubstitute(httpProxyPassword);
-  String realKeyFilename=environmentSubstitute(keyFilename);
-  String relKeyFilepass=environmentSubstitute(keyFilePass);
-  String realLocalDirectory=environmentSubstitute(localDirectory);
-  String realwildcard=environmentSubstitute(wildcard);
-  String realftpDirectory=environmentSubstitute(ftpDirectory);
-  String realDestinationFolder=environmentSubstitute(destinationfolder);
-  boolean mandatoryok=true;
-  if (Const.isEmpty(realServerName)) {
-    mandatoryok=false;
-    log.logError(toString(),Messages.getString("JobSSH2PUT.Log.ServernameMissing"));
-  }
-  if (usehttpproxy) {
-    if (Const.isEmpty(realProxyHost)) {
+  try {
+    String realServerName=environmentSubstitute(serverName);
+    int realServerPort=Const.toInt(environmentSubstitute(serverPort),22);
+    String realUserName=environmentSubstitute(userName);
+    String realServerPassword=environmentSubstitute(password);
+    String realProxyHost=environmentSubstitute(httpproxyhost);
+    int realProxyPort=Const.toInt(environmentSubstitute(httpproxyport),22);
+    String realproxyUserName=environmentSubstitute(httpproxyusername);
+    String realProxyPassword=environmentSubstitute(httpProxyPassword);
+    String realKeyFilename=environmentSubstitute(keyFilename);
+    String relKeyFilepass=environmentSubstitute(keyFilePass);
+    String realLocalDirectory=environmentSubstitute(localDirectory);
+    String realwildcard=environmentSubstitute(wildcard);
+    String realftpDirectory=environmentSubstitute(ftpDirectory);
+    String realDestinationFolder=environmentSubstitute(destinationfolder);
+    boolean mandatoryok=true;
+    if (Const.isEmpty(realServerName)) {
       mandatoryok=false;
-      log.logError(toString(),Messages.getString("JobSSH2PUT.Log.HttpProxyhostMissing"));
+      log.logError(toString(),Messages.getString("JobSSH2PUT.Log.ServernameMissing"));
     }
-  }
-  if (publicpublickey) {
-    if (Const.isEmpty(realKeyFilename)) {
-      mandatoryok=false;
-      log.logError(toString(),Messages.getString("JobSSH2PUT.Log.KeyFileMissing"));
-    }
- else {
-      if (!new File(realKeyFilename).exists()) {
+    if (usehttpproxy) {
+      if (Const.isEmpty(realProxyHost)) {
         mandatoryok=false;
-        log.logError(toString(),Messages.getString("JobSSH2PUT.Log.KeyFileNotExist"));
+        log.logError(toString(),Messages.getString("JobSSH2PUT.Log.HttpProxyhostMissing"));
       }
     }
-  }
-  if (Const.isEmpty(realLocalDirectory)) {
-    mandatoryok=false;
-    log.logError(toString(),Messages.getString("JobSSH2PUT.Log.LocalFolderMissing"));
-  }
-  if (afterFtpPut.equals("move_file")) {
-    if (Const.isEmpty(realDestinationFolder)) {
-      mandatoryok=false;
-      log.logError(toString(),Messages.getString("JobSSH2PUT.Log.DestinatFolderMissing"));
-    }
- else {
-      if (!new File(realDestinationFolder).exists()) {
+    if (publicpublickey) {
+      if (Const.isEmpty(realKeyFilename)) {
         mandatoryok=false;
-        log.logError(toString(),Messages.getString("JobSSH2PUT.Log.DestinatFolderNotExist",realDestinationFolder));
-      }
-    }
-  }
-  if (mandatoryok) {
-    Connection conn=null;
-    SFTPv3Client client=null;
-    boolean good=true;
-    int nbfilestoput=0;
-    int nbput=0;
-    int nbrerror=0;
-    try {
-      conn=getConnection(realServerName,realServerPort,realProxyHost,realProxyPort,realproxyUserName,realProxyPassword);
-      if (timeout > 0) {
-        if (cachehostkey)         conn.connect(new SimpleVerifier(database),0,timeout * 1000);
- else         conn.connect(null,0,timeout * 1000);
+        log.logError(toString(),Messages.getString("JobSSH2PUT.Log.KeyFileMissing"));
       }
  else {
-        if (cachehostkey)         conn.connect(new SimpleVerifier(database));
- else         conn.connect();
-      }
-      boolean isAuthenticated=false;
-      if (publicpublickey) {
-        isAuthenticated=conn.authenticateWithPublicKey(realUserName,new File(realKeyFilename),relKeyFilepass);
-      }
- else {
-        isAuthenticated=conn.authenticateWithPassword(realUserName,realServerPassword);
-      }
-      if (isAuthenticated == false)       log.logError(toString(),Messages.getString("JobSSH2PUT.Log.AuthenticationFailed"));
- else {
-        log.logBasic(toString(),Messages.getString("JobSSH2PUT.Log.Connected",serverName,userName));
-        client=new SFTPv3Client(conn);
-        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.ProtocolVersion","" + client.getProtocolVersion()));
-        if (realftpDirectory != null) {
-          if (!sshDirectoryExists(client,realftpDirectory)) {
-            good=false;
-            if (createRemoteFolder) {
-              good=CreateRemoteFolder(client,realftpDirectory);
-              if (good)               log.logBasic(toString(),Messages.getString("JobSSH2PUT.Log.RemoteDirectoryCreated"));
-            }
- else             log.logError(toString(),Messages.getString("JobSSH2PUT.Log.RemoteDirectoryNotExist",realftpDirectory));
-          }
- else           if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.RemoteDirectoryExist",realftpDirectory));
-        }
-        if (good) {
-          String[] filelist=getFiles(realLocalDirectory);
-          Pattern pattern=null;
-          if (!Const.isEmpty(realwildcard))           pattern=Pattern.compile(realwildcard);
-          for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
-            boolean getIt=true;
-            if (pattern != null) {
-              Matcher matcher=pattern.matcher(filelist[i]);
-              getIt=matcher.matches();
-            }
-            if (getIt) {
-              nbfilestoput++;
-              String FullFilename=filelist[i];
-              if (realftpDirectory != null)               FullFilename=realftpDirectory + Const.FILE_SEPARATOR + filelist[i];
-              String FullLocalFilename=realLocalDirectory + Const.FILE_SEPARATOR + filelist[i];
-              boolean putok=true;
-              if ((onlyGettingNewFiles == false) || (onlyGettingNewFiles == true) && !sshFileExists(client,FullFilename)) {
-                putok=putFile(FullLocalFilename,FullFilename,client);
-                if (!putok) {
-                  nbrerror++;
-                  log.logError(toString(),Messages.getString("JobSSH2PUT.Log.Error.CanNotPutFile",filelist[i]));
-                }
- else {
-                  nbput++;
-                }
-              }
-              if (putok && !afterFtpPut.equals("do_nothing")) {
-                deleteOrMoveFiles(FullFilename,realDestinationFolder);
-              }
-            }
-          }
-          if (log.isDetailed()) {
-            log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.JobEntryEnd1"));
-            log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.TotalFiles","" + nbfilestoput));
-            log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.TotalFilesPut","" + nbput));
-            log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.TotalFilesError","" + nbrerror));
-            log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.JobEntryEnd2"));
-          }
-          if (nbrerror == 0)           result.setResult(true);
+        if (!KettleVFS.fileExists(realKeyFilename)) {
+          mandatoryok=false;
+          log.logError(toString(),Messages.getString("JobSSH2PUT.Log.KeyFileNotExist"));
         }
       }
     }
- catch (    Exception e) {
-      result.setNrErrors(nbrerror);
-      log.logError(toString(),Messages.getString("JobSSH2PUT.Log.Error.ErrorFTP",e.getMessage()));
+    if (Const.isEmpty(realLocalDirectory)) {
+      mandatoryok=false;
+      log.logError(toString(),Messages.getString("JobSSH2PUT.Log.LocalFolderMissing"));
     }
+    if (afterFtpPut.equals("move_file")) {
+      if (Const.isEmpty(realDestinationFolder)) {
+        mandatoryok=false;
+        log.logError(toString(),Messages.getString("JobSSH2PUT.Log.DestinatFolderMissing"));
+      }
+ else {
+        if (!KettleVFS.fileExists(realDestinationFolder)) {
+          mandatoryok=false;
+          log.logError(toString(),Messages.getString("JobSSH2PUT.Log.DestinatFolderNotExist",realDestinationFolder));
+        }
+      }
+    }
+    if (mandatoryok) {
+      Connection conn=null;
+      SFTPv3Client client=null;
+      boolean good=true;
+      int nbfilestoput=0;
+      int nbput=0;
+      int nbrerror=0;
+      try {
+        conn=getConnection(realServerName,realServerPort,realProxyHost,realProxyPort,realproxyUserName,realProxyPassword);
+        if (timeout > 0) {
+          if (cachehostkey)           conn.connect(new SimpleVerifier(database),0,timeout * 1000);
+ else           conn.connect(null,0,timeout * 1000);
+        }
+ else {
+          if (cachehostkey)           conn.connect(new SimpleVerifier(database));
+ else           conn.connect();
+        }
+        boolean isAuthenticated=false;
+        if (publicpublickey) {
+          String keyContent=KettleVFS.getTextFileContent(realKeyFilename,Const.XML_ENCODING);
+          isAuthenticated=conn.authenticateWithPublicKey(realUserName,keyContent.toCharArray(),relKeyFilepass);
+        }
+ else {
+          isAuthenticated=conn.authenticateWithPassword(realUserName,realServerPassword);
+        }
+        if (isAuthenticated == false)         log.logError(toString(),Messages.getString("JobSSH2PUT.Log.AuthenticationFailed"));
+ else {
+          log.logBasic(toString(),Messages.getString("JobSSH2PUT.Log.Connected",serverName,userName));
+          client=new SFTPv3Client(conn);
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.ProtocolVersion","" + client.getProtocolVersion()));
+          if (realftpDirectory != null) {
+            if (!sshDirectoryExists(client,realftpDirectory)) {
+              good=false;
+              if (createRemoteFolder) {
+                good=CreateRemoteFolder(client,realftpDirectory);
+                if (good)                 log.logBasic(toString(),Messages.getString("JobSSH2PUT.Log.RemoteDirectoryCreated"));
+              }
+ else               log.logError(toString(),Messages.getString("JobSSH2PUT.Log.RemoteDirectoryNotExist",realftpDirectory));
+            }
+ else             if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.RemoteDirectoryExist",realftpDirectory));
+          }
+          if (good) {
+            List<FileObject> myFileList=getFiles(realLocalDirectory);
+            Pattern pattern=null;
+            if (!Const.isEmpty(realwildcard))             pattern=Pattern.compile(realwildcard);
+            for (int i=0; i < myFileList.size() && !parentJob.isStopped(); i++) {
+              FileObject myFile=myFileList.get(i);
+              String localFilename=myFile.toString();
+              String remoteFilename=myFile.getName().getBaseName();
+              boolean getIt=true;
+              if (pattern != null) {
+                Matcher matcher=pattern.matcher(remoteFilename);
+                getIt=matcher.matches();
+              }
+              if (getIt) {
+                nbfilestoput++;
+                boolean putok=true;
+                if ((onlyGettingNewFiles == false) || (onlyGettingNewFiles == true) && !sshFileExists(client,localFilename)) {
+                  putok=putFile(myFile,remoteFilename,client);
+                  if (!putok) {
+                    nbrerror++;
+                    log.logError(toString(),Messages.getString("JobSSH2PUT.Log.Error.CanNotPutFile",localFilename));
+                  }
+ else {
+                    nbput++;
+                  }
+                }
+                if (putok && !afterFtpPut.equals("do_nothing")) {
+                  deleteOrMoveFiles(myFile,realDestinationFolder);
+                }
+              }
+            }
+            if (log.isDetailed()) {
+              log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.JobEntryEnd1"));
+              log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.TotalFiles","" + nbfilestoput));
+              log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.TotalFilesPut","" + nbput));
+              log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.TotalFilesError","" + nbrerror));
+              log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.Result.JobEntryEnd2"));
+            }
+            if (nbrerror == 0)             result.setResult(true);
+          }
+        }
+      }
+ catch (      Exception e) {
+        result.setNrErrors(nbrerror);
+        log.logError(toString(),Messages.getString("JobSSH2PUT.Log.Error.ErrorFTP",e.getMessage()));
+      }
  finally {
-      if (conn != null)       conn.close();
-      if (client != null)       client.close();
+        if (conn != null)         conn.close();
+        if (client != null)         client.close();
+      }
     }
+  }
+ catch (  Exception e) {
+    result.setResult(false);
+    result.setNrErrors(1L);
+    log.logError(toString(),Messages.getString("JobSSH2PUT.Log.Error.UnexpectedError"),e);
   }
   return result;
 }
