@@ -4,7 +4,7 @@
   List<RowMetaAndData> rows=result.getRows();
   result.setResult(false);
   if (log.isDetailed())   log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.StartJobEntry"));
-  ArrayList<String> myFileList=new ArrayList<String>();
+  ArrayList<FileObject> myFileList=new ArrayList<FileObject>();
   if (copyprevious) {
     if (rows.size() == 0) {
       if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobSFTPPUT.ArgsFromPreviousNothing"));
@@ -17,10 +17,10 @@
         resultRow=rows.get(iteration);
         String file_previous=resultRow.getString(0,null);
         if (!Const.isEmpty(file_previous)) {
-          File file=new File(file_previous);
+          FileObject file=KettleVFS.getFileObject(file_previous);
           if (!file.exists())           log.logError(toString(),Messages.getString("JobSFTPPUT.Log.FilefromPreviousNotFound",file_previous));
  else {
-            myFileList.add(file_previous);
+            myFileList.add(file);
             if (log.isDebug())             log.logDebug(toString(),Messages.getString("JobSFTPPUT.Log.FilenameFromResult",file_previous));
           }
         }
@@ -49,53 +49,51 @@
       if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.ChangedDirectory",realSftpDirString));
     }
     if (!copyprevious) {
-      myFileList=new ArrayList<String>();
-      File localFiles=new File(realLocalDirectory);
-      File[] children=localFiles.listFiles();
-      for (int i=0; i < children.length; i++) {
-        if (!children[i].isDirectory()) {
-          myFileList.add(children[i].getName());
+      myFileList=new ArrayList<FileObject>();
+      FileObject localFiles=KettleVFS.getFileObject(realLocalDirectory);
+      FileObject[] children=localFiles.getChildren();
+      if (children != null) {
+        for (int i=0; i < children.length; i++) {
+          if (children[i].getType().equals(FileType.FILE)) {
+            myFileList.add(children[i]);
+          }
         }
       }
     }
-    if (myFileList == null) {
+    if (myFileList == null || myFileList.size() == 0) {
       log.logError(toString(),Messages.getString("JobSFTPPUT.Error.NoFileToSend"));
       result.setNrErrors(1);
       return result;
     }
-    String[] filelist=new String[myFileList.size()];
-    myFileList.toArray(filelist);
-    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.RowsFromPreviousResult","" + filelist.length));
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.RowsFromPreviousResult","" + myFileList.size()));
     Pattern pattern=null;
     if (!copyprevious) {
-      if (!Const.isEmpty(realWildcard))       pattern=Pattern.compile(realWildcard);
+      if (!Const.isEmpty(realWildcard)) {
+        pattern=Pattern.compile(realWildcard);
+      }
     }
-    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+    for (int i=0; i < myFileList.size() && !parentJob.isStopped(); i++) {
+      FileObject myFile=myFileList.get(i);
+      String localFilename=myFile.toString();
+      String destinationFilename=myFile.getName().getBaseName();
       boolean getIt=true;
       if (pattern != null) {
-        Matcher matcher=pattern.matcher(filelist[i]);
+        Matcher matcher=pattern.matcher(destinationFilename);
         getIt=matcher.matches();
       }
       if (getIt) {
-        String localFilename=realLocalDirectory + Const.FILE_SEPARATOR + filelist[i];
-        String destinationFilename=filelist[i];
-        if (copyprevious) {
-          localFilename=filelist[i];
-          File file=new File(localFilename);
-          destinationFilename=file.getName();
-        }
         if (log.isDebug())         log.logDebug(toString(),Messages.getString("JobSFTPPUT.Log.PuttingFile",localFilename,realSftpDirString));
-        sftpclient.put(localFilename,destinationFilename);
+        sftpclient.put(myFile,destinationFilename);
         if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.TransferedFile",localFilename));
         if (remove) {
-          new File(localFilename).delete();
+          myFile.delete();
           if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.DeletedFile",localFilename));
         }
  else {
           if (addFilenameResut) {
-            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(localFilename),parentJob.getJobname(),toString());
+            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,myFile,parentJob.getJobname(),toString());
             result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.FilenameAddedToResultFilenames",filelist[i]));
+            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobSFTPPUT.Log.FilenameAddedToResultFilenames",localFilename));
           }
         }
       }
