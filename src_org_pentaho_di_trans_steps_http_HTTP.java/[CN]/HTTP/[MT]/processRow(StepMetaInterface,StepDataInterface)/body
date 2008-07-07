@@ -11,12 +11,29 @@
   if (first) {
     data.outputRowMeta=getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (meta.isUrlInField()) {
+      if (Const.isEmpty(meta.getUrlField())) {
+        logError(Messages.getString("HTTP.Log.NoField"));
+        throw new KettleException(Messages.getString("HTTP.Log.NoField"));
+      }
+      if (data.indexOfUrlField < 0) {
+        String realUrlfieldName=environmentSubstitute(meta.getUrlField());
+        data.indexOfUrlField=getInputRowMeta().indexOfValue(realUrlfieldName);
+        if (data.indexOfUrlField < 0) {
+          logError(Messages.getString("HTTP.Log.ErrorFindingField",realUrlfieldName));
+          throw new KettleException(Messages.getString("HTTP.Exception.ErrorFindingField",realUrlfieldName));
+        }
+      }
+    }
+ else {
+      data.realUrl=environmentSubstitute(meta.getUrl());
+    }
   }
   try {
     Object[] outputRowData=execHttp(getInputRowMeta(),r);
     putRow(data.outputRowMeta,outputRowData);
     if (checkFeedback(getLinesRead())) {
-      if (log.isBasic())       logBasic(Messages.getString("HTTP.LineNumber") + getLinesRead());
+      if (log.isDetailed())       logDetailed(Messages.getString("HTTP.LineNumber") + getLinesRead());
     }
   }
  catch (  KettleException e) {
