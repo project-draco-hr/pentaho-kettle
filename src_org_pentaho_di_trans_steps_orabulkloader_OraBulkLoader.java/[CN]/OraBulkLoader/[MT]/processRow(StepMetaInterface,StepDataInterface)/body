@@ -17,7 +17,26 @@
         }
         String loadMethod=meta.getLoadMethod();
         if (OraBulkLoaderMeta.METHOD_AUTO_END.equals(loadMethod)) {
-          execute(meta,true);
+          if (!first) {
+            execute(meta,true);
+            sqlldrProcess=null;
+          }
+        }
+ else         if (OraBulkLoaderMeta.METHOD_AUTO_CONCURRENT.equals(meta.getLoadMethod())) {
+          try {
+            if (sqlldrProcess != null) {
+              int exitVal=sqlldrProcess.waitFor();
+              sqlldrProcess=null;
+              logBasic(Messages.getString("OraBulkLoader.Log.ExitValueSqlldr","" + exitVal));
+              checkExitVal(exitVal);
+            }
+ else             if (!first) {
+              throw new KettleException("Internal error: no sqlldr process running");
+            }
+          }
+ catch (          Exception ex) {
+            throw new KettleException("Error while executing sqlldr",ex);
+          }
         }
       }
       return false;
@@ -27,6 +46,9 @@
         first=false;
         createControlFile(environmentSubstitute(meta.getControlFile()),r,meta);
         output=new OraBulkDataOutput(meta);
+        if (OraBulkLoaderMeta.METHOD_AUTO_CONCURRENT.equals(meta.getLoadMethod())) {
+          execute(meta,false);
+        }
         output.open(this,sqlldrProcess);
       }
       output.writeLine(getInputRowMeta(),r);

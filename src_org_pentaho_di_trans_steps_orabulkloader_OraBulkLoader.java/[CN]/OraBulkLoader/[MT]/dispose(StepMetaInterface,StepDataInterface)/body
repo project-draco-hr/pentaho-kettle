@@ -2,6 +2,28 @@
   meta=(OraBulkLoaderMeta)smi;
   data=(OraBulkLoaderData)sdi;
   super.dispose(smi,sdi);
+  if (output != null) {
+    try {
+      output.close();
+    }
+ catch (    IOException e) {
+      logError("Error while closing output",e);
+    }
+    output=null;
+  }
+  if (sqlldrProcess != null) {
+    try {
+      int exitVal=sqlldrProcess.waitFor();
+      sqlldrProcess=null;
+      logBasic(Messages.getString("OraBulkLoader.Log.ExitValueSqlldr","" + exitVal));
+    }
+ catch (    InterruptedException e) {
+      e.printStackTrace();
+      if (sqlldrProcess != null) {
+        sqlldrProcess.destroy();
+      }
+    }
+  }
   if (!preview && meta.isEraseFiles()) {
     FileObject fileObject=null;
     String method=meta.getLoadMethod();
@@ -31,15 +53,6 @@
     }
     if (OraBulkLoaderMeta.METHOD_MANUAL.equals(method)) {
       logBasic("Deletion of files is not compatible with \'manual load method\'");
-    }
-    if (sqlldrProcess != null) {
-      try {
-        sqlldrProcess.getErrorStream().close();
-        sqlldrProcess.getInputStream().close();
-      }
- catch (      IOException e) {
-        logDetailed("Warning: Error closing streams: " + e.getMessage());
-      }
     }
   }
 }
