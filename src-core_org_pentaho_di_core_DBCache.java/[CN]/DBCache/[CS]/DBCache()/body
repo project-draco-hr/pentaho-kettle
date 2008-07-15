@@ -1,6 +1,39 @@
 {
   try {
     clear(null);
+    LogWriter log=LogWriter.getInstance();
+    String filename=getFilename();
+    File file=new File(filename);
+    if (file.canRead()) {
+      log.logDetailed("DBCache","Loading database cache from file: [" + filename + "]");
+      FileInputStream fis=null;
+      DataInputStream dis=null;
+      try {
+        fis=new FileInputStream(file);
+        dis=new DataInputStream(fis);
+        int counter=0;
+        try {
+          while (true) {
+            DBCacheEntry entry=new DBCacheEntry(dis);
+            RowMetaInterface row=new RowMeta(dis);
+            cache.put(entry,row);
+            counter++;
+          }
+        }
+ catch (        KettleEOFException eof) {
+          log.logDetailed("DBCache","We read " + counter + " cached rows from the database cache!");
+        }
+      }
+ catch (      Exception e) {
+        throw new Exception(e);
+      }
+ finally {
+        if (dis != null)         dis.close();
+      }
+    }
+ else {
+      log.logDetailed("DBCache","The database cache doesn't exist yet.");
+    }
   }
  catch (  Exception e) {
     throw new KettleFileException("Couldn't read the database cache",e);
