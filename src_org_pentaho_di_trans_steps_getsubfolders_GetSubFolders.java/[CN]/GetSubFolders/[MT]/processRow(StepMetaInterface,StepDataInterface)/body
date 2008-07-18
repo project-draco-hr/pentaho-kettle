@@ -1,0 +1,98 @@
+{
+  if (meta.isFoldernameDynamic() && (data.filenr >= data.filessize)) {
+    data.readrow=getRow();
+  }
+  if (first) {
+    first=false;
+    if (meta.isFoldernameDynamic()) {
+      data.inputRowMeta=getInputRowMeta();
+      data.outputRowMeta=data.inputRowMeta.clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+      data.totalpreviousfields=data.inputRowMeta.size();
+      if (Const.isEmpty(meta.getDynamicFoldernameField())) {
+        logError(Messages.getString("GetSubFolders.Log.NoField"));
+        throw new KettleException(Messages.getString("GetSubFolders.Log.NoField"));
+      }
+      if (data.indexOfFoldernameField < 0) {
+        String realDynamicFoldername=environmentSubstitute(meta.getDynamicFoldernameField());
+        data.indexOfFoldernameField=data.inputRowMeta.indexOfValue(realDynamicFoldername);
+        if (data.indexOfFoldernameField < 0) {
+          logError(Messages.getString("GetSubFolders.Log.ErrorFindingField") + "[" + realDynamicFoldername+ "]");
+          throw new KettleException(Messages.getString("GetSubFolders.Exception.CouldnotFindField",realDynamicFoldername));
+        }
+      }
+    }
+ else {
+      data.outputRowMeta=new RowMeta();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+      data.files=meta.getFolderList(this);
+      data.filessize=data.files.nrOfFiles();
+      handleMissingFiles();
+    }
+    data.nrStepFields=data.outputRowMeta.size();
+  }
+  if (meta.isFoldernameDynamic()) {
+    if (data.readrow == null) {
+      setOutputDone();
+      return false;
+    }
+  }
+ else {
+    if (data.filenr >= data.filessize) {
+      setOutputDone();
+      return false;
+    }
+  }
+  try {
+    Object[] outputRow=buildEmptyRow();
+    int outputIndex=0;
+    Object extraData[]=new Object[data.nrStepFields];
+    if (meta.isFoldernameDynamic()) {
+      if (data.filenr >= data.filessize) {
+        String filename=getInputRowMeta().getString(data.readrow,data.indexOfFoldernameField);
+        String[] filesname={filename};
+        String[] filesrequired={GetSubFoldersMeta.NO};
+        data.files=meta.getDynamicFolderList(getTransMeta(),filesname,filesrequired);
+        data.filessize=data.files.nrOfFiles();
+        data.filenr=0;
+      }
+      outputRow=data.readrow.clone();
+    }
+    if (data.filessize > 0) {
+      data.file=data.files.getFile(data.filenr);
+      extraData[outputIndex++]=KettleVFS.getFilename(data.file);
+      extraData[outputIndex++]=data.file.getName().getBaseName();
+      try {
+        extraData[outputIndex++]=KettleVFS.getFilename(data.file.getParent());
+        extraData[outputIndex++]=Boolean.valueOf(data.file.isHidden());
+        extraData[outputIndex++]=Boolean.valueOf(data.file.isReadable());
+        extraData[outputIndex++]=Boolean.valueOf(data.file.isWriteable());
+        extraData[outputIndex++]=new Date(data.file.getContent().getLastModifiedTime());
+      }
+ catch (      IOException e) {
+        throw new KettleException(e);
+      }
+      extraData[outputIndex++]=data.file.getName().getURI();
+      extraData[outputIndex++]=data.file.getName().getRootURI();
+      extraData[outputIndex++]=new Long(data.file.getChildren().length);
+      if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+        extraData[outputIndex++]=new Long(data.rownr);
+      }
+      data.rownr++;
+      outputRow=RowDataUtil.addRowData(outputRow,data.totalpreviousfields,extraData);
+      putRow(data.outputRowMeta,outputRow);
+      if (meta.getRowLimit() > 0 && data.rownr >= meta.getRowLimit()) {
+        setOutputDone();
+        return false;
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleStepException(e);
+  }
+  data.filenr++;
+  if (checkFeedback(getLinesInput())) {
+    if (log.isBasic())     logBasic(Messages.getString("GetSubFolders.Log.NrLine","" + getLinesInput()));
+  }
+  return true;
+}
