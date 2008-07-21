@@ -17,6 +17,15 @@
     String realwildcard=environmentSubstitute(wildcard);
     String realftpDirectory=environmentSubstitute(ftpDirectory);
     String realDestinationFolder=environmentSubstitute(destinationfolder);
+    try {
+      realftpDirectory=normalizePath(realftpDirectory);
+      realDestinationFolder=normalizePath(realDestinationFolder);
+    }
+ catch (    Exception e) {
+      log.logError(toString(),Messages.getString("JobSSH2PUT.Log.CanNotNormalizePath",e.getMessage()));
+      result.setNrErrors(1);
+      return result;
+    }
     boolean mandatoryok=true;
     if (Const.isEmpty(realServerName)) {
       mandatoryok=false;
@@ -83,10 +92,10 @@
         }
         if (isAuthenticated == false)         log.logError(toString(),Messages.getString("JobSSH2PUT.Log.AuthenticationFailed"));
  else {
-          log.logBasic(toString(),Messages.getString("JobSSH2PUT.Log.Connected",serverName,userName));
+          if (log.isBasic())           log.logBasic(toString(),Messages.getString("JobSSH2PUT.Log.Connected",serverName,userName));
           client=new SFTPv3Client(conn);
           if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobSSH2PUT.Log.ProtocolVersion","" + client.getProtocolVersion()));
-          if (realftpDirectory != null) {
+          if (!Const.isEmpty(realftpDirectory)) {
             if (!sshDirectoryExists(client,realftpDirectory)) {
               good=false;
               if (createRemoteFolder) {
@@ -105,6 +114,7 @@
               FileObject myFile=myFileList.get(i);
               String localFilename=myFile.toString();
               String remoteFilename=myFile.getName().getBaseName();
+              if (!Const.isEmpty(realftpDirectory))               remoteFilename=realftpDirectory + FILE_SEPARATOR + remoteFilename;
               boolean getIt=true;
               if (pattern != null) {
                 Matcher matcher=pattern.matcher(remoteFilename);
@@ -113,7 +123,7 @@
               if (getIt) {
                 nbfilestoput++;
                 boolean putok=true;
-                if ((onlyGettingNewFiles == false) || (onlyGettingNewFiles == true) && !sshFileExists(client,localFilename)) {
+                if ((onlyGettingNewFiles == false) || (onlyGettingNewFiles == true) && !sshFileExists(client,remoteFilename)) {
                   putok=putFile(myFile,remoteFilename,client);
                   if (!putok) {
                     nbrerror++;

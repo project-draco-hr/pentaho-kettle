@@ -17,6 +17,15 @@
   String realwildcard=environmentSubstitute(wildcard);
   String realftpDirectory=environmentSubstitute(ftpDirectory);
   String realDestinationFolder=environmentSubstitute(destinationfolder);
+  try {
+    realftpDirectory=normalizePath(realftpDirectory);
+    realDestinationFolder=normalizePath(realDestinationFolder);
+  }
+ catch (  Exception e) {
+    log.logError(toString(),Messages.getString("JobSSH2GET.Log.CanNotNormalizePath",e.getMessage()));
+    result.setNrErrors(1);
+    return result;
+  }
   if (log.isRowLevel())   log.logRowlevel(toString(),Messages.getString("JobSSH2GET.Log.CheckingMandatoryFields"));
   boolean mandatoryok=true;
   if (Const.isEmpty(realServerName)) {
@@ -92,10 +101,10 @@
       }
       if (isAuthenticated == false)       log.logError(toString(),Messages.getString("JobSSH2GET.Log.AuthenticationFailed"));
  else {
-        log.logBasic(toString(),Messages.getString("JobSSH2GET.Log.Connected",serverName,userName));
+        if (log.isBasic())         log.logBasic(toString(),Messages.getString("JobSSH2GET.Log.Connected",serverName,userName));
         client=new SFTPv3Client(conn);
         if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobSSH2GET.Log.ProtocolVersion","" + client.getProtocolVersion()));
-        if (realftpDirectory != null) {
+        if (!Const.isEmpty(realftpDirectory)) {
           if (!sshDirectoryExists(client,realftpDirectory)) {
             good=false;
             log.logError(toString(),Messages.getString("JobSSH2GET.Log.RemoteDirectoryNotExist",realftpDirectory));
