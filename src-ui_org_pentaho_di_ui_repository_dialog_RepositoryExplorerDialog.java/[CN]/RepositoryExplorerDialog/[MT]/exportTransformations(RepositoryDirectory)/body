@@ -7,15 +7,15 @@
       for (int d=0; d < dirids.length; d++) {
         RepositoryDirectory repdir=rep.getDirectoryTree().findDirectory(dirids[d]);
         String trans[]=rep.getTransformationNames(dirids[d]);
+        File dir=new File(directory + repdir.getPath());
+        if (!dir.exists()) {
+          dir.mkdir();
+          log.logBasic("Exporting transformation","Created directory [" + dir.getName() + "]");
+        }
         for (int i=0; i < trans.length; i++) {
           TransMeta ti=new TransMeta(rep,trans[i],repdir);
           if (log.isBasic())           log.logBasic("Exporting transformation","[" + trans[i] + "] in directory ["+ repdir.getPath()+ "]");
           String xml=XMLHandler.getXMLHeader() + ti.getXML();
-          File dir=new File(directory + repdir.getPath());
-          if (!dir.exists()) {
-            dir.mkdir();
-            log.logBasic("Exporting transformation","Created directory [" + dir.getName() + "]");
-          }
           String filename=directory + repdir.getPath() + Const.FILE_SEPARATOR+ fixFileName(trans[i])+ ".ktr";
           File f=new File(filename);
           try {
@@ -24,13 +24,13 @@
             fos.close();
           }
  catch (          IOException e) {
-            log.logError("Exporting transformation","Couldn't create file [" + filename + "]");
+            throw new RuntimeException("Exporting transformation: Couldn't create file [" + filename + "]",e);
           }
         }
       }
     }
   }
- catch (  KettleException e) {
+ catch (  Exception e) {
     new ErrorDialog(shell,Messages.getString("RepositoryExplorerDialog.ExportTrans.UnexpectedError.Title"),Messages.getString("RepositoryExplorerDialog.ExportTrans.UnexpectedError.Message"),e);
   }
 }
