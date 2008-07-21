@@ -7,6 +7,12 @@
   boolean renameOk=false;
   boolean orginexist=false;
   FileObject OriginFile=null;
+  ZipInputStream zin=null;
+  byte[] buffer=null;
+  FileOutputStream dest=null;
+  BufferedOutputStream buff=null;
+  ZipOutputStream out=null;
+  ZipEntry entry=null;
   try {
     OriginFile=KettleVFS.getFileObject(realTargetdirectory);
     orginexist=OriginFile.exists();
@@ -49,23 +55,6 @@
         log.logError(toString(),Messages.getString("JobZipFiles.AfterZip_No_DestinationFolder_Defined.Label"));
       }
  else {
-        if (ifzipfileexists == 0 && Fileexists) {
-          if (realZipfilename.toLowerCase().endsWith(".zip")) {
-            realZipfilename=realZipfilename.substring(0,realZipfilename.length() - 4);
-          }
-          realZipfilename=realZipfilename + "_" + StringUtil.getFormattedDateTimeNow(true)+ ".zip";
-          if (log.isDebug())           log.logDebug(toString(),Messages.getString("JobZipFiles.Zip_FileNameChange1.Label") + realZipfilename + Messages.getString("JobZipFiles.Zip_FileNameChange1.Label"));
-        }
- else         if (ifzipfileexists == 1 && Fileexists) {
-          fileZip=new File(realZipfilename);
-          tempFile=File.createTempFile(fileZip.getName(),null);
-          tempFile.delete();
-          renameOk=fileZip.renameTo(tempFile);
-          if (!renameOk) {
-            log.logError(toString(),Messages.getString("JobZipFiles.Cant_Rename_Temp1.Label") + fileZip.getAbsolutePath() + Messages.getString("JobZipFiles.Cant_Rename_Temp2.Label")+ tempFile.getAbsolutePath()+ Messages.getString("JobZipFiles.Cant_Rename_Temp3.Label"));
-          }
-          if (log.isDebug())           log.logDebug(toString(),Messages.getString("JobZipFiles.Zip_FileAppend1.Label") + realZipfilename + Messages.getString("JobZipFiles.Zip_FileAppend2.Label"));
-        }
         String[] filelist=null;
         File f=new File(realTargetdirectory);
         if (f.isDirectory()) {
@@ -75,128 +64,155 @@
           filelist=new String[1];
           filelist[0]=f.getName();
         }
-        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobZipFiles.Files_Found1.Label") + filelist.length + Messages.getString("JobZipFiles.Files_Found2.Label")+ realTargetdirectory+ Messages.getString("JobZipFiles.Files_Found3.Label"));
-        Pattern pattern=null;
-        Pattern patternexclude=null;
-        if (f.isDirectory()) {
-          if (!Const.isEmpty(realWildcard)) {
-            pattern=Pattern.compile(realWildcard);
-          }
-          if (!Const.isEmpty(realWildcardExclude)) {
-            patternexclude=Pattern.compile(realWildcardExclude);
-          }
+        if (filelist.length == 0) {
+          resultat=false;
+          log.logError(toString(),Messages.getString("JobZipFiles.Log.FolderIsEmpty",realTargetdirectory));
         }
-        byte[] buffer=new byte[18024];
-        FileOutputStream dest=new FileOutputStream(realZipfilename);
-        BufferedOutputStream buff=new BufferedOutputStream(dest);
-        ZipOutputStream out=new ZipOutputStream(buff);
-        HashSet<String> fileSet=new HashSet<String>();
-        if (renameOk) {
-          ZipInputStream zin=new ZipInputStream(new FileInputStream(tempFile));
-          ZipEntry entry=zin.getNextEntry();
-          while (entry != null) {
-            String name=entry.getName();
-            if (!fileSet.contains(name)) {
-              out.putNextEntry(new ZipEntry(name));
+ else         if (!checkContainsFile(realTargetdirectory,filelist)) {
+          resultat=false;
+          log.logError(toString(),Messages.getString("JobZipFiles.Log.NoFilesInFolder",realTargetdirectory));
+        }
+ else {
+          if (ifzipfileexists == 0 && Fileexists) {
+            if (realZipfilename.toLowerCase().endsWith(".zip")) {
+              realZipfilename=realZipfilename.substring(0,realZipfilename.length() - 4);
+            }
+            realZipfilename=realZipfilename + "_" + StringUtil.getFormattedDateTimeNow(true)+ ".zip";
+            if (log.isDebug())             log.logDebug(toString(),Messages.getString("JobZipFiles.Zip_FileNameChange1.Label") + realZipfilename + Messages.getString("JobZipFiles.Zip_FileNameChange1.Label"));
+          }
+ else           if (ifzipfileexists == 1 && Fileexists) {
+            fileZip=new File(realZipfilename);
+            tempFile=File.createTempFile(fileZip.getName(),null);
+            tempFile.delete();
+            renameOk=fileZip.renameTo(tempFile);
+            if (!renameOk) {
+              log.logError(toString(),Messages.getString("JobZipFiles.Cant_Rename_Temp1.Label") + fileZip.getAbsolutePath() + Messages.getString("JobZipFiles.Cant_Rename_Temp2.Label")+ tempFile.getAbsolutePath()+ Messages.getString("JobZipFiles.Cant_Rename_Temp3.Label"));
+            }
+            if (log.isDebug())             log.logDebug(toString(),Messages.getString("JobZipFiles.Zip_FileAppend1.Label") + realZipfilename + Messages.getString("JobZipFiles.Zip_FileAppend2.Label"));
+          }
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobZipFiles.Files_Found1.Label") + filelist.length + Messages.getString("JobZipFiles.Files_Found2.Label")+ realTargetdirectory+ Messages.getString("JobZipFiles.Files_Found3.Label"));
+          Pattern pattern=null;
+          Pattern patternexclude=null;
+          if (f.isDirectory()) {
+            if (!Const.isEmpty(realWildcard)) {
+              pattern=Pattern.compile(realWildcard);
+            }
+            if (!Const.isEmpty(realWildcardExclude)) {
+              patternexclude=Pattern.compile(realWildcardExclude);
+            }
+          }
+          buffer=new byte[18024];
+          dest=new FileOutputStream(realZipfilename);
+          buff=new BufferedOutputStream(dest);
+          out=new ZipOutputStream(buff);
+          HashSet<String> fileSet=new HashSet<String>();
+          if (renameOk) {
+            zin=new ZipInputStream(new FileInputStream(tempFile));
+            entry=zin.getNextEntry();
+            while (entry != null) {
+              String name=entry.getName();
+              if (!fileSet.contains(name)) {
+                out.putNextEntry(new ZipEntry(name));
+                int len;
+                while ((len=zin.read(buffer)) > 0) {
+                  out.write(buffer,0,len);
+                }
+                fileSet.add(name);
+              }
+              entry=zin.getNextEntry();
+            }
+            zin.close();
+          }
+          out.setMethod(ZipOutputStream.DEFLATED);
+          if (compressionrate == 0) {
+            out.setLevel(Deflater.NO_COMPRESSION);
+          }
+ else           if (compressionrate == 1) {
+            out.setLevel(Deflater.DEFAULT_COMPRESSION);
+          }
+          if (compressionrate == 2) {
+            out.setLevel(Deflater.BEST_COMPRESSION);
+          }
+          if (compressionrate == 3) {
+            out.setLevel(Deflater.BEST_SPEED);
+          }
+          String[] ZippedFiles=new String[filelist.length];
+          int FileNum=0;
+          for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+            boolean getIt=true;
+            boolean getItexclude=false;
+            if (f.isDirectory()) {
+              if (pattern != null) {
+                Matcher matcher=pattern.matcher(filelist[i]);
+                getIt=matcher.matches();
+              }
+              if (patternexclude != null) {
+                Matcher matcherexclude=patternexclude.matcher(filelist[i]);
+                getItexclude=matcherexclude.matches();
+              }
+            }
+            String targetFilename=realTargetdirectory + Const.FILE_SEPARATOR + filelist[i];
+            if (f.isFile())             targetFilename=realTargetdirectory;
+            File file=new File(targetFilename);
+            if (getIt && !getItexclude && !file.isDirectory()&& !fileSet.contains(filelist[i])) {
+              if (log.isDebug())               log.logDebug(toString(),Messages.getString("JobZipFiles.Add_FilesToZip1.Label") + filelist[i] + Messages.getString("JobZipFiles.Add_FilesToZip2.Label")+ realTargetdirectory+ Messages.getString("JobZipFiles.Add_FilesToZip3.Label"));
+              FileInputStream in=new FileInputStream(targetFilename);
+              out.putNextEntry(new ZipEntry(filelist[i]));
               int len;
-              while ((len=zin.read(buffer)) > 0) {
+              while ((len=in.read(buffer)) > 0) {
                 out.write(buffer,0,len);
               }
-              fileSet.add(name);
-            }
-            entry=zin.getNextEntry();
-          }
-          zin.close();
-        }
-        out.setMethod(ZipOutputStream.DEFLATED);
-        if (compressionrate == 0) {
-          out.setLevel(Deflater.NO_COMPRESSION);
-        }
- else         if (compressionrate == 1) {
-          out.setLevel(Deflater.DEFAULT_COMPRESSION);
-        }
-        if (compressionrate == 2) {
-          out.setLevel(Deflater.BEST_COMPRESSION);
-        }
-        if (compressionrate == 3) {
-          out.setLevel(Deflater.BEST_SPEED);
-        }
-        String[] ZippedFiles=new String[filelist.length];
-        int FileNum=0;
-        for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
-          boolean getIt=true;
-          boolean getItexclude=false;
-          if (f.isDirectory()) {
-            if (pattern != null) {
-              Matcher matcher=pattern.matcher(filelist[i]);
-              getIt=matcher.matches();
-            }
-            if (patternexclude != null) {
-              Matcher matcherexclude=patternexclude.matcher(filelist[i]);
-              getItexclude=matcherexclude.matches();
+              out.flush();
+              out.closeEntry();
+              in.close();
+              ZippedFiles[FileNum]=filelist[i];
+              FileNum=FileNum + 1;
             }
           }
-          String targetFilename=realTargetdirectory + Const.FILE_SEPARATOR + filelist[i];
-          if (f.isFile())           targetFilename=realTargetdirectory;
-          File file=new File(targetFilename);
-          if (getIt && !getItexclude && !file.isDirectory()&& !fileSet.contains(filelist[i])) {
-            if (log.isDebug())             log.logDebug(toString(),Messages.getString("JobZipFiles.Add_FilesToZip1.Label") + filelist[i] + Messages.getString("JobZipFiles.Add_FilesToZip2.Label")+ realTargetdirectory+ Messages.getString("JobZipFiles.Add_FilesToZip3.Label"));
-            FileInputStream in=new FileInputStream(targetFilename);
-            out.putNextEntry(new ZipEntry(filelist[i]));
-            int len;
-            while ((len=in.read(buffer)) > 0) {
-              out.write(buffer,0,len);
-            }
-            out.flush();
-            out.closeEntry();
-            in.close();
-            ZippedFiles[FileNum]=filelist[i];
-            FileNum=FileNum + 1;
+          out.close();
+          buff.close();
+          dest.close();
+          if (log.isBasic())           log.logBasic(toString(),Messages.getString("JobZipFiles.Log.TotalZippedFiles","" + ZippedFiles.length));
+          if (tempFile != null) {
+            tempFile.delete();
           }
-        }
-        out.close();
-        buff.close();
-        dest.close();
-        log.logBasic(toString(),"Total zipped files : " + ZippedFiles.length);
-        if (tempFile != null) {
-          tempFile.delete();
-        }
-        if (afterzip == 1 || afterzip == 2) {
-          for (int i=0; i < ZippedFiles.length; i++) {
-            if (ZippedFiles[i] != null) {
-              FileObject fileObjectd=KettleVFS.getFileObject(realTargetdirectory + Const.FILE_SEPARATOR + ZippedFiles[i]);
-              if (f.isFile())               fileObjectd=KettleVFS.getFileObject(realTargetdirectory);
-              System.gc();
-              if (afterzip == 1) {
-                boolean deleted=fileObjectd.delete();
-                if (!deleted) {
-                  resultat=false;
-                  log.logError(toString(),Messages.getString("JobZipFiles.Cant_Delete_File1.Label") + realTargetdirectory + Const.FILE_SEPARATOR+ ZippedFiles[i]+ Messages.getString("JobZipFiles.Cant_Delete_File2.Label"));
+          if (afterzip == 1 || afterzip == 2) {
+            for (int i=0; i < ZippedFiles.length; i++) {
+              if (ZippedFiles[i] != null) {
+                FileObject fileObjectd=KettleVFS.getFileObject(realTargetdirectory + Const.FILE_SEPARATOR + ZippedFiles[i]);
+                if (f.isFile())                 fileObjectd=KettleVFS.getFileObject(realTargetdirectory);
+                System.gc();
+                if (afterzip == 1) {
+                  boolean deleted=fileObjectd.delete();
+                  if (!deleted) {
+                    resultat=false;
+                    log.logError(toString(),Messages.getString("JobZipFiles.Cant_Delete_File1.Label") + realTargetdirectory + Const.FILE_SEPARATOR+ ZippedFiles[i]+ Messages.getString("JobZipFiles.Cant_Delete_File2.Label"));
+                  }
+                  if (log.isDebug())                   log.logDebug(toString(),Messages.getString("JobZipFiles.File_Deleted1.Label") + realTargetdirectory + Const.FILE_SEPARATOR+ ZippedFiles[i]+ Messages.getString("JobZipFiles.File_Deleted2.Label"));
                 }
-                if (log.isDebug())                 log.logDebug(toString(),Messages.getString("JobZipFiles.File_Deleted1.Label") + realTargetdirectory + Const.FILE_SEPARATOR+ ZippedFiles[i]+ Messages.getString("JobZipFiles.File_Deleted2.Label"));
-              }
- else               if (afterzip == 2) {
-                try {
-                  FileObject fileObjectm=KettleVFS.getFileObject(realMovetodirectory + Const.FILE_SEPARATOR + ZippedFiles[i]);
-                  fileObjectd.moveTo(fileObjectm);
+ else                 if (afterzip == 2) {
+                  try {
+                    FileObject fileObjectm=KettleVFS.getFileObject(realMovetodirectory + Const.FILE_SEPARATOR + ZippedFiles[i]);
+                    fileObjectd.moveTo(fileObjectm);
+                  }
+ catch (                  IOException e) {
+                    log.logError(toString(),Messages.getString("JobZipFiles.Cant_Move_File1.Label") + ZippedFiles[i] + Messages.getString("JobZipFiles.Cant_Move_File2.Label")+ e.getMessage());
+                    resultat=false;
+                  }
+                  if (log.isDebug())                   log.logDebug(toString(),Messages.getString("JobZipFiles.File_Moved1.Label") + ZippedFiles[i] + Messages.getString("JobZipFiles.File_Moved2.Label"));
                 }
- catch (                IOException e) {
-                  log.logError(toString(),Messages.getString("JobZipFiles.Cant_Move_File1.Label") + ZippedFiles[i] + Messages.getString("JobZipFiles.Cant_Move_File2.Label")+ e.getMessage());
-                  resultat=false;
-                }
-                if (log.isDebug())                 log.logDebug(toString(),Messages.getString("JobZipFiles.File_Moved1.Label") + ZippedFiles[i] + Messages.getString("JobZipFiles.File_Moved2.Label"));
               }
             }
           }
+          if (addfiletoresult) {
+            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(realZipfilename),parentJob.getName(),toString());
+            result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+          }
+          resultat=true;
         }
-        if (addfiletoresult) {
-          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(realZipfilename),parentJob.getName(),toString());
-          result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-        }
-        resultat=true;
       }
     }
- catch (    IOException e) {
+ catch (    Exception e) {
       log.logError(toString(),Messages.getString("JobZipFiles.Cant_CreateZipFile1.Label") + realZipfilename + Messages.getString("JobZipFiles.Cant_CreateZipFile2.Label")+ e.getMessage());
       resultat=false;
     }
@@ -209,6 +225,16 @@
         }
         ;
       }
+      try {
+        if (out != null)         out.close();
+        if (buff != null)         buff.close();
+        if (dest != null)         dest.close();
+        if (zin != null)         zin.close();
+        if (entry != null)         entry=null;
+      }
+ catch (      IOException ex) {
+      }
+      ;
     }
   }
  else {
