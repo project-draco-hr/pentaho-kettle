@@ -84,8 +84,8 @@
       }
     }
     if (!exitjobentry) {
-      String[] filelist=ftpclient.dir();
-      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobEntryFTP.FoundNFiles",String.valueOf(filelist.length)));
+      FTPFile[] ftpFiles=ftpclient.dirDetails(".");
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobEntryFTP.FoundNFiles",String.valueOf(ftpFiles.length)));
       if (binaryMode) {
         ftpclient.setType(FTPTransferType.BINARY);
         if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetBinary"));
@@ -94,11 +94,11 @@
         ftpclient.setType(FTPTransferType.ASCII);
         if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobEntryFTP.SetAscii"));
       }
-      if (filelist.length == 1) {
+      if (ftpFiles.length == 1) {
         String translatedWildcard=environmentSubstitute(wildcard);
         if (!Const.isEmpty(translatedWildcard)) {
-          if (filelist[0].startsWith(translatedWildcard)) {
-            throw new FTPException(filelist[0]);
+          if (ftpFiles[0].getName().startsWith(translatedWildcard)) {
+            throw new FTPException(ftpFiles[0].getName());
           }
         }
       }
@@ -108,41 +108,26 @@
         pattern=Pattern.compile(realWildcard);
       }
       if (!getSuccessCondition().equals(SUCCESS_IF_NO_ERRORS))       limitFiles=Const.toInt(environmentSubstitute(getLimit()),10);
-      for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      for (      FTPFile ftpFile : ftpFiles) {
+        if (parentJob.isStopped()) {
+          exitjobentry=true;
+          throw new Exception(Messages.getString("JobEntryFTP.JobStopped"));
+        }
         if (successConditionBroken) {
-          log.logError(toString(),Messages.getString("JobEntryFTP.Error.SuccessConditionbroken","" + NrErrors));
-          displayResults(log);
           throw new Exception(Messages.getString("JobEntryFTP.SuccesConditionBroken","" + NrErrors));
         }
         boolean getIt=true;
-        if (log.isDebug())         log.logDebug(toString(),Messages.getString("JobEntryFTP.AnalysingFile",filelist[i]));
+        String filename=ftpFile.getName();
+        if (log.isDebug())         log.logDebug(toString(),Messages.getString("JobEntryFTP.AnalysingFile",filename));
+        if (ftpFile.isDir() || ftpFile.isLink())         getIt=false;
         try {
-          if (pattern != null) {
-            Matcher matcher=pattern.matcher(filelist[i]);
-            getIt=matcher.matches();
-          }
-          FTPFile[] finfo=ftpclient.dirDetails(filelist[i]);
-          if (finfo[0].isDir() || !filelist[i].equals(finfo[0].getName()))           getIt=false;
           if (getIt) {
-            targetFilename=getTargetFilename(filelist[i]);
-            if ((!onlyGettingNewFiles) || (onlyGettingNewFiles && needsDownload(targetFilename))) {
-              if (log.isDetailed())               log.logDetailed(toString(),Messages.getString("JobEntryFTP.GettingFile",filelist[i],environmentSubstitute(targetDirectory)));
-              ftpclient.get(targetFilename,filelist[i]);
-              updateRetrievedFiles();
-              if (log.isDetailed())               log.logDetailed(toString(),Messages.getString("JobEntryFTP.GotFile",filelist[i]));
-              addFilenameToResultFilenames(log,result,parentJob,targetFilename);
-              if (remove) {
-                ftpclient.delete(filelist[i]);
-                if (log.isDetailed())                 if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobEntryFTP.DeletedFile",filelist[i]));
-              }
- else {
-                if (movefiles) {
-                  ftpclient.rename(filelist[i],realMoveToFolder + FILE_SEPARATOR + filelist[i]);
-                  if (log.isDetailed())                   log.logDetailed(toString(),Messages.getString("JobEntryFTP.MovedFile",filelist[i],realMoveToFolder));
-                }
-              }
+            if (pattern != null) {
+              Matcher matcher=pattern.matcher(filename);
+              getIt=matcher.matches();
             }
           }
+          if (getIt)           downloadFile(ftpclient,filename,realMoveToFolder,log,parentJob,result);
         }
  catch (        Exception e) {
           updateErrors();
@@ -152,12 +137,11 @@
     }
   }
  catch (  Exception e) {
-    updateErrors();
+    if (!successConditionBroken && !exitjobentry)     updateErrors();
     log.logError(toString(),Messages.getString("JobEntryFTP.ErrorGetting",e.getMessage()));
-    log.logError(toString(),Const.getStackTracker(e));
   }
  finally {
-    if (ftpclient != null && ftpclient.connected()) {
+    if (ftpclient != null) {
       try {
         ftpclient.quit();
       }
