@@ -8,28 +8,32 @@
   }
   if (first) {
     first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
     if (meta.isAddCloneFlag()) {
       String realflagfield=environmentSubstitute(meta.getCloneFlagField());
       if (Const.isEmpty(realflagfield)) {
         logError(Messages.getString("CloneRow.Error.CloneFlagFieldMissing"));
         throw new KettleException(Messages.getString("CloneRow.Error.CloneFlagFieldMissing"));
       }
-      data.outputRowMeta=getInputRowMeta().clone();
       meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
     }
     String nrclonesString=environmentSubstitute(meta.getNrClones());
     data.nrclones=Const.toInt(nrclonesString,0);
     if (log.isDebug())     log.logDebug(toString(),Messages.getString("CloneRow.Log.NrClones","" + data.nrclones));
   }
-  boolean isclonerow=false;
-  for (int i=0; i <= data.nrclones; i++) {
+  if (meta.isAddCloneFlag()) {
+    Object[] outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),false);
+    putRow(data.outputRowMeta,outputRowData);
+  }
+ else {
+    putRow(data.outputRowMeta,r);
+  }
+  for (int i=0; i < data.nrclones; i++) {
+    Object[] outputRowData=RowDataUtil.createResizedCopy(r,data.outputRowMeta.size());
     if (meta.isAddCloneFlag()) {
-      if (i == 0)       isclonerow=false;
- else       isclonerow=true;
-      Object[] outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),isclonerow);
-      putRow(data.outputRowMeta,outputRowData);
+      outputRowData=RowDataUtil.addValueData(outputRowData,getInputRowMeta().size(),true);
     }
- else     putRow(getInputRowMeta(),r);
+    putRow(data.outputRowMeta,outputRowData);
   }
   if (checkFeedback(getLinesRead())) {
     if (log.isDetailed())     logDetailed(Messages.getString("CloneRow.Log.LineNumber","" + getLinesRead()));
