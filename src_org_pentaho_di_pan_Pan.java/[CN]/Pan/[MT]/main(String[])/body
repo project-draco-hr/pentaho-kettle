@@ -14,14 +14,14 @@
   CommandLineOption options[]=new CommandLineOption[]{new CommandLineOption("rep",Messages.getString("Pan.ComdLine.RepName"),optionRepname=new StringBuffer()),new CommandLineOption("user",Messages.getString("Pan.ComdLine.RepUsername"),optionUsername=new StringBuffer()),new CommandLineOption("pass",Messages.getString("Pan.ComdLine.RepPassword"),optionPassword=new StringBuffer()),new CommandLineOption("trans",Messages.getString("Pan.ComdLine.TransName"),optionTransname=new StringBuffer()),new CommandLineOption("dir",Messages.getString("Pan.ComdLine.RepDir"),optionDirname=new StringBuffer()),new CommandLineOption("file",Messages.getString("Pan.ComdLine.XMLTransFile"),optionFilename=new StringBuffer()),new CommandLineOption("level",Messages.getString("Pan.ComdLine.LogLevel"),optionLoglevel=new StringBuffer()),new CommandLineOption("logfile",Messages.getString("Pan.ComdLine.LogFile"),optionLogfile=new StringBuffer()),new CommandLineOption("log",Messages.getString("Pan.ComdLine.LogOldFile"),optionLogfileOld=new StringBuffer(),false,true),new CommandLineOption("listdir",Messages.getString("Pan.ComdLine.ListDirRep"),optionListdir=new StringBuffer(),true,false),new CommandLineOption("listtrans",Messages.getString("Pan.ComdLine.ListTransDir"),optionListtrans=new StringBuffer(),true,false),new CommandLineOption("listrep",Messages.getString("Pan.ComdLine.ListReps"),optionListrep=new StringBuffer(),true,false),new CommandLineOption("exprep",Messages.getString("Pan.ComdLine.ExpObjectsXML"),optionExprep=new StringBuffer(),true,false),new CommandLineOption("norep",Messages.getString("Pan.ComdLine.NoRep"),optionNorep=new StringBuffer(),true,false),new CommandLineOption("safemode",Messages.getString("Pan.ComdLine.SafeMode"),optionSafemode=new StringBuffer(),true,false),new CommandLineOption("version",Messages.getString("Pan.ComdLine.Version"),optionVersion=new StringBuffer(),true,false),new CommandLineOption("jarfile",Messages.getString("Pan.ComdLine.JarFile"),optionJarFilename=new StringBuffer(),false,true)};
   if (args.size() == 0) {
     CommandLineOption.printUsage(options);
-    System.exit(9);
+    exitJVM(9);
   }
   LogWriter log;
   LogWriter.setConsoleAppenderDebug();
   log=LogWriter.getInstance(LogWriter.LOG_LEVEL_BASIC);
   if (!CommandLineOption.parseArguments(args,options,log)) {
     log.logError("Pan",Messages.getString("Pan.Error.CommandLineError"));
-    System.exit(8);
+    exitJVM(8);
   }
   String kettleRepname=Const.getEnvironmentVariable("KETTLE_REPOSITORY",null);
   String kettleUsername=Const.getEnvironmentVariable("KETTLE_USER",null);
@@ -42,7 +42,7 @@
   if (!Const.isEmpty(optionVersion)) {
     BuildVersion buildVersion=BuildVersion.getInstance();
     if (log.isBasic())     log.logBasic("Pan",Messages.getString("Pan.Log.KettleVersion","" + Const.VERSION,"" + buildVersion.getVersion(),"" + buildVersion.getBuildDate()));
-    if (a.length == 1)     System.exit(6);
+    if (a.length == 1)     exitJVM(6);
   }
   if (log.isDebug()) {
     System.out.println("Arguments:");
@@ -57,14 +57,14 @@
   }
  catch (  KettleException e) {
     log.logError("Pan",Messages.getString("Pan.Error.LoadingStepsHaltPan"));
-    System.exit(8);
+    exitJVM(8);
   }
   try {
     JobEntryLoader.init();
   }
  catch (  KettleException e) {
     log.logError("Pan",Messages.getString("Pan.Error.LoadingJobEntriesHaltPan"),e);
-    System.exit(8);
+    exitJVM(8);
   }
   Date start, stop;
   Calendar cal;
@@ -193,15 +193,15 @@
     transMeta=null;
     System.out.println(Messages.getString("Pan.Error.ProcessStopError",e.getMessage()));
     e.printStackTrace();
-    System.exit(1);
+    exitJVM(1);
   }
   if (trans == null) {
     if (!"Y".equalsIgnoreCase(optionListtrans.toString()) && !"Y".equalsIgnoreCase(optionListdir.toString()) && !"Y".equalsIgnoreCase(optionListrep.toString())&& Const.isEmpty(optionExprep)) {
       System.out.println(Messages.getString("Pan.Error.CanNotLoadTrans"));
-      System.exit(7);
+      exitJVM(7);
     }
  else {
-      System.exit(0);
+      exitJVM(0);
     }
   }
   try {
@@ -215,7 +215,7 @@
     }
  catch (    KettleException e) {
       System.out.println(Messages.getString("Pan.Error.UnablePrepareInitTrans"));
-      System.exit(3);
+      exitJVM(3);
     }
     trans.waitUntilFinished();
     trans.endProcessing("end");
@@ -229,15 +229,16 @@
     log.logMinimal("Pan",Messages.getString("Pan.Log.ProcessingEndAfter","" + (millis / 1000)));
     if (trans.getResult().getNrErrors() == 0) {
       trans.printStats((int)millis / 1000);
-      System.exit(0);
+      exitJVM(0);
     }
  else {
-      System.exit(1);
+      exitJVM(1);
     }
   }
  catch (  KettleException ke) {
     System.out.println(Messages.getString("Pan.Log.ErrorOccurred","" + ke.getMessage()));
     log.logError("Pan",Messages.getString("Pan.Log.UnexpectedErrorOccurred","" + ke.getMessage()));
-    System.exit(2);
+    LogWriter.closeAndRemoveFileAppender();
+    exitJVM(2);
   }
 }
