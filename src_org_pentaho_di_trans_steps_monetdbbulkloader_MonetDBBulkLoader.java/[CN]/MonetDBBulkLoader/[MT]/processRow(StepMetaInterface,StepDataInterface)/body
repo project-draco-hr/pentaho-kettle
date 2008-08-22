@@ -1,0 +1,34 @@
+{
+  meta=(MonetDBBulkLoaderMeta)smi;
+  data=(MonetDBBulkLoaderData)sdi;
+  try {
+    Object[] r=getRow();
+    if (r == null) {
+      setOutputDone();
+      data.monetOutputStream.flush();
+      data.monetOutputStream.close();
+      int exitVal=data.mClientlProcess.waitFor();
+      logBasic(Messages.getString("MonetDBBulkLoader.Log.ExitValuePsqlPath","" + exitVal));
+      return false;
+    }
+    if (first) {
+      first=false;
+      data.keynrs=new int[meta.getFieldStream().length];
+      for (int i=0; i < data.keynrs.length; i++) {
+        data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
+      }
+      execute(meta,true);
+    }
+    writeRowToMonetDB(getInputRowMeta(),r);
+    putRow(getInputRowMeta(),r);
+    incrementLinesOutput();
+    return true;
+  }
+ catch (  Exception e) {
+    logError(Messages.getString("MonetDBBulkLoader.Log.ErrorInStep"),e);
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+}

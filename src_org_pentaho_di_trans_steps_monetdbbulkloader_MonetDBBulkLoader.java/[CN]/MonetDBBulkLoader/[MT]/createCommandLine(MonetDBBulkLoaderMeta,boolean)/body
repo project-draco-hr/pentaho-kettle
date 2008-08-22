@@ -1,0 +1,64 @@
+{
+  StringBuffer sb=new StringBuffer(300);
+  if (!Const.isEmpty(meta.getMClientPath())) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getMClientPath()));
+      String psqlexec=KettleVFS.getFilename(fileObject);
+      sb.append(psqlexec);
+    }
+ catch (    IOException ex) {
+      throw new KettleException("Error retrieving mclient application string",ex);
+    }
+  }
+ else {
+    throw new KettleException("No mclient application specified");
+  }
+  sb.append(" -lsql --time --echo");
+  if (!Const.isEmpty(meta.getEncoding())) {
+    sb.append(" --encoding=");
+    sb.append(environmentSubstitute(meta.getEncoding()));
+  }
+  if (!Const.isEmpty(meta.getLogFile())) {
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getLogFile()));
+      sb.append(" --log=");
+      sb.append('\'').append(KettleVFS.getFilename(fileObject)).append('\'');
+    }
+ catch (    IOException ex) {
+      throw new KettleException("Error retrieving logfile string",ex);
+    }
+  }
+  DatabaseMeta dm=meta.getDatabaseMeta();
+  if (dm != null) {
+    String user=environmentSubstitute(Const.NVL(dm.getUsername(),""));
+    String pass=environmentSubstitute(Const.NVL(dm.getPassword(),""));
+    String hostname=environmentSubstitute(Const.NVL(dm.getHostname(),""));
+    String portnum=environmentSubstitute(Const.NVL(dm.getDatabasePortNumberString(),""));
+    String dbname=environmentSubstitute(Const.NVL(dm.getDatabaseName(),""));
+    if (!Const.isEmpty(user)) {
+      sb.append(" --user=").append(user);
+    }
+    if (!Const.isEmpty(pass)) {
+      sb.append(" --passwd=");
+      if (password) {
+        sb.append(pass);
+      }
+ else {
+        sb.append("******");
+      }
+    }
+    if (!Const.isEmpty(hostname)) {
+      sb.append(" --host=").append(hostname);
+    }
+    if (!Const.isEmpty(portnum) && Const.toInt(portnum,-1) > 0) {
+      sb.append(" --port=").append(portnum);
+    }
+    if (!Const.isEmpty(dbname)) {
+      sb.append(" --database=").append(dbname);
+    }
+  }
+ else {
+    throw new KettleException("No connection specified");
+  }
+  return sb.toString();
+}
