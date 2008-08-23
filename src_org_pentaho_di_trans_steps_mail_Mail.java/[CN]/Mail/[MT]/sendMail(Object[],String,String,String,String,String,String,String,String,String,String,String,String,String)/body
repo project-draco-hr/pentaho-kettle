@@ -1,0 +1,96 @@
+{
+  String protocol="smtp";
+  if (meta.isUsingAuthentication()) {
+    if (meta.getSecureConnectionType().equals("TLS")) {
+      data.props.put("mail.smtp.starttls.enable","true");
+    }
+ else {
+      protocol="smtps";
+      data.props.put("mail.smtps.quitwait","false");
+    }
+  }
+  data.props.put("mail." + protocol + ".host",environmentSubstitute(server));
+  if (!Const.isEmpty(port))   data.props.put("mail." + protocol + ".port",environmentSubstitute(port));
+  boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
+  if (debug)   data.props.put("mail.debug","true");
+  if (meta.isUsingAuthentication())   data.props.put("mail." + protocol + ".auth","true");
+  Session session=Session.getInstance(data.props);
+  session.setDebug(debug);
+  Message msg=new MimeMessage(session);
+  if (meta.isUsePriority()) {
+    String priority_int="1";
+    if (meta.getPriority().equals("low"))     priority_int="3";
+    if (meta.getPriority().equals("normal"))     priority_int="2";
+    msg.setHeader("X-Priority",priority_int);
+    msg.setHeader("Importance",meta.getImportance());
+  }
+  String email_address=environmentSubstitute(replyAddress);
+  if (!Const.isEmpty(email_address)) {
+    String replay_to_name=environmentSubstitute(replyName);
+    if (!Const.isEmpty(replay_to_name))     email_address=replay_to_name + '<' + email_address+ '>';
+    msg.setFrom(new InternetAddress(email_address));
+  }
+ else {
+    throw new MessagingException(Messages.getString("Mail.Error.ReplyEmailNotFilled"));
+  }
+  String destinations[]=environmentSubstitute(destination).split(" ");
+  InternetAddress[] address=new InternetAddress[destinations.length];
+  for (int i=0; i < destinations.length; i++)   address[i]=new InternetAddress(destinations[i]);
+  msg.setRecipients(Message.RecipientType.TO,address);
+  String realdestinationCc=environmentSubstitute(destinationCc);
+  if (!Const.isEmpty(realdestinationCc)) {
+    String destinationsCc[]=realdestinationCc.split(" ");
+    InternetAddress[] addressCc=new InternetAddress[destinationsCc.length];
+    for (int i=0; i < destinationsCc.length; i++)     addressCc[i]=new InternetAddress(destinationsCc[i]);
+    msg.setRecipients(Message.RecipientType.CC,addressCc);
+  }
+  String realdestinationBCc=environmentSubstitute(destinationBCc);
+  if (!Const.isEmpty(realdestinationBCc)) {
+    String destinationsBCc[]=realdestinationBCc.split(" ");
+    InternetAddress[] addressBCc=new InternetAddress[destinationsBCc.length];
+    for (int i=0; i < destinationsBCc.length; i++)     addressBCc[i]=new InternetAddress(destinationsBCc[i]);
+    msg.setRecipients(Message.RecipientType.BCC,addressBCc);
+  }
+  if (mailsubject != null)   msg.setSubject(mailsubject);
+  msg.setSentDate(new Date());
+  StringBuffer messageText=new StringBuffer();
+  if (comment != null)   messageText.append(comment).append(Const.CR).append(Const.CR);
+  if (meta.getIncludeDate())   messageText.append(Messages.getString("Mail.Log.Comment.MsgDate") + ": ").append(XMLHandler.date2string(new Date())).append(Const.CR).append(Const.CR);
+  if (!meta.isOnlySendComment() && (!Const.isEmpty(environmentSubstitute(contactPerson)) || !Const.isEmpty(environmentSubstitute(contactPhone)))) {
+    messageText.append(Messages.getString("Mail.Log.Comment.ContactInfo") + " :").append(Const.CR);
+    messageText.append("---------------------").append(Const.CR);
+    messageText.append(Messages.getString("Mail.Log.Comment.PersonToContact") + " : ").append(environmentSubstitute(contactPerson)).append(Const.CR);
+    messageText.append(Messages.getString("Mail.Log.Comment.Tel") + "  : ").append(environmentSubstitute(contactPhone)).append(Const.CR);
+    messageText.append(Const.CR);
+  }
+  Multipart parts=new MimeMultipart();
+  MimeBodyPart part1=new MimeBodyPart();
+  if (meta.isUseHTML()) {
+    if (!Const.isEmpty(meta.getEncoding()))     part1.setContent(messageText.toString(),"text/html; " + "charset=" + meta.getEncoding());
+ else     part1.setContent(messageText.toString(),"text/html; " + "charset=ISO-8859-1");
+  }
+ else   part1.setText(messageText.toString());
+  parts.addBodyPart(part1);
+  if (meta.isDynamicAttachedFilenames())   setAttachedFilesList(r,log);
+  if (data.files.getSize() > 0)   parts.addBodyPart(data.files);
+  msg.setContent(parts);
+  Transport transport=null;
+  try {
+    transport=session.getTransport(protocol);
+    if (meta.isUsingAuthentication()) {
+      if (!Const.isEmpty(port)) {
+        transport.connect(environmentSubstitute(Const.NVL(server,"")),Integer.parseInt(environmentSubstitute(Const.NVL(port,""))),environmentSubstitute(Const.NVL(authenticationUser,"")),environmentSubstitute(Const.NVL(authenticationPassword,"")));
+      }
+ else {
+        transport.connect(environmentSubstitute(Const.NVL(server,"")),environmentSubstitute(Const.NVL(authenticationUser,"")),environmentSubstitute(Const.NVL(authenticationPassword,"")));
+      }
+    }
+ else {
+      transport.connect();
+    }
+    transport.sendMessage(msg,msg.getAllRecipients());
+  }
+  finally {
+    if (transport != null)     transport.close();
+  }
+}
