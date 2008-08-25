@@ -1,0 +1,53 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  result.setResult(false);
+  NrErrors=0;
+  NrSuccess=0;
+  NrFilesToProcess=0;
+  continueProcessing=true;
+  limitFiles=Const.toInt(environmentSubstitute(getLimit()),10);
+  String vsourceFilefolder[]=source_filefolder;
+  String vsourceWildcard[]=source_wildcard;
+  String vsourceDelimiter[]=delimiter;
+  String targetDb[]=target_Db;
+  String targetTable[]=target_table;
+  try {
+    if (is_args_from_previous) {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobEntryMSAccessBulkLoad.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+    }
+    if (is_args_from_previous && rows != null) {
+      for (int iteration=0; iteration < rows.size() && !parentJob.isStopped() && continueProcessing; iteration++) {
+        resultRow=rows.get(iteration);
+        String vSourceFileFolder_previous=resultRow.getString(0,null);
+        String vSourceWildcard_previous=resultRow.getString(1,null);
+        String vDelimiter_previous=resultRow.getString(2,null);
+        String vTargetDb_previous=resultRow.getString(3,null);
+        String vTargetTable_previous=resultRow.getString(4,null);
+        processOneRow(log,vSourceFileFolder_previous,vSourceWildcard_previous,vDelimiter_previous,vTargetDb_previous,vTargetTable_previous,parentJob,result);
+      }
+    }
+ else     if (vsourceFilefolder != null && targetDb != null && targetTable != null) {
+      for (int i=0; i < vsourceFilefolder.length && !parentJob.isStopped() && continueProcessing; i++) {
+        String realSourceFileFolder=environmentSubstitute(vsourceFilefolder[i]);
+        String realSourceWildcard=environmentSubstitute(vsourceWildcard[i]);
+        String realSourceDelimiter=environmentSubstitute(vsourceDelimiter[i]);
+        String realTargetDb=environmentSubstitute(targetDb[i]);
+        String realTargetTable=environmentSubstitute(targetTable[i]);
+        processOneRow(log,realSourceFileFolder,realSourceWildcard,realSourceDelimiter,realTargetDb,realTargetTable,parentJob,result);
+      }
+    }
+  }
+ catch (  Exception e) {
+    incrErrors();
+    log.logError(toString(),Messages.getString("JobEntryMSAccessBulkLoad.UnexpectedError",e.getMessage()));
+  }
+  result.setNrErrors(NrErrors);
+  result.setNrLinesInput(NrFilesToProcess);
+  result.setNrLinesWritten(NrSuccess);
+  if (getSuccessStatus())   result.setResult(true);
+  displayResults(log);
+  return result;
+}
