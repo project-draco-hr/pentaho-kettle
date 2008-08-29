@@ -18,17 +18,22 @@
   if (meta.isFileField())   r=data.readrow.clone();
   try {
     for (int i=0; i < meta.getInputFields().length; i++) {
-      Object obj=data.rw.get(meta.getInputFields()[i].getColumn());
+      AccessInputField field=meta.getInputFields()[i];
+      Object obj=data.rw.get(field.getColumn());
       String value=String.valueOf(obj);
-switch (meta.getInputFields()[i].getTrimType()) {
+      if (obj instanceof Date && field.getType() == ValueMetaInterface.TYPE_DATE) {
+        r[data.totalpreviousfields + i]=obj;
+      }
+ else {
+switch (field.getTrimType()) {
 case AccessInputField.TYPE_TRIM_LEFT:
-        value=Const.ltrim(value);
-      break;
+          value=Const.ltrim(value);
+        break;
 case AccessInputField.TYPE_TRIM_RIGHT:
-    value=Const.rtrim(value);
-  break;
+      value=Const.rtrim(value);
+    break;
 case AccessInputField.TYPE_TRIM_BOTH:
-value=Const.trim(value);
+  value=Const.trim(value);
 break;
 default :
 break;
@@ -36,7 +41,8 @@ break;
 ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(data.totalpreviousfields + i);
 ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(data.totalpreviousfields + i);
 r[data.totalpreviousfields + i]=targetValueMeta.convertData(sourceValueMeta,value);
-if (meta.getInputFields()[i].isRepeated()) {
+}
+if (field.isRepeated()) {
 if (data.previousRow != null && Const.isEmpty(value)) {
 r[data.totalpreviousfields + i]=data.previousRow[data.totalpreviousfields + i];
 }
@@ -58,7 +64,7 @@ incrementLinesInput();
 data.rownr++;
 }
  catch (Exception e) {
-throw new KettleException("Unable to read row from Access file",e);
+throw new KettleException(Messages.getString("AccessInput.Error.ErrorReadingFile"),e);
 }
 return r;
 }
