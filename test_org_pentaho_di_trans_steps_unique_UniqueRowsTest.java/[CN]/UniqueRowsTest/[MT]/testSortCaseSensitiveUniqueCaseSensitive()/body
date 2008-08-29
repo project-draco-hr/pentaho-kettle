@@ -1,0 +1,51 @@
+{
+  EnvUtil.environmentInit();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("uniquerowstest");
+  StepLoader steploader=StepLoader.getInstance();
+  String injectorStepname="injector step";
+  InjectorMeta im=new InjectorMeta();
+  String injectorPid=steploader.getStepPluginID(im);
+  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,(StepMetaInterface)im);
+  transMeta.addStep(injectorStep);
+  String sortRowsStepname="sort rows step";
+  SortRowsMeta srm=new SortRowsMeta();
+  srm.setFieldName(new String[]{"KEY"});
+  srm.setAscending(new boolean[]{true});
+  srm.setCaseSensitive(new boolean[]{true});
+  srm.setPrefix("SortRowsTest");
+  srm.setDirectory(".");
+  String sortRowsStepPid=steploader.getStepPluginID(srm);
+  StepMeta sortRowsStep=new StepMeta(sortRowsStepPid,sortRowsStepname,(StepMetaInterface)srm);
+  transMeta.addStep(sortRowsStep);
+  transMeta.addTransHop(new TransHopMeta(injectorStep,sortRowsStep));
+  String uniqueRowsStepname="unique rows step";
+  UniqueRowsMeta urm=new UniqueRowsMeta();
+  urm.setCompareFields(new String[]{"KEY"});
+  urm.setCaseInsensitive(new boolean[]{false});
+  String uniqueRowsStepPid=steploader.getStepPluginID(urm);
+  StepMeta uniqueRowsStep=new StepMeta(uniqueRowsStepPid,uniqueRowsStepname,(StepMetaInterface)urm);
+  transMeta.addStep(uniqueRowsStep);
+  transMeta.addTransHop(new TransHopMeta(sortRowsStep,uniqueRowsStep));
+  String dummyStepname="dummy step";
+  DummyTransMeta dm=new DummyTransMeta();
+  String dummyPid=steploader.getStepPluginID(dm);
+  StepMeta dummyStep=new StepMeta(dummyPid,dummyStepname,(StepMetaInterface)dm);
+  transMeta.addStep(dummyStep);
+  transMeta.addTransHop(new TransHopMeta(uniqueRowsStep,dummyStep));
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(dummyStepname,0);
+  RowStepCollector dummyRc=new RowStepCollector();
+  si.addRowListener(dummyRc);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  trans.startThreads();
+  List<RowMetaAndData> inputList=createData();
+  for (  RowMetaAndData rm : inputList) {
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> resultRows=dummyRc.getRowsWritten();
+  checkRows(createResultDataSortCaseSensitiveUniqueCaseSensitive(),resultRows);
+}
