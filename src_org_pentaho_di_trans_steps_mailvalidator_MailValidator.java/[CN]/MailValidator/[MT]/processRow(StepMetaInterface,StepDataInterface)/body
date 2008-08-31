@@ -10,7 +10,7 @@
     first=false;
     data.previousRowMeta=getInputRowMeta().clone();
     data.NrPrevFields=data.previousRowMeta.size();
-    data.outputRowMeta=data.previousRowMeta;
+    data.outputRowMeta=getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
     data.realResultFieldName=environmentSubstitute(meta.getResultFieldName());
     if (Const.isEmpty(data.realResultFieldName))     throw new KettleException(Messages.getString("MailValidator.Error.ResultFieldNameMissing"));
@@ -55,21 +55,21 @@
     String emailaddress=data.previousRowMeta.getString(r,data.indexOfeMailField);
     if (!Const.isEmpty(emailaddress)) {
       if (meta.isdynamicDefaultSMTP())       data.realdefaultSMTPServer=data.previousRowMeta.getString(r,data.indexOfdefaultSMTPField);
-      MailValidation emailValidator=new MailValidation();
-      MailValidationResult result=new MailValidationResult();
-      result=emailValidator.isAddressValid(emailaddress,data.realemailSender,data.realdefaultSMTPServer,data.timeout,meta.isSMTPCheck(),getTrans().getRunThread(getStepname(),getCopy()));
+      MailValidationResult result=MailValidation.isAddressValid(emailaddress,data.realemailSender,data.realdefaultSMTPServer,data.timeout,meta.isSMTPCheck(),getTrans().getRunThread(getStepname(),getCopy()));
       mailvalid=result.isValide();
       mailerror=result.getErrorMessage();
     }
- else     mailerror="eMail is empty!";
+ else     mailerror=Messages.getString("MailValidator.Error.MailEmpty");
     if (meta.isResultAsString()) {
-      if (mailvalid)       outputRow[data.NrPrevFields++]=data.msgValidMail;
- else       outputRow[data.NrPrevFields++]=data.msgNotValidMail;
+      if (mailvalid)       outputRow[data.NrPrevFields]=data.msgValidMail;
+ else       outputRow[data.NrPrevFields]=data.msgNotValidMail;
     }
  else {
-      outputRow[data.NrPrevFields++]=mailvalid;
+      outputRow[data.NrPrevFields]=mailvalid;
     }
-    if (!Const.isEmpty(data.realResultErrorsFieldName))     outputRow[data.NrPrevFields++]=mailerror;
+    int rowIndex=data.NrPrevFields;
+    rowIndex++;
+    if (!Const.isEmpty(data.realResultErrorsFieldName))     outputRow[rowIndex]=mailerror;
     putRow(data.outputRowMeta,outputRow);
     if (log.isRowLevel())     log.logRowlevel(toString(),Messages.getString("MailValidator.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
   }
