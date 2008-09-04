@@ -7,7 +7,7 @@
   File masterZipfile=null;
   if (meta.isZipFilenameDynamic())   data.ZipFilename=data.previousRowMeta.getString(r,data.indexOfDynamicZipFilename);
   try {
-    if (meta.isDynamicAttachedFilenames()) {
+    if (meta.isDynamicFilename()) {
       if (data.indexOfSourceFilename > -1)       realSourceFileFoldername=data.previousRowMeta.getString(r,data.indexOfSourceFilename);
       if (data.indexOfSourceWildcard > -1)       realSourceWildcard=data.previousRowMeta.getString(r,data.indexOfSourceWildcard);
     }
@@ -19,8 +19,12 @@
       sourcefile=KettleVFS.getFileObject(realSourceFileFoldername);
       if (sourcefile.exists()) {
         long FileSize=0;
-        FileObject list[]=sourcefile.findFiles(new TextFileSelector(sourcefile.toString(),realSourceWildcard));
-        log.logBasic(toString(),"--------LEN-------------" + list.length);
+        FileObject list[]=null;
+        if (sourcefile.getType() == FileType.FILE) {
+          list=new FileObject[1];
+          list[0]=sourcefile;
+        }
+ else         list=sourcefile.findFiles(new TextFileSelector(sourcefile.toString(),realSourceWildcard));
         if (list.length > 0) {
           boolean zipFiles=meta.isZipFiles();
           if (zipFiles && data.zipFileLimit == 0) {
@@ -43,11 +47,13 @@
               }
  else               FileSize+=file.getContent().getSize();
             }
- else             addAttachedFilePart(file);
+ else {
+              addAttachedFilePart(file);
+            }
           }
           if (zipFiles) {
-            log.logBasic(toString(),"FILES SIZE = " + FileSize + "\n");
-            log.logBasic(toString(),"LIMIT SIZE = " + data.zipFileLimit + "\n");
+            if (log.isDebug())             log.logDebug(toString(),Messages.getString("Mail.Log.FileSize","" + FileSize));
+            if (log.isDebug())             log.logDebug(toString(),Messages.getString("Mail.Log.LimitSize","" + data.zipFileLimit));
             if (data.zipFileLimit > 0 && FileSize > data.zipFileLimit) {
               masterZipfile=new File(System.getProperty("java.io.tmpdir") + Const.FILE_SEPARATOR + environmentSubstitute(data.ZipFilename));
               zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
