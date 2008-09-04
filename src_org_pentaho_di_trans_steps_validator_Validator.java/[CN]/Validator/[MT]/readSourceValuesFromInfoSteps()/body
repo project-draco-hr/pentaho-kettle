@@ -1,0 +1,33 @@
+{
+  for (int i=0; i < meta.getValidations().length; i++) {
+    Validation field=meta.getValidations()[i];
+    if (field.isSourcingValues()) {
+      if (field.getSourcingStep() == null) {
+        throw new KettleStepException("There is no valid source step specified for the allowed values of validation [" + field.getName() + "]");
+      }
+      if (Const.isEmpty(field.getSourcingField())) {
+        throw new KettleStepException("There is no valid source field specified for the allowed values of validation [" + field.getName() + "]");
+      }
+      RowSet allowedRowSet=findInputRowSet(field.getSourcingStep().getName());
+      int fieldIndex=-1;
+      List<Object> allowedValues=new ArrayList<Object>();
+      Object[] allowedRowData=getRowFrom(allowedRowSet);
+      while (allowedRowData != null) {
+        RowMetaInterface allowedRowMeta=allowedRowSet.getRowMeta();
+        if (fieldIndex < 0) {
+          fieldIndex=allowedRowMeta.indexOfValue(field.getSourcingField());
+          if (fieldIndex < 0) {
+            throw new KettleStepException("Source field [" + field.getSourcingField() + "] is not found in the source row data");
+          }
+          data.constantsMeta[i]=allowedRowMeta.getValueMeta(fieldIndex);
+        }
+        Object allowedValue=allowedRowData[fieldIndex];
+        if (allowedValue != null) {
+          allowedValues.add(allowedValue);
+        }
+        allowedRowData=getRowFrom(allowedRowSet);
+      }
+      data.listValues[i]=allowedValues.toArray(new Object[allowedValues.size()]);
+    }
+  }
+}
