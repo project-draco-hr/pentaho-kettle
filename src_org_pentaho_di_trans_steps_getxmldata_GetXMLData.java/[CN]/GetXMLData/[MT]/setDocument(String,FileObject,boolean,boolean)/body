@@ -1,11 +1,39 @@
 {
   try {
     SAXReader reader=new SAXReader();
+    data.stopPruning=false;
     if (meta.isValidating()) {
       reader.setValidation(true);
       reader.setFeature("http://apache.org/xml/features/validation/schema",true);
     }
     if (meta.isIgnoreComments())     reader.setIgnoreComments(true);
+    if (data.prunePath != null) {
+      if (log.isDetailed())       logDetailed(Messages.getString("GetXMLData.Log.StreamingMode.Activated"));
+      reader.addHandler(data.prunePath,new ElementHandler(){
+        public void onStart(        ElementPath path){
+        }
+        public void onEnd(        ElementPath path){
+          if (isStopped()) {
+            if (log.isBasic())             logBasic(Messages.getString("GetXMLData.Log.StreamingMode.Stopped"));
+            data.stopPruning=true;
+            data.document.detach();
+            path.getCurrent().getDocument().detach();
+            return;
+          }
+          if (log.isDebug())           logDebug(Messages.getString("GetXMLData.Log.StreamingMode.StartProcessing"));
+          Element row=path.getCurrent();
+          try {
+            processStreaming(row.getDocument());
+          }
+ catch (          Exception e) {
+            throw new RuntimeException(e);
+          }
+          row.detach();
+          if (log.isDebug())           logDebug(Messages.getString("GetXMLData.Log.StreamingMode.EndProcessing"));
+        }
+      }
+);
+    }
     if (IsInXMLField) {
       data.document=reader.read(new StringReader(StringXML));
     }
@@ -20,7 +48,12 @@
     if (meta.isNamespaceAware())     prepareNSMap(data.document.getRootElement());
   }
  catch (  Exception e) {
-    throw new KettleException(e);
+    if (data.stopPruning) {
+      return false;
+    }
+ else {
+      throw new KettleException(e);
+    }
   }
   return true;
 }
