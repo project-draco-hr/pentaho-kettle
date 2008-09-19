@@ -1,12 +1,24 @@
 {
   meta=(PGBulkLoaderMeta)smi;
   data=(PGBulkLoaderData)sdi;
-  Trans trans=getTrans();
-  preview=trans.isPreview();
   if (super.init(smi,sdi)) {
-    data.quote="\"".getBytes();
-    data.separator=";".getBytes();
+    if (meta.getEnclosure() != null)     data.quote=meta.getEnclosure().getBytes();
+ else     data.quote=new byte[]{};
+    if (meta.getDelimiter() != null)     data.separator=meta.getDelimiter().getBytes();
+ else     data.separator=new byte[]{};
     data.newline=Const.CR.getBytes();
+    data.dateFormatChoices=new int[meta.getFieldStream().length];
+    for (int i=0; i < data.dateFormatChoices.length; i++) {
+      if (meta.getDateMask()[i].equalsIgnoreCase(PGBulkLoaderMeta.DATE_MASK_DATE)) {
+        data.dateFormatChoices[i]=PGBulkLoaderMeta.NR_DATE_MASK_DATE;
+      }
+ else       if (meta.getDateMask()[i].equalsIgnoreCase(PGBulkLoaderMeta.DATE_MASK_DATETIME)) {
+        data.dateFormatChoices[i]=PGBulkLoaderMeta.NR_DATE_MASK_DATETIME;
+      }
+ else {
+        data.dateFormatChoices[i]=PGBulkLoaderMeta.NR_DATE_MASK_PASS_THROUGH;
+      }
+    }
     return true;
   }
   return false;
