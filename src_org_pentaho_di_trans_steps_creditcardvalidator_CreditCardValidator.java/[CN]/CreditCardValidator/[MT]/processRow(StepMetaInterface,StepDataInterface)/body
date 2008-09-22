@@ -1,0 +1,78 @@
+{
+  meta=(CreditCardValidatorMeta)smi;
+  data=(CreditCardValidatorData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  boolean isValid=false;
+  String cardType=null;
+  String unValid=null;
+  if (first) {
+    first=false;
+    data.previousRowMeta=getInputRowMeta().clone();
+    data.NrPrevFields=data.previousRowMeta.size();
+    data.outputRowMeta=data.previousRowMeta;
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (Const.isEmpty(meta.getDynamicField())) {
+      logError(Messages.getString("CreditCardValidator.Error.CardFieldMissing"));
+      throw new KettleException(Messages.getString("CreditCardValidator.Error.FilenameFieldMissing"));
+    }
+    if (data.indexOfField < 0) {
+      data.indexOfField=getInputRowMeta().indexOfValue(meta.getDynamicField());
+      if (data.indexOfField < 0) {
+        throw new KettleException(Messages.getString("CreditCardValidator.Exception.CouldnotFindField",meta.getDynamicField()));
+      }
+    }
+    data.realResultFieldname=environmentSubstitute(meta.getResultFieldName());
+    if (Const.isEmpty(data.realResultFieldname)) {
+      throw new KettleException(Messages.getString("CreditCardValidator.Exception.ResultFieldMissing"));
+    }
+    data.realCardTypeFieldname=environmentSubstitute(meta.getCardType());
+    data.realNotValidMsgFieldname=environmentSubstitute(meta.getNotValidMsg());
+  }
+  Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+  for (int i=0; i < data.NrPrevFields; i++) {
+    outputRow[i]=r[i];
+  }
+  try {
+    String fieldvalue=getInputRowMeta().getString(r,data.indexOfField);
+    if (meta.isOnlyDigits())     fieldvalue=Const.getDigitsOnly(fieldvalue);
+    ReturnIndicator rt=new ReturnIndicator();
+    rt=CreditCardVerifier.CheckCC(fieldvalue);
+    isValid=rt.CardValid;
+    if (!Const.isEmpty(data.realCardTypeFieldname))     cardType=rt.CardType;
+    if (!Const.isEmpty(data.realNotValidMsgFieldname))     unValid=rt.UnValidMsg;
+    outputRow[data.NrPrevFields]=isValid;
+    int rowIndex=data.NrPrevFields;
+    rowIndex++;
+    if (!Const.isEmpty(data.realCardTypeFieldname)) {
+      outputRow[rowIndex++]=cardType;
+    }
+    if (!Const.isEmpty(data.realNotValidMsgFieldname)) {
+      outputRow[rowIndex++]=unValid;
+    }
+    putRow(data.outputRowMeta,outputRow);
+    if (log.isRowLevel())     log.logRowlevel(toString(),Messages.getString("CreditCardValidator.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("CreditCardValidator.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"CreditCardValidator001");
+    }
+  }
+  return true;
+}
