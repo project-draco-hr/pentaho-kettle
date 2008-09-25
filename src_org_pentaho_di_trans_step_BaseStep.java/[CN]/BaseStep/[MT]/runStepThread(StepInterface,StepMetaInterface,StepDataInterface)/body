@@ -1,24 +1,39 @@
 {
   LogWriter log=LogWriter.getInstance();
   try {
-    log.logBasic(stepInterface.toString(),Messages.getString("System.Log.StartingToRun"));
+    if (log.isDetailed())     log.logDetailed(stepInterface.toString(),Messages.getString("System.Log.StartingToRun"));
     while (stepInterface.processRow(meta,data) && !stepInterface.isStopped())     ;
   }
  catch (  Throwable t) {
-    if (t.toString().startsWith("java.lang.OutOfMemoryError")) {
-      log.logError(stepInterface.toString(),"UnexpectedError: " + t.toString());
-    }
+    try {
+      if (t instanceof OutOfMemoryError) {
+        log.logError(stepInterface.toString(),"UnexpectedError: " + t.toString());
+      }
  else {
-      log.logError(stepInterface.toString(),Messages.getString("System.Log.UnexpectedError") + " : ");
+        log.logError(stepInterface.toString(),Messages.getString("System.Log.UnexpectedError") + " : ");
+      }
+      log.logError(stepInterface.toString(),Const.getStackTracker(t));
     }
-    log.logError(stepInterface.toString(),Const.getStackTracker(t));
-    stepInterface.setErrors(1);
-    stepInterface.stopAll();
+ catch (    OutOfMemoryError e) {
+      e.printStackTrace();
+    }
+ finally {
+      stepInterface.setErrors(1);
+      stepInterface.stopAll();
+    }
   }
  finally {
     stepInterface.dispose(meta,data);
     try {
-      log.logBasic(stepInterface.toString(),Messages.getString("BaseStep.Log.SummaryInfo",String.valueOf(stepInterface.getLinesInput()),String.valueOf(stepInterface.getLinesOutput()),String.valueOf(stepInterface.getLinesRead()),String.valueOf(stepInterface.getLinesWritten()),String.valueOf(stepInterface.getLinesUpdated()),String.valueOf(stepInterface.getErrors() + stepInterface.getLinesRejected())));
+      long li=stepInterface.getLinesInput();
+      long lo=stepInterface.getLinesOutput();
+      long lr=stepInterface.getLinesRead();
+      long lw=stepInterface.getLinesWritten();
+      long lu=stepInterface.getLinesUpdated();
+      long lj=stepInterface.getLinesRejected();
+      long e=stepInterface.getErrors();
+      if (li > 0 || lo > 0 || lr > 0 || lw > 0 || lu > 0 || lj > 0 || e > 0)       log.logBasic(stepInterface.toString(),Messages.getString("BaseStep.Log.SummaryInfo",String.valueOf(li),String.valueOf(lo),String.valueOf(lr),String.valueOf(lw),String.valueOf(lw),String.valueOf(e + lj)));
+ else       log.logDetailed(stepInterface.toString(),Messages.getString("BaseStep.Log.SummaryInfo",String.valueOf(li),String.valueOf(lo),String.valueOf(lr),String.valueOf(lw),String.valueOf(lw),String.valueOf(e + lj)));
     }
  catch (    Throwable t) {
       log.logError(stepInterface.toString(),"UnexpectedError: " + t.toString());
