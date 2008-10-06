@@ -122,9 +122,10 @@
         transExecutionConfiguration.setRemoteServer(remoteSlaveServer);
         transExecutionConfiguration.setLogLevel(log.getLogLevel());
         Trans.sendXMLToSlaveServer(transMeta,transExecutionConfiguration);
-        while (!parentJob.isStopped()) {
+        SlaveServerTransStatus transStatus=null;
+        while (!parentJob.isStopped() && waitingToFinish) {
           try {
-            SlaveServerTransStatus transStatus=remoteSlaveServer.getTransStatus(transMeta.getName());
+            transStatus=remoteSlaveServer.getTransStatus(transMeta.getName());
             if (!transStatus.isRunning()) {
               Result remoteResult=transStatus.getResult();
               result.clear();
@@ -147,6 +148,13 @@
  catch (          InterruptedException e) {
           }
           ;
+        }
+        if (parentJob.isStopped()) {
+          if (transStatus == null || transStatus.isRunning()) {
+            remoteSlaveServer.stopTransformation(transMeta.getName());
+            remoteSlaveServer.cleanupTransformation(transMeta.getName());
+            result.setNrErrors(result.getNrErrors() + 1L);
+          }
         }
       }
  else {

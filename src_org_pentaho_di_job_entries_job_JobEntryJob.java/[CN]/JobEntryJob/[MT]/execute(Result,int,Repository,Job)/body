@@ -163,9 +163,10 @@
         jobExecutionConfiguration.setRepository(rep);
         jobExecutionConfiguration.setLogLevel(log.getLogLevel());
         Job.sendXMLToSlaveServer(jobMeta,jobExecutionConfiguration);
-        while (!parentJob.isStopped()) {
+        SlaveServerJobStatus jobStatus=null;
+        while (!parentJob.isStopped() && waitingToFinish) {
           try {
-            SlaveServerJobStatus jobStatus=remoteSlaveServer.getJobStatus(jobMeta.getName());
+            jobStatus=remoteSlaveServer.getJobStatus(jobMeta.getName());
             if (jobStatus.getResult() != null) {
               oneResult=jobStatus.getResult();
               break;
@@ -182,6 +183,18 @@
  catch (          InterruptedException e) {
           }
           ;
+        }
+        if (parentJob.isStopped()) {
+          try {
+            if (jobStatus == null || jobStatus.isRunning()) {
+              remoteSlaveServer.stopJob(jobMeta.getName());
+            }
+          }
+ catch (          Exception e1) {
+            log.logError(toString(),"Unable to contact slave server [" + remoteSlaveServer + "] to stop job ["+ jobMeta.getName()+ "]");
+            oneResult.setNrErrors(1L);
+            break;
+          }
         }
       }
       if (iteration == 0) {
