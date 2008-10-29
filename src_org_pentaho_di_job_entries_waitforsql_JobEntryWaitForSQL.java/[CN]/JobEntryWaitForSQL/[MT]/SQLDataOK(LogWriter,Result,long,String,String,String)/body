@@ -1,0 +1,81 @@
+{
+  String countStatement=null;
+  long rowsCount=0;
+  boolean successOK=false;
+  List<Object[]> ar=null;
+  RowMetaInterface rowMeta=null;
+  Database db=new Database(connection);
+  try {
+    db.connect();
+    if (iscustomSQL) {
+      countStatement=customSQL;
+    }
+ else {
+      if (!Const.isEmpty(realSchemaName)) {
+        countStatement=selectCount + db.getDatabaseMeta().getQuotedSchemaTableCombination(realSchemaName,realTableName);
+      }
+ else {
+        countStatement=selectCount + db.getDatabaseMeta().quoteField(realTableName);
+      }
+    }
+    if (countStatement != null) {
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobEntryWaitForSQL.Log.RunSQLStatement",countStatement));
+      if (iscustomSQL) {
+        ar=db.getRows(countStatement,0);
+        if (ar != null) {
+          rowsCount=ar.size();
+        }
+ else {
+          if (log.isDebug())           log.logDebug(toString(),Messages.getString("JobEntryWaitForSQL.Log.customSQLreturnedNothing",countStatement));
+        }
+      }
+ else {
+        RowMetaAndData row=db.getOneRow(countStatement);
+        if (row != null) {
+          rowsCount=row.getInteger(0);
+        }
+      }
+      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobEntryWaitForSQL.Log.NrRowsReturned","" + rowsCount));
+switch (successCondition) {
+case JobEntryWaitForSQL.SUCCESS_CONDITION_ROWS_COUNT_EQUAL:
+        successOK=(rowsCount == nrRowsLimit);
+      break;
+case JobEntryWaitForSQL.SUCCESS_CONDITION_ROWS_COUNT_DIFFERENT:
+    successOK=(rowsCount != nrRowsLimit);
+  break;
+case JobEntryWaitForSQL.SUCCESS_CONDITION_ROWS_COUNT_SMALLER:
+successOK=(rowsCount < nrRowsLimit);
+break;
+case JobEntryWaitForSQL.SUCCESS_CONDITION_ROWS_COUNT_SMALLER_EQUAL:
+successOK=(rowsCount <= nrRowsLimit);
+case JobEntryWaitForSQL.SUCCESS_CONDITION_ROWS_COUNT_GREATER:
+successOK=(rowsCount > nrRowsLimit);
+case JobEntryWaitForSQL.SUCCESS_CONDITION_ROWS_COUNT_GREATER_EQUAL:
+successOK=(rowsCount >= nrRowsLimit);
+break;
+default :
+break;
+}
+}
+}
+ catch (KettleDatabaseException dbe) {
+log.logError(toString(),Messages.getString("JobEntryWaitForSQL.Error.RunningEntry",dbe.getMessage()));
+}
+ finally {
+if (db != null) {
+if (isAddRowsResult && iscustomSQL && ar != null) rowMeta=db.getQueryFields(countStatement,false);
+db.disconnect();
+}
+}
+if (successOK) {
+if (isAddRowsResult && iscustomSQL && ar != null) {
+List<RowMetaAndData> rows=new ArrayList<RowMetaAndData>();
+;
+for (int i=0; i < ar.size(); i++) {
+rows.add(new RowMetaAndData(rowMeta,ar.get(i)));
+}
+if (rows != null) result.getRows().addAll(rows);
+}
+}
+return successOK;
+}

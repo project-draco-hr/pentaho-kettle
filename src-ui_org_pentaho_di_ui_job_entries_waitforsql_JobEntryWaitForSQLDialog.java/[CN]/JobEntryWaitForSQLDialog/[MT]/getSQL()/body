@@ -1,0 +1,61 @@
+{
+  DatabaseMeta inf=jobMeta.findDatabase(wConnection.getText());
+  if (inf != null) {
+    DatabaseExplorerDialog std=new DatabaseExplorerDialog(shell,SWT.NONE,inf,jobMeta.getDatabases());
+    std.setSplitSchemaAndTable(true);
+    if (std.open() != null) {
+      String sql="SELECT *" + Const.CR + "FROM "+ inf.getQuotedSchemaTableCombination(std.getSchemaName(),std.getTableName())+ Const.CR;
+      wSQL.setText(sql);
+      MessageBox yn=new MessageBox(shell,SWT.YES | SWT.NO | SWT.CANCEL| SWT.ICON_QUESTION);
+      yn.setMessage(Messages.getString("JobEntryWaitForSQL.IncludeFieldNamesInSQL"));
+      yn.setText(Messages.getString("JobEntryWaitForSQL.DialogCaptionQuestion"));
+      int id=yn.open();
+switch (id) {
+case SWT.CANCEL:
+        break;
+case SWT.NO:
+      wSQL.setText(sql);
+    break;
+case SWT.YES:
+  Database db=new Database(inf);
+try {
+  db.connect();
+  RowMetaInterface fields=db.getQueryFields(sql,false);
+  if (fields != null) {
+    sql="SELECT" + Const.CR;
+    for (int i=0; i < fields.size(); i++) {
+      ValueMetaInterface field=fields.getValueMeta(i);
+      if (i == 0)       sql+="  ";
+ else       sql+=", ";
+      sql+=inf.quoteField(field.getName()) + Const.CR;
+    }
+    sql+="FROM " + inf.getQuotedSchemaTableCombination(std.getSchemaName(),std.getTableName()) + Const.CR;
+    wSQL.setText(sql);
+  }
+ else {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage(Messages.getString("JobEntryWaitForSQL.ERROR_CouldNotRetrieveFields") + Const.CR + Messages.getString("JobEntryWaitForSQL.PerhapsNoPermissions"));
+    mb.setText(Messages.getString("JobEntryWaitForSQL.DialogCaptionError2"));
+    mb.open();
+  }
+}
+ catch (KettleException e) {
+  MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+  mb.setText(Messages.getString("JobEntryWaitForSQL.DialogCaptionError3"));
+  mb.setMessage(Messages.getString("JobEntryWaitForSQL.AnErrorOccurred") + Const.CR + e.getMessage());
+  mb.open();
+}
+ finally {
+  db.disconnect();
+}
+break;
+}
+}
+}
+ else {
+MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+mb.setMessage(Messages.getString("JobEntryWaitForSQL.ConnectionNoLongerAvailable"));
+mb.setText(Messages.getString("JobEntryWaitForSQL.DialogCaptionError4"));
+mb.open();
+}
+}

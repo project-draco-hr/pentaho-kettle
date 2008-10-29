@@ -1,0 +1,101 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  result.setNrErrors(1);
+  String countSQLStatement=null;
+  long rowsCount=0;
+  boolean successOK=false;
+  int nrRowsLimit=Const.toInt(environmentSubstitute(limit),0);
+  if (log.isDetailed())   log.logDetailed(toString(),Messages.getString("JobEntryEvalTableContent.Log.nrRowsLimit","" + nrRowsLimit));
+  if (connection != null) {
+    Database db=new Database(connection);
+    try {
+      db.connect();
+      if (iscustomSQL) {
+        String realCustomSQL=customSQL;
+        if (isUseVars)         realCustomSQL=environmentSubstitute(realCustomSQL);
+        if (log.isDebug())         log.logDebug(toString(),Messages.getString("JobEntryEvalTableContent.Log.EnteredCustomSQL",realCustomSQL));
+        if (!Const.isEmpty(realCustomSQL)) {
+          countSQLStatement=realCustomSQL;
+        }
+ else         log.logError(toString(),Messages.getString("JobEntryEvalTableContent.Error.NoCustomSQL"));
+      }
+ else {
+        String realTablename=environmentSubstitute(tablename);
+        String realSchemaname=environmentSubstitute(schemaname);
+        if (!Const.isEmpty(realTablename)) {
+          if (!Const.isEmpty(realSchemaname)) {
+            countSQLStatement=selectCount + db.getDatabaseMeta().getQuotedSchemaTableCombination(realSchemaname,realTablename);
+          }
+ else {
+            countSQLStatement=selectCount + db.getDatabaseMeta().quoteField(realTablename);
+          }
+        }
+ else         log.logError(toString(),Messages.getString("JobEntryEvalTableContent.Error.NoTableName"));
+      }
+      if (countSQLStatement != null) {
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobEntryEvalTableContent.Log.RunSQLStatement",countSQLStatement));
+        if (iscustomSQL) {
+          if (isClearResultList)           result.getRows().clear();
+          List<Object[]> ar=db.getRows(countSQLStatement,0);
+          if (ar != null) {
+            rowsCount=ar.size();
+            RowMetaInterface rowMeta=db.getQueryFields(countSQLStatement,false);
+            List<RowMetaAndData> rows=new ArrayList<RowMetaAndData>();
+            ;
+            for (int i=0; i < ar.size(); i++) {
+              rows.add(new RowMetaAndData(rowMeta,ar.get(i)));
+            }
+            if (isAddRowsResult && iscustomSQL)             if (rows != null)             result.getRows().addAll(rows);
+          }
+ else {
+            if (log.isDebug())             log.logDebug(toString(),Messages.getString("JobEntryEvalTableContent.Log.customSQLreturnedNothing",countSQLStatement));
+          }
+        }
+ else {
+          RowMetaAndData row=db.getOneRow(countSQLStatement);
+          if (row != null) {
+            rowsCount=row.getInteger(0);
+          }
+        }
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobEntryEvalTableContent.Log.NrRowsReturned","" + rowsCount));
+switch (successCondition) {
+case JobEntryEvalTableContent.SUCCESS_CONDITION_ROWS_COUNT_EQUAL:
+          successOK=(rowsCount == nrRowsLimit);
+        break;
+case JobEntryEvalTableContent.SUCCESS_CONDITION_ROWS_COUNT_DIFFERENT:
+      successOK=(rowsCount != nrRowsLimit);
+    break;
+case JobEntryEvalTableContent.SUCCESS_CONDITION_ROWS_COUNT_SMALLER:
+  successOK=(rowsCount < nrRowsLimit);
+break;
+case JobEntryEvalTableContent.SUCCESS_CONDITION_ROWS_COUNT_SMALLER_EQUAL:
+successOK=(rowsCount <= nrRowsLimit);
+case JobEntryEvalTableContent.SUCCESS_CONDITION_ROWS_COUNT_GREATER:
+successOK=(rowsCount > nrRowsLimit);
+case JobEntryEvalTableContent.SUCCESS_CONDITION_ROWS_COUNT_GREATER_EQUAL:
+successOK=(rowsCount >= nrRowsLimit);
+break;
+default :
+break;
+}
+}
+}
+ catch (KettleException dbe) {
+log.logError(toString(),Messages.getString("JobEntryEvalTableContent.Error.RunningEntry",dbe.getMessage()));
+}
+ finally {
+if (db != null) db.disconnect();
+}
+}
+ else {
+log.logError(toString(),Messages.getString("JobEntryEvalTableContentTables.NoDbConnection"));
+}
+if (successOK) {
+result.setResult(true);
+result.setNrErrors(0);
+}
+result.setNrLinesRead(rowsCount);
+return result;
+}
