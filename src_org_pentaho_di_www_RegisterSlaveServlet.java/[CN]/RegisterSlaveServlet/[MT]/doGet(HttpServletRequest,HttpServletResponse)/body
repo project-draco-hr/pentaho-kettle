@@ -1,0 +1,42 @@
+{
+  if (!request.getRequestURI().equals(CONTEXT_PATH + "/"))   return;
+  if (log.isDebug())   log.logDebug(toString(),"Slave Server registration requested");
+  PrintWriter out=response.getWriter();
+  BufferedReader in=request.getReader();
+  if (log.isDetailed())   log.logDetailed(toString(),"Encoding: " + request.getCharacterEncoding());
+  response.setContentType("text/xml");
+  out.print(XMLHandler.getXMLHeader());
+  response.setStatus(HttpServletResponse.SC_OK);
+  try {
+    StringBuilder xml=new StringBuilder(request.getContentLength());
+    int c;
+    while ((c=in.read()) != -1) {
+      xml.append((char)c);
+    }
+    Document document=XMLHandler.loadXMLString(xml.toString());
+    Node node=XMLHandler.getSubNode(document,SlaveServerDetection.XML_TAG);
+    SlaveServerDetection slaveServerDetection=new SlaveServerDetection(node);
+    String message;
+    int index=detections.indexOf(slaveServerDetection);
+    if (index < 0) {
+      detections.add(slaveServerDetection);
+      message="Slave server detection '" + slaveServerDetection.getSlaveServer().getName() + "' was replaced in the list.";
+    }
+ else {
+      SlaveServerDetection old=detections.get(index);
+      old.setSlaveServer(slaveServerDetection.getSlaveServer());
+      old.setActive(slaveServerDetection.isActive());
+      if (old.isActive()) {
+        old.setLastActiveDate(slaveServerDetection.getLastActiveDate());
+      }
+ else {
+        old.setLastInactiveDate(slaveServerDetection.getLastInactiveDate());
+      }
+      message="Slave server detection '" + slaveServerDetection.getSlaveServer().getName() + "' was added to the list.";
+    }
+    out.println(new WebResult(WebResult.STRING_OK,message));
+  }
+ catch (  Exception ex) {
+    out.println(new WebResult(WebResult.STRING_ERROR,Const.getStackTracker(ex)));
+  }
+}

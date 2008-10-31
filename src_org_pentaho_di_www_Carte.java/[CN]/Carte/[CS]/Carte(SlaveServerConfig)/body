@@ -1,0 +1,27 @@
+{
+  this.config=config;
+  TransformationMap transformationMap=new TransformationMap();
+  JobMap jobMap=new JobMap();
+  List<SlaveServerDetection> detections=new ArrayList<SlaveServerDetection>();
+  Trans trans=generateTestTransformation();
+  transformationMap.addTransformation(trans.getName(),trans,new TransConfiguration(trans.getTransMeta(),new TransExecutionConfiguration()));
+  SlaveServer slaveServer=config.getSlaveServer();
+  String hostname=slaveServer.getHostname();
+  int port=WebServer.PORT;
+  if (!Const.isEmpty(slaveServer.getPort())) {
+    try {
+      port=Integer.parseInt(slaveServer.getPort());
+    }
+ catch (    Exception e) {
+      System.out.println(Messages.getString("Carte.Error.CanNotPartPort",slaveServer.getHostname(),"" + port));
+    }
+  }
+  if (config.isReportingToMasters()) {
+    for (    SlaveServer master : config.getMasters()) {
+      SlaveServer client=new SlaveServer("Dynamic slave [" + hostname + ":"+ port+ "]",hostname,"" + port,slaveServer.getUsername(),slaveServer.getPassword());
+      SlaveServerDetection slaveServerDetection=new SlaveServerDetection(client);
+      master.sendXML(slaveServerDetection.getXML(),RegisterSlaveServlet.CONTEXT_PATH + "/");
+    }
+  }
+  this.webServer=new WebServer(transformationMap,jobMap,detections,hostname,port,config.isJoining());
+}
