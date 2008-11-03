@@ -25,51 +25,73 @@
       nodeList=((Element)bodyNode).getElementsByTagName(meta.getRepeatingElementName());
     }
  else {
-      NodeList responseChildren=bodyNode.getChildNodes();
-      for (int i=0; i < responseChildren.getLength(); i++) {
-        Node responseChild=responseChildren.item(i);
-        if (responseChild.getNodeType() == Node.ELEMENT_NODE) {
-          responseNode=responseChild;
-          break;
-        }
+      if (meta.isReturningBodyAsString()) {
+        StringWriter nodeXML=new StringWriter();
+        transformer.transform(new DOMSource(bodyNode),new StreamResult(nodeXML));
+        String xml=nodeXML.toString();
+        Object[] outputRowData=createNewRow(rowData);
+        int index=rowData == null ? 0 : getInputRowMeta().size();
+        outputRowData[index++]=xml;
+        putRow(data.outputRowMeta,outputRowData);
       }
-      if (responseNode != null) {
-        nodeList=responseNode.getChildNodes();
+ else {
+        NodeList responseChildren=bodyNode.getChildNodes();
+        for (int i=0; i < responseChildren.getLength(); i++) {
+          Node responseChild=responseChildren.item(i);
+          if (responseChild.getNodeType() == Node.ELEMENT_NODE) {
+            responseNode=responseChild;
+            break;
+          }
+        }
+        if (responseNode != null) {
+          nodeList=responseNode.getChildNodes();
+        }
       }
     }
     if (nodeList == null)     return;
-    Object[] outputRowData=rowData == null ? RowDataUtil.allocateRowData(data.outputRowMeta.size()) : RowDataUtil.createResizedCopy(rowData,data.outputRowMeta.size());
+    Object[] outputRowData=createNewRow(rowData);
     boolean singleRow=false;
     int fieldsFound=0;
     for (int i=0; i < nodeList.getLength(); i++) {
       Node node=nodeList.item(i);
-      WebServiceField field=meta.getFieldOutFromWsName(node.getNodeName());
-      if (field != null) {
-        if (getNodeValue(outputRowData,node,field,transformer,true)) {
-          singleRow=true;
-          fieldsFound++;
-        }
+      if (meta.isReturningBodyAsString()) {
+        StringWriter nodeXML=new StringWriter();
+        transformer.transform(new DOMSource(bodyNode),new StreamResult(nodeXML));
+        String xml=nodeXML.toString();
+        outputRowData=createNewRow(rowData);
+        int index=rowData == null ? 0 : getInputRowMeta().size();
+        outputRowData[index++]=xml;
+        putRow(data.outputRowMeta,outputRowData);
       }
  else {
-        if (!singleRow) {
-          if (log.isDetailed()) {
-            StringWriter nodeXML=new StringWriter();
-            transformer.transform(new DOMSource(node),new StreamResult(nodeXML));
-            logDetailed(Messages.getString("WebServices.Log.ResultRowDataFound",nodeXML.toString()));
+        WebServiceField field=meta.getFieldOutFromWsName(node.getNodeName());
+        if (field != null) {
+          if (getNodeValue(outputRowData,node,field,transformer,true)) {
+            singleRow=true;
+            fieldsFound++;
           }
-          outputRowData=rowData == null ? RowDataUtil.allocateRowData(data.outputRowMeta.size()) : RowDataUtil.createResizedCopy(rowData,data.outputRowMeta.size());
-          NodeList childNodes=node.getChildNodes();
-          for (int j=0; j < childNodes.getLength(); j++) {
-            Node childNode=childNodes.item(j);
-            field=meta.getFieldOutFromWsName(childNode.getNodeName());
-            if (field != null) {
-              if (getNodeValue(outputRowData,childNode,field,transformer,false)) {
-                fieldsFound++;
+        }
+ else {
+          if (!singleRow) {
+            if (log.isDetailed()) {
+              StringWriter nodeXML=new StringWriter();
+              transformer.transform(new DOMSource(node),new StreamResult(nodeXML));
+              logDetailed(Messages.getString("WebServices.Log.ResultRowDataFound",nodeXML.toString()));
+            }
+            outputRowData=createNewRow(rowData);
+            NodeList childNodes=node.getChildNodes();
+            for (int j=0; j < childNodes.getLength(); j++) {
+              Node childNode=childNodes.item(j);
+              field=meta.getFieldOutFromWsName(childNode.getNodeName());
+              if (field != null) {
+                if (getNodeValue(outputRowData,childNode,field,transformer,false)) {
+                  fieldsFound++;
+                }
               }
             }
-          }
-          if (fieldsFound > 0) {
-            putRow(data.outputRowMeta,outputRowData);
+            if (fieldsFound > 0) {
+              putRow(data.outputRowMeta,outputRowData);
+            }
           }
         }
       }
