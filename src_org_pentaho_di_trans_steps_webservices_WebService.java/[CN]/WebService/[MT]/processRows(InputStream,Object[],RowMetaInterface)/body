@@ -51,27 +51,28 @@
         }
       }
  else {
-        if (log.isDetailed()) {
-          StringWriter nodeXML=new StringWriter();
-          transformer.transform(new DOMSource(node),new StreamResult(nodeXML));
-          logDetailed(Messages.getString("WebServices.Log.ResultRowDataFound",nodeXML.toString()));
-        }
-        outputRowData=rowData == null ? RowDataUtil.allocateRowData(data.outputRowMeta.size()) : RowDataUtil.createResizedCopy(rowData,data.outputRowMeta.size());
-        NodeList childNodes=node.getChildNodes();
-        for (int j=0; j < childNodes.getLength(); j++) {
-          Node childNode=childNodes.item(j);
-          field=meta.getFieldOutFromWsName(childNode.getNodeName());
-          if (field != null) {
-            if (getNodeValue(outputRowData,childNode,field,transformer,false)) {
-              fieldsFound++;
+        if (!singleRow) {
+          if (log.isDetailed()) {
+            StringWriter nodeXML=new StringWriter();
+            transformer.transform(new DOMSource(node),new StreamResult(nodeXML));
+            logDetailed(Messages.getString("WebServices.Log.ResultRowDataFound",nodeXML.toString()));
+          }
+          outputRowData=rowData == null ? RowDataUtil.allocateRowData(data.outputRowMeta.size()) : RowDataUtil.createResizedCopy(rowData,data.outputRowMeta.size());
+          NodeList childNodes=node.getChildNodes();
+          for (int j=0; j < childNodes.getLength(); j++) {
+            Node childNode=childNodes.item(j);
+            field=meta.getFieldOutFromWsName(childNode.getNodeName());
+            if (field != null) {
+              if (getNodeValue(outputRowData,childNode,field,transformer,false)) {
+                fieldsFound++;
+              }
             }
           }
-        }
-        if (fieldsFound > 0) {
-          putRow(data.outputRowMeta,outputRowData);
+          if (fieldsFound > 0) {
+            putRow(data.outputRowMeta,outputRowData);
+          }
         }
       }
-      if (singleRow)       break;
     }
     if (singleRow && fieldsFound > 0) {
       putRow(data.outputRowMeta,outputRowData);
