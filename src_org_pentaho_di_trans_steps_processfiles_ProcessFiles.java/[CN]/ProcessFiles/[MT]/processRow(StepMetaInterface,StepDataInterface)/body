@@ -1,0 +1,117 @@
+{
+  meta=(ProcessFilesMeta)smi;
+  data=(ProcessFilesData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    if (Const.isEmpty(meta.getDynamicSourceFileNameField())) {
+      throw new KettleException(Messages.getString("ProcessFiles.Error.SourceFilenameFieldMissing"));
+    }
+    if (meta.getOperationType() != ProcessFilesMeta.OPERATION_TYPE_DELETE && Const.isEmpty(meta.getDynamicTargetFileNameField())) {
+      throw new KettleException(Messages.getString("ProcessFiles.Error.TargetFilenameFieldMissing"));
+    }
+    if (data.indexOfSourceFilename < 0) {
+      data.indexOfSourceFilename=getInputRowMeta().indexOfValue(meta.getDynamicSourceFileNameField());
+      if (data.indexOfSourceFilename < 0) {
+        throw new KettleException(Messages.getString("ProcessFiles.Exception.CouldnotFindField",meta.getDynamicSourceFileNameField()));
+      }
+    }
+    if (meta.getOperationType() != ProcessFilesMeta.OPERATION_TYPE_DELETE && data.indexOfTargetFilename < 0) {
+      data.indexOfTargetFilename=getInputRowMeta().indexOfValue(meta.getDynamicTargetFileNameField());
+      if (data.indexOfTargetFilename < 0) {
+        throw new KettleException(Messages.getString("ProcessFiles.Exception.CouldnotFindField",meta.getDynamicTargetFileNameField()));
+      }
+    }
+    if (meta.simulate) {
+      if (log.isBasic())       log.logBasic(toString(),Messages.getString("ProcessFiles.Log.SimulationModeON"));
+    }
+  }
+  try {
+    String sourceFilename=getInputRowMeta().getString(r,data.indexOfSourceFilename);
+    if (Const.isEmpty(sourceFilename)) {
+      log.logError(toString(),Messages.getString("ProcessFiles.Error.SourceFileEmpty"));
+      throw new KettleException(Messages.getString("ProcessFiles.Error.SourceFileEmpty"));
+    }
+    data.sourceFile=KettleVFS.getFileObject(sourceFilename);
+    boolean targetFileExists=false;
+    if (!data.sourceFile.exists()) {
+      log.logError(toString(),Messages.getString("ProcessFiles.Error.SourceFileNotExist",sourceFilename));
+      throw new KettleException(Messages.getString("ProcessFiles.Error.SourceFileNotExist",sourceFilename));
+    }
+    if (data.sourceFile.getType() != FileType.FILE) {
+      log.logError(toString(),Messages.getString("ProcessFiles.Error.SourceFileNotFile",sourceFilename));
+      throw new KettleException(Messages.getString("ProcessFiles.Error.SourceFileNotFile",sourceFilename));
+    }
+    String targetFilename=null;
+    if (meta.getOperationType() != ProcessFilesMeta.OPERATION_TYPE_DELETE) {
+      targetFilename=getInputRowMeta().getString(r,data.indexOfTargetFilename);
+      if (Const.isEmpty(targetFilename)) {
+        log.logError(toString(),Messages.getString("ProcessFiles.Error.TargetFileEmpty"));
+        throw new KettleException(Messages.getString("ProcessFiles.Error.TargetFileEmpty"));
+      }
+      data.targetFile=KettleVFS.getFileObject(targetFilename);
+      if (data.targetFile.exists()) {
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("ProcessFiles.Log.TargetFileExists",targetFilename));
+      }
+ else {
+        FileObject parentFolder=data.targetFile.getParent();
+        if (!parentFolder.exists()) {
+          if (!meta.isCreateParentFolder())           throw new KettleException(Messages.getString("ProcessFiles.Error.TargetParentFolderNotExists",parentFolder.toString()));
+ else           parentFolder.createFolder();
+        }
+        if (parentFolder != null)         parentFolder.close();
+      }
+    }
+switch (meta.getOperationType()) {
+case ProcessFilesMeta.OPERATION_TYPE_COPY:
+      if (((meta.isOverwriteTargetFile() && targetFileExists) || !targetFileExists) && !meta.simulate)       data.targetFile.copyFrom(data.sourceFile,new TextOneToOneFileSelector());
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("ProcessFiles.Log.SourceFileCopied",sourceFilename,targetFilename));
+  break;
+case ProcessFilesMeta.OPERATION_TYPE_MOVE:
+if (((meta.isOverwriteTargetFile() && targetFileExists) || !targetFileExists) && !meta.simulate) data.sourceFile.moveTo(KettleVFS.getFileObject(targetFilename));
+if (log.isDetailed()) log.logDetailed(toString(),Messages.getString("ProcessFiles.Log.SourceFileMoved",sourceFilename,targetFilename));
+break;
+case ProcessFilesMeta.OPERATION_TYPE_DELETE:
+if (!meta.simulate) {
+if (!data.sourceFile.delete()) throw new KettleException(Messages.getString("ProcessFiles.Error.CanNotDeleteFile",data.sourceFile.toString()));
+}
+if (log.isDetailed()) log.logDetailed(toString(),Messages.getString("ProcessFiles.Log.SourceFileDeleted",sourceFilename));
+break;
+default :
+break;
+}
+if (meta.isaddTargetFileNametoResult() && meta.getOperationType() != ProcessFilesMeta.OPERATION_TYPE_DELETE && data.sourceFile.getType() == FileType.FILE) {
+ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.targetFile,getTransMeta().getName(),getStepname());
+resultFile.setComment(Messages.getString("ProcessFiles.Log.FileAddedResult"));
+addResultFile(resultFile);
+if (log.isDetailed()) log.logDetailed(toString(),Messages.getString("ProcessFiles.Log.FilenameAddResult",data.sourceFile.toString()));
+}
+putRow(getInputRowMeta(),r);
+if (checkFeedback(getLinesRead())) {
+if (log.isBasic()) logBasic(Messages.getString("ProcessFiles.LineNumber") + getLinesRead());
+}
+}
+ catch (Exception e) {
+boolean sendToErrorRow=false;
+String errorMessage=null;
+if (getStepMeta().isDoingErrorHandling()) {
+sendToErrorRow=true;
+errorMessage=e.toString();
+}
+ else {
+logError(Messages.getString("ProcessFiles.ErrorInStepRunning") + e.getMessage());
+setErrors(1);
+stopAll();
+setOutputDone();
+return false;
+}
+if (sendToErrorRow) {
+putError(getInputRowMeta(),r,1,errorMessage,null,"ProcessFiles001");
+}
+}
+return true;
+}
