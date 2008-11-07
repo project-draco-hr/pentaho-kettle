@@ -1,0 +1,58 @@
+{
+  meta=(DetectLastRowMeta)smi;
+  data=(DetectLastRowData)sdi;
+  Object[] r=getRow();
+  if (first) {
+    if (getInputRowMeta() == null)     return false;
+    data.previousRowMeta=getInputRowMeta().clone();
+    data.NrPrevFields=data.previousRowMeta.size();
+    data.outputRowMeta=data.previousRowMeta;
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+  }
+  Object[] outputRow=null;
+  try {
+    if (r == null) {
+      if (previousRow != null) {
+        outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+        for (int i=0; i < data.NrPrevFields; i++) {
+          outputRow[i]=previousRow[i];
+        }
+        outputRow[data.NrPrevFields]=true;
+        putRow(data.outputRowMeta,outputRow);
+        if (log.isRowLevel())         log.logRowlevel(toString(),Messages.getString("DetectLastRow.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+      }
+      setOutputDone();
+      return false;
+    }
+    if (!first) {
+      outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+      for (int i=0; i < data.NrPrevFields; i++) {
+        outputRow[i]=r[i];
+      }
+      outputRow[data.NrPrevFields]=false;
+      putRow(data.outputRowMeta,outputRow);
+      if (log.isRowLevel())       log.logRowlevel(toString(),Messages.getString("DetectLastRow.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+    }
+    previousRow=r;
+    if (first)     first=false;
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("DetectLastRow.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"DetectLastRow001");
+    }
+  }
+  return true;
+}
