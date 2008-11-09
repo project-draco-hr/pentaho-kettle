@@ -1,0 +1,54 @@
+{
+  meta=(SampleRowsMeta)smi;
+  data=(SampleRowsData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    String realRange=environmentSubstitute(meta.getLinesRange());
+    data.addlineField=(!Const.isEmpty(environmentSubstitute(meta.getLineNumberField())));
+    data.previousRowMeta=getInputRowMeta().clone();
+    data.NrPrevFields=data.previousRowMeta.size();
+    data.outputRowMeta=data.previousRowMeta;
+    if (data.addlineField)     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    String[] rangePart=realRange.split(",");
+    for (int i=0; i < rangePart.length; i++) {
+      if (rangePart[i].matches("\\d+")) {
+        String part=rangePart[i];
+        if (log.isDebug())         log.logDebug(toString(),Messages.getString("SampleRows.Log.RangeValue",part));
+        int vpart=Integer.valueOf(part);
+        if (vpart > data.maxLine)         data.maxLine=vpart;
+        data.range.add(vpart);
+      }
+ else       if (rangePart[i].matches("\\d+\\.\\.\\d+")) {
+        String[] rangeMultiPart=rangePart[i].split("\\.\\.");
+        for (int j=Integer.valueOf(rangeMultiPart[0]).intValue(); j < Integer.valueOf(rangeMultiPart[1]).intValue() + 1; j++) {
+          if (log.isDebug())           log.logDebug(toString(),Messages.getString("SampleRows.Log.RangeValue","" + j));
+          int vpart=Integer.valueOf(j);
+          if (vpart > data.maxLine)           data.maxLine=vpart;
+          data.range.add(vpart);
+        }
+      }
+    }
+  }
+  if (data.addlineField) {
+    data.outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    for (int i=0; i < data.NrPrevFields; i++) {
+      data.outputRow[i]=r[i];
+    }
+  }
+ else   data.outputRow=r;
+  if (data.range.contains((int)getLinesRead())) {
+    if (data.addlineField)     data.outputRow[data.NrPrevFields]=getLinesRead();
+    putRow(data.outputRowMeta,data.outputRow);
+    if (log.isRowLevel())     log.logRowlevel(toString(),Messages.getString("SampleRows.Log.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+  }
+  if (data.maxLine > 0 && getLinesRead() >= data.maxLine) {
+    setOutputDone();
+    return false;
+  }
+  return true;
+}
