@@ -1,0 +1,59 @@
+{
+  meta=(ExecSQLRowMeta)smi;
+  data=(ExecSQLRowData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  Object[] row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (Const.isEmpty(meta.getSqlFieldName())) {
+      throw new KettleException(Messages.getString("ExecSQLRow.Error.SQLFieldFieldMissing"));
+    }
+    if (data.indexOfSQLFieldname < 0) {
+      data.indexOfSQLFieldname=this.getInputRowMeta().indexOfValue(meta.getSqlFieldName());
+      if (data.indexOfSQLFieldname < 0) {
+        throw new KettleException(Messages.getString("ExecSQLRow.Exception.CouldnotFindField",meta.getSqlFieldName()));
+      }
+    }
+  }
+  String SQLScript=getInputRowMeta().getString(row,data.indexOfSQLFieldname);
+  try {
+    if (log.isDebug())     logDebug(Messages.getString("ExecSQLRow.Log.ExecutingSQLScript") + Const.CR + SQLScript);
+    data.result=data.db.execStatement(SQLScript);
+    RowMetaAndData add=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
+    row=RowDataUtil.addRowData(row,getInputRowMeta().size(),add.getData());
+    if (meta.getCommitSize() > 0) {
+      if (!data.db.isAutoCommit()) {
+        if (meta.getCommitSize() == 1)         data.db.commit();
+ else         if (getLinesWritten() % meta.getCommitSize() == 0)         data.db.commit();
+      }
+    }
+    putRow(data.outputRowMeta,row);
+    if (checkFeedback(getLinesWritten())) {
+      if (log.isBasic())       logBasic(Messages.getString("ExecSQLRow.Log.LineNumber") + getLinesWritten());
+    }
+  }
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("ExecSQLRow.Log.ErrorInStep") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),row,1,errorMessage,null,"ExecSQLRow001");
+    }
+  }
+  return true;
+}
