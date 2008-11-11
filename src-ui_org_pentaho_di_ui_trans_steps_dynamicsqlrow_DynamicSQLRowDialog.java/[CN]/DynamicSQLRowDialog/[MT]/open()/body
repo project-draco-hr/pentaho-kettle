@@ -1,0 +1,279 @@
+{
+  Shell parent=getParent();
+  Display display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX| SWT.MIN);
+  props.setLook(shell);
+  setShellImage(shell,input);
+  ModifyListener lsMod=new ModifyListener(){
+    public void modifyText(    ModifyEvent e){
+      input.setChanged();
+    }
+  }
+;
+  backupChanged=input.hasChanged();
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText(Messages.getString("DynamicSQLRowDialog.Shell.Title"));
+  int middle=props.getMiddlePct();
+  int margin=Const.MARGIN;
+  wlStepname=new Label(shell,SWT.RIGHT);
+  wlStepname.setText(Messages.getString("DynamicSQLRowDialog.Stepname.Label"));
+  props.setLook(wlStepname);
+  fdlStepname=new FormData();
+  fdlStepname.left=new FormAttachment(0,0);
+  fdlStepname.right=new FormAttachment(middle,-margin);
+  fdlStepname.top=new FormAttachment(0,margin);
+  wlStepname.setLayoutData(fdlStepname);
+  wStepname=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wStepname.setText(stepname);
+  props.setLook(wStepname);
+  wStepname.addModifyListener(lsMod);
+  fdStepname=new FormData();
+  fdStepname.left=new FormAttachment(middle,0);
+  fdStepname.top=new FormAttachment(0,margin);
+  fdStepname.right=new FormAttachment(100,0);
+  wStepname.setLayoutData(fdStepname);
+  wConnection=addConnectionLine(shell,wStepname,middle,margin);
+  if (input.getDatabaseMeta() == null && transMeta.nrDatabases() == 1)   wConnection.select(0);
+  wConnection.addModifyListener(lsMod);
+  wlSQLFieldName=new Label(shell,SWT.RIGHT);
+  wlSQLFieldName.setText(Messages.getString("DynamicSQLRowDialog.SQLFieldName.Label"));
+  props.setLook(wlSQLFieldName);
+  fdlSQLFieldName=new FormData();
+  fdlSQLFieldName.left=new FormAttachment(0,0);
+  fdlSQLFieldName.right=new FormAttachment(middle,-margin);
+  fdlSQLFieldName.top=new FormAttachment(wConnection,2 * margin);
+  wlSQLFieldName.setLayoutData(fdlSQLFieldName);
+  wSQLFieldName=new CCombo(shell,SWT.BORDER | SWT.READ_ONLY);
+  wSQLFieldName.setEditable(true);
+  props.setLook(wSQLFieldName);
+  wSQLFieldName.addModifyListener(lsMod);
+  fdSQLFieldName=new FormData();
+  fdSQLFieldName.left=new FormAttachment(middle,0);
+  fdSQLFieldName.top=new FormAttachment(wConnection,2 * margin);
+  fdSQLFieldName.right=new FormAttachment(100,-margin);
+  wSQLFieldName.setLayoutData(fdSQLFieldName);
+  wSQLFieldName.addFocusListener(new FocusListener(){
+    public void focusLost(    org.eclipse.swt.events.FocusEvent e){
+    }
+    public void focusGained(    org.eclipse.swt.events.FocusEvent e){
+      Cursor busy=new Cursor(shell.getDisplay(),SWT.CURSOR_WAIT);
+      shell.setCursor(busy);
+      get();
+      shell.setCursor(null);
+      busy.dispose();
+    }
+  }
+);
+  wOK=new Button(shell,SWT.PUSH);
+  wOK.setText(Messages.getString("System.Button.OK"));
+  wCancel=new Button(shell,SWT.PUSH);
+  wCancel.setText(Messages.getString("System.Button.Cancel"));
+  setButtonPositions(new Button[]{wOK,wCancel},margin,null);
+  wlLimit=new Label(shell,SWT.RIGHT);
+  wlLimit.setText(Messages.getString("DynamicSQLRowDialog.Limit.Label"));
+  props.setLook(wlLimit);
+  fdlLimit=new FormData();
+  fdlLimit.left=new FormAttachment(0,0);
+  fdlLimit.right=new FormAttachment(middle,-margin);
+  fdlLimit.top=new FormAttachment(wSQLFieldName,margin);
+  wlLimit.setLayoutData(fdlLimit);
+  wLimit=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  props.setLook(wLimit);
+  wLimit.addModifyListener(lsMod);
+  fdLimit=new FormData();
+  fdLimit.left=new FormAttachment(middle,0);
+  fdLimit.right=new FormAttachment(100,0);
+  fdLimit.top=new FormAttachment(wSQLFieldName,margin);
+  wLimit.setLayoutData(fdLimit);
+  wlOuter=new Label(shell,SWT.RIGHT);
+  wlOuter.setText(Messages.getString("DynamicSQLRowDialog.Outerjoin.Label"));
+  wlOuter.setToolTipText(Messages.getString("DynamicSQLRowDialog.Outerjoin.Tooltip"));
+  props.setLook(wlOuter);
+  fdlOuter=new FormData();
+  fdlOuter.left=new FormAttachment(0,0);
+  fdlOuter.right=new FormAttachment(middle,-margin);
+  fdlOuter.top=new FormAttachment(wLimit,margin);
+  wlOuter.setLayoutData(fdlOuter);
+  wOuter=new Button(shell,SWT.CHECK);
+  props.setLook(wOuter);
+  wOuter.setToolTipText(wlOuter.getToolTipText());
+  fdOuter=new FormData();
+  fdOuter.left=new FormAttachment(middle,0);
+  fdOuter.top=new FormAttachment(wLimit,margin);
+  wOuter.setLayoutData(fdOuter);
+  wOuter.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      input.setChanged();
+    }
+  }
+);
+  wlTemplateScript=new Label(shell,SWT.RIGHT);
+  wlTemplateScript.setText(Messages.getString("DynamicSQLRowDialog.TemplateScript.Label"));
+  wlTemplateScript.setToolTipText(Messages.getString("DynamicSQLRowDialog.TemplateScript.Tooltip"));
+  props.setLook(wlTemplateScript);
+  fdlTemplateScript=new FormData();
+  fdlTemplateScript.left=new FormAttachment(0,0);
+  fdlTemplateScript.right=new FormAttachment(middle,-margin);
+  fdlTemplateScript.top=new FormAttachment(wOuter,3 * margin);
+  wlTemplateScript.setLayoutData(fdlTemplateScript);
+  wTemplateScript=new Button(shell,SWT.CHECK);
+  props.setLook(wTemplateScript);
+  wTemplateScript.setToolTipText(wlTemplateScript.getToolTipText());
+  fdTemplateScript=new FormData();
+  fdTemplateScript.left=new FormAttachment(middle,0);
+  fdTemplateScript.top=new FormAttachment(wOuter,3 * margin);
+  wTemplateScript.setLayoutData(fdTemplateScript);
+  wTemplateScript.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      input.setChanged();
+      setTemplateScript();
+    }
+  }
+);
+  wluseVars=new Label(shell,SWT.RIGHT);
+  wluseVars.setText(Messages.getString("DynamicSQLRowDialog.useVarsjoin.Label"));
+  wluseVars.setToolTipText(Messages.getString("DynamicSQLRowDialog.useVarsjoin.Tooltip"));
+  props.setLook(wluseVars);
+  fdluseVars=new FormData();
+  fdluseVars.left=new FormAttachment(0,0);
+  fdluseVars.right=new FormAttachment(middle,-margin);
+  fdluseVars.top=new FormAttachment(wTemplateScript,margin);
+  wluseVars.setLayoutData(fdluseVars);
+  wuseVars=new Button(shell,SWT.CHECK);
+  props.setLook(wuseVars);
+  wuseVars.setToolTipText(wluseVars.getToolTipText());
+  fduseVars=new FormData();
+  fduseVars.left=new FormAttachment(middle,0);
+  fduseVars.top=new FormAttachment(wTemplateScript,margin);
+  wuseVars.setLayoutData(fduseVars);
+  wuseVars.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      input.setChanged();
+    }
+  }
+);
+  wlqueryOnlyOnChange=new Label(shell,SWT.RIGHT);
+  wlqueryOnlyOnChange.setText(Messages.getString("DynamicSQLRowDialog.queryOnlyOnChangejoin.Label"));
+  wlqueryOnlyOnChange.setToolTipText(Messages.getString("DynamicSQLRowDialog.queryOnlyOnChangejoin.Tooltip"));
+  props.setLook(wlqueryOnlyOnChange);
+  fdlqueryOnlyOnChange=new FormData();
+  fdlqueryOnlyOnChange.left=new FormAttachment(0,0);
+  fdlqueryOnlyOnChange.right=new FormAttachment(middle,-margin);
+  fdlqueryOnlyOnChange.top=new FormAttachment(wuseVars,margin);
+  wlqueryOnlyOnChange.setLayoutData(fdlqueryOnlyOnChange);
+  wqueryOnlyOnChange=new Button(shell,SWT.CHECK);
+  props.setLook(wqueryOnlyOnChange);
+  wqueryOnlyOnChange.setToolTipText(wlqueryOnlyOnChange.getToolTipText());
+  fdqueryOnlyOnChange=new FormData();
+  fdqueryOnlyOnChange.left=new FormAttachment(middle,0);
+  fdqueryOnlyOnChange.top=new FormAttachment(wuseVars,margin);
+  wqueryOnlyOnChange.setLayoutData(fdqueryOnlyOnChange);
+  wqueryOnlyOnChange.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      input.setChanged();
+    }
+  }
+);
+  wlSQL=new Label(shell,SWT.NONE);
+  wlSQL.setText(Messages.getString("DynamicSQLRowDialog.SQL.Label"));
+  props.setLook(wlSQL);
+  fdlSQL=new FormData();
+  fdlSQL.left=new FormAttachment(0,0);
+  fdlSQL.top=new FormAttachment(wqueryOnlyOnChange,margin);
+  wlSQL.setLayoutData(fdlSQL);
+  wSQL=new StyledTextComp(shell,SWT.MULTI | SWT.LEFT | SWT.BORDER| SWT.H_SCROLL| SWT.V_SCROLL,"");
+  props.setLook(wSQL,Props.WIDGET_STYLE_FIXED);
+  fdSQL=new FormData();
+  fdSQL.left=new FormAttachment(0,0);
+  fdSQL.top=new FormAttachment(wlSQL,margin);
+  fdSQL.right=new FormAttachment(100,0);
+  fdSQL.bottom=new FormAttachment(wOK,-4 * margin);
+  wSQL.setLayoutData(fdSQL);
+  wSQL.addModifyListener(new ModifyListener(){
+    public void modifyText(    ModifyEvent arg0){
+      setPosition();
+    }
+  }
+);
+  wSQL.addKeyListener(new KeyAdapter(){
+    public void keyPressed(    KeyEvent e){
+      setPosition();
+    }
+    public void keyReleased(    KeyEvent e){
+      setPosition();
+    }
+  }
+);
+  wSQL.addFocusListener(new FocusAdapter(){
+    public void focusGained(    FocusEvent e){
+      setPosition();
+    }
+    public void focusLost(    FocusEvent e){
+      setPosition();
+    }
+  }
+);
+  wSQL.addMouseListener(new MouseAdapter(){
+    public void mouseDoubleClick(    MouseEvent e){
+      setPosition();
+    }
+    public void mouseDown(    MouseEvent e){
+      setPosition();
+    }
+    public void mouseUp(    MouseEvent e){
+      setPosition();
+    }
+  }
+);
+  wSQL.addModifyListener(lsMod);
+  lineStyler=new SQLValuesHighlight();
+  ;
+  wSQL.addLineStyleListener(lineStyler);
+  wlPosition=new Label(shell,SWT.NONE);
+  props.setLook(wlPosition);
+  fdlPosition=new FormData();
+  fdlPosition.left=new FormAttachment(0,0);
+  fdlPosition.top=new FormAttachment(wSQL,margin);
+  fdlPosition.right=new FormAttachment(100,0);
+  wlPosition.setLayoutData(fdlPosition);
+  lsOK=new Listener(){
+    public void handleEvent(    Event e){
+      ok();
+    }
+  }
+;
+  lsCancel=new Listener(){
+    public void handleEvent(    Event e){
+      cancel();
+    }
+  }
+;
+  wOK.addListener(SWT.Selection,lsOK);
+  wCancel.addListener(SWT.Selection,lsCancel);
+  lsDef=new SelectionAdapter(){
+    public void widgetDefaultSelected(    SelectionEvent e){
+      ok();
+    }
+  }
+;
+  wStepname.addSelectionListener(lsDef);
+  wLimit.addSelectionListener(lsDef);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      cancel();
+    }
+  }
+);
+  setSize();
+  getData();
+  setTemplateScript();
+  input.setChanged(backupChanged);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return stepname;
+}

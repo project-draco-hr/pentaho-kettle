@@ -1,0 +1,56 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DynamicSQLRowMeta.CheckResult.ReceivingInfo"),stepinfo);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("DynamicSQLRowMeta.CheckResult.NoInputReceived"),stepinfo);
+    remarks.add(cr);
+  }
+  if (Const.isEmpty(sqlfieldname)) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("DynamicSQLRowMeta.CheckResult.SQLFieldNameMissing"),stepinfo);
+    remarks.add(cr);
+  }
+ else {
+    ValueMetaInterface vfield=prev.searchValueMeta(sqlfieldname);
+    if (vfield == null)     cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("DynamicSQLRowMeta.CheckResult.SQLFieldNotFound",sqlfieldname),stepinfo);
+ else     cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DynamicSQLRowMeta.CheckResult.SQLFieldFound",sqlfieldname,vfield.getOrigin()),stepinfo);
+    remarks.add(cr);
+  }
+  if (!templacescript)   return;
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    databases=new Database[]{db};
+    try {
+      db.connect();
+      if (sql != null && sql.length() != 0) {
+        error_message="";
+        RowMetaInterface r=db.getQueryFields(sql,true);
+        if (r != null) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("DynamicSQLRowMeta.CheckResult.QueryOK"),stepinfo);
+          remarks.add(cr);
+        }
+ else {
+          error_message=Messages.getString("DynamicSQLRowMeta.CheckResult.InvalidDBQuery");
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("DynamicSQLRowMeta.CheckResult.ErrorOccurred") + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message=Messages.getString("DynamicSQLRowMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+}

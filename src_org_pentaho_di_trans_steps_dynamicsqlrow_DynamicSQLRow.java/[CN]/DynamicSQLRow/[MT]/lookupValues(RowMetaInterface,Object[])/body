@@ -1,0 +1,76 @@
+{
+  boolean loadFromBuffer=true;
+  if (first) {
+    first=false;
+    data.outputRowMeta=rowMeta.clone();
+    meta.getFields(data.outputRowMeta,getStepname(),new RowMetaInterface[]{meta.getTableFields()},null,this);
+    loadFromBuffer=false;
+  }
+  if (log.isDetailed())   logDetailed(Messages.getString("DatabaseJoin.Log.CheckingRow") + rowMeta.getString(rowData));
+  String sql=getInputRowMeta().getString(rowData,data.indexOfSQLField);
+  if (log.isDebug())   log.logDebug(toString(),Messages.getString("DynamicSQLRow.Log.SQLStatement",sql));
+  if (meta.isQueryOnlyOnChange()) {
+    if (loadFromBuffer) {
+      if (!data.previousSQL.equals(sql))       loadFromBuffer=false;
+    }
+  }
+ else   loadFromBuffer=false;
+  if (loadFromBuffer) {
+    incrementLinesInput();
+    if (!data.skipPreviousRow) {
+      for (int p=0; p < data.previousrowbuffer.size(); p++) {
+        putRow(data.outputRowMeta,(Object[])data.previousrowbuffer.get(p));
+      }
+    }
+  }
+ else {
+    if (meta.isQueryOnlyOnChange())     data.previousrowbuffer.clear();
+    ResultSet rs=data.db.openQuery(sql);
+    Object[] add=data.db.getRow(rs);
+    RowMetaInterface addMeta=data.db.getReturnRowMeta();
+    incrementLinesInput();
+    int counter=0;
+    while (add != null && (meta.getRowLimit() == 0 || counter < meta.getRowLimit())) {
+      counter++;
+      Object[] newRow=RowDataUtil.resizeArray(rowData,data.outputRowMeta.size());
+      int newIndex=rowMeta.size();
+      for (int i=0; i < addMeta.size(); i++) {
+        newRow[newIndex++]=add[i];
+      }
+      putRow(data.outputRowMeta,data.outputRowMeta.cloneRow(newRow));
+      if (meta.isQueryOnlyOnChange()) {
+        data.previousrowbuffer.add(newRow);
+        data.skipPreviousRow=false;
+      }
+      if (log.isRowLevel())       logRowlevel(Messages.getString("DynamicSQLRow.Log.PutoutRow") + data.outputRowMeta.getString(newRow));
+      if (meta.getRowLimit() == 0 || counter < meta.getRowLimit()) {
+        add=data.db.getRow(rs);
+        incrementLinesInput();
+      }
+    }
+    if (counter == 0 && meta.isOuterJoin()) {
+      if (data.notfound == null) {
+        data.notfound=new Object[data.db.getReturnRowMeta().size()];
+      }
+      Object[] newRow=RowDataUtil.resizeArray(rowData,data.outputRowMeta.size());
+      int newIndex=rowMeta.size();
+      for (int i=0; i < data.notfound.length; i++) {
+        newRow[newIndex++]=data.notfound[i];
+      }
+      putRow(data.outputRowMeta,newRow);
+      if (meta.isQueryOnlyOnChange()) {
+        data.previousrowbuffer.add(newRow);
+        data.skipPreviousRow=false;
+      }
+    }
+ else {
+      if (meta.isQueryOnlyOnChange() && counter == 0 && !meta.isOuterJoin()) {
+        data.skipPreviousRow=true;
+      }
+    }
+    if (data.db != null)     data.db.closeQuery(rs);
+  }
+  if (meta.isQueryOnlyOnChange()) {
+    data.previousSQL=sql;
+  }
+}

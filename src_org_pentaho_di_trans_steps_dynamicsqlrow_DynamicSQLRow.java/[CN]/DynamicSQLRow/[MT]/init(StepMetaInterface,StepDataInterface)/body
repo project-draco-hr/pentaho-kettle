@@ -1,0 +1,26 @@
+{
+  meta=(DynamicSQLRowMeta)smi;
+  data=(DynamicSQLRowData)sdi;
+  if (super.init(smi,sdi)) {
+    data.db=new Database(meta.getDatabaseMeta());
+    data.db.shareVariablesWith(this);
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      if (log.isDetailed())       logDetailed(Messages.getString("DynamicSQLRow.Log.ConnectedToDB"));
+      data.db.setQueryLimit(meta.getRowLimit());
+      return true;
+    }
+ catch (    KettleException e) {
+      logError(Messages.getString("DynamicSQLRow.Log.DatabaseError") + e.getMessage());
+      if (data.db != null)       data.db.disconnect();
+    }
+  }
+  return false;
+}

@@ -1,0 +1,43 @@
+{
+  meta=(DynamicSQLRowMeta)smi;
+  data=(DynamicSQLRowData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    if (Const.isEmpty(meta.getSQLFieldName()))     throw new KettleException(Messages.getString("DynamicSQLRow.Exception.SQLFieldNameEmpty"));
+    if (data.indexOfSQLField < 0) {
+      data.indexOfSQLField=getInputRowMeta().indexOfValue(meta.getSQLFieldName());
+      if (data.indexOfSQLField < 0) {
+        throw new KettleException(Messages.getString("DynamicSQLRow.Exception.FieldNotFound",meta.getSQLFieldName()));
+      }
+    }
+  }
+  try {
+    lookupValues(getInputRowMeta(),r);
+    if (checkFeedback(getLinesRead())) {
+      if (log.isBasic())       logBasic(Messages.getString("DynamicSQLRow.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("DynamicSQLRow.Log.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"DynamicSQLRow001");
+    }
+  }
+  return true;
+}
