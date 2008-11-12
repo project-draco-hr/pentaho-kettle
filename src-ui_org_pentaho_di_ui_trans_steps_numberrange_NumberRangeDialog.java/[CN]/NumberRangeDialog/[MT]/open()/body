@@ -1,0 +1,77 @@
+{
+  Shell parent=getParent();
+  Display display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN| SWT.MAX);
+  props.setLook(shell);
+  setShellImage(shell,input);
+  ModifyListener lsMod=new ModifyListener(){
+    public void modifyText(    ModifyEvent e){
+      input.setChanged();
+    }
+  }
+;
+  changed=input.hasChanged();
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText(Messages.getString("NumberRange.TypeLongDesc"));
+  wStepname=createLine(lsMod,Messages.getString("NumberRange.StepName"),null);
+  inputFieldControl=createLineCombo(lsMod,Messages.getString("NumberRange.InputField"),wStepname);
+  outputFieldControl=createLine(lsMod,Messages.getString("NumberRange.OutputField"),inputFieldControl);
+  inputFieldControl.addFocusListener(new FocusListener(){
+    public void focusLost(    org.eclipse.swt.events.FocusEvent e){
+    }
+    public void focusGained(    org.eclipse.swt.events.FocusEvent e){
+      Cursor busy=new Cursor(shell.getDisplay(),SWT.CURSOR_WAIT);
+      shell.setCursor(busy);
+      loadComboOptions();
+      shell.setCursor(null);
+      busy.dispose();
+    }
+  }
+);
+  fallBackValueControl=createLine(lsMod,Messages.getString("NumberRange.DefaultValue"),outputFieldControl);
+  createRulesTable(lsMod);
+  wOK=new Button(shell,SWT.PUSH);
+  wOK.setText("OK");
+  wCancel=new Button(shell,SWT.PUSH);
+  wCancel.setText("Cancel");
+  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCancel},Const.MARGIN,rulesControl);
+  lsCancel=new Listener(){
+    public void handleEvent(    Event e){
+      cancel();
+    }
+  }
+;
+  lsOK=new Listener(){
+    public void handleEvent(    Event e){
+      ok();
+    }
+  }
+;
+  wCancel.addListener(SWT.Selection,lsCancel);
+  wOK.addListener(SWT.Selection,lsOK);
+  lsDef=new SelectionAdapter(){
+    public void widgetDefaultSelected(    SelectionEvent e){
+      ok();
+    }
+  }
+;
+  wStepname.addSelectionListener(lsDef);
+  inputFieldControl.addSelectionListener(lsDef);
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      cancel();
+    }
+  }
+);
+  setSize();
+  getData();
+  input.setChanged(changed);
+  shell.open();
+  while (!shell.isDisposed()) {
+    if (!display.readAndDispatch())     display.sleep();
+  }
+  return stepname;
+}

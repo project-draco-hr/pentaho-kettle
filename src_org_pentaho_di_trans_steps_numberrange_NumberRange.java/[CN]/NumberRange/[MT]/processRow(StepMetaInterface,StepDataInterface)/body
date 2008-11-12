@@ -1,0 +1,46 @@
+{
+  Object[] row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    numberRange=new NumberRangeSet(meta.getRules(),meta.getFallBackValue());
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.inputColumnNr=data.outputRowMeta.indexOfValue(meta.getInputField());
+    if (data.inputColumnNr < 0) {
+      logError("Field for input could not be found: " + meta.getInputField());
+      return false;
+    }
+  }
+  try {
+    String strValue=getInputRowMeta().getString(row,data.inputColumnNr);
+    String ranges=numberRange.evaluate(strValue);
+    row=RowDataUtil.addRowData(row,getInputRowMeta().size(),new Object[]{ranges});
+    putRow(data.outputRowMeta,row);
+    if (checkFeedback(getLinesRead())) {
+      if (log.isDetailed())       logDetailed(Messages.getString("NumberRange.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("NumberRange.Log.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),row,1,errorMessage,null,"NumberRange001");
+    }
+  }
+  return true;
+}
