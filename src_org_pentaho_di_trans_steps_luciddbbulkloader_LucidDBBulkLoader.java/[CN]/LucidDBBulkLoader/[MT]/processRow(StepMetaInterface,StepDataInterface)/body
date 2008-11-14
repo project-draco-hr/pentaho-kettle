@@ -1,0 +1,38 @@
+{
+  meta=(LucidDBBulkLoaderMeta)smi;
+  data=(LucidDBBulkLoaderData)sdi;
+  try {
+    Object[] r=getRow();
+    if (r == null) {
+      setOutputDone();
+      data.fifoStream.close();
+      data.fifoStream=null;
+      data.bulkOutputStream.flush();
+      data.bulkOutputStream.close();
+      data.bulkOutputStream=null;
+      int exitVal=data.mClientlProcess.waitFor();
+      logBasic(Messages.getString("LucidDBBulkLoader.Log.ExitValuePsqlPath","" + exitVal));
+      data.mClientlProcess=null;
+      return false;
+    }
+    if (first) {
+      first=false;
+      data.keynrs=new int[meta.getFieldStream().length];
+      for (int i=0; i < data.keynrs.length; i++) {
+        data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
+      }
+      execute(meta,true);
+    }
+    writeRowToBulk(getInputRowMeta(),r);
+    putRow(getInputRowMeta(),r);
+    incrementLinesOutput();
+    return true;
+  }
+ catch (  Exception e) {
+    logError(Messages.getString("LucidDBBulkLoader.Log.ErrorInStep"),e);
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+}
