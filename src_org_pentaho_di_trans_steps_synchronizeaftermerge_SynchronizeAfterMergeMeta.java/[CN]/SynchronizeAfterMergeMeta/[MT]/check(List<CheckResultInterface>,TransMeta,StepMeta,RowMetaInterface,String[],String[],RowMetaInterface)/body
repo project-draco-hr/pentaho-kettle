@@ -1,0 +1,190 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (databaseMeta != null) {
+    Database db=new Database(databaseMeta);
+    db.shareVariablesWith(transMeta);
+    try {
+      db.connect();
+      if (!Const.isEmpty(tableName)) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.TableNameOK"),stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        boolean error_found=false;
+        error_message="";
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+        RowMetaInterface r=db.getTableFields(schemaTable);
+        if (r != null) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.TableExists"),stepMeta);
+          remarks.add(cr);
+          for (int i=0; i < keyLookup.length; i++) {
+            String lufield=keyLookup[i];
+            ValueMetaInterface v=r.searchValueMeta(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.MissingCompareFieldsInTargetTable") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.AllLookupFieldsFound"),stepMeta);
+          }
+          remarks.add(cr);
+          first=true;
+          error_found=false;
+          error_message="";
+          for (int i=0; i < updateLookup.length; i++) {
+            String lufield=updateLookup[i];
+            ValueMetaInterface v=r.searchValueMeta(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.MissingFieldsToUpdateInTargetTable") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.AllFieldsToUpdateFoundInTargetTable"),stepMeta);
+          }
+          remarks.add(cr);
+        }
+ else {
+          error_message=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.CouldNotReadTableInfo");
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.StepReceivingDatas",prev.size() + ""),stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < keyStream.length; i++) {
+          ValueMetaInterface v=prev.searchValueMeta(keyStream[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.MissingFieldsInInput") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + keyStream[i] + Const.CR;
+          }
+        }
+        for (int i=0; i < keyStream2.length; i++) {
+          if (keyStream2[i] != null && keyStream2[i].length() > 0) {
+            ValueMetaInterface v=prev.searchValueMeta(keyStream2[i]);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.MissingFieldsInInput") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + keyStream[i] + Const.CR;
+            }
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.AllFieldsFoundInInput"),stepMeta);
+        }
+        remarks.add(cr);
+        first=true;
+        error_found=false;
+        error_message="";
+        for (int i=0; i < updateStream.length; i++) {
+          String lufield=updateStream[i];
+          ValueMetaInterface v=prev.searchValueMeta(lufield);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.MissingInputStreamFields") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + lufield + Const.CR;
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.AllFieldsFoundInInput2"),stepMeta);
+          remarks.add(cr);
+        }
+        String errorMsgDiffField="";
+        boolean errorDiffLenField=false;
+        String errorMsgDiffLenField="";
+        boolean errorDiffField=false;
+        RowMetaInterface r=db.getTableFields(databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName));
+        if (r != null) {
+          for (int i=0; i < updateStream.length; i++) {
+            String lufieldstream=updateStream[i];
+            String lufieldtable=updateLookup[i];
+            ValueMetaInterface vs=prev.searchValueMeta(lufieldstream);
+            ValueMetaInterface vt=r.searchValueMeta(lufieldtable);
+            if (vs != null && vt != null) {
+              if (!vs.getTypeDesc().equalsIgnoreCase(vt.getTypeDesc())) {
+                errorMsgDiffField+=Const.CR + "Champ [" + vs.getName()+ "] (flux: Type="+ vs.getTypeDesc()+ "), (table: Type="+ vt.getTypeDesc()+ ")"+ Const.CR;
+                errorDiffField=true;
+              }
+ else {
+                if ((vt.getLength() < vs.getLength() || vs.getLength() == -1) && vt.getLength() != -1) {
+                  errorMsgDiffLenField+=Const.CR + "Le champ [" + vs.getName()+ "] "+ "("+ vs.getTypeDesc()+ ")"+ " du flux a une longueur ("+ vs.getLength()+ ")"+ " sup?rieure ? celui de la table ("+ vt.getLength()+ ")."+ Const.CR;
+                  errorDiffLenField=true;
+                }
+              }
+            }
+          }
+          if (errorDiffField) {
+            errorMsgDiffField=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.FieldsTypeDifferent") + Const.CR + errorMsgDiffField;
+            cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,errorMsgDiffField,stepMeta);
+          }
+          if (errorDiffLenField) {
+            errorMsgDiffLenField=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.FieldsLenDifferent") + Const.CR + errorMsgDiffLenField;
+            cr=new CheckResult(CheckResult.TYPE_RESULT_WARNING,errorMsgDiffLenField,stepMeta);
+          }
+          remarks.add(cr);
+        }
+      }
+ else {
+        error_message=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.MissingFieldsInInput3") + Const.CR;
+        cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.DatabaseErrorOccurred") + e.getMessage();
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message=Messages.getString("SynchronizeAfterMergeMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.StepReceivingInfoFromOtherSteps"),stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("SynchronizeAfterMergeMeta.CheckResult.NoInputError"),stepMeta);
+    remarks.add(cr);
+  }
+}

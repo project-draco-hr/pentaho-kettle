@@ -1,0 +1,39 @@
+{
+  meta=(SynchronizeAfterMergeMeta)smi;
+  data=(SynchronizeAfterMergeData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      data.realSchemaName=environmentSubstitute(meta.getSchemaName());
+      if (meta.istablenameInField()) {
+        if (Const.isEmpty(meta.gettablenameField())) {
+          log.logError(toString(),Messages.getString("SynchronizeAfterMerge.Log.Error.TableFieldnameEmpty"));
+          return false;
+        }
+      }
+      data.databaseMeta=meta.getDatabaseMeta();
+      data.commitSize=Integer.parseInt(environmentSubstitute("" + meta.getCommitSize()));
+      data.batchMode=data.commitSize > 0 && meta.useBatchUpdate();
+      data.specialErrorHandling=getStepMeta().isDoingErrorHandling() && (meta.getDatabaseMeta().getDatabaseType() == DatabaseMeta.TYPE_DATABASE_POSTGRES || meta.getDatabaseMeta().getDatabaseType() == DatabaseMeta.TYPE_DATABASE_GREENPLUM);
+      if (data.batchMode && data.specialErrorHandling) {
+        data.batchMode=false;
+        if (log.isBasic())         log.logBasic(toString(),Messages.getString("SynchronizeAfterMerge.Log.BatchModeDisabled"));
+      }
+      data.db=new Database(meta.getDatabaseMeta());
+      data.db.shareVariablesWith(this);
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      data.db.setCommit(meta.getCommitSize());
+      return true;
+    }
+ catch (    KettleException ke) {
+      logError(Messages.getString("SynchronizeAfterMerge.Log.ErrorOccurredDuringStepInitialize") + ke.getMessage());
+    }
+  }
+  return false;
+}
