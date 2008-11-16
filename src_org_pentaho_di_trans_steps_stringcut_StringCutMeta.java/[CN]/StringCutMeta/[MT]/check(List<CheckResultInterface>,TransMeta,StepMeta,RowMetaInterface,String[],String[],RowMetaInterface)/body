@@ -1,0 +1,72 @@
+{
+  CheckResult cr;
+  String error_message="";
+  boolean first=true;
+  boolean error_found=false;
+  if (prev == null) {
+    error_message+=Messages.getString("StringCutMeta.CheckResult.NoInputReceived") + Const.CR;
+    cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    remarks.add(cr);
+  }
+ else {
+    for (int i=0; i < fieldInStream.length; i++) {
+      String field=fieldInStream[i];
+      ValueMetaInterface v=prev.searchValueMeta(field);
+      if (v == null) {
+        if (first) {
+          first=false;
+          error_message+=Messages.getString("StringCutMeta.CheckResult.MissingInStreamFields") + Const.CR;
+        }
+        error_found=true;
+        error_message+="\t\t" + field + Const.CR;
+      }
+    }
+    if (error_found) {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    }
+ else {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("StringCutMeta.CheckResult.FoundInStreamFields"),stepinfo);
+    }
+    remarks.add(cr);
+    first=true;
+    error_found=false;
+    for (int i=0; i < fieldInStream.length; i++) {
+      String field=fieldInStream[i];
+      ValueMetaInterface v=prev.searchValueMeta(field);
+      if (v != null) {
+        if (v.getType() != ValueMeta.TYPE_STRING) {
+          if (first) {
+            first=false;
+            error_message+=Messages.getString("StringCutMeta.CheckResult.OperationOnNonStringFields") + Const.CR;
+          }
+          error_found=true;
+          error_message+="\t\t" + field + Const.CR;
+        }
+      }
+    }
+    if (error_found) {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+    }
+ else {
+      cr=new CheckResult(CheckResult.TYPE_RESULT_OK,Messages.getString("StringCutMeta.CheckResult.AllOperationsOnStringFields"),stepinfo);
+    }
+    remarks.add(cr);
+    if (fieldInStream.length > 0) {
+      for (int idx=0; idx < fieldInStream.length; idx++) {
+        if (Const.isEmpty(fieldInStream[idx])) {
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,Messages.getString("StringCutMeta.CheckResult.InStreamFieldMissing",new Integer(idx + 1).toString()),stepinfo);
+          remarks.add(cr);
+        }
+      }
+    }
+    for (int idx=0; idx < fieldInStream.length; idx++) {
+      for (int jdx=0; jdx < fieldInStream.length; jdx++) {
+        if (fieldInStream[idx].equals(fieldInStream[jdx]) && idx != jdx && idx < jdx) {
+          error_message=Messages.getString("StringCutMeta.CheckResult.FieldInputError",fieldInStream[idx]);
+          cr=new CheckResult(CheckResult.TYPE_RESULT_ERROR,error_message,stepinfo);
+          remarks.add(cr);
+        }
+      }
+    }
+  }
+}
