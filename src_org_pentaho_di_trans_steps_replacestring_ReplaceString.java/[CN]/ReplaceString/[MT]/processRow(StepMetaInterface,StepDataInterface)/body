@@ -1,0 +1,71 @@
+{
+  meta=(ReplaceStringMeta)smi;
+  data=(ReplaceStringData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    data.inputFieldsNr=data.outputRowMeta.size();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.inStreamNrs=new int[meta.getFieldInStream().length];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.inStreamNrs[i]=getInputRowMeta().indexOfValue(meta.getFieldInStream()[i]);
+      if (data.inStreamNrs[i] < 0)       throw new KettleStepException(Messages.getString("ReplaceString.Exception.FieldRequired",meta.getFieldInStream()[i]));
+      if (getInputRowMeta().getValueMeta(data.inStreamNrs[i]).getType() != ValueMeta.TYPE_STRING)       throw new KettleStepException(Messages.getString("ReplaceString.Exception.FieldTypeNotString",meta.getFieldInStream()[i]));
+    }
+    data.outStreamNrs=new String[meta.getFieldInStream().length];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.outStreamNrs[i]=environmentSubstitute(meta.getFieldOutStream()[i]);
+    }
+    data.useRegEx=new int[meta.getFieldInStream().length];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.useRegEx[i]=meta.getUseRegEx()[i];
+    }
+    data.replaceString=new String[meta.getFieldInStream().length];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.replaceString[i]=meta.getReplaceString()[i];
+    }
+    data.replaceByString=new String[meta.getFieldInStream().length];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.replaceByString[i]=meta.getReplaceByString()[i];
+    }
+    data.wholeWordl=new int[meta.getFieldInStream().length];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.wholeWordl[i]=meta.getWholeWord()[i];
+    }
+    data.caseSensitive=new int[meta.getFieldInStream().length];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.caseSensitive[i]=meta.getCaseSensitive()[i];
+    }
+  }
+  try {
+    Object[] output=getOneRow(getInputRowMeta(),r);
+    putRow(data.outputRowMeta,output);
+    if (checkFeedback(getLinesRead())) {
+      if (log.isDetailed())       logDetailed(Messages.getString("ReplaceString.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("ReplaceString.Log.ErrorInStep",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"ReplaceString001");
+    }
+  }
+  return true;
+}
