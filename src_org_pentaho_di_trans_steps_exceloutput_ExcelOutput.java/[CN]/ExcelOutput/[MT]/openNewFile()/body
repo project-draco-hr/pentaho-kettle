@@ -6,30 +6,29 @@
     if (!Const.isEmpty(meta.getEncoding())) {
       ws.setEncoding(meta.getEncoding());
     }
-    String filename=buildFilename();
-    if (log.isDebug())     log.logDebug(toString(),Messages.getString("ExcelOutput.Log.OpeningFile",filename));
-    data.file=KettleVFS.getFileObject(filename);
+    String buildFilename=buildFilename();
+    data.file=KettleVFS.getFileObject(buildFilename);
+    if (log.isDebug())     log.logDebug(toString(),Messages.getString("ExcelOutput.Log.OpeningFile",buildFilename));
     if (meta.isAddToResultFiles()) {
       ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
       resultFile.setComment("This file was created with an Excel output step by Pentaho Data Integration");
       addResultFile(resultFile);
     }
     if (!meta.isTemplateEnabled()) {
-      if (meta.isAppend() && data.file.exists()) {
-        boolean find=false;
-        int position=0;
-        data.workbook=Workbook.createWorkbook(KettleVFS.getOutputStream(data.file,false),Workbook.getWorkbook(KettleVFS.getInputStream(data.file)));
-        String listSheets[]=data.workbook.getSheetNames();
-        for (int i=0; i < listSheets.length; i++) {
-          if (listSheets[i].equals(data.realSheetname)) {
-            find=true;
-            position=i;
+      File fle=new File(KettleVFS.getFilename(data.file));
+      if (meta.isAppend() && fle.exists()) {
+        Workbook workbook=Workbook.getWorkbook(fle);
+        data.workbook=Workbook.createWorkbook(fle,workbook);
+        if (workbook != null)         workbook.close();
+        if (data.workbook.getSheet(data.realSheetname) != null) {
+          String listSheets[]=data.workbook.getSheetNames();
+          for (int i=0; i < listSheets.length; i++) {
+            if (listSheets[i].equals(data.realSheetname)) {
+              data.workbook.removeSheet(i);
+            }
           }
         }
-        if (find) {
-          data.workbook.removeSheet(position);
-        }
-        data.sheet=data.workbook.createSheet(data.realSheetname,data.workbook.getNumberOfSheets() + 1);
+        data.sheet=data.workbook.createSheet(data.realSheetname,data.workbook.getNumberOfSheets());
       }
  else {
         data.workbook=Workbook.createWorkbook(KettleVFS.getOutputStream(data.file,false),ws);
@@ -48,7 +47,7 @@
       data.sheet=data.workbook.getSheet(0);
       data.templateColumns=data.sheet.getColumns();
     }
-    if (!Const.isEmpty(environmentSubstitute(meta.getSheetname()))) {
+    if (!Const.isEmpty(data.realSheetname)) {
       data.sheet.setName(data.realSheetname);
     }
     if (meta.isSheetProtected()) {
@@ -63,7 +62,7 @@
       data.positionY=0;
     }
     data.headerWrote=false;
-    if (log.isDebug())     log.logDebug(toString(),Messages.getString("ExcelOutput.Log.FileOpened",filename));
+    if (log.isDebug())     log.logDebug(toString(),Messages.getString("ExcelOutput.Log.FileOpened",buildFilename));
     retval=true;
   }
  catch (  Exception e) {
