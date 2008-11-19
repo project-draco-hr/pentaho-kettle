@@ -1,12 +1,37 @@
 {
-  for (int j=0; j < nrSteps(); j++) {
-    for (int i=0; i < nrSteps() - 1; i++) {
-      StepMeta one=getStep(i);
-      StepMeta two=getStep(i + 1);
-      if (!findPrevious(two,one)) {
-        setStep(i + 1,one);
-        setStep(i,two);
+  long startTime=System.currentTimeMillis();
+  prevCount=0;
+  final Map<StepMeta,Map<StepMeta,Boolean>> stepMap=new HashMap<StepMeta,Map<StepMeta,Boolean>>();
+  final Map<StepMeta,List<StepMeta>> previousCache=new HashMap<StepMeta,List<StepMeta>>();
+  for (  StepMeta stepMeta : steps) {
+    List<StepMeta> prevSteps=previousCache.get(stepMeta);
+    if (prevSteps == null) {
+      prevSteps=findPreviousSteps(stepMeta);
+      prevCount++;
+      previousCache.put(stepMeta,prevSteps);
+    }
+    for (    StepMeta prev : prevSteps) {
+      updateFillStepMap(stepMap,previousCache,stepMeta,prev);
+    }
+  }
+  Collections.sort(steps,new Comparator<StepMeta>(){
+    public int compare(    StepMeta o1,    StepMeta o2){
+      Map<StepMeta,Boolean> beforeMap=stepMap.get(o1);
+      if (beforeMap != null) {
+        if (beforeMap.get(o2) == null) {
+          return -1;
+        }
+ else {
+          return 1;
+        }
+      }
+ else {
+        return o1.getName().compareToIgnoreCase(o2.getName());
       }
     }
   }
+);
+  long endTime=System.currentTimeMillis();
+  log.logBasic(toString(),"Natural sort of steps executed in " + (endTime - startTime) + "ms ("+ prevCount+ " time previous steps calculated)");
+  return stepMap;
 }
