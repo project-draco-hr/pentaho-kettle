@@ -11,14 +11,18 @@
     String msgScale;
 switch (meta.getScaleTimeCode()) {
 case 0:
-      msgScale=Messages.getString("DelayDialog.SScaleTime.Label");
-    data.Multiple=1000;
+      msgScale=Messages.getString("DelayDialog.MSScaleTime.Label");
+    data.Multiple=1;
   break;
 case 1:
+msgScale=Messages.getString("DelayDialog.SScaleTime.Label");
+data.Multiple=1000;
+break;
+case 2:
 msgScale=Messages.getString("DelayDialog.MnScaleTime.Label");
 data.Multiple=60000;
 break;
-case 2:
+case 3:
 msgScale=Messages.getString("DelayDialog.HrScaleTime.Label");
 data.Multiple=3600000;
 break;
@@ -30,12 +34,19 @@ String timeOut=environmentSubstitute(meta.getTimeOut());
 data.timeout=Const.toInt(timeOut,0);
 if (log.isDebug()) log.logDebug(toString(),Messages.getString("Delay.Log.TimeOut","" + data.timeout,msgScale));
 }
-long timeStart=System.currentTimeMillis() / data.Multiple;
+if ((data.Multiple < 1000) && (data.timeout > 0)) {
+try {
+Thread.sleep(data.timeout);
+}
+ catch (Exception e) {
+}
+}
+ else {
+long timeStart=System.currentTimeMillis();
 boolean continueLoop=true;
-while (continueLoop) {
-long now=System.currentTimeMillis() / data.Multiple;
-if (now >= (timeStart + data.timeout)) {
-if (log.isDebug()) log.logDebug(toString(),Messages.getString("Delay.WaitTimeIsElapsed.Label"));
+while (continueLoop && !isStopped()) {
+long now=System.currentTimeMillis();
+if (now >= (timeStart + (data.timeout * data.Multiple))) {
 continueLoop=false;
 }
  else {
@@ -46,6 +57,8 @@ Thread.sleep(1000);
 }
 }
 }
+}
+if (log.isDebug()) log.logDebug(toString(),Messages.getString("Delay.WaitTimeIsElapsed.Label"));
 putRow(getInputRowMeta(),r);
 if (checkFeedback(getLinesRead())) {
 if (log.isDetailed()) logDetailed(Messages.getString("Delay.Log.LineNumber","" + getLinesRead()));
