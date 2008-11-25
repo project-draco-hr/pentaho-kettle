@@ -1,0 +1,99 @@
+{
+  meta=(IfNullMeta)smi;
+  data=(IfNullData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertRowMeta=data.outputRowMeta.clone();
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++) {
+      data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    }
+    if (meta.isSelectFields()) {
+      if (meta.getFieldName() != null && meta.getFieldName().length > 0) {
+        data.fieldnrs=new int[meta.getFieldName().length];
+        data.defaultValues=new String[meta.getFieldName().length];
+        data.defaultMasks=new String[meta.getFieldName().length];
+        for (int i=0; i < meta.getFieldName().length; i++) {
+          data.fieldnrs[i]=data.outputRowMeta.indexOfValue(meta.getFieldName()[i]);
+          if (data.fieldnrs[i] < 0) {
+            logError(Messages.getString("IfNull.Log.CanNotFindField",meta.getFieldName()[i]));
+            throw new KettleException(Messages.getString("IfNull.Log.CanNotFindField",meta.getFieldName()[i]));
+          }
+          data.defaultValues[i]=environmentSubstitute(meta.getReplaceValue()[i]);
+          data.defaultMasks[i]=environmentSubstitute(meta.getReplaceMask()[i]);
+        }
+      }
+ else       throw new KettleException(Messages.getString("IfNull.Log.SelectFieldsEmpty"));
+    }
+ else     if (meta.isSelectValuesType()) {
+      if (meta.getTypeName() != null && meta.getTypeName().length > 0) {
+        data.defaultValues=new String[meta.getTypeName().length];
+        data.defaultMasks=new String[meta.getTypeName().length];
+        HashSet<String> AlllistTypes=new HashSet<String>();
+        for (int i=0; i < ValueMetaInterface.typeCodes.length; i++) {
+          AlllistTypes.add(ValueMetaInterface.typeCodes[i]);
+        }
+        for (int i=0; i < meta.getTypeName().length; i++) {
+          if (!AlllistTypes.contains(meta.getTypeName()[i]))           throw new KettleException(Messages.getString("IfNull.Log.CanNotFindValueType",meta.getTypeName()[i]));
+          data.ListTypes.put(meta.getTypeName()[i],i);
+          data.defaultValues[i]=environmentSubstitute(meta.getTypeReplaceValue()[i]);
+          data.defaultMasks[i]=environmentSubstitute(meta.getTypeReplaceMask()[i]);
+        }
+        HashSet<Integer> fieldsSelectedIndex=new HashSet<Integer>();
+        for (int i=0; i < data.outputRowMeta.size(); i++) {
+          ValueMetaInterface fieldMeta=data.outputRowMeta.getValueMeta(i);
+          if (data.ListTypes.containsKey(fieldMeta.getTypeDesc())) {
+            fieldsSelectedIndex.add(i);
+          }
+        }
+        data.fieldnrs=new int[fieldsSelectedIndex.size()];
+        List<Integer> entries=new ArrayList<Integer>(fieldsSelectedIndex);
+        Integer fieldnr[]=(Integer[])entries.toArray(new Integer[entries.size()]);
+        for (int i=0; i < fieldnr.length; i++) {
+          data.fieldnrs[i]=fieldnr[i];
+        }
+      }
+ else       throw new KettleException(Messages.getString("IfNull.Log.SelectValueTypesEmpty"));
+    }
+ else {
+      data.realReplaceByValue=environmentSubstitute(meta.getReplaceAllByValue());
+      data.realconversionMask=environmentSubstitute(meta.getReplaceAllMask());
+      data.fieldnrs=new int[data.outputRowMeta.size()];
+      for (int i=0; i < data.outputRowMeta.size(); i++) {
+        data.fieldnrs[i]=i;
+      }
+    }
+    data.fieldnr=data.fieldnrs.length;
+  }
+  try {
+    updateField(r);
+    putRow(data.outputRowMeta,r);
+  }
+ catch (  Exception e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("IfNull.Log.ErrorInStep",e.getMessage()));
+      e.printStackTrace();
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(data.outputRowMeta,r,1,errorMessage,null,"IFNULL001");
+    }
+  }
+  return true;
+}
