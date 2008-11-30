@@ -9,7 +9,30 @@
     first=false;
     data.outputRowMeta=getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
-    data.insertRowMeta=getInputRowMeta().clone();
+    if (!meta.specifyFields()) {
+      data.insertRowMeta=getInputRowMeta().clone();
+    }
+ else {
+      data.insertRowMeta=new RowMeta();
+      data.valuenrs=new int[meta.getFieldDatabase().length];
+      for (int i=0; i < meta.getFieldDatabase().length; i++) {
+        data.valuenrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
+        if (data.valuenrs[i] < 0) {
+          throw new KettleStepException(Messages.getString("TableOutput.Exception.FieldRequired",meta.getFieldStream()[i]));
+        }
+      }
+      for (int i=0; i < meta.getFieldDatabase().length; i++) {
+        ValueMetaInterface insValue=getInputRowMeta().searchValueMeta(meta.getFieldStream()[i]);
+        if (insValue != null) {
+          ValueMetaInterface insertValue=insValue.clone();
+          insertValue.setName(meta.getFieldDatabase()[i]);
+          data.insertRowMeta.addValueMeta(insertValue);
+        }
+ else {
+          throw new KettleStepException(Messages.getString("TableOutput.Exception.FailedToFindField",meta.getFieldStream()[i]));
+        }
+      }
+    }
   }
   try {
     Object[] outputRowData=writeToTable(getInputRowMeta(),r);
