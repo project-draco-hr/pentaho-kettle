@@ -1,13 +1,15 @@
 {
   RowMetaAndData lastUpgrade=null;
+  String versionTable=databaseMeta.getQuotedSchemaTableCombination(null,TABLE_R_VERSION);
   try {
-    lastUpgrade=database.getOneRow("SELECT " + quote(FIELD_VERSION_MAJOR_VERSION) + ", "+ quote(FIELD_VERSION_MINOR_VERSION)+ ", "+ quote(FIELD_VERSION_UPGRADE_DATE)+ " FROM "+ quote(TABLE_R_VERSION)+ " ORDER BY "+ quote(FIELD_VERSION_UPGRADE_DATE)+ " DESC");
+    lastUpgrade=database.getOneRow("SELECT " + quote(FIELD_VERSION_MAJOR_VERSION) + ", "+ quote(FIELD_VERSION_MINOR_VERSION)+ ", "+ quote(FIELD_VERSION_UPGRADE_DATE)+ " FROM "+ versionTable+ " ORDER BY "+ quote(FIELD_VERSION_UPGRADE_DATE)+ " DESC");
   }
  catch (  Exception e) {
     try {
-      database.getOneRow("SELECT * FROM " + quote(TABLE_R_USER));
+      String userTable=databaseMeta.getQuotedSchemaTableCombination(null,TABLE_R_USER);
+      database.getOneRow("SELECT * FROM " + userTable);
       if (log.isBasic()) {
-        log.logBasic(toString(),Messages.getString("Repository.Error.GettingInfoVersionTable",quote(TABLE_R_VERSION)));
+        log.logBasic(toString(),Messages.getString("Repository.Error.GettingInfoVersionTable",versionTable));
         log.logBasic(toString(),Messages.getString("Repository.Error.NewTable"));
         log.logBasic(toString(),"Stack trace: " + Const.getStackTracker(e));
       }
@@ -27,7 +29,7 @@
     throw new KettleException(Messages.getString("Repository.UpgradeRequired.Message",getVersion(),getRequiredVersion()));
   }
   if (majorVersion == 3 && minorVersion == 0) {
-    String tableName=TABLE_R_TRANS_PARTITION_SCHEMA;
+    String tableName=databaseMeta.getQuotedSchemaTableCombination(null,TABLE_R_TRANS_PARTITION_SCHEMA);
     String errorColumn="TRANSFORMATION";
     RowMetaInterface tableFields=database.getTableFields(tableName);
     if (tableFields.indexOfValue(errorColumn) >= 0) {
