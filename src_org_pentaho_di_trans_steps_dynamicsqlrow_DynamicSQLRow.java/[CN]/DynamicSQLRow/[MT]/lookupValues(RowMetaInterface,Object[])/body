@@ -18,8 +18,15 @@
   if (loadFromBuffer) {
     incrementLinesInput();
     if (!data.skipPreviousRow) {
+      Object[] newRow=RowDataUtil.resizeArray(rowData,data.outputRowMeta.size());
+      int newIndex=rowMeta.size();
+      RowMetaInterface addMeta=data.db.getReturnRowMeta();
       for (int p=0; p < data.previousrowbuffer.size(); p++) {
-        putRow(data.outputRowMeta,(Object[])data.previousrowbuffer.get(p));
+        Object[] getBufferRow=(Object[])data.previousrowbuffer.get(p);
+        for (int i=0; i < addMeta.size(); i++) {
+          newRow[newIndex++]=getBufferRow[i];
+        }
+        putRow(data.outputRowMeta,data.outputRowMeta.cloneRow(newRow));
       }
     }
   }
@@ -39,7 +46,7 @@
       }
       putRow(data.outputRowMeta,data.outputRowMeta.cloneRow(newRow));
       if (meta.isQueryOnlyOnChange()) {
-        data.previousrowbuffer.add(newRow);
+        data.previousrowbuffer.add(add);
         data.skipPreviousRow=false;
       }
       if (log.isRowLevel())       logRowlevel(Messages.getString("DynamicSQLRow.Log.PutoutRow") + data.outputRowMeta.getString(newRow));
@@ -59,7 +66,7 @@
       }
       putRow(data.outputRowMeta,newRow);
       if (meta.isQueryOnlyOnChange()) {
-        data.previousrowbuffer.add(newRow);
+        data.previousrowbuffer.add(data.notfound);
         data.skipPreviousRow=false;
       }
     }
