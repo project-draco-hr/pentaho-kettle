@@ -5,17 +5,30 @@
   if (first) {
     first=false;
     data.outputRowMeta=new RowMeta();
-    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
-    data.convertRowMeta=data.outputRowMeta.clone();
-    for (int i=0; i < data.convertRowMeta.size(); i++)     data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    RowMetaInterface[] infoStep=null;
     if (meta.isAcceptingFilenames()) {
       data.files.getFiles().clear();
       int idx=-1;
       data.rowSet=findInputRowSet(meta.getAcceptingStepName());
+      RowMetaInterface passThruRowMeta=data.rowSet.getRowMeta();
+      if (passThruRowMeta == null) {
+        try {
+          Thread.sleep(1000);
+        }
+ catch (        InterruptedException e) {
+          e.printStackTrace();
+        }
+        passThruRowMeta=data.rowSet.getRowMeta();
+      }
+      if (meta.isPassingThruFields()) {
+        data.passThruFields=new HashMap<FileObject,Object[]>();
+        infoStep=new RowMetaInterface[]{passThruRowMeta};
+        data.nrPassThruFields=passThruRowMeta.size();
+      }
       Object[] fileRow=getRowFrom(data.rowSet);
       while (fileRow != null) {
         if (idx < 0) {
-          idx=data.rowSet.getRowMeta().indexOfValue(meta.getAcceptingField());
+          idx=passThruRowMeta.indexOfValue(meta.getAcceptingField());
           if (idx < 0) {
             logError(Messages.getString("TextFileInput.Log.Error.UnableToFindFilenameField",meta.getAcceptingField()));
             setErrors(1);
@@ -23,10 +36,11 @@
             return false;
           }
         }
-        String fileValue=data.rowSet.getRowMeta().getString(fileRow,idx);
+        String fileValue=passThruRowMeta.getString(fileRow,idx);
         try {
           FileObject fileObject=KettleVFS.getFileObject(fileValue);
           data.files.addFile(fileObject);
+          if (meta.isPassingThruFields())           data.passThruFields.put(fileObject,fileRow);
         }
  catch (        IOException e) {
           logError(Messages.getString("TextFileInput.Log.Error.UnableToCreateFileObject",fileValue));
@@ -39,6 +53,9 @@
         return false;
       }
     }
+    meta.getFields(data.outputRowMeta,getStepname(),infoStep,null,this);
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++)     data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
     handleMissingFiles();
     if (!openNextFile()) {
       closeLastFile();
@@ -109,7 +126,7 @@
         data.pageLinesRead++;
         data.lineInFile++;
         long useNumber=meta.isRowNumberByFile() ? data.lineInFile : getLinesWritten() + 1;
-        r=convertLineToRow(textLine,meta,data.outputRowMeta,data.convertRowMeta,data.filename,useNumber,data.dataErrorLineHandler);
+        r=convertLineToRow(textLine,meta,data.currentPassThruFieldsRow,data.nrPassThruFields,data.outputRowMeta,data.convertRowMeta,data.filename,useNumber,data.dataErrorLineHandler);
         if (r != null)         putrow=true;
         if (!meta.hasFooter() && (data.pageLinesRead == meta.getNrLinesPerPage())) {
           data.doneWithHeader=false;
@@ -159,7 +176,7 @@
         if (data.filePlayList.isProcessingNeeded(textLine.file,textLine.lineNumber,AbstractFileErrorHandler.NO_PARTS)) {
           data.lineInFile++;
           long useNumber=meta.isRowNumberByFile() ? data.lineInFile : getLinesWritten() + 1;
-          r=convertLineToRow(textLine,meta,data.outputRowMeta,data.convertRowMeta,data.filename,useNumber,data.dataErrorLineHandler);
+          r=convertLineToRow(textLine,meta,data.currentPassThruFieldsRow,data.nrPassThruFields,data.outputRowMeta,data.convertRowMeta,data.filename,useNumber,data.dataErrorLineHandler);
           if (r != null) {
             if (log.isRowLevel())             logRowlevel("Found data row: " + data.outputRowMeta.getString(r));
             putrow=true;

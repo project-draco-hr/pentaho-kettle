@@ -1,0 +1,102 @@
+{
+  if (textFileLine == null || textFileLine.line == null)   return null;
+  Object[] r=RowDataUtil.allocateRowData(outputRowMeta.size());
+  int nrfields=info.getInputFields().length;
+  int fieldnr;
+  Long errorCount=null;
+  if (info.isErrorIgnored() && info.getErrorCountField() != null && info.getErrorCountField().length() > 0) {
+    errorCount=new Long(0L);
+  }
+  String errorFields=null;
+  if (info.isErrorIgnored() && info.getErrorFieldsField() != null && info.getErrorFieldsField().length() > 0) {
+    errorFields="";
+  }
+  String errorText=null;
+  if (info.isErrorIgnored() && info.getErrorTextField() != null && info.getErrorTextField().length() > 0) {
+    errorText="";
+  }
+  try {
+    String[] strings=convertLineToStrings(textFileLine.line,info);
+    for (fieldnr=0; fieldnr < nrfields; fieldnr++) {
+      TextFileInputField f=info.getInputFields()[fieldnr];
+      ValueMetaInterface valueMeta=outputRowMeta.getValueMeta(fieldnr);
+      ValueMetaInterface convertMeta=convertRowMeta.getValueMeta(fieldnr);
+      Object value;
+      String nullif=fieldnr < nrfields ? f.getNullString() : "";
+      String ifnull=fieldnr < nrfields ? f.getIfNullValue() : "";
+      int trim_type=fieldnr < nrfields ? f.getTrimType() : ValueMetaInterface.TRIM_TYPE_NONE;
+      if (fieldnr < strings.length) {
+        String pol=strings[fieldnr];
+        try {
+          value=valueMeta.convertDataFromString(pol,convertMeta,nullif,ifnull,trim_type);
+        }
+ catch (        Exception e) {
+          String message=Messages.getString("TextFileInput.Log.CoundNotParseField",valueMeta.toStringMeta(),"" + pol,valueMeta.getConversionMask(),"" + rowNr);
+          if (info.isErrorIgnored()) {
+            log.logDetailed(fname,Messages.getString("TextFileInput.Log.Warning") + ": " + message+ " : "+ e.getMessage());
+            value=null;
+            if (errorCount != null) {
+              errorCount=new Long(errorCount.longValue() + 1L);
+            }
+            if (errorFields != null) {
+              StringBuffer sb=new StringBuffer(errorFields);
+              if (sb.length() > 0)               sb.append("\t");
+              sb.append(valueMeta.getName());
+              errorFields=sb.toString();
+            }
+            if (errorText != null) {
+              StringBuffer sb=new StringBuffer(errorText);
+              if (sb.length() > 0)               sb.append(Const.CR);
+              sb.append(message);
+              errorText=sb.toString();
+            }
+            if (errorHandler != null) {
+              errorHandler.handleLineError(textFileLine.lineNumber,AbstractFileErrorHandler.NO_PARTS);
+            }
+            if (info.isErrorLineSkipped())             r=null;
+          }
+ else {
+            throw new KettleException(message,e);
+          }
+        }
+      }
+ else {
+        value=null;
+      }
+      if (r != null) {
+        r[fieldnr]=value;
+      }
+    }
+    if (fieldnr < nrfields) {
+      for (int i=fieldnr; i < info.getInputFields().length; i++) {
+        r[i]=null;
+      }
+    }
+    int index=nrfields;
+    if (errorCount != null) {
+      r[index]=errorCount;
+      index++;
+    }
+    if (errorFields != null) {
+      r[index]=errorFields;
+      index++;
+    }
+    if (errorText != null) {
+      r[index]=errorText;
+      index++;
+    }
+    if (info.includeFilename()) {
+      r[index]=fname;
+      index++;
+    }
+    if (info.includeRowNumber()) {
+      r[index]=new Long(rowNr);
+      index++;
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(Messages.getString("TextFileInput.Log.Error.ErrorConvertingLineText"),e);
+  }
+  if (passThruFields != null)   return RowDataUtil.addRowData(passThruFields,nrPassThruFields,r);
+ else   return r;
+}
