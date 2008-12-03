@@ -10,25 +10,16 @@
       data.files.getFiles().clear();
       int idx=-1;
       data.rowSet=findInputRowSet(meta.getAcceptingStepName());
-      RowMetaInterface passThruRowMeta=data.rowSet.getRowMeta();
-      if (passThruRowMeta == null) {
-        try {
-          Thread.sleep(1000);
-        }
- catch (        InterruptedException e) {
-          e.printStackTrace();
-        }
-        passThruRowMeta=data.rowSet.getRowMeta();
-      }
+      RowMetaInterface prevInfoFields=getTransMeta().getPrevInfoFields(getStepMeta());
       if (meta.isPassingThruFields()) {
         data.passThruFields=new HashMap<FileObject,Object[]>();
-        infoStep=new RowMetaInterface[]{passThruRowMeta};
-        data.nrPassThruFields=passThruRowMeta.size();
+        infoStep=new RowMetaInterface[]{prevInfoFields};
+        data.nrPassThruFields=prevInfoFields.size();
       }
       Object[] fileRow=getRowFrom(data.rowSet);
       while (fileRow != null) {
         if (idx < 0) {
-          idx=passThruRowMeta.indexOfValue(meta.getAcceptingField());
+          idx=prevInfoFields.indexOfValue(meta.getAcceptingField());
           if (idx < 0) {
             logError(Messages.getString("TextFileInput.Log.Error.UnableToFindFilenameField",meta.getAcceptingField()));
             setErrors(1);
@@ -36,7 +27,7 @@
             return false;
           }
         }
-        String fileValue=passThruRowMeta.getString(fileRow,idx);
+        String fileValue=prevInfoFields.getString(fileRow,idx);
         try {
           FileObject fileObject=KettleVFS.getFileObject(fileValue);
           data.files.addFile(fileObject);
