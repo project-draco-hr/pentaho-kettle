@@ -1,0 +1,70 @@
+{
+  if (meta.urlInField()) {
+    while ((data.itemsnr >= data.itemssize)) {
+      if (!readNextUrl()) {
+        return null;
+      }
+    }
+  }
+ else {
+    while ((data.itemsnr >= data.itemssize) || data.feed == null) {
+      if (!readNextUrl()) {
+        return null;
+      }
+    }
+  }
+  Object[] outputRowData=buildEmptyRow();
+  if (data.readrow != null)   outputRowData=data.readrow.clone();
+  try {
+    FeedItem item=data.feed.getItem(data.itemsnr);
+    if ((Const.isEmpty(meta.getRealReadFrom()) || (!Const.isEmpty(meta.getRealReadFrom()) && item.getPubDate().compareTo(data.readfromdatevalide) > 0))) {
+      for (int j=0; j < meta.getInputFields().length; j++) {
+        RssInputField RSSInputField=meta.getInputFields()[j];
+        String valueString=null;
+        if (RSSInputField.getColumn() == RssInputField.COLUMN_TITLE)         valueString=item.getTitle();
+ else         if (RSSInputField.getColumn() == RssInputField.COLUMN_LINK)         valueString=item.getLink() == null ? "" : item.getLink().toString();
+ else         if (RSSInputField.getColumn() == RssInputField.COLUMN_DESCRIPTION_AS_TEXT)         valueString=item.getDescriptionAsText();
+ else         if (RSSInputField.getColumn() == RssInputField.COLUMN_DESCRIPTION_AS_HTML)         valueString=item.getDescriptionAsHTML();
+ else         if (RSSInputField.getColumn() == RssInputField.COLUMN_COMMENTS)         valueString=item.getComments() == null ? "" : item.getComments().toString();
+ else         if (RSSInputField.getColumn() == RssInputField.COLUMN_GUID)         valueString=item.getGUID();
+ else         if (RSSInputField.getColumn() == RssInputField.COLUMN_PUB_DATE)         valueString=item.getPubDate() == null ? "" : DateFormat.getInstance().format(item.getPubDate());
+switch (RSSInputField.getTrimType()) {
+case RssInputField.TYPE_TRIM_LEFT:
+          valueString=Const.ltrim(valueString);
+        break;
+case RssInputField.TYPE_TRIM_RIGHT:
+      valueString=Const.rtrim(valueString);
+    break;
+case RssInputField.TYPE_TRIM_BOTH:
+  valueString=Const.trim(valueString);
+break;
+default :
+break;
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(data.totalpreviousfields + j);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(data.totalpreviousfields + j);
+outputRowData[data.totalpreviousfields + j]=targetValueMeta.convertData(sourceValueMeta,valueString);
+if (meta.getInputFields()[j].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(valueString)) {
+outputRowData[data.totalpreviousfields + j]=data.previousRow[data.totalpreviousfields + j];
+}
+}
+}
+int rowIndex=data.nrInputFields;
+if (meta.includeUrl() && meta.geturlField() != null && meta.geturlField().length() > 0) {
+outputRowData[data.totalpreviousfields + rowIndex++]=data.currenturl;
+}
+if (meta.includeRowNumber() && meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
+outputRowData[data.totalpreviousfields + rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+data.rownr++;
+data.itemsnr++;
+}
+}
+ catch (Exception e) {
+throw new KettleException(e.toString());
+}
+return outputRowData;
+}
