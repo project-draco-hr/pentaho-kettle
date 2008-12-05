@@ -1,0 +1,44 @@
+{
+  SoapBindingStub binding=null;
+  LoginResult loginResult=null;
+  GetUserInfoResult userInfo=null;
+  try {
+    binding=(SoapBindingStub)new SforceServiceLocator().getSoap();
+    if (log.isDetailed())     logDetailed(Messages.getString("SalesforceInput.Log.LoginURL") + " : " + binding._getProperty(SoapBindingStub.ENDPOINT_ADDRESS_PROPERTY));
+    int timeOut=Const.toInt(timeout,0);
+    if (timeOut > 0)     binding.setTimeout(timeOut);
+    binding._setProperty(SoapBindingStub.ENDPOINT_ADDRESS_PROPERTY,Url);
+    if (log.isDetailed()) {
+      logDetailed(Messages.getString("SalesforceInput.Log.LoginNow"));
+      logDetailed("----------------------------------------->");
+      logDetailed(Messages.getString("SalesforceInput.Log.LoginURL",Url));
+      logDetailed(Messages.getString("SalesforceInput.Log.LoginUsername",username));
+      logDetailed(Messages.getString("SalesforceInput.Log.LoginModule",module));
+      if (!Const.isEmpty(condition))       logDetailed(Messages.getString("SalesforceInput.Log.LoginCondition",condition));
+      logDetailed("<-----------------------------------------");
+    }
+    loginResult=binding.login(username,password);
+    if (log.isDebug()) {
+      logDebug(Messages.getString("SalesforceInput.Log.SessionId") + " : " + loginResult.getSessionId());
+      logDebug(Messages.getString("SalesforceInput.Log.NewServerURL") + " : " + loginResult.getServerUrl());
+    }
+    binding._setProperty(SoapBindingStub.ENDPOINT_ADDRESS_PROPERTY,loginResult.getServerUrl());
+    SessionHeader sh=new SessionHeader();
+    sh.setSessionId(loginResult.getSessionId());
+    binding.setHeader(new SforceServiceLocator().getServiceName().getNamespaceURI(),"SessionHeader",sh);
+    userInfo=binding.getUserInfo();
+    if (log.isDebug()) {
+      logDebug(Messages.getString("SalesforceInput.Log.UserInfos") + " : " + userInfo.getUserFullName());
+      logDebug("----------------------------------------->");
+      logDebug(Messages.getString("SalesforceInput.Log.UserName") + " : " + userInfo.getUserFullName());
+      logDebug(Messages.getString("SalesforceInput.Log.UserEmail") + " : " + userInfo.getUserEmail());
+      logDebug(Messages.getString("SalesforceInput.Log.UserLanguage") + " : " + userInfo.getUserLanguage());
+      logDebug(Messages.getString("SalesforceInput.Log.UserOrganization") + " : " + userInfo.getOrganizationName());
+      logDebug("<-----------------------------------------");
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+  return binding;
+}

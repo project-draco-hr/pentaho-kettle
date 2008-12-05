@@ -1,0 +1,60 @@
+{
+  if (first) {
+    first=false;
+    if (Const.isEmpty(meta.getModule())) {
+      throw new KettleException(Messages.getString("SalesforceInputDialog.ModuleMissing.DialogMessage"));
+    }
+    if (Const.isEmpty(meta.getUserName())) {
+      throw new KettleException(Messages.getString("SalesforceInputDialog.UsernameMissing.DialogMessage"));
+    }
+    data.recordcount=0;
+    data.rownr=0;
+    data.limit=Const.toLong(environmentSubstitute(meta.getRowLimit()),0);
+    data.URL=environmentSubstitute(meta.getTargetURL());
+    data.Module=environmentSubstitute(meta.getModule());
+    data.nrfields=meta.getInputFields().length;
+    if (data.nrfields == 0) {
+      throw new KettleException(Messages.getString("SalesforceInputDialog.FieldsMissing.DialogMessage"));
+    }
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++) {
+      data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    }
+    connectSalesforce();
+  }
+  if (log.isDebug())   logDebug(Messages.getString("SalesforceInput.Log.Connected"));
+  Object[] outputRowData=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  try {
+    outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (checkFeedback(getLinesInput())) {
+      if (log.isDetailed())       logDetailed(Messages.getString("SalesforceInput.log.LineRow","" + getLinesInput()));
+    }
+    return true;
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("SalesforceInput.log.Exception",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),outputRowData,1,errorMessage,null,"SalesforceInput001");
+    }
+  }
+  return true;
+}

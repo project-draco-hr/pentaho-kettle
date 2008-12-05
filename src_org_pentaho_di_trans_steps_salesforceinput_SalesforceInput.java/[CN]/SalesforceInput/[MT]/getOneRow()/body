@@ -1,0 +1,59 @@
+{
+  if (data.limitReached || data.rownr >= data.recordcount) {
+    return null;
+  }
+  Object[] outputRowData=buildEmptyRow();
+  try {
+    SObject con=data.qr.getRecords()[(int)data.rownr];
+    if (con == null)     return null;
+    for (int i=0; i < data.nrfields; i++) {
+      String value=null;
+      if (con.get_any()[i] != null)       value=con.get_any()[i].getValue();
+switch (meta.getInputFields()[i].getTrimType()) {
+case SalesforceInputField.TYPE_TRIM_LEFT:
+        value=Const.ltrim(value);
+      break;
+case SalesforceInputField.TYPE_TRIM_RIGHT:
+    value=Const.rtrim(value);
+  break;
+case SalesforceInputField.TYPE_TRIM_BOTH:
+value=Const.trim(value);
+break;
+default :
+break;
+}
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(i);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(i);
+outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,value);
+if (meta.getInputFields()[i].isRepeated()) {
+if (data.previousRow != null && Const.isEmpty(value)) {
+outputRowData[i]=data.previousRow[i];
+}
+}
+}
+int rowIndex=data.nrfields;
+if (meta.includeTargetURL() && !Const.isEmpty(meta.getTargetURLField())) {
+outputRowData[rowIndex++]=data.URL;
+}
+if (meta.includeModule() && !Const.isEmpty(meta.getModuleField())) {
+outputRowData[rowIndex++]=data.Module;
+}
+if (meta.includeSQL() && !Const.isEmpty(meta.getSQLField())) {
+outputRowData[rowIndex++]=data.SQL;
+}
+if (meta.includeTimestamp() && !Const.isEmpty(meta.getTimestampField())) {
+outputRowData[rowIndex++]=data.Timestamp;
+}
+if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+outputRowData[rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+if (data.limit > 0 && data.rownr >= data.limit - 1) data.limitReached=true;
+data.rownr++;
+}
+ catch (Exception e) {
+throw new KettleException(Messages.getString("SalesforceInput.Exception.CanNotReadFromSalesforce"),e);
+}
+return outputRowData;
+}
