@@ -3,56 +3,40 @@
   data=(DetectLastRowData)sdi;
   Object[] r=getRow();
   if (first) {
-    if (getInputRowMeta() == null)     return false;
+    if (getInputRowMeta() == null) {
+      return false;
+    }
     data.previousRowMeta=getInputRowMeta().clone();
     data.NrPrevFields=data.previousRowMeta.size();
     data.outputRowMeta=data.previousRowMeta;
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
   }
   Object[] outputRow=null;
-  try {
-    if (r == null) {
-      if (previousRow != null) {
-        outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
-        for (int i=0; i < data.NrPrevFields; i++) {
-          outputRow[i]=previousRow[i];
-        }
-        outputRow[data.NrPrevFields]=true;
-        putRow(data.outputRowMeta,outputRow);
-        if (log.isRowLevel())         log.logRowlevel(toString(),Messages.getString("DetectLastRow.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
-      }
-      setOutputDone();
-      return false;
-    }
-    if (!first) {
-      outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
-      for (int i=0; i < data.NrPrevFields; i++) {
-        outputRow[i]=r[i];
-      }
-      outputRow[data.NrPrevFields]=false;
+  if (r == null) {
+    if (previousRow != null) {
+      outputRow=RowDataUtil.addRowData(r,getInputRowMeta().size(),data.getTrueArray());
       putRow(data.outputRowMeta,outputRow);
-      if (log.isRowLevel())       log.logRowlevel(toString(),Messages.getString("DetectLastRow.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+      if (log.isRowLevel()) {
+        logRowlevel(Messages.getString("DetectLastRow.Log.WroteRowToNextStep") + data.outputRowMeta.getString(outputRow));
+      }
+      if (checkFeedback(getLinesRead())) {
+        logBasic(Messages.getString("DetectLastRow.Log.LineNumber") + getLinesRead());
+      }
     }
-    previousRow=r;
-    if (first)     first=false;
+    setOutputDone();
+    return false;
   }
- catch (  KettleException e) {
-    boolean sendToErrorRow=false;
-    String errorMessage=null;
-    if (getStepMeta().isDoingErrorHandling()) {
-      sendToErrorRow=true;
-      errorMessage=e.toString();
+  if (!first) {
+    outputRow=RowDataUtil.addRowData(r,getInputRowMeta().size(),data.getFalseArray());
+    putRow(data.outputRowMeta,outputRow);
+    if (log.isRowLevel()) {
+      logRowlevel(Messages.getString("DetectLastRow.Log.WroteRowToNextStep") + data.outputRowMeta.getString(outputRow));
     }
- else {
-      logError(Messages.getString("DetectLastRow.ErrorInStepRunning") + e.getMessage());
-      setErrors(1);
-      stopAll();
-      setOutputDone();
-      return false;
-    }
-    if (sendToErrorRow) {
-      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"DetectLastRow001");
+    if (checkFeedback(getLinesRead())) {
+      logBasic(Messages.getString("DetectLastRow.Log.LineNumber") + getLinesRead());
     }
   }
+  previousRow=r;
+  if (first)   first=false;
   return true;
 }
