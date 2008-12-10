@@ -1,0 +1,56 @@
+{
+  EnvUtil.environmentInit();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("detectlastrowtest1");
+  StepLoader steploader=StepLoader.getInstance();
+  String injectorStepname="injector step";
+  InjectorMeta im=new InjectorMeta();
+  String injectorPid=steploader.getStepPluginID(im);
+  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,im);
+  transMeta.addStep(injectorStep);
+  String dummyStepname1="dummy step 1";
+  DummyTransMeta dm1=new DummyTransMeta();
+  String dummyPid1=steploader.getStepPluginID(dm1);
+  StepMeta dummyStep1=new StepMeta(dummyPid1,dummyStepname1,dm1);
+  transMeta.addStep(dummyStep1);
+  TransHopMeta hi=new TransHopMeta(injectorStep,dummyStep1);
+  transMeta.addTransHop(hi);
+  String delectLastRowStepname="detect last row step";
+  DetectLastRowMeta dlrm=new DetectLastRowMeta();
+  dlrm.setResultFieldName("result");
+  String detectLastRowStepPid=steploader.getStepPluginID(dlrm);
+  StepMeta detectLastRowStep=new StepMeta(detectLastRowStepPid,delectLastRowStepname,dlrm);
+  transMeta.addStep(detectLastRowStep);
+  TransHopMeta hi2=new TransHopMeta(dummyStep1,detectLastRowStep);
+  transMeta.addTransHop(hi2);
+  String dummyStepname2="dummy step 2";
+  DummyTransMeta dm2=new DummyTransMeta();
+  String dummyPid2=steploader.getStepPluginID(dm2);
+  StepMeta dummyStep2=new StepMeta(dummyPid2,dummyStepname2,dm2);
+  transMeta.addStep(dummyStep2);
+  TransHopMeta hi3=new TransHopMeta(detectLastRowStep,dummyStep2);
+  transMeta.addTransHop(hi3);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(dummyStepname1,0);
+  RowStepCollector dummyRc1=new RowStepCollector();
+  si.addRowListener(dummyRc1);
+  si=trans.getStepInterface(delectLastRowStepname,0);
+  RowStepCollector detectLastRc=new RowStepCollector();
+  si.addRowListener(detectLastRc);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  trans.startThreads();
+  List<RowMetaAndData> inputList=createData(3);
+  Iterator<RowMetaAndData> it=inputList.iterator();
+  while (it.hasNext()) {
+    RowMetaAndData rm=it.next();
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> resultRows1=dummyRc1.getRowsRead();
+  checkRows(resultRows1,inputList);
+  List<RowMetaAndData> goldRows=createResultData(3);
+  List<RowMetaAndData> resultRows2=detectLastRc.getRowsWritten();
+  checkRows(resultRows2,goldRows);
+}
