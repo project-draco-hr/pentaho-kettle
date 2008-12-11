@@ -1,0 +1,60 @@
+{
+  try {
+    Object[] tempRowData=RowDataUtil.createResizedCopy(r,rowMeta.size() + meta.getFormula().length);
+    int tempIndex=rowMeta.size();
+    data.context.setRowData(tempRowData);
+    if (meta.getFormula() != null)     for (int i=0; i < meta.getFormula().length; i++) {
+      FormulaMetaFunction fn=meta.getFormula()[i];
+      if (!Const.isEmpty(fn.getFieldName())) {
+        if (data.lValue[i] == null) {
+          data.lValue[i]=data.parser.parse(meta.getFormula()[i].getFormula());
+          data.lValue[i].initialize(data.context);
+        }
+        TypeValuePair result=data.lValue[i].evaluate();
+        Object value=null;
+        Object formulaResult=result.getValue();
+        if (formulaResult instanceof String) {
+          value=(String)formulaResult;
+        }
+ else         if (formulaResult instanceof Number) {
+          value=new Double(((Number)formulaResult).doubleValue());
+        }
+ else         if (formulaResult instanceof Integer) {
+          value=new Long(((Integer)formulaResult).intValue());
+        }
+ else         if (formulaResult instanceof Long) {
+          value=(Long)formulaResult;
+        }
+ else         if (formulaResult instanceof Date) {
+          value=(Date)formulaResult;
+        }
+ else         if (formulaResult instanceof BigDecimal) {
+          value=(BigDecimal)formulaResult;
+        }
+ else         if (formulaResult instanceof byte[]) {
+          value=(byte[])formulaResult;
+        }
+ else         if (formulaResult instanceof Boolean) {
+          value=(Boolean)formulaResult;
+        }
+ else {
+          value=formulaResult.toString();
+        }
+        tempRowData[tempIndex++]=value;
+      }
+    }
+    if (data.nrRemoved == 0)     return tempRowData;
+    Object[] outputRowData=RowDataUtil.createResizedCopy(r,data.outputRowMeta.size());
+    int outputIndex=rowMeta.size();
+    for (int i=meta.getFormula().length - 1; i >= 0; i--) {
+      FormulaMetaFunction fn=meta.getFormula()[i];
+      if (!fn.isRemovedFromResult()) {
+        outputRowData[outputIndex++]=tempRowData[rowMeta.size() + i];
+      }
+    }
+    return outputRowData;
+  }
+ catch (  Exception e) {
+    throw new KettleValueException(e);
+  }
+}

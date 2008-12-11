@@ -1,0 +1,30 @@
+{
+  meta=(FormulaMeta)smi;
+  data=(FormulaData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.tempRowMeta=getInputRowMeta().clone();
+    meta.getAllFields(data.tempRowMeta,getStepname(),null,null,this,true);
+    data.context=new RowForumulaContext(data.tempRowMeta);
+    data.parser=new FormulaParser();
+    data.nrRemoved=0;
+    for (int i=0; i < meta.getFormula().length; i++) {
+      if (meta.getFormula()[i].isRemovedFromResult()) {
+        data.nrRemoved++;
+      }
+    }
+  }
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Read row #" + getLinesRead() + " : "+ r);
+  Object[] outputRowData=calcFields(getInputRowMeta(),r);
+  putRow(data.outputRowMeta,outputRowData);
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Wrote row #" + getLinesWritten() + " : "+ r);
+  if (checkFeedback(getLinesRead()))   logBasic("Linenr " + getLinesRead());
+  return true;
+}
