@@ -10,14 +10,19 @@
     first=false;
     data.outputRowMeta=getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
-    data.tempRowMeta=getInputRowMeta().clone();
-    meta.getAllFields(data.tempRowMeta,getStepname(),null,null,this,true);
-    data.context=new RowForumulaContext(data.tempRowMeta);
+    data.context=new RowForumulaContext(data.outputRowMeta);
     data.parser=new FormulaParser();
-    data.nrRemoved=0;
+    data.replaceIndex=new int[meta.getFormula().length];
     for (int i=0; i < meta.getFormula().length; i++) {
-      if (meta.getFormula()[i].isRemovedFromResult()) {
-        data.nrRemoved++;
+      FormulaMetaFunction fn=meta.getFormula()[i];
+      if (!Const.isEmpty(fn.getReplaceField())) {
+        data.replaceIndex[i]=getInputRowMeta().indexOfValue(fn.getReplaceField());
+        if (data.replaceIndex[i] < 0) {
+          throw new KettleException("Unknown field specified to replace with a formula result: [" + fn.getReplaceField() + "]");
+        }
+      }
+ else {
+        data.replaceIndex[i]=-1;
       }
     }
   }

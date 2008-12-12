@@ -1,9 +1,22 @@
 {
   try {
-    Object[] tempRowData=RowDataUtil.createResizedCopy(r,rowMeta.size() + meta.getFormula().length);
+    Object[] outputRowData=RowDataUtil.createResizedCopy(r,data.outputRowMeta.size());
     int tempIndex=rowMeta.size();
-    data.context.setRowData(tempRowData);
-    if (meta.getFormula() != null)     for (int i=0; i < meta.getFormula().length; i++) {
+    data.context.setRowData(outputRowData);
+    if (data.lValue == null) {
+      data.lValue=new LValue[meta.getFormula().length];
+      for (int i=0; i < meta.getFormula().length; i++) {
+        FormulaMetaFunction fn=meta.getFormula()[i];
+        if (!Const.isEmpty(fn.getFieldName())) {
+          data.lValue[i]=data.parser.parse(meta.getFormula()[i].getFormula());
+          data.lValue[i].initialize(data.context);
+        }
+ else {
+          throw new KettleException("Unable to find field name for formula [" + Const.NVL(fn.getFormula(),"") + "]");
+        }
+      }
+    }
+    for (int i=0; i < meta.getFormula().length; i++) {
       FormulaMetaFunction fn=meta.getFormula()[i];
       if (!Const.isEmpty(fn.getFieldName())) {
         if (data.lValue[i] == null) {
@@ -13,48 +26,98 @@
         TypeValuePair result=data.lValue[i].evaluate();
         Object value=null;
         Object formulaResult=result.getValue();
-        if (formulaResult instanceof String) {
-          value=(String)formulaResult;
-        }
- else         if (formulaResult instanceof Number) {
-          value=new Double(((Number)formulaResult).doubleValue());
-        }
- else         if (formulaResult instanceof Integer) {
-          value=new Long(((Integer)formulaResult).intValue());
-        }
- else         if (formulaResult instanceof Long) {
-          value=(Long)formulaResult;
-        }
- else         if (formulaResult instanceof Date) {
-          value=(Date)formulaResult;
-        }
- else         if (formulaResult instanceof BigDecimal) {
-          value=(BigDecimal)formulaResult;
-        }
- else         if (formulaResult instanceof byte[]) {
-          value=(byte[])formulaResult;
-        }
- else         if (formulaResult instanceof Boolean) {
-          value=(Boolean)formulaResult;
-        }
+        if (data.returnType[i] < 0) {
+          if (formulaResult instanceof String) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_STRING;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_STRING) {
+              throw new KettleValueException("Please specify a String type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
+ else           if (formulaResult instanceof Number) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_NUMBER;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_NUMBER) {
+              throw new KettleValueException("Please specify a Number type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
+ else           if (formulaResult instanceof Integer) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_INTEGER;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_INTEGER) {
+              throw new KettleValueException("Please specify an Integer type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
+ else           if (formulaResult instanceof Long) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_LONG;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_INTEGER) {
+              throw new KettleValueException("Please specify an Integer type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
+ else           if (formulaResult instanceof Date) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_DATE;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_DATE) {
+              throw new KettleValueException("Please specify a Date type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
+ else           if (formulaResult instanceof BigDecimal) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_BIGDECIMAL;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_BIGNUMBER) {
+              throw new KettleValueException("Please specify a BigNumber type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
+ else           if (formulaResult instanceof byte[]) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_BYTE_ARRAY;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_BINARY) {
+              throw new KettleValueException("Please specify a Binary type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
+ else           if (formulaResult instanceof Boolean) {
+            data.returnType[i]=FormulaData.RETURN_TYPE_BOOLEAN;
+            if (fn.getValueType() != ValueMetaInterface.TYPE_BOOLEAN) {
+              throw new KettleValueException("Please specify a Boolean type for field [" + fn.getFieldName() + "] as a result of formula ["+ fn.getFormula()+ "]");
+            }
+          }
  else {
-          value=formulaResult.toString();
+            data.returnType[i]=FormulaData.RETURN_TYPE_STRING;
+          }
         }
-        tempRowData[tempIndex++]=value;
-      }
-    }
-    if (data.nrRemoved == 0)     return tempRowData;
-    Object[] outputRowData=RowDataUtil.createResizedCopy(r,data.outputRowMeta.size());
-    int outputIndex=rowMeta.size();
-    for (int i=meta.getFormula().length - 1; i >= 0; i--) {
-      FormulaMetaFunction fn=meta.getFormula()[i];
-      if (!fn.isRemovedFromResult()) {
-        outputRowData[outputIndex++]=tempRowData[rowMeta.size() + i];
-      }
-    }
-    return outputRowData;
-  }
- catch (  Exception e) {
-    throw new KettleValueException(e);
-  }
+switch (data.returnType[i]) {
+case FormulaData.RETURN_TYPE_STRING:
+          value=formulaResult.toString();
+        break;
+case FormulaData.RETURN_TYPE_NUMBER:
+      value=new Double(((Number)formulaResult).doubleValue());
+    break;
+case FormulaData.RETURN_TYPE_INTEGER:
+  value=new Long(((Integer)formulaResult).intValue());
+break;
+case FormulaData.RETURN_TYPE_LONG:
+value=(Long)formulaResult;
+break;
+case FormulaData.RETURN_TYPE_DATE:
+value=(Date)formulaResult;
+break;
+case FormulaData.RETURN_TYPE_BIGDECIMAL:
+value=(BigDecimal)formulaResult;
+break;
+case FormulaData.RETURN_TYPE_BYTE_ARRAY:
+value=(byte[])formulaResult;
+break;
+case FormulaData.RETURN_TYPE_BOOLEAN:
+value=(Boolean)formulaResult;
+break;
+default :
+value=null;
+}
+if (data.replaceIndex[i] < 0) {
+outputRowData[tempIndex++]=value;
+}
+ else {
+outputRowData[data.replaceIndex[i]]=value;
+}
+}
+}
+return outputRowData;
+}
+ catch (Exception e) {
+throw new KettleValueException(e);
+}
 }
