@@ -1,0 +1,150 @@
+{
+  try {
+    Object[] outputRowData=RowDataUtil.createResizedCopy(r,data.outputRowMeta.size());
+    int tempIndex=rowMeta.size();
+    if (data.expressionEvaluators == null) {
+      data.expressionEvaluators=new ExpressionEvaluator[meta.getFormula().length];
+      String[] parameterNames=new String[data.outputRowMeta.size()];
+      Class<?>[] parameterTypes=new Class[data.outputRowMeta.size()];
+      for (int i=0; i < data.outputRowMeta.size(); i++) {
+switch (data.outputRowMeta.getValueMeta(i).getType()) {
+case ValueMetaInterface.TYPE_STRING:
+          parameterTypes[i]=String.class;
+        break;
+case ValueMetaInterface.TYPE_NUMBER:
+      parameterTypes[i]=Double.class;
+    break;
+case ValueMetaInterface.TYPE_INTEGER:
+  parameterTypes[i]=Long.class;
+break;
+case ValueMetaInterface.TYPE_DATE:
+parameterTypes[i]=Date.class;
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+parameterTypes[i]=BigDecimal.class;
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+parameterTypes[i]=Boolean.class;
+break;
+case ValueMetaInterface.TYPE_BINARY:
+parameterTypes[i]=byte[].class;
+break;
+default :
+parameterTypes[i]=String.class;
+break;
+}
+parameterNames[i]=data.outputRowMeta.getValueMeta(i).getName();
+}
+for (int i=0; i < meta.getFormula().length; i++) {
+JaninoMetaFunction fn=meta.getFormula()[i];
+if (!Const.isEmpty(fn.getFieldName())) {
+data.expressionEvaluators[i]=new ExpressionEvaluator();
+data.expressionEvaluators[i].setParameters(parameterNames,parameterTypes);
+data.expressionEvaluators[i].setReturnType(Object.class);
+data.expressionEvaluators[i].cook(fn.getFormula());
+}
+ else {
+throw new KettleException("Unable to find field name for formula [" + Const.NVL(fn.getFormula(),"") + "]");
+}
+}
+}
+for (int i=0; i < meta.getFormula().length; i++) {
+JaninoMetaFunction fn=meta.getFormula()[i];
+Object[] rowData=new Object[data.outputRowMeta.size()];
+System.arraycopy(outputRowData,0,rowData,0,rowData.length);
+Object formulaResult=data.expressionEvaluators[i].evaluate(rowData);
+if (data.returnType[i] < 0) {
+if (formulaResult instanceof String) {
+data.returnType[i]=JaninoData.RETURN_TYPE_STRING;
+if (fn.getValueType() != ValueMetaInterface.TYPE_STRING) {
+throw new KettleValueException("Please specify a String type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else if (formulaResult instanceof Integer) {
+data.returnType[i]=JaninoData.RETURN_TYPE_INTEGER;
+if (fn.getValueType() != ValueMetaInterface.TYPE_INTEGER) {
+throw new KettleValueException("Please specify an Integer type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else if (formulaResult instanceof Long) {
+data.returnType[i]=JaninoData.RETURN_TYPE_LONG;
+if (fn.getValueType() != ValueMetaInterface.TYPE_INTEGER) {
+throw new KettleValueException("Please specify an Integer type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else if (formulaResult instanceof Number) {
+data.returnType[i]=JaninoData.RETURN_TYPE_NUMBER;
+if (fn.getValueType() != ValueMetaInterface.TYPE_NUMBER) {
+throw new KettleValueException("Please specify a Number type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else if (formulaResult instanceof Date) {
+data.returnType[i]=JaninoData.RETURN_TYPE_DATE;
+if (fn.getValueType() != ValueMetaInterface.TYPE_DATE) {
+throw new KettleValueException("Please specify a Date type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else if (formulaResult instanceof BigDecimal) {
+data.returnType[i]=JaninoData.RETURN_TYPE_BIGDECIMAL;
+if (fn.getValueType() != ValueMetaInterface.TYPE_BIGNUMBER) {
+throw new KettleValueException("Please specify a BigNumber type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else if (formulaResult instanceof byte[]) {
+data.returnType[i]=JaninoData.RETURN_TYPE_BYTE_ARRAY;
+if (fn.getValueType() != ValueMetaInterface.TYPE_BINARY) {
+throw new KettleValueException("Please specify a Binary type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else if (formulaResult instanceof Boolean) {
+data.returnType[i]=JaninoData.RETURN_TYPE_BOOLEAN;
+if (fn.getValueType() != ValueMetaInterface.TYPE_BOOLEAN) {
+throw new KettleValueException("Please specify a Boolean type to parse [" + formulaResult.getClass().getName() + "] for field ["+ fn.getFieldName()+ "] as a result of formula ["+ fn.getFormula()+ "]");
+}
+}
+ else {
+data.returnType[i]=JaninoData.RETURN_TYPE_STRING;
+}
+}
+Object value;
+switch (data.returnType[i]) {
+case JaninoData.RETURN_TYPE_STRING:
+value=formulaResult.toString();
+break;
+case JaninoData.RETURN_TYPE_NUMBER:
+value=new Double(((Number)formulaResult).doubleValue());
+break;
+case JaninoData.RETURN_TYPE_INTEGER:
+value=new Long(((Integer)formulaResult).intValue());
+break;
+case JaninoData.RETURN_TYPE_LONG:
+value=(Long)formulaResult;
+break;
+case JaninoData.RETURN_TYPE_DATE:
+value=(Date)formulaResult;
+break;
+case JaninoData.RETURN_TYPE_BIGDECIMAL:
+value=(BigDecimal)formulaResult;
+break;
+case JaninoData.RETURN_TYPE_BYTE_ARRAY:
+value=(byte[])formulaResult;
+break;
+case JaninoData.RETURN_TYPE_BOOLEAN:
+value=(Boolean)formulaResult;
+break;
+default :
+value=null;
+}
+if (data.replaceIndex[i] < 0) {
+outputRowData[tempIndex++]=value;
+}
+ else {
+outputRowData[data.replaceIndex[i]]=value;
+}
+}
+return outputRowData;
+}
+ catch (Exception e) {
+throw new KettleValueException(e);
+}
+}

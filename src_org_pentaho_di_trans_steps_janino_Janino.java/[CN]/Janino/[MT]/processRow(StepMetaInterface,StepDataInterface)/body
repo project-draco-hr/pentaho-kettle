@@ -1,0 +1,33 @@
+{
+  meta=(JaninoMeta)smi;
+  data=(JaninoData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.replaceIndex=new int[meta.getFormula().length];
+    for (int i=0; i < meta.getFormula().length; i++) {
+      JaninoMetaFunction fn=meta.getFormula()[i];
+      if (!Const.isEmpty(fn.getReplaceField())) {
+        data.replaceIndex[i]=getInputRowMeta().indexOfValue(fn.getReplaceField());
+        if (data.replaceIndex[i] < 0) {
+          throw new KettleException("Unknown field specified to replace with a formula result: [" + fn.getReplaceField() + "]");
+        }
+      }
+ else {
+        data.replaceIndex[i]=-1;
+      }
+    }
+  }
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Read row #" + getLinesRead() + " : "+ r);
+  Object[] outputRowData=calcFields(getInputRowMeta(),r);
+  putRow(data.outputRowMeta,outputRowData);
+  if (log.isRowLevel())   log.logRowlevel(toString(),"Wrote row #" + getLinesWritten() + " : "+ r);
+  if (checkFeedback(getLinesRead()))   logBasic("Linenr " + getLinesRead());
+  return true;
+}
