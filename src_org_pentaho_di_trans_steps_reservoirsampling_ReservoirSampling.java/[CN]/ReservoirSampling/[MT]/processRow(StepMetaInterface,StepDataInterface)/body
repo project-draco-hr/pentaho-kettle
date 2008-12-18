@@ -1,0 +1,54 @@
+{
+  if (m_data.getProcessingMode() == PROC_MODE.DISABLED) {
+    setOutputDone();
+    m_data.cleanUp();
+    return (false);
+  }
+  m_meta=(ReservoirSamplingMeta)smi;
+  m_data=(ReservoirSamplingData)sdi;
+  Object[] r=getRow();
+  if (first) {
+    first=false;
+    m_data.setOutputRowMeta(getInputRowMeta().clone());
+    String sampleSize=getTransMeta().environmentSubstitute(m_meta.getSampleSize());
+    String seed=getTransMeta().environmentSubstitute(m_meta.getSeed());
+    m_data.initialize(Integer.valueOf(sampleSize),Integer.valueOf(seed));
+  }
+  if (m_data.getProcessingMode() == PROC_MODE.PASSTHROUGH) {
+    if (r == null) {
+      setOutputDone();
+      m_data.cleanUp();
+      return (false);
+    }
+    putRow(m_data.getOutputRowMeta(),r);
+  }
+ else   if (m_data.getProcessingMode() == PROC_MODE.SAMPLING) {
+    if (r == null) {
+      List<Object[]> samples=m_data.getSample();
+      int numRows=(samples != null) ? samples.size() : 0;
+      logBasic(this.getStepname() + " Actual/Sample: " + numRows+ "/"+ m_data.m_k+ " Seed:"+ getTransMeta().environmentSubstitute(m_meta.m_randomSeed));
+      if (samples != null) {
+        for (int i=0; i < samples.size(); i++) {
+          Object[] sample=samples.get(i);
+          if (sample != null) {
+            putRow(m_data.getOutputRowMeta(),sample);
+          }
+ else {
+            break;
+          }
+        }
+      }
+      setOutputDone();
+      m_data.cleanUp();
+      return false;
+    }
+    m_data.processRow(r);
+  }
+  if (log.isRowLevel()) {
+    log.logRowlevel(toString(),"Read row #" + getLinesRead() + " : "+ r);
+  }
+  if (checkFeedback(getLinesRead())) {
+    logBasic("Line number " + getLinesRead());
+  }
+  return true;
+}
