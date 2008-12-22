@@ -1,0 +1,33 @@
+{
+  meta=(UniqueRowsByHashSetMeta)smi;
+  data=(UniqueRowsByHashSetData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    data.clearHashSet();
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.inputRowMeta=getInputRowMeta().clone();
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.storeValues=meta.getStoreValues();
+    data.fieldnrs=new int[meta.getCompareFields().length];
+    for (int i=0; i < meta.getCompareFields().length; i++) {
+      data.fieldnrs[i]=getInputRowMeta().indexOfValue(meta.getCompareFields()[i]);
+      if (data.fieldnrs[i] < 0) {
+        logError(Messages.getString("UniqueRowsByHashSet.Log.CouldNotFindFieldInRow",meta.getCompareFields()[i]));
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+  }
+  if (isUniqueRow(r))   putRow(data.outputRowMeta,r);
+ else   incrementLinesRejected();
+  if (checkFeedback(getLinesRead())) {
+    if (log.isBasic())     logBasic(Messages.getString("UniqueRowsByHashSet.Log.LineNumber") + getLinesRead());
+  }
+  return true;
+}
