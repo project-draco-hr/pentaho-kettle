@@ -9,8 +9,8 @@
       data.props.put("mail.smtps.quitwait","false");
     }
   }
-  data.props.put("mail." + protocol + ".host",environmentSubstitute(server));
-  if (!Const.isEmpty(port))   data.props.put("mail." + protocol + ".port",environmentSubstitute(port));
+  data.props.put("mail." + protocol + ".host",server);
+  if (!Const.isEmpty(port))   data.props.put("mail." + protocol + ".port",port);
   boolean debug=log.getLogLevel() >= LogWriter.LOG_LEVEL_DEBUG;
   if (debug)   data.props.put("mail.debug","true");
   if (meta.isUsingAuthentication())   data.props.put("mail." + protocol + ".auth","true");
@@ -24,27 +24,32 @@
     msg.setHeader("X-Priority",priority_int);
     msg.setHeader("Importance",meta.getImportance());
   }
-  String email_address=environmentSubstitute(replyAddress);
+  String email_address=senderAddress;
   if (!Const.isEmpty(email_address)) {
-    String replay_to_name=environmentSubstitute(replyName);
-    if (!Const.isEmpty(replay_to_name))     email_address=replay_to_name + '<' + email_address+ '>';
+    if (!Const.isEmpty(senderName))     email_address=senderName + '<' + email_address+ '>';
     msg.setFrom(new InternetAddress(email_address));
   }
  else {
     throw new MessagingException(Messages.getString("Mail.Error.ReplyEmailNotFilled"));
   }
-  String destinations[]=environmentSubstitute(destination).split(" ");
+  if (!Const.isEmpty(replyToAddresses)) {
+    String[] reply_Address_List=replyToAddresses.split(" ");
+    InternetAddress[] address=new InternetAddress[reply_Address_List.length];
+    for (int i=0; i < reply_Address_List.length; i++)     address[i]=new InternetAddress(reply_Address_List[i]);
+    msg.setReplyTo(address);
+  }
+  String destinations[]=destination.split(" ");
   InternetAddress[] address=new InternetAddress[destinations.length];
   for (int i=0; i < destinations.length; i++)   address[i]=new InternetAddress(destinations[i]);
   msg.setRecipients(Message.RecipientType.TO,address);
-  String realdestinationCc=environmentSubstitute(destinationCc);
+  String realdestinationCc=destinationCc;
   if (!Const.isEmpty(realdestinationCc)) {
     String destinationsCc[]=realdestinationCc.split(" ");
     InternetAddress[] addressCc=new InternetAddress[destinationsCc.length];
     for (int i=0; i < destinationsCc.length; i++)     addressCc[i]=new InternetAddress(destinationsCc[i]);
     msg.setRecipients(Message.RecipientType.CC,addressCc);
   }
-  String realdestinationBCc=environmentSubstitute(destinationBCc);
+  String realdestinationBCc=destinationBCc;
   if (!Const.isEmpty(realdestinationBCc)) {
     String destinationsBCc[]=realdestinationBCc.split(" ");
     InternetAddress[] addressBCc=new InternetAddress[destinationsBCc.length];
@@ -56,11 +61,11 @@
   StringBuffer messageText=new StringBuffer();
   if (comment != null)   messageText.append(comment).append(Const.CR).append(Const.CR);
   if (meta.getIncludeDate())   messageText.append(Messages.getString("Mail.Log.Comment.MsgDate") + ": ").append(XMLHandler.date2string(new Date())).append(Const.CR).append(Const.CR);
-  if (!meta.isOnlySendComment() && (!Const.isEmpty(environmentSubstitute(contactPerson)) || !Const.isEmpty(environmentSubstitute(contactPhone)))) {
+  if (!meta.isOnlySendComment() && (!Const.isEmpty(contactPerson) || !Const.isEmpty(contactPhone))) {
     messageText.append(Messages.getString("Mail.Log.Comment.ContactInfo") + " :").append(Const.CR);
     messageText.append("---------------------").append(Const.CR);
-    messageText.append(Messages.getString("Mail.Log.Comment.PersonToContact") + " : ").append(environmentSubstitute(contactPerson)).append(Const.CR);
-    messageText.append(Messages.getString("Mail.Log.Comment.Tel") + "  : ").append(environmentSubstitute(contactPhone)).append(Const.CR);
+    messageText.append(Messages.getString("Mail.Log.Comment.PersonToContact") + " : ").append(contactPerson).append(Const.CR);
+    messageText.append(Messages.getString("Mail.Log.Comment.Tel") + "  : ").append(contactPhone).append(Const.CR);
     messageText.append(Const.CR);
   }
   data.parts=new MimeMultipart();
@@ -79,10 +84,10 @@
     transport=session.getTransport(protocol);
     if (meta.isUsingAuthentication()) {
       if (!Const.isEmpty(port)) {
-        transport.connect(environmentSubstitute(Const.NVL(server,"")),Integer.parseInt(environmentSubstitute(Const.NVL(port,""))),environmentSubstitute(Const.NVL(authenticationUser,"")),environmentSubstitute(Const.NVL(authenticationPassword,"")));
+        transport.connect(Const.NVL(server,""),Integer.parseInt(Const.NVL(port,"")),Const.NVL(authenticationUser,""),Const.NVL(authenticationPassword,""));
       }
  else {
-        transport.connect(environmentSubstitute(Const.NVL(server,"")),environmentSubstitute(Const.NVL(authenticationUser,"")),environmentSubstitute(Const.NVL(authenticationPassword,"")));
+        transport.connect(Const.NVL(server,""),Const.NVL(authenticationUser,""),Const.NVL(authenticationPassword,""));
       }
     }
  else {
