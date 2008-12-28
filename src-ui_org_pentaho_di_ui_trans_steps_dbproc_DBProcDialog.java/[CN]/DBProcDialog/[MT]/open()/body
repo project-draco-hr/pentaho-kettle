@@ -160,8 +160,8 @@
   wlFields.setLayoutData(fdlFields);
   final int FieldsCols=3;
   final int FieldsRows=input.getArgument().length;
-  ColumnInfo[] colinf=new ColumnInfo[FieldsCols];
-  colinf[0]=new ColumnInfo(Messages.getString("DBProcDialog.ColumnInfo.Name"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  colinf=new ColumnInfo[FieldsCols];
+  colinf[0]=new ColumnInfo(Messages.getString("DBProcDialog.ColumnInfo.Name"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
   colinf[1]=new ColumnInfo(Messages.getString("DBProcDialog.ColumnInfo.Direction"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{"IN","OUT","INOUT"});
   colinf[2]=new ColumnInfo(Messages.getString("DBProcDialog.ColumnInfo.Type"),ColumnInfo.COLUMN_TYPE_CCOMBO,ValueMeta.getTypes());
   wFields=new TableView(transMeta,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,lsMod,props);
@@ -171,6 +171,25 @@
   fdFields.right=new FormAttachment(100,0);
   fdFields.bottom=new FormAttachment(100,-50);
   wFields.setLayoutData(fdFields);
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta stepMeta=transMeta.findStep(stepname);
+      if (stepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getPrevStepFields(stepMeta);
+          for (int i=0; i < row.size(); i++) {
+            inputFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxes();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),Messages.getString("System.Dialog.GetFieldsFailed.Message"));
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText(Messages.getString("System.Button.OK"));
   wGet=new Button(shell,SWT.PUSH);

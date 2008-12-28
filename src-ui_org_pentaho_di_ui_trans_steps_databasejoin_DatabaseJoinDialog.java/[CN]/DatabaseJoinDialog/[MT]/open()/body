@@ -176,8 +176,8 @@
   wlParam.setLayoutData(fdlParam);
   int nrKeyCols=2;
   int nrKeyRows=(input.getParameterField() != null ? input.getParameterField().length : 1);
-  ColumnInfo[] ciKey=new ColumnInfo[nrKeyCols];
-  ciKey[0]=new ColumnInfo(Messages.getString("DatabaseJoinDialog.ColumnInfo.ParameterFieldname"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciKey=new ColumnInfo[nrKeyCols];
+  ciKey[0]=new ColumnInfo(Messages.getString("DatabaseJoinDialog.ColumnInfo.ParameterFieldname"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
   ciKey[1]=new ColumnInfo(Messages.getString("DatabaseJoinDialog.ColumnInfo.ParameterType"),ColumnInfo.COLUMN_TYPE_CCOMBO,ValueMeta.getTypes());
   wParam=new TableView(transMeta,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciKey,nrKeyRows,lsMod,props);
   fdParam=new FormData();
@@ -186,6 +186,25 @@
   fdParam.right=new FormAttachment(100,0);
   fdParam.bottom=new FormAttachment(wOK,-2 * margin);
   wParam.setLayoutData(fdParam);
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta stepMeta=transMeta.findStep(stepname);
+      if (stepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getPrevStepFields(stepMeta);
+          for (int i=0; i < row.size(); i++) {
+            inputFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxes();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),Messages.getString("System.Dialog.GetFieldsFailed.Message"));
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   lsOK=new Listener(){
     public void handleEvent(    Event e){
       ok();
