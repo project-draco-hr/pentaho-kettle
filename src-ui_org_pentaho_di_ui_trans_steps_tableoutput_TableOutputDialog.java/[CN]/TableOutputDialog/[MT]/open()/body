@@ -10,6 +10,12 @@
     }
   }
 ;
+  FocusListener lsFocusLost=new FocusAdapter(){
+    public void focusLost(    FocusEvent arg0){
+      setTableFieldCombo();
+    }
+  }
+;
   backupChanged=input.hasChanged();
   int middle=props.getMiddlePct();
   int margin=Const.MARGIN;
@@ -57,6 +63,7 @@
   wSchema=new TextVar(transMeta,shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wSchema);
   wSchema.addModifyListener(lsMod);
+  wSchema.addFocusListener(lsFocusLost);
   fdSchema=new FormData();
   fdSchema.left=new FormAttachment(middle,0);
   fdSchema.top=new FormAttachment(wConnection,margin * 2);
@@ -80,6 +87,7 @@
   wTable=new TextVar(transMeta,shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wTable);
   wTable.addModifyListener(lsMod);
+  wTable.addFocusListener(lsFocusLost);
   fdTable=new FormData();
   fdTable.top=new FormAttachment(wSchema,margin);
   fdTable.left=new FormAttachment(middle,0);
@@ -411,9 +419,10 @@
   wlFields.setLayoutData(fdlUpIns);
   int tableCols=2;
   int UpInsRows=(input.getFieldStream() != null ? input.getFieldStream().length : 1);
-  final ColumnInfo[] ciFields=new ColumnInfo[tableCols];
-  ciFields[0]=new ColumnInfo(Messages.getString("TableOutputDialog.ColumnInfo.TableField"),ColumnInfo.COLUMN_TYPE_TEXT,false);
-  ciFields[1]=new ColumnInfo(Messages.getString("TableOutputDialog.ColumnInfo.StreamField"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciFields=new ColumnInfo[tableCols];
+  ciFields[0]=new ColumnInfo(Messages.getString("TableOutputDialog.ColumnInfo.TableField"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  ciFields[1]=new ColumnInfo(Messages.getString("TableOutputDialog.ColumnInfo.StreamField"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  tableFieldColumns.add(ciFields[0]);
   wFields=new TableView(transMeta,wFieldsComp,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciFields,UpInsRows,lsMod,props);
   wGetFields=new Button(wFieldsComp,SWT.PUSH);
   wGetFields.setText(Messages.getString("TableOutputDialog.GetFields.Button"));
@@ -435,6 +444,25 @@
   wFieldsComp.setLayoutData(fdFieldsComp);
   wFieldsComp.layout();
   wFieldsTab.setControl(wFieldsComp);
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta stepMeta=transMeta.findStep(stepname);
+      if (stepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getPrevStepFields(stepMeta);
+          for (int i=0; i < row.size(); i++) {
+            inputFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxes();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),"Impossible de r?cup?rer les champs depuis l'?tape pr?c?dente");
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText(Messages.getString("System.Button.OK"));
   wCreate=new Button(shell,SWT.PUSH);
@@ -498,6 +526,7 @@
   wTabFolder.setSelection(0);
   setSize();
   getData();
+  setTableFieldCombo();
   input.setChanged(backupChanged);
   shell.open();
   while (!shell.isDisposed()) {
