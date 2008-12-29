@@ -42,7 +42,11 @@
   fdlFields.top=new FormAttachment(wStepname,margin);
   wlFields.setLayoutData(fdlFields);
   final int FieldsRows=input.getFieldName().length;
-  ColumnInfo[] colinf={new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.FieldName"),ColumnInfo.COLUMN_TYPE_TEXT,false),new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.VariableName"),ColumnInfo.COLUMN_TYPE_TEXT,false),new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.VariableType"),ColumnInfo.COLUMN_TYPE_CCOMBO,SetVariableMeta.getVariableTypeDescriptions(),false),new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.DefaultValue"),ColumnInfo.COLUMN_TYPE_TEXT,false)};
+  colinf=new ColumnInfo[4];
+  colinf[0]=new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.FieldName"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  colinf[1]=new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.VariableName"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  colinf[2]=new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.VariableType"),ColumnInfo.COLUMN_TYPE_CCOMBO,SetVariableMeta.getVariableTypeDescriptions(),false);
+  colinf[3]=new ColumnInfo(Messages.getString("SetVariableDialog.Fields.Column.DefaultValue"),ColumnInfo.COLUMN_TYPE_TEXT,false);
   colinf[3].setUsingVariables(true);
   colinf[3].setToolTip(Messages.getString("SetVariableDialog.Fields.Column.DefaultValue.Tooltip"));
   wFields=new TableView(transMeta,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,lsMod,props);
@@ -52,6 +56,25 @@
   fdFields.right=new FormAttachment(100,0);
   fdFields.bottom=new FormAttachment(100,-50);
   wFields.setLayoutData(fdFields);
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta stepMeta=transMeta.findStep(stepname);
+      if (stepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getPrevStepFields(stepMeta);
+          for (int i=0; i < row.size(); i++) {
+            inputFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxes();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),Messages.getString("System.Dialog.GetFieldsFailed.Message"));
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText(Messages.getString("System.Button.OK"));
   wGet=new Button(shell,SWT.PUSH);
