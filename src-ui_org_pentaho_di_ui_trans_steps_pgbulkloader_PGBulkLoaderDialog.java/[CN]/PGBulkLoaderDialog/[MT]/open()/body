@@ -10,6 +10,12 @@
     }
   }
 ;
+  FocusListener lsFocusLost=new FocusAdapter(){
+    public void focusLost(    FocusEvent arg0){
+      setTableFieldCombo();
+    }
+  }
+;
   changed=input.hasChanged();
   FormLayout formLayout=new FormLayout();
   formLayout.marginWidth=Const.FORM_MARGIN;
@@ -49,6 +55,7 @@
   wSchema=new TextVar(transMeta,shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wSchema);
   wSchema.addModifyListener(lsMod);
+  wSchema.addFocusListener(lsFocusLost);
   fdSchema=new FormData();
   fdSchema.left=new FormAttachment(middle,0);
   fdSchema.top=new FormAttachment(wConnection,margin * 2);
@@ -72,6 +79,7 @@
   wTable=new TextVar(transMeta,shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wTable);
   wTable.addModifyListener(lsMod);
+  wTable.addFocusListener(lsFocusLost);
   fdTable=new FormData();
   fdTable.left=new FormAttachment(middle,0);
   fdTable.top=new FormAttachment(wSchema,margin);
@@ -188,10 +196,11 @@
   wlReturn.setLayoutData(fdlReturn);
   int UpInsCols=3;
   int UpInsRows=(input.getFieldTable() != null ? input.getFieldTable().length : 1);
-  ColumnInfo[] ciReturn=new ColumnInfo[UpInsCols];
-  ciReturn[0]=new ColumnInfo(Messages.getString("PGBulkLoaderDialog.ColumnInfo.TableField"),ColumnInfo.COLUMN_TYPE_TEXT,false);
-  ciReturn[1]=new ColumnInfo(Messages.getString("PGBulkLoaderDialog.ColumnInfo.StreamField"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciReturn=new ColumnInfo[UpInsCols];
+  ciReturn[0]=new ColumnInfo(Messages.getString("PGBulkLoaderDialog.ColumnInfo.TableField"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  ciReturn[1]=new ColumnInfo(Messages.getString("PGBulkLoaderDialog.ColumnInfo.StreamField"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
   ciReturn[2]=new ColumnInfo(Messages.getString("PGBulkLoaderDialog.ColumnInfo.DateMask"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{"",Messages.getString("PGBulkLoaderDialog.PassThrough.Label"),Messages.getString("PGBulkLoaderDialog.DateMask.Label"),Messages.getString("PGBulkLoaderDialog.DateTimeMask.Label")},true);
+  tableFieldColumns.add(ciReturn[0]);
   wReturn=new TableView(transMeta,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciReturn,UpInsRows,lsMod,props);
   wGetLU=new Button(shell,SWT.PUSH);
   wGetLU.setText(Messages.getString("PGBulkLoaderDialog.GetFields.Label"));
@@ -205,6 +214,25 @@
   fdReturn.right=new FormAttachment(wGetLU,-margin);
   fdReturn.bottom=new FormAttachment(wOK,-2 * margin);
   wReturn.setLayoutData(fdReturn);
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta stepMeta=transMeta.findStep(stepname);
+      if (stepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getPrevStepFields(stepMeta);
+          for (int i=0; i < row.size(); i++) {
+            inputFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxes();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),Messages.getString("System.Dialog.GetFieldsFailed.Message"));
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   wbPsqlPath.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
       FileDialog dialog=new FileDialog(shell,SWT.OPEN);
@@ -273,6 +301,7 @@
 );
   setSize();
   getData();
+  setTableFieldCombo();
   input.setChanged(changed);
   shell.open();
   while (!shell.isDisposed()) {
