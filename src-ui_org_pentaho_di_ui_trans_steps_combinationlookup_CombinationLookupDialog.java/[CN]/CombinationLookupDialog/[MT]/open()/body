@@ -17,6 +17,12 @@
     }
   }
 ;
+  FocusListener lsFocusLost=new FocusAdapter(){
+    public void focusLost(    FocusEvent arg0){
+      setTableFieldCombo();
+    }
+  }
+;
   backupChanged=input.hasChanged();
   ci=input.getDatabaseMeta();
   wlStepname=new Label(shell,SWT.RIGHT);
@@ -59,6 +65,7 @@
   wSchema=new TextVar(transMeta,shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wSchema);
   wSchema.addModifyListener(lsMod);
+  wSchema.addFocusListener(lsFocusLost);
   FormData fdSchema=new FormData();
   fdSchema.left=new FormAttachment(middle,0);
   fdSchema.top=new FormAttachment(wConnection,margin);
@@ -82,6 +89,7 @@
   wTable=new TextVar(transMeta,shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   props.setLook(wTable);
   wTable.addModifyListener(lsMod);
+  wTable.addFocusListener(lsFocusLost);
   FormData fdTable=new FormData();
   fdTable.left=new FormAttachment(middle,0);
   fdTable.top=new FormAttachment(wSchema,margin);
@@ -130,9 +138,10 @@
   wlKey.setLayoutData(fdlKey);
   int nrKeyCols=2;
   int nrKeyRows=(input.getKeyField() != null ? input.getKeyField().length : 1);
-  ColumnInfo[] ciKey=new ColumnInfo[nrKeyCols];
-  ciKey[0]=new ColumnInfo(Messages.getString("CombinationLookupDialog.ColumnInfo.DimensionField"),ColumnInfo.COLUMN_TYPE_TEXT,false);
-  ciKey[1]=new ColumnInfo(Messages.getString("CombinationLookupDialog.ColumnInfo.FieldInStream"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciKey=new ColumnInfo[nrKeyCols];
+  ciKey[0]=new ColumnInfo(Messages.getString("CombinationLookupDialog.ColumnInfo.DimensionField"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  ciKey[1]=new ColumnInfo(Messages.getString("CombinationLookupDialog.ColumnInfo.FieldInStream"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  tableFieldColumns.add(ciKey[0]);
   wKey=new TableView(transMeta,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciKey,nrKeyRows,lsMod,props);
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText(Messages.getString("System.Button.OK"));
@@ -286,6 +295,25 @@
   fdKey.right=new FormAttachment(100,0);
   fdKey.bottom=new FormAttachment(wTk,-margin);
   wKey.setLayoutData(fdKey);
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta stepMeta=transMeta.findStep(stepname);
+      if (stepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getPrevStepFields(stepMeta);
+          for (int i=0; i < row.size(); i++) {
+            inputFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxes();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),Messages.getString("System.Dialog.GetFieldsFailed.Message"));
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   lsOK=new Listener(){
     public void handleEvent(    Event e){
       ok();
@@ -342,6 +370,7 @@
 );
   setSize();
   getData();
+  setTableFieldCombo();
   input.setChanged(backupChanged);
   shell.open();
   while (!shell.isDisposed()) {
