@@ -10,6 +10,12 @@
     }
   }
 ;
+  FocusListener lsFocusLost=new FocusAdapter(){
+    public void focusLost(    FocusEvent arg0){
+      setComboBoxesLookup();
+    }
+  }
+;
   changed=input.hasChanged();
   FormLayout formLayout=new FormLayout();
   formLayout.marginWidth=Const.FORM_MARGIN;
@@ -50,6 +56,7 @@
     wStep.add(stepMeta.getName());
   }
   wStep.addModifyListener(lsMod);
+  wStep.addFocusListener(lsFocusLost);
   fdStep=new FormData();
   fdStep.left=new FormAttachment(middle,0);
   fdStep.top=new FormAttachment(wStepname,margin * 2);
@@ -64,9 +71,9 @@
   wlKey.setLayoutData(fdlKey);
   int nrKeyCols=2;
   int nrKeyRows=(input.getKeystream() != null ? input.getKeystream().length : 1);
-  ColumnInfo[] ciKey=new ColumnInfo[nrKeyCols];
-  ciKey[0]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.Field"),ColumnInfo.COLUMN_TYPE_TEXT,false);
-  ciKey[1]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.LookupField"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciKey=new ColumnInfo[nrKeyCols];
+  ciKey[0]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.Field"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
+  ciKey[1]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.LookupField"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
   wKey=new TableView(transMeta,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciKey,nrKeyRows,lsMod,props);
   fdKey=new FormData();
   fdKey.left=new FormAttachment(0,0);
@@ -83,8 +90,8 @@
   wlReturn.setLayoutData(fdlReturn);
   int UpInsCols=4;
   int UpInsRows=(input.getValue() != null ? input.getValue().length : 1);
-  ColumnInfo[] ciReturn=new ColumnInfo[UpInsCols];
-  ciReturn[0]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.Field"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  ciReturn=new ColumnInfo[UpInsCols];
+  ciReturn[0]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.FieldReturn"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false);
   ciReturn[1]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.NewName"),ColumnInfo.COLUMN_TYPE_TEXT,false);
   ciReturn[2]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.Default"),ColumnInfo.COLUMN_TYPE_TEXT,false);
   ciReturn[3]=new ColumnInfo(Messages.getString("StreamLookupDialog.ColumnInfo.Type"),ColumnInfo.COLUMN_TYPE_CCOMBO,ValueMeta.getTypes());
@@ -210,6 +217,39 @@
 );
   setSize();
   getData();
+  lookupStep=wStep.getText();
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta lookupStepMeta=transMeta.findStep(lookupStep);
+      if (lookupStepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getStepFields(lookupStepMeta);
+          for (int i=0; i < row.size(); i++) {
+            lookupFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxesLookup();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),"Impossible de r?cup?rer les champs depuis l'?tape [" + lookupStep + "]!");
+        }
+      }
+      StepMeta stepMeta=transMeta.findStep(stepname);
+      if (stepMeta != null) {
+        try {
+          RowMetaInterface row=transMeta.getPrevStepFields(stepMeta);
+          for (int i=0; i < row.size(); i++) {
+            prevFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+          }
+          setComboBoxes();
+        }
+ catch (        KettleException e) {
+          log.logError(toString(),Messages.getString("System.Dialog.GetFieldsFailed.Message"));
+        }
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   input.setChanged(changed);
   shell.open();
   while (!shell.isDisposed()) {
