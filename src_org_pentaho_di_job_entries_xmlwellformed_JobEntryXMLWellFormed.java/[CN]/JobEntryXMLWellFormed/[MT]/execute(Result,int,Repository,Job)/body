@@ -17,13 +17,15 @@
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobXMLWellFormed.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
   }
   if (arg_from_previous && rows != null) {
-    for (int iteration=0; iteration < rows.size(); iteration++) {
+    for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
       if (successConditionBroken) {
         if (!successConditionBrokenExit) {
-          log.logError(toString(),Messages.getString("JobXMLWellFormed.Error.SuccessConditionbroken","" + NrErrors));
+          log.logError(toString(),Messages.getString("JobXMLWellFormed.Error.SuccessConditionbroken","" + NrAllErrors));
           successConditionBrokenExit=true;
         }
-        result.setEntryNr(NrErrors);
+        result.setEntryNr(NrAllErrors);
+        result.setNrLinesRejected(NrBadFormed);
+        result.setNrLinesWritten(NrWellFormed);
         return result;
       }
       resultRow=rows.get(iteration);
@@ -34,22 +36,28 @@
     }
   }
  else   if (vsourcefilefolder != null) {
-    for (int i=0; i < vsourcefilefolder.length; i++) {
+    for (int i=0; i < vsourcefilefolder.length && !parentJob.isStopped(); i++) {
       if (successConditionBroken) {
         if (!successConditionBrokenExit) {
-          log.logError(toString(),Messages.getString("JobXMLWellFormed.Error.SuccessConditionbroken","" + NrErrors));
+          log.logError(toString(),Messages.getString("JobXMLWellFormed.Error.SuccessConditionbroken","" + NrAllErrors));
           successConditionBrokenExit=true;
         }
-        result.setEntryNr(NrErrors);
+        result.setEntryNr(NrAllErrors);
+        result.setNrLinesRejected(NrBadFormed);
+        result.setNrLinesWritten(NrWellFormed);
         return result;
       }
       if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobXMLWellFormed.Log.ProcessingRow",vsourcefilefolder[i],vwildcard[i]));
       ProcessFileFolder(vsourcefilefolder[i],vwildcard[i],parentJob,result);
     }
   }
-  result.setNrErrors(NrErrors);
+  result.setNrErrors(NrAllErrors);
+  result.setNrLinesRejected(NrBadFormed);
   result.setNrLinesWritten(NrWellFormed);
-  if (getSuccessStatus())   result.setResult(true);
+  if (getSuccessStatus()) {
+    result.setNrErrors(0);
+    result.setResult(true);
+  }
   displayResults(log);
   return result;
 }
