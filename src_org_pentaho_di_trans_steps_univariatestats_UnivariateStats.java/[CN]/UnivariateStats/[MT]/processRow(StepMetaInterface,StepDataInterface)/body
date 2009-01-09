@@ -1,0 +1,81 @@
+{
+  m_meta=(UnivariateStatsMeta)smi;
+  m_data=(UnivariateStatsData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    Object[] outputRow=generateOutputRow();
+    putRow(m_data.getOutputRowMeta(),outputRow);
+    setOutputDone();
+    m_dataCache=null;
+    return false;
+  }
+  if (first) {
+    first=false;
+    RowMetaInterface outputMeta=new RowMeta();
+    m_data.setInputRowMeta(getInputRowMeta());
+    m_data.setOutputRowMeta(outputMeta);
+    m_meta.getFields(m_data.getOutputRowMeta(),getStepname(),null,null,this);
+    m_dataCache=(ArrayList<Number>[])new ArrayList[m_meta.getNumFieldsToProcess()];
+    UnivariateStatsData.FieldIndex[] fi=new UnivariateStatsData.FieldIndex[m_meta.getNumFieldsToProcess()];
+    m_data.setFieldIndexes(fi);
+    for (int i=0; i < m_meta.getNumFieldsToProcess(); i++) {
+      UnivariateStatsMetaFunction usmf=m_meta.getInputFieldMetaFunctions()[i];
+      m_data.getFieldIndexes()[i]=new UnivariateStatsData.FieldIndex();
+      if (!Const.isEmpty(usmf.getSourceFieldName())) {
+        int fieldIndex=m_data.getInputRowMeta().indexOfValue(usmf.getSourceFieldName());
+        if (fieldIndex < 0) {
+          throw new KettleStepException("Unable to find the specified fieldname '" + usmf.getSourceFieldName() + "' for stats calc #"+ (i + 1));
+        }
+        UnivariateStatsData.FieldIndex tempData=m_data.getFieldIndexes()[i];
+        tempData.m_columnIndex=fieldIndex;
+        ValueMetaInterface inputFieldMeta=m_data.getInputRowMeta().getValueMeta(fieldIndex);
+        if (!inputFieldMeta.isNumeric()) {
+          throw new KettleException("The input field for stats calc #" + (i + 1) + "is not numeric.");
+        }
+        tempData.m_min=Double.MAX_VALUE;
+        tempData.m_max=Double.MIN_VALUE;
+        if (usmf.getCalcMedian() || usmf.getCalcPercentile() >= 0) {
+          m_dataCache[i]=new ArrayList<Number>();
+        }
+      }
+ else {
+        throw new KettleException("There is no input field specified for stats calc #" + (i + 1));
+      }
+    }
+  }
+  for (int i=0; i < m_meta.getNumFieldsToProcess(); i++) {
+    UnivariateStatsMetaFunction usmf=m_meta.getInputFieldMetaFunctions()[i];
+    if (!Const.isEmpty(usmf.getSourceFieldName())) {
+      UnivariateStatsData.FieldIndex tempData=m_data.getFieldIndexes()[i];
+      ValueMetaInterface metaI=getInputRowMeta().getValueMeta(tempData.m_columnIndex);
+      Number input=null;
+      try {
+        input=metaI.getNumber(r[tempData.m_columnIndex]);
+      }
+ catch (      Exception ex) {
+      }
+      if (input != null) {
+        if (usmf.getCalcMedian() || usmf.getCalcPercentile() >= 0) {
+          m_dataCache[i].add(input);
+        }
+        double val=input.doubleValue();
+        tempData.m_count++;
+        tempData.m_sum+=val;
+        tempData.m_sumSq+=(val * val);
+        if (val < tempData.m_min) {
+          tempData.m_min=val;
+        }
+        if (val > tempData.m_max) {
+          tempData.m_max=val;
+        }
+      }
+    }
+  }
+  if (log.isRowLevel()) {
+    log.logRowlevel(toString(),"Read row #" + getLinesRead() + " : "+ r);
+  }
+  if (checkFeedback(getLinesRead())) {
+    logBasic("Linenr " + getLinesRead());
+  }
+  return true;
+}
