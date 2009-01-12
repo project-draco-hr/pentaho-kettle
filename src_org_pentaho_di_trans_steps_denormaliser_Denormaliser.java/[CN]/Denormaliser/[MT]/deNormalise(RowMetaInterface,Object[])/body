@@ -12,35 +12,36 @@
           DenormaliserTargetField field=meta.getDenormaliserTargetField()[idx];
           ValueMetaInterface sourceMeta=rowMeta.getValueMeta(data.fieldNameIndex[idx]);
           Object sourceData=rowData[data.fieldNameIndex[idx]];
+          Object targetData;
           ValueMetaInterface targetMeta=data.outputRowMeta.getValueMeta(data.inputRowMeta.size() - data.removeNrs.length + idx);
-          Object targetData=targetMeta.convertData(sourceMeta,sourceData);
           Object prevTargetData=data.targetResult[idx];
 switch (field.getTargetAggregationType()) {
 case DenormaliserTargetField.TYPE_AGGR_SUM:
-            if (prevTargetData != null) {
-              prevTargetData=ValueDataUtil.plus(targetMeta,prevTargetData,targetMeta,targetData);
-            }
+            targetData=targetMeta.convertData(sourceMeta,sourceData);
+          if (prevTargetData != null) {
+            prevTargetData=ValueDataUtil.plus(targetMeta,prevTargetData,targetMeta,targetData);
+          }
  else {
-              prevTargetData=targetData;
-            }
-          break;
+            prevTargetData=targetData;
+          }
+        break;
 case DenormaliserTargetField.TYPE_AGGR_MIN:
-        if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) < 0) {
-          prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
-        }
-      break;
+      if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) < 0) {
+        prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
+      }
+    break;
 case DenormaliserTargetField.TYPE_AGGR_MAX:
-    if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) > 0) {
-      prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
-    }
-  break;
+  if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) > 0) {
+    prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
+  }
+break;
 case DenormaliserTargetField.TYPE_AGGR_COUNT_ALL:
-if (!targetMeta.isNull(sourceData)) prevTargetData=((Integer)prevTargetData) + 1;
-;
+prevTargetData=++data.counters[idx];
 break;
 case DenormaliserTargetField.TYPE_AGGR_AVERAGE:
+targetData=targetMeta.convertData(sourceMeta,sourceData);
 if (!sourceMeta.isNull(sourceData)) {
-data.counters[idx]++;
+prevTargetData=data.counters[idx]++;
 if (data.sum[idx] == null) {
 data.sum[idx]=targetData;
 }
@@ -51,7 +52,8 @@ data.sum[idx]=ValueDataUtil.plus(targetMeta,data.sum[idx],targetMeta,targetData)
 break;
 case DenormaliserTargetField.TYPE_AGGR_NONE:
 default :
-prevTargetData=targetData;
+targetData=targetMeta.convertData(sourceMeta,sourceData);
+prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
 break;
 }
 data.targetResult[idx]=prevTargetData;
