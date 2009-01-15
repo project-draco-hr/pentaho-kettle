@@ -1,0 +1,55 @@
+{
+  if (meta.isUrlInField())   data.realUrl=data.inputRowMeta.getString(rowData,data.indexOfUrlField);
+  try {
+    if (log.isDetailed())     logDetailed(Messages.getString("HTTPPOST.Log.ConnectingToURL",data.realUrl));
+    HttpClient HTTPPOSTclient=new HttpClient();
+    PostMethod post=new PostMethod(data.realUrl);
+    if (Const.isEmpty(data.realEncoding))     post.setRequestHeader("Content-type","text/xml");
+ else     post.setRequestHeader("Content-type","text/xml; " + data.realEncoding);
+    if (data.useBodyParameters) {
+      for (int i=0; i < data.body_parameters_nrs.length; i++) {
+        data.bodyParameters[i].setValue(data.inputRowMeta.getString(rowData,data.body_parameters_nrs[i]));
+      }
+      post.setRequestBody(data.bodyParameters);
+    }
+    if (data.useQueryParameters) {
+      for (int i=0; i < data.query_parameters_nrs.length; i++) {
+        data.queryParameters[i].setValue(data.inputRowMeta.getString(rowData,data.query_parameters_nrs[i]));
+      }
+      post.setQueryString(data.queryParameters);
+    }
+    if (data.indexOfRequestEntity >= 0) {
+      String tmp=data.inputRowMeta.getString(rowData,data.indexOfRequestEntity);
+      if (meta.isPostAFile()) {
+        File input=new File(tmp);
+        post.setRequestEntity(new InputStreamRequestEntity(new FileInputStream(input),input.length()));
+      }
+ else {
+        post.setRequestEntity(new InputStreamRequestEntity(new ByteArrayInputStream(tmp.getBytes()),tmp.length()));
+      }
+    }
+    InputStream inputStream=null;
+    try {
+      int statusCode=HTTPPOSTclient.executeMethod(post);
+      if (log.isDebug())       log.logDebug(toString(),Messages.getString("HTTPPOST.Log.ResponseCode","" + statusCode));
+      String body=null;
+      if (statusCode != -1) {
+        inputStream=post.getResponseBodyAsStream();
+        StringBuffer bodyBuffer=new StringBuffer();
+        int c;
+        while ((c=inputStream.read()) != -1)         bodyBuffer.append((char)c);
+        inputStream.close();
+        body=bodyBuffer.toString();
+        if (log.isDebug())         log.logDebug(toString(),Messages.getString("HTTPPOST.Log.ResponseBody",body));
+      }
+      return RowDataUtil.addValueData(rowData,data.inputRowMeta.size(),body);
+    }
+  finally {
+      if (inputStream != null)       inputStream.close();
+      post.releaseConnection();
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(Messages.getString("HTTPPOST.Error.CanNotReadURL",data.realUrl),e);
+  }
+}

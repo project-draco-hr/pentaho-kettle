@@ -1,0 +1,94 @@
+{
+  meta=(HTTPPOSTMeta)smi;
+  data=(HTTPPOSTData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.inputRowMeta=getInputRowMeta();
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (meta.isUrlInField()) {
+      if (Const.isEmpty(meta.getUrlField())) {
+        logError(Messages.getString("HTTPPOST.Log.NoField"));
+        throw new KettleException(Messages.getString("HTTPPOST.Log.NoField"));
+      }
+      if (data.indexOfUrlField < 0) {
+        String realUrlfieldName=environmentSubstitute(meta.getUrlField());
+        data.indexOfUrlField=data.inputRowMeta.indexOfValue((realUrlfieldName));
+        if (data.indexOfUrlField < 0) {
+          logError(Messages.getString("HTTPPOST.Log.ErrorFindingField",realUrlfieldName));
+          throw new KettleException(Messages.getString("HTTPPOST.Exception.ErrorFindingField",realUrlfieldName));
+        }
+      }
+    }
+ else {
+      data.realUrl=environmentSubstitute(meta.getUrl());
+    }
+    int nrargs=meta.getArgumentField().length;
+    if (nrargs > 0) {
+      data.useBodyParameters=true;
+      data.body_parameters_nrs=new int[nrargs];
+      data.bodyParameters=new NameValuePair[nrargs];
+      for (int i=0; i < nrargs; i++) {
+        data.body_parameters_nrs[i]=data.inputRowMeta.indexOfValue(meta.getArgumentField()[i]);
+        if (data.body_parameters_nrs[i] < 0) {
+          logError(Messages.getString("HTTPPOST.Log.ErrorFindingField") + meta.getArgumentField()[i] + "]");
+          throw new KettleStepException(Messages.getString("HTTPPOST.Exception.CouldnotFindField",meta.getArgumentField()[i]));
+        }
+        data.bodyParameters[i]=new NameValuePair(environmentSubstitute(meta.getArgumentParameter()[i]),data.outputRowMeta.getString(r,data.body_parameters_nrs[i]));
+      }
+    }
+    int nrQuery=meta.getQueryField().length;
+    if (nrQuery > 0) {
+      data.useQueryParameters=true;
+      data.query_parameters_nrs=new int[nrQuery];
+      data.queryParameters=new NameValuePair[nrQuery];
+      for (int i=0; i < nrQuery; i++) {
+        data.query_parameters_nrs[i]=data.inputRowMeta.indexOfValue(meta.getQueryField()[i]);
+        if (data.query_parameters_nrs[i] < 0) {
+          logError(Messages.getString("HTTPPOST.Log.ErrorFindingField") + meta.getQueryField()[i] + "]");
+          throw new KettleStepException(Messages.getString("HTTPPOST.Exception.CouldnotFindField",meta.getQueryField()[i]));
+        }
+        data.queryParameters[i]=new NameValuePair(environmentSubstitute(meta.getQueryParameter()[i]),data.outputRowMeta.getString(r,data.query_parameters_nrs[i]));
+      }
+    }
+    if (!Const.isEmpty(meta.getRequestEntity())) {
+      data.indexOfRequestEntity=data.inputRowMeta.indexOfValue(environmentSubstitute(meta.getRequestEntity()));
+      if (data.indexOfRequestEntity < 0) {
+        throw new KettleStepException(Messages.getString("HTTPPOST.Exception.CouldnotFindRequestEntityField",meta.getRequestEntity()));
+      }
+    }
+    data.realEncoding=environmentSubstitute(meta.getEncoding());
+  }
+  try {
+    Object[] outputRowData=callHTTPPOST(r);
+    putRow(data.outputRowMeta,outputRowData);
+    if (checkFeedback(getLinesRead())) {
+      if (log.isDetailed())       logDetailed(Messages.getString("HTTPPOST.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("HTTPPOST.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      logError(Const.getStackTracker(e));
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"HTTPPOST001");
+    }
+  }
+  return true;
+}
