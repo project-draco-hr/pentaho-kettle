@@ -1,31 +1,39 @@
 {
-  if (monitor != null)   monitor.beginTask("Exporting the repository to XML...",3);
-  root=((null == root) ? getDirectoryTree() : root);
-  StringBuffer xml=new StringBuffer(XMLHandler.getXMLHeader());
-  xml.append("<repository>" + Const.CR + Const.CR);
-  if (exportType.equals("all") || exportType.equals("trans")) {
-    xml.append("<transformations>" + Const.CR);
-    xml.append(exportTransformations(monitor,root));
-    xml.append("</transformations>" + Const.CR);
-  }
-  if (exportType.equals("all") || exportType.equals("jobs")) {
-    xml.append("<jobs>" + Const.CR);
-    xml.append(exportJobs(monitor,root));
-    xml.append("</jobs>" + Const.CR);
-  }
-  xml.append("</repository>" + Const.CR + Const.CR);
-  if (monitor != null)   monitor.worked(1);
-  if (monitor == null || (monitor != null && !monitor.isCanceled())) {
-    if (monitor != null)     monitor.subTask("Saving XML to file [" + xmlFilename + "]");
-    try {
-      OutputStream os=KettleVFS.getOutputStream(xmlFilename,false);
-      os.write(xml.toString().getBytes(Const.XML_ENCODING));
-      os.close();
+  OutputStream os=null;
+  OutputStreamWriter writer=null;
+  try {
+    os=new BufferedOutputStream(KettleVFS.getOutputStream(xmlFilename,false));
+    writer=new OutputStreamWriter(os);
+    if (monitor != null)     monitor.beginTask("Exporting the repository to XML...",3);
+    root=((null == root) ? getDirectoryTree() : root);
+    writer.write(XMLHandler.getXMLHeader());
+    writer.write("<repository>" + Const.CR + Const.CR);
+    if (exportType.equals("all") || exportType.equals("trans")) {
+      writer.write("<transformations>" + Const.CR);
+      exportTransformations(monitor,root,writer);
+      writer.write("</transformations>" + Const.CR);
     }
- catch (    IOException e) {
-      System.out.println("Couldn't create file [" + xmlFilename + "]");
+    if (exportType.equals("all") || exportType.equals("jobs")) {
+      writer.write("<jobs>" + Const.CR);
+      exportJobs(monitor,root,writer);
+      writer.write("</jobs>" + Const.CR);
     }
+    writer.write("</repository>" + Const.CR + Const.CR);
     if (monitor != null)     monitor.worked(1);
+    if (monitor != null)     monitor.subTask("Saving XML to file [" + xmlFilename + "]");
+    if (monitor != null)     monitor.worked(1);
+  }
+ catch (  IOException e) {
+    System.out.println("Couldn't create file [" + xmlFilename + "]");
+  }
+ finally {
+    try {
+      if (writer != null)       writer.close();
+      if (os != null)       os.close();
+    }
+ catch (    Exception e) {
+      System.out.println("Exception closing XML file writer to [" + xmlFilename + "]");
+    }
   }
   if (monitor != null)   monitor.done();
 }
