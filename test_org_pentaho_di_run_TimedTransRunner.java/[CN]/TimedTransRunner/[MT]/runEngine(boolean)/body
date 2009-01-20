@@ -1,0 +1,33 @@
+{
+  System.gc();
+  if (StepLoader.getInstance().getPluginList().size() == 0)   StepLoader.init();
+  transMeta=new TransMeta(filename);
+  transMeta.setVariable("NR_OF_ROWS",Long.toString(records));
+  if (printDescription)   printTransDescription();
+  if (targetDatabaseMeta != null) {
+    transMeta.addOrReplaceDatabase(targetDatabaseMeta);
+  }
+  Trans trans=new Trans(transMeta);
+  try {
+    trans.prepareExecution(null);
+  }
+ catch (  Exception e) {
+    LogWriter.getInstance().logError(trans.getName(),"Error preparing / initializing transformation",e);
+    return false;
+  }
+  if (!Const.isEmpty(rowListenerStep)) {
+    BaseStep baseStep=trans.findRunThread(rowListenerStep);
+    if (baseStep != null) {
+      baseStep.addRowListener(rowListener);
+    }
+  }
+  long startTime=System.currentTimeMillis();
+  trans.startThreads();
+  trans.waitUntilFinished();
+  long stopTime=System.currentTimeMillis();
+  result=trans.getResult();
+  runTime=(double)(stopTime - startTime) / 1000;
+  speed=(double)records / (runTime);
+  printStats("V3 results",records,runTime,speed);
+  return true;
+}
