@@ -3,108 +3,106 @@
   Result result=previousResult;
   result.setResult(false);
   result.setNrErrors(1);
-  FileObject fileObject=null;
   Properties prop=new Properties();
   prop.setProperty("mail.pop3s.rsetbeforequit","true");
   prop.setProperty("mail.pop3.rsetbeforequit","true");
   Session sess=Session.getDefaultInstance(prop,null);
   sess.setDebug(true);
+  FileObject fileObject=null;
+  Store st=null;
+  Folder f=null;
   try {
     int nbrmailtoretrieve=Const.toInt(firstmails,0);
-    fileObject=KettleVFS.getFileObject(getRealOutputDirectory());
+    String realOutputFolder=getRealOutputDirectory();
+    fileObject=KettleVFS.getFileObject(realOutputFolder);
     if (!fileObject.exists()) {
-      log.logError(toString(),Messages.getString("JobGetMailsFromPOP.FolderNotExists.Label",getRealOutputDirectory()));
+      log.logError(toString(),Messages.getString("JobGetMailsFromPOP.FolderNotExists.Label",realOutputFolder));
     }
  else {
-      String host=getRealServername();
-      String user=getRealUsername();
-      String pwd=getRealPassword();
-      Store st=null;
-      if (!getUseSSL()) {
-        st=sess.getStore("pop3");
-        st.connect(host,user,pwd);
-      }
- else {
-        String SSL_FACTORY="javax.net.ssl.SSLSocketFactory";
-        prop.setProperty("mail.pop3.socketFactory.class",SSL_FACTORY);
-        prop.setProperty("mail.pop3.socketFactory.fallback","false");
-        prop.setProperty("mail.pop3.port",getRealSSLPort());
-        prop.setProperty("mail.pop3.socketFactory.port",getRealSSLPort());
-        URLName url=new URLName("pop3",host,Const.toInt(getRealSSLPort(),995),"",user,pwd);
-        st=new POP3SSLStore(sess,url);
-        st.connect();
-      }
-      if (log.isDetailed())       log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.LoggedWithUser.Label") + user);
-      Folder f=st.getFolder("INBOX");
-      if (f == null) {
-        log.logError(toString(),Messages.getString("JobGetMailsFromPOP.InvalidFolder.Label"));
-      }
- else {
-        if (delete) {
-          f.open(Folder.READ_WRITE);
+      if (fileObject.getType() == FileType.FOLDER) {
+        String host=getRealServername();
+        String user=getRealUsername();
+        String pwd=getRealPassword();
+        if (!getUseSSL()) {
+          st=sess.getStore("pop3");
+          st.connect(host,user,pwd);
         }
  else {
-          f.open(Folder.READ_ONLY);
+          String SSL_FACTORY="javax.net.ssl.SSLSocketFactory";
+          prop.setProperty("mail.pop3.socketFactory.class",SSL_FACTORY);
+          prop.setProperty("mail.pop3.socketFactory.fallback","false");
+          prop.setProperty("mail.pop3.port",getRealSSLPort());
+          prop.setProperty("mail.pop3.socketFactory.port",getRealSSLPort());
+          URLName url=new URLName("pop3",host,Const.toInt(getRealSSLPort(),995),"",user,pwd);
+          st=new POP3SSLStore(sess,url);
+          st.connect();
         }
-        Message messageList[]=f.getMessages();
-        if (log.isDetailed()) {
-          log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.TotalMessagesFolder.Label",f.getName(),String.valueOf(messageList.length)));
-          log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.TotalUnreadMessagesFolder.Label",f.getName(),String.valueOf(f.getUnreadMessageCount())));
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.LoggedWithUser.Label") + user);
+        f=st.getFolder("INBOX");
+        if (f == null) {
+          log.logError(toString(),Messages.getString("JobGetMailsFromPOP.InvalidFolder.Label"));
         }
-        Message msg_list[]=getPOPMessages(f,retrievemails);
-        if (msg_list.length > 0) {
-          List<File> current_file_POP=new ArrayList<File>();
-          List<String> current_filepath_POP=new ArrayList<String>();
-          int nb_email_POP=1;
-          String startpattern="name";
-          if (!Const.isEmpty(getRealFilenamePattern())) {
-            startpattern=getRealFilenamePattern();
+ else {
+          if (delete)           f.open(Folder.READ_WRITE);
+ else           f.open(Folder.READ_ONLY);
+          Message messageList[]=f.getMessages();
+          if (log.isDetailed()) {
+            log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.TotalMessagesFolder.Label",f.getName(),String.valueOf(messageList.length)));
+            log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.TotalUnreadMessagesFolder.Label",f.getName(),String.valueOf(f.getUnreadMessageCount())));
           }
-          for (int i=0; i < msg_list.length; i++) {
-            if ((nb_email_POP <= nbrmailtoretrieve && retrievemails == 2) || (retrievemails != 2)) {
-              Message msg_POP=msg_list[i];
-              if (log.isDetailed()) {
-                log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.EmailFrom.Label",msg_list[i].getFrom()[0].toString()));
-                log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.EmailSubject.Label",msg_list[i].getSubject()));
-              }
-              String localfilename_message=startpattern + "_" + StringUtil.getFormattedDateTimeNow(true)+ "_"+ (i + 1)+ ".mail";
-              if (log.isDetailed())               log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.LocalFilename.Label",localfilename_message));
-              File filename_message=new File(getRealOutputDirectory(),localfilename_message);
-              OutputStream os_filename=new FileOutputStream(filename_message);
-              Enumeration<Header> enums_POP=msg_POP.getAllHeaders();
-              while (enums_POP.hasMoreElements()) {
-                Header header_POP=enums_POP.nextElement();
-                os_filename.write(new StringBuffer(header_POP.getName()).append(": ").append(header_POP.getValue()).append("\r\n").toString().getBytes());
-              }
-              os_filename.write("\r\n".getBytes());
-              InputStream in_POP=msg_POP.getInputStream();
-              byte[] buffer_POP=new byte[1024];
-              int length_POP=0;
-              while ((length_POP=in_POP.read(buffer_POP,0,1024)) != -1) {
-                os_filename.write(buffer_POP,0,length_POP);
-              }
-              os_filename.close();
-              nb_email_POP++;
-              current_file_POP.add(filename_message);
-              current_filepath_POP.add(filename_message.getPath());
-              Object content=msg_POP.getContent();
-              if (content instanceof Multipart) {
-                handleMultipart(getRealOutputDirectory(),(Multipart)content);
-              }
-              if (delete) {
-                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.DeleteEmail.Label"));
-                msg_POP.setFlag(javax.mail.Flags.Flag.DELETED,true);
+          Message msg_list[]=getPOPMessages(f,retrievemails);
+          if (msg_list.length > 0) {
+            List<File> current_file_POP=new ArrayList<File>();
+            List<String> current_filepath_POP=new ArrayList<String>();
+            int nb_email_POP=1;
+            String startpattern="name";
+            if (!Const.isEmpty(getRealFilenamePattern())) {
+              startpattern=getRealFilenamePattern();
+            }
+            for (int i=0; i < msg_list.length; i++) {
+              if ((nb_email_POP <= nbrmailtoretrieve && retrievemails == 2) || (retrievemails != 2)) {
+                Message msg_POP=msg_list[i];
+                if (log.isDetailed()) {
+                  log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.EmailFrom.Label",msg_list[i].getFrom()[0].toString()));
+                  log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.EmailSubject.Label",msg_list[i].getSubject()));
+                }
+                String localfilename_message=startpattern + "_" + StringUtil.getFormattedDateTimeNow(true)+ "_"+ (i + 1)+ ".mail";
+                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.LocalFilename.Label",localfilename_message));
+                File filename_message=new File(realOutputFolder,localfilename_message);
+                OutputStream os_filename=new FileOutputStream(filename_message);
+                Enumeration<Header> enums_POP=msg_POP.getAllHeaders();
+                while (enums_POP.hasMoreElements()) {
+                  Header header_POP=enums_POP.nextElement();
+                  os_filename.write(new StringBuffer(header_POP.getName()).append(": ").append(header_POP.getValue()).append("\r\n").toString().getBytes());
+                }
+                os_filename.write("\r\n".getBytes());
+                InputStream in_POP=msg_POP.getInputStream();
+                byte[] buffer_POP=new byte[1024];
+                int length_POP=0;
+                while ((length_POP=in_POP.read(buffer_POP,0,1024)) != -1) {
+                  os_filename.write(buffer_POP,0,length_POP);
+                }
+                os_filename.close();
+                nb_email_POP++;
+                current_file_POP.add(filename_message);
+                current_filepath_POP.add(filename_message.getPath());
+                Object content=msg_POP.getContent();
+                if (content instanceof Multipart) {
+                  handleMultipart(realOutputFolder,(Multipart)content);
+                }
+                if (delete) {
+                  if (log.isDetailed())                   log.logDetailed(toString(),Messages.getString("JobGetMailsFromPOP.DeleteEmail.Label"));
+                  msg_POP.setFlag(javax.mail.Flags.Flag.DELETED,true);
+                }
               }
             }
           }
+          result.setNrErrors(0);
+          result.setResult(true);
         }
-        if (f != null)         f.close(true);
-        if (st != null)         st.close();
-        f=null;
-        st=null;
-        sess=null;
-        result.setNrErrors(0);
-        result.setResult(true);
+      }
+ else {
+        log.logError(toString(),Messages.getString("JobGetMailsFromPOP.Error.NotAFolder",realOutputFolder));
       }
     }
   }
@@ -126,6 +124,15 @@ catch (  Exception e) {
       }
       ;
     }
+    try {
+      if (f != null)       f.close(true);
+      if (st != null)       st.close();
+    }
+ catch (    Exception e) {
+      log.logError(toString(),e.getMessage());
+    }
+    f=null;
+    st=null;
     sess=null;
   }
   return result;
