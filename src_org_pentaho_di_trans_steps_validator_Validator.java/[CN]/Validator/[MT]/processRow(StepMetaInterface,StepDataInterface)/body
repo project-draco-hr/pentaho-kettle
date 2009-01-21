@@ -33,8 +33,21 @@
   }
   if (log.isRowLevel())   log.logRowlevel(toString(),"Read row #" + getLinesRead() + " : "+ getInputRowMeta().getString(r));
   try {
-    validateFields(getInputRowMeta(),r);
-    putRow(getInputRowMeta(),r);
+    List<KettleValidatorException> exceptions=validateFields(getInputRowMeta(),r);
+    if (exceptions.size() > 0) {
+      if (getStepMeta().isDoingErrorHandling()) {
+        for (        KettleValidatorException e : exceptions) {
+          putError(getInputRowMeta(),r,1,e.getMessage(),e.getFieldname(),e.getCodeDesc());
+        }
+      }
+ else {
+        KettleValidatorException e=exceptions.get(0);
+        throw new KettleException(e.getMessage(),e);
+      }
+    }
+ else {
+      putRow(getInputRowMeta(),r);
+    }
   }
  catch (  KettleValidatorException e) {
     if (getStepMeta().isDoingErrorHandling()) {
