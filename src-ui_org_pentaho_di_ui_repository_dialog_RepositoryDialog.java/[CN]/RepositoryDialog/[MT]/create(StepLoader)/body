@@ -59,10 +59,26 @@
           System.out.println(Messages.getString("RepositoryDialog.Dialog.TryingToUpgradeRepository.Message1") + cu + Messages.getString("RepositoryDialog.Dialog.TryingToUpgradeRepository.Message2"));
           UpgradeRepositoryProgressDialog urpd=new UpgradeRepositoryProgressDialog(shell,rep,upgrade);
           if (urpd.open()) {
-            MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
-            mb.setMessage(Messages.getString("RepositoryDialog.Dialog.UpgradeFinished.Message1") + cu + Messages.getString("RepositoryDialog.Dialog.UpgradeFinished.Message2"));
-            mb.setText(Messages.getString("RepositoryDialog.Dialog.UpgradeFinished.Title"));
-            mb.open();
+            if (urpd.isDryRun()) {
+              StringBuffer sql=new StringBuffer();
+              sql.append("-- Repository creation/upgrade DDL: ").append(Const.CR);
+              sql.append("--").append(Const.CR);
+              sql.append("-- Nothing was created nor modified in the target repository database.").append(Const.CR);
+              sql.append("-- Hit the OK button to execute the generated SQL or Close to reject the changes.").append(Const.CR);
+              sql.append("-- Please note that it is possible to change/edit the generated SQL before execution.").append(Const.CR);
+              sql.append("--").append(Const.CR);
+              for (              String statement : urpd.getGeneratedStatements()) {
+                sql.append(statement).append(";").append(Const.CR).append(Const.CR);
+              }
+              SQLEditor editor=new SQLEditor(shell,SWT.NONE,rep.getDatabaseMeta(),DBCache.getInstance(),sql.toString());
+              editor.open();
+            }
+ else {
+              MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
+              mb.setMessage(Messages.getString("RepositoryDialog.Dialog.UpgradeFinished.Message1") + cu + Messages.getString("RepositoryDialog.Dialog.UpgradeFinished.Message2"));
+              mb.setText(Messages.getString("RepositoryDialog.Dialog.UpgradeFinished.Title"));
+              mb.open();
+            }
           }
         }
       }
