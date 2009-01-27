@@ -1,5 +1,6 @@
 {
   Object[] outputRow=row;
+  Object[] add;
   if (!Const.isEmpty(meta.getIgnoreFlagField())) {
     outputRow=new Object[data.outputRowMeta.size()];
     for (int i=0; i < rowMeta.size(); i++) {
@@ -18,12 +19,17 @@
       lookupIndex++;
     }
   }
-  data.db.setValues(data.lookupParameterRowMeta,lookupRow,data.prepStatementLookup);
-  if (log.isDebug())   logDebug(Messages.getString("Update.Log.ValuesSetForLookup",data.lookupParameterRowMeta.getString(lookupRow),rowMeta.getString(row)));
-  Object[] add=data.db.getLookup(data.prepStatementLookup);
-  RowMetaInterface returnRowMeta=data.db.getReturnRowMeta();
+  RowMetaInterface returnRowMeta=null;
+  ;
+  if (!meta.isSkipLookup()) {
+    data.db.setValues(data.lookupParameterRowMeta,lookupRow,data.prepStatementLookup);
+    if (log.isDebug())     logDebug(Messages.getString("Update.Log.ValuesSetForLookup",data.lookupParameterRowMeta.getString(lookupRow),rowMeta.getString(row)));
+    add=data.db.getLookup(data.prepStatementLookup);
+    returnRowMeta=data.db.getReturnRowMeta();
+  }
+ else   add=null;
   incrementLinesInput();
-  if (add == null) {
+  if (add == null && !meta.isSkipLookup()) {
     if (!meta.isErrorIgnored()) {
       if (getStepMeta().isDoingErrorHandling()) {
         outputRow=null;
@@ -49,15 +55,22 @@
     }
   }
  else {
-    if (log.isRowLevel())     logRowlevel(Messages.getString("Update.Log.FoundRow") + data.lookupReturnRowMeta.getString(add));
+    if (!meta.isSkipLookup()) {
+      if (log.isRowLevel())       logRowlevel(Messages.getString("Update.Log.FoundRow") + data.lookupReturnRowMeta.getString(add));
+    }
     boolean update=false;
-    for (int i=0; i < data.valuenrs.length; i++) {
-      ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.valuenrs[i]);
-      Object rowvalue=row[data.valuenrs[i]];
-      ValueMetaInterface returnValueMeta=returnRowMeta.getValueMeta(i);
-      Object retvalue=add[i];
-      if (valueMeta.compare(rowvalue,returnValueMeta,retvalue) != 0) {
-        update=true;
+    if (meta.isSkipLookup()) {
+      update=true;
+    }
+ else {
+      for (int i=0; i < data.valuenrs.length; i++) {
+        ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.valuenrs[i]);
+        Object rowvalue=row[data.valuenrs[i]];
+        ValueMetaInterface returnValueMeta=returnRowMeta.getValueMeta(i);
+        Object retvalue=add[i];
+        if (valueMeta.compare(rowvalue,returnValueMeta,retvalue) != 0) {
+          update=true;
+        }
       }
     }
     if (update) {
@@ -77,7 +90,7 @@
       incrementLinesSkipped();
     }
     if (!Const.isEmpty(meta.getIgnoreFlagField())) {
-      row[rowMeta.size()]=Boolean.TRUE;
+      outputRow[rowMeta.size()]=Boolean.TRUE;
     }
   }
   return outputRow;
