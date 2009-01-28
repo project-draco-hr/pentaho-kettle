@@ -1,0 +1,46 @@
+{
+  meta=(AnalyticQueryMeta)smi;
+  data=(AnalyticQueryData)sdi;
+  Object[] r=getRow();
+  if (first) {
+    data.inputRowMeta=getInputRowMeta();
+    if (data.inputRowMeta == null) {
+      data.inputRowMeta=getTransMeta().getPrevStepFields(getStepMeta());
+    }
+    data.outputRowMeta=data.inputRowMeta.clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.groupnrs=new int[meta.getGroupField().length];
+    for (int i=0; i < meta.getGroupField().length; i++) {
+      data.groupnrs[i]=data.inputRowMeta.indexOfValue(meta.getGroupField()[i]);
+      if (data.groupnrs[i] < 0) {
+        logError(Messages.getString("AnalyticQuery.Log.GroupFieldCouldNotFound",meta.getGroupField()[i]));
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+    int max_offset=0;
+    for (int i=0; i < meta.getNumberOfFields(); i++) {
+      if (meta.getValueField()[i] > max_offset)       max_offset=meta.getValueField()[i];
+    }
+    data.window_size=max_offset;
+    data.queue_size=(max_offset * 2) + 1;
+    first=false;
+  }
+  if (r == null) {
+    clearQueue();
+    setOutputDone();
+    return false;
+  }
+ else {
+    if (!sameGroup(this.data.previous,r)) {
+      clearQueue();
+      resetGroup();
+    }
+    data.data.add(r);
+    while (data.data.size() > data.queue_size)     data.data.poll();
+    data.previous=r.clone();
+    processQueue();
+  }
+  return true;
+}
