@@ -5,6 +5,8 @@
     writer=new FileWriter(bcpFile);
     writer.write("9.0" + Const.CR);
     writer.write(meta.getFieldTable().length + Const.CR);
+    RowMetaInterface targetFieldMeta=meta.getRequiredFields();
+    data.bulkFormatMeta=new ValueMetaInterface[meta.getFieldTable().length];
     for (int i=0; i < meta.getFieldTable().length; i++) {
       ValueMetaInterface field=getInputRowMeta().getValueMeta(data.keynrs[i]);
       writer.write(Integer.toString(i + 1) + " ");
@@ -17,13 +19,20 @@ case ValueMetaInterface.TYPE_BIGNUMBER:
     dataType="SQLREAL";
   break;
 case ValueMetaInterface.TYPE_NUMBER:
-dataType="SQLREAL";
+dataType="SQLFLT8";
 break;
 case ValueMetaInterface.TYPE_INTEGER:
 dataType="SQLBIGINT";
 break;
 case ValueMetaInterface.TYPE_DATE:
+if (targetFieldMeta.getValueMetaList().get(i).getOriginalColumnType() == Types.DATE) {
+data.bulkFormatMeta[i]=data.bulkDateMeta;
+dataType="SQLDATE";
+}
+ else {
+data.bulkFormatMeta[i]=data.bulkTimestampMeta;
 dataType="SQLTIMESTAMP";
+}
 break;
 case ValueMetaInterface.TYPE_BOOLEAN:
 dataType="SQLCHAR";
@@ -34,7 +43,12 @@ break;
 }
 writer.write(dataType + " ");
 writer.write("0 ");
+if (field.getLength() == -1) {
+writer.write("1000 ");
+}
+ else {
 writer.write("" + field.getLength() + " ");
+}
 writer.write("\"\\t\" ");
 writer.write(Integer.toString(i + 1) + " ");
 writer.write(meta.getFieldTable()[i] + " ");

@@ -22,14 +22,18 @@
         throw new Exception("Return code " + result + " received from statement : "+ mkFifoCmd);
       }
     }
-    String cmd=createCommandLine(meta,true);
-    logBasic("Executing command: " + cmd);
-    data.mClientlProcess=rt.exec(cmd);
-    data.errorLogger=new StreamLogger(data.mClientlProcess.getErrorStream(),"ERROR");
-    data.outputLogger=new StreamLogger(data.mClientlProcess.getInputStream(),"OUTPUT");
-    data.bulkOutputStream=data.mClientlProcess.getOutputStream();
-    new Thread(data.errorLogger).start();
-    new Thread(data.outputLogger).start();
+    DBCache.getInstance().clear(meta.getDatabaseMeta().getName());
+    data.db=new Database(meta.getDatabaseMeta());
+    data.db.shareVariablesWith(this);
+    if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+        data.db.connect(getTrans().getThreadName(),getPartitionID());
+      }
+    }
+ else {
+      data.db.connect(getPartitionID());
+    }
+    logBasic("Connected to LucidDB");
     String fifoServerStatement="";
     fifoServerStatement+="create or replace server " + meta.getFifoServerName() + Const.CR;
     fifoServerStatement+="foreign data wrapper sys_file_wrapper" + Const.CR;
@@ -40,11 +44,14 @@
     fifoServerStatement+="num_rows_scan '0'," + Const.CR;
     fifoServerStatement+="lenient 'no');" + Const.CR;
     logBasic("Creating LucidDB fifo_server with the following command: " + fifoServerStatement);
-    data.bulkOutputStream.write(fifoServerStatement.getBytes());
-    data.bulkOutputStream.flush();
+    data.db.execStatements(fifoServerStatement);
+    String errorMaxStatement="";
+    errorMaxStatement+="alter session set \"errorMax\" = " + meta.getMaxErrors() + ";"+ Const.CR;
+    logBasic("Setting error limit in LucidDB session with the following command: " + errorMaxStatement);
+    data.db.execStatements(errorMaxStatement);
     createBulkLoadConfigFile(data.bcpFilename);
     executeLoadCommand(tableName);
-    data.fifoStream=new BufferedOutputStream(new FileOutputStream(new File(data.fifoFilename)));
+    data.fifoStream=new BufferedOutputStream(new FileOutputStream(fifoFile));
   }
  catch (  Exception ex) {
     throw new KettleException(ex);

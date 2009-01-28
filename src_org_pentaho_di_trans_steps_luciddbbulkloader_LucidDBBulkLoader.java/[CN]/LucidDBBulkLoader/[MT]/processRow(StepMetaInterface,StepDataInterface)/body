@@ -7,12 +7,23 @@
       setOutputDone();
       data.fifoStream.close();
       data.fifoStream=null;
-      data.bulkOutputStream.flush();
-      data.bulkOutputStream.close();
-      data.bulkOutputStream=null;
-      int exitVal=data.mClientlProcess.waitFor();
-      logBasic(Messages.getString("LucidDBBulkLoader.Log.ExitValuePsqlPath","" + exitVal));
-      data.mClientlProcess=null;
+      data.sqlRunner.join();
+      SqlRunner sqlRunner=data.sqlRunner;
+      data.sqlRunner=null;
+      for (      String warning : sqlRunner.warnings) {
+        logError(" (WARNING) " + warning);
+      }
+      sqlRunner.checkExcn();
+      if (!sqlRunner.warnings.isEmpty()) {
+        ResultSet rs=data.db.openQuery("SELECT PARAM_VALUE FROM SYS_ROOT.USER_SESSION_PARAMETERS WHERE PARAM_NAME='lastRowsRejected'");
+        try {
+          rs.next();
+          setLinesRejected(rs.getInt(1));
+        }
+  finally {
+          rs.close();
+        }
+      }
       return false;
     }
     if (first) {
