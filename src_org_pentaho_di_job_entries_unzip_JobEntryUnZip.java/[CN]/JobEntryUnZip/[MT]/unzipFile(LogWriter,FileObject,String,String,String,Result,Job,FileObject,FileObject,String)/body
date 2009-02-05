@@ -1,0 +1,149 @@
+{
+  boolean retval=false;
+  try {
+    if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobUnZip.Log.ProcessingFile",sourceFileObject.toString()));
+    if (rootzip) {
+      String shortSourceFilename=sourceFileObject.getName().getBaseName();
+      int lenstring=shortSourceFilename.length();
+      int lastindexOfDot=shortSourceFilename.lastIndexOf('.');
+      if (lastindexOfDot == -1)       lastindexOfDot=lenstring;
+      String foldername=realTargetdirectory + "/" + shortSourceFilename.substring(0,lastindexOfDot);
+      FileObject rootfolder=KettleVFS.getFileObject(foldername);
+      if (!rootfolder.exists()) {
+        try {
+          rootfolder.createFolder();
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobUnZip.Log.RootFolderCreated",foldername));
+        }
+ catch (        Exception e) {
+          throw new Exception(Messages.getString("JobUnZip.Error.CanNotCreateRootFolder",foldername),e);
+        }
+      }
+    }
+    String zipFilename="zip:" + sourceFileObject.getName().getFriendlyURI();
+    FileObject zipFile=KettleVFS.getFileObject(zipFilename);
+    FileObject[] items=zipFile.findFiles(new AllFileSelector(){
+      public boolean traverseDescendents(      FileSelectInfo info){
+        return true;
+      }
+      public boolean includeFile(      FileSelectInfo info){
+        if (info.getDepth() == 0) {
+          return false;
+        }
+        FileObject fileObject=info.getFile();
+        return fileObject != null;
+      }
+    }
+);
+    Pattern pattern=null;
+    if (!Const.isEmpty(realWildcard)) {
+      pattern=Pattern.compile(realWildcard);
+    }
+    Pattern patternexclude=null;
+    if (!Const.isEmpty(realWildcardExclude)) {
+      patternexclude=Pattern.compile(realWildcardExclude);
+    }
+    for (    FileObject item : items) {
+      if (successConditionBroken) {
+        if (!successConditionBrokenExit) {
+          log.logError(toString(),Messages.getString("JobUnZip.Error.SuccessConditionbroken","" + NrErrors));
+          successConditionBrokenExit=true;
+        }
+        return false;
+      }
+      try {
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobUnZip.Log.ProcessingZipEntry",item.getName().getURI(),sourceFileObject.toString()));
+        String newFileName=realTargetdirectory + Const.FILE_SEPARATOR + getTargetFilename(item.getName().getPath());
+        FileObject newFileObject=KettleVFS.getFileObject(newFileName);
+        if (item.getType().equals(FileType.FOLDER)) {
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobUnZip.CreatingDirectory.Label",newFileName));
+          if (!newFileObject.exists())           newFileObject.createFolder();
+        }
+ else {
+          boolean getIt=true;
+          boolean getItexclude=false;
+          if (pattern != null) {
+            Matcher matcher=pattern.matcher(item.getName().getURI());
+            getIt=matcher.matches();
+          }
+          if (patternexclude != null) {
+            Matcher matcherexclude=patternexclude.matcher(item.getName().getURI());
+            getItexclude=matcherexclude.matches();
+          }
+          boolean take=takeThisFile(log,item,newFileName);
+          if (getIt && !getItexclude && take) {
+            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobUnZip.ExtractingEntry.Label",item.getName().getURI(),newFileName));
+            if (iffileexist == IF_FILE_EXISTS_UNIQ) {
+              int lenstring=newFileName.length();
+              int lastindexOfDot=newFileName.lastIndexOf('.');
+              if (lastindexOfDot == -1)               lastindexOfDot=lenstring;
+              newFileName=newFileName.substring(0,lastindexOfDot) + StringUtil.getFormattedDateTimeNow(true) + newFileName.substring(lastindexOfDot,lenstring);
+              if (log.isDebug())               log.logDebug(toString(),Messages.getString("JobUnZip.Log.CreatingUniqFile",newFileName));
+            }
+            if (!newFileObject.getParent().exists()) {
+              newFileObject.getParent().createFolder();
+            }
+            InputStream is=null;
+            OutputStream os=null;
+            try {
+              is=KettleVFS.getInputStream(item);
+              os=KettleVFS.getOutputStream(newFileObject,false);
+              if (is != null) {
+                byte[] buff=new byte[2048];
+                int len;
+                while ((len=is.read(buff)) > 0) {
+                  os.write(buff,0,len);
+                }
+                addFilenameToResultFilenames(result,parentJob,newFileName);
+              }
+            }
+  finally {
+              if (is != null)               is.close();
+              if (os != null)               os.close();
+            }
+          }
+        }
+      }
+ catch (      Exception e) {
+        updateErrors();
+        log.logError(toString(),Messages.getString("JobUnZip.Error.CanNotProcessZipEntry",item.getName().getURI(),sourceFileObject.toString()),e);
+      }
+    }
+    if (afterunzip == 1) {
+      boolean deleted=fileObject.delete();
+      if (!deleted) {
+        updateErrors();
+        log.logError(toString(),Messages.getString("JobUnZip.Cant_Delete_File.Label",sourceFileObject.toString()));
+      }
+      if (log.isDebug())       log.logDebug(toString(),Messages.getString("JobUnZip.File_Deleted.Label",sourceFileObject.toString()));
+    }
+ else     if (afterunzip == 2) {
+      FileObject destFile=null;
+      try {
+        String destinationFilename=movetodir + Const.FILE_SEPARATOR + fileObject.getName().getBaseName();
+        destFile=KettleVFS.getFileObject(destinationFilename);
+        fileObject.moveTo(destFile);
+        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("JobUnZip.Log.FileMovedTo",sourceFileObject.toString(),realMovetodirectory));
+      }
+ catch (      Exception e) {
+        updateErrors();
+        log.logError(toString(),Messages.getString("JobUnZip.Cant_Move_File.Label",sourceFileObject.toString(),realMovetodirectory,e.getMessage()));
+      }
+ finally {
+        if (destFile != null) {
+          try {
+            destFile.close();
+          }
+ catch (          IOException ex) {
+          }
+          ;
+        }
+      }
+    }
+    retval=true;
+  }
+ catch (  Exception e) {
+    updateErrors();
+    log.logError(Messages.getString("JobUnZip.Error.Label"),Messages.getString("JobUnZip.ErrorUnzip.Label",sourceFileObject.toString(),e.getMessage()),e);
+  }
+  return retval;
+}

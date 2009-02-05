@@ -1,13 +1,12 @@
 {
   boolean retval=false;
   try {
-    String sourceFilename=KettleVFS.getFilename(fileObject);
-    if (fileObject.getType() == FileType.FILE) {
-      if (!unzipFile(log,sourceFilename,fileObject.getName().getBaseName(),realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))       updateErrors();
+    if (fileObject.getType().equals(FileType.FILE)) {
+      if (!unzipFile(log,fileObject,realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))       updateErrors();
  else       updateSuccess();
     }
  else {
-      File[] children=new File(sourceFilename).listFiles();
+      FileObject[] children=fileObject.getChildren();
       for (int i=0; i < children.length && !parentJob.isStopped(); i++) {
         if (successConditionBroken) {
           if (!successConditionBrokenExit) {
@@ -16,10 +15,9 @@
           }
           return false;
         }
-        if (!children[i].isDirectory()) {
+        if (!children[i].getType().equals(FileType.FOLDER)) {
           boolean unzip=true;
-          String filename=children[i].getAbsolutePath();
-          String shortfilename=children[i].getName();
+          String filename=children[i].getName().getPath();
           Pattern patternSource=null;
           if (!Const.isEmpty(realWildcardSource))           patternSource=Pattern.compile(realWildcardSource);
           if (patternSource != null) {
@@ -27,7 +25,7 @@
             unzip=matcher.matches();
           }
           if (unzip) {
-            if (!unzipFile(log,filename,shortfilename,realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))             updateErrors();
+            if (!unzipFile(log,children[i],realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))             updateErrors();
  else             updateSuccess();
           }
         }
