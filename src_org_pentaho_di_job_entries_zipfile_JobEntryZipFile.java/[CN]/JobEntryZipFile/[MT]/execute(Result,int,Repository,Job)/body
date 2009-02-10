@@ -7,6 +7,59 @@
   String realWildcardExclude=null;
   String realTargetdirectory=null;
   String realMovetodirectory=environmentSubstitute(movetodirectory);
+  boolean SanityControlOK=true;
+  if (afterzip == 2) {
+    if (Const.isEmpty(realMovetodirectory)) {
+      SanityControlOK=false;
+      log.logError(toString(),Messages.getString("JobZipFiles.AfterZip_No_DestinationFolder_Defined.Label"));
+    }
+ else {
+      FileObject moveToDirectory=null;
+      try {
+        moveToDirectory=KettleVFS.getFileObject(realMovetodirectory);
+        if (moveToDirectory.exists()) {
+          if (moveToDirectory.getType() == FileType.FOLDER) {
+            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobZipFiles.Log.MoveToFolderExist",realMovetodirectory));
+          }
+ else {
+            SanityControlOK=false;
+            log.logError(toString(),Messages.getString("JobZipFiles.Log.MoveToFolderNotFolder",realMovetodirectory));
+          }
+        }
+ else {
+          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("JobZipFiles.Log.MoveToFolderNotNotExist",realMovetodirectory));
+          if (createMoveToDirectory) {
+            moveToDirectory.createFolder();
+            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("JobZipFiles.Log.MoveToFolderCreaterd",realMovetodirectory));
+          }
+ else {
+            SanityControlOK=false;
+            log.logError(toString(),Messages.getString("JobZipFiles.Log.MoveToFolderNotNotExist",realMovetodirectory));
+          }
+        }
+      }
+ catch (      Exception e) {
+        SanityControlOK=false;
+        log.logError(toString(),Messages.getString("JobZipFiles.ErrorGettingMoveToFolder.Label",realMovetodirectory));
+      }
+ finally {
+        if (moveToDirectory != null) {
+          try {
+            moveToDirectory.close();
+            moveToDirectory=null;
+          }
+ catch (          Exception e) {
+          }
+          ;
+        }
+      }
+    }
+  }
+  if (!SanityControlOK) {
+    result.setNrErrors(1);
+    result.setResult(false);
+    return result;
+  }
   if (isfromprevious) {
     if (log.isDetailed())     log.logDetailed(toString(),Messages.getString("JobZipFiles.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
   }
