@@ -1,0 +1,66 @@
+{
+  meta=(SetValueFieldMeta)smi;
+  data=(SetValueFieldData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.indexOfField=new int[meta.getFieldName().length];
+    data.indexOfReplaceByValue=new int[meta.getFieldName().length];
+    for (int i=0; i < meta.getFieldName().length; i++) {
+      for (int j=0; j < meta.getFieldName().length; j++) {
+        if (meta.getFieldName()[j].equals(meta.getFieldName()[i])) {
+          if (j != i)           throw new KettleException(Messages.getString("SetValueField.Log.FieldSpecifiedMoreThatOne",meta.getFieldName()[i],"" + i,"" + j));
+        }
+      }
+      data.indexOfField[i]=data.outputRowMeta.indexOfValue(environmentSubstitute(meta.getFieldName()[i]));
+      if (data.indexOfField[i] < 0) {
+        throw new KettleStepException(Messages.getString("SetValueField.Log.CouldNotFindFieldInRow",meta.getFieldName()[i]));
+      }
+      String sourceField=environmentSubstitute(meta.getReplaceByFieldValue()[i]);
+      if (Const.isEmpty(sourceField)) {
+        throw new KettleStepException(Messages.getString("SetValueField.Log.ReplaceByValueFieldMissing","" + i));
+      }
+      data.indexOfReplaceByValue[i]=data.outputRowMeta.indexOfValue(sourceField);
+      if (data.indexOfReplaceByValue[i] < 0) {
+        throw new KettleStepException(Messages.getString("SetValueField.Log.CouldNotFindFieldInRow",sourceField));
+      }
+      ValueMetaInterface SourceValue=getInputRowMeta().getValueMeta(data.indexOfField[i]);
+      ValueMetaInterface ReplaceByValue=getInputRowMeta().getValueMeta(data.indexOfReplaceByValue[i]);
+      if (SourceValue.getType() != ReplaceByValue.getType()) {
+        String err=Messages.getString("SetValueField.Log.FieldsTypeDifferent",SourceValue.getName() + " (" + SourceValue.getTypeDesc()+ ")",ReplaceByValue.getName() + " (" + ReplaceByValue.getTypeDesc()+ ")");
+        throw new KettleStepException(err);
+      }
+    }
+  }
+  try {
+    for (int i=0; i < data.indexOfField.length; i++) {
+      r[data.indexOfField[i]]=r[data.indexOfReplaceByValue[i]];
+    }
+    putRow(data.outputRowMeta,r);
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("SetValueField.Log.ErrorInStep",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(data.outputRowMeta,r,1,errorMessage,null,"SetValueField001");
+    }
+  }
+  return true;
+}
