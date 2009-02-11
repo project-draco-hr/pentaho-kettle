@@ -2,27 +2,58 @@
   if (data.prepStatementDimensionUpdate == null) {
     data.dimensionUpdateRowMeta=new RowMeta();
     String sql="UPDATE " + data.schemaTable + Const.CR+ "SET ";
+    boolean comma=false;
     for (int i=0; i < meta.getFieldLookup().length; i++) {
-      if (i > 0)       sql+=", ";
- else       sql+="  ";
-      sql+=meta.getDatabaseMeta().quoteField(meta.getFieldLookup()[i]) + " = ?" + Const.CR;
-      data.dimensionUpdateRowMeta.addValueMeta(rowMeta.getValueMeta(data.fieldnrs[i]));
+      if (!DimensionLookupMeta.isUpdateTypeWithoutArgument(meta.getFieldUpdate()[i])) {
+        if (comma)         sql+=", ";
+ else         sql+="  ";
+        comma=true;
+        sql+=meta.getDatabaseMeta().quoteField(meta.getFieldLookup()[i]) + " = ?" + Const.CR;
+        data.dimensionUpdateRowMeta.addValueMeta(rowMeta.getValueMeta(data.fieldnrs[i]));
+      }
     }
-    sql+="WHERE  " + meta.getDatabaseMeta().quoteField(meta.getKeyField()) + " = ?";
-    data.dimensionUpdateRowMeta.addValueMeta(new ValueMeta(meta.getKeyField(),ValueMetaInterface.TYPE_INTEGER));
-    try {
-      if (log.isDebug())       log.logDebug(toString(),"Preparing statement: [" + sql + "]");
-      data.prepStatementDimensionUpdate=data.db.getConnection().prepareStatement(meta.getDatabaseMeta().stripCR(sql));
-    }
- catch (    SQLException ex) {
-      throw new KettleDatabaseException("Couldn't prepare statement :" + Const.CR + sql,ex);
-    }
+    for (int i=0; i < meta.getFieldUpdate().length; i++) {
+      ValueMetaInterface valueMeta=null;
+switch (meta.getFieldUpdate()[i]) {
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSUP:
+case DimensionLookupMeta.TYPE_UPDATE_DATE_UPDATED:
+        valueMeta=new ValueMeta(meta.getFieldLookup()[i],ValueMetaInterface.TYPE_DATE);
+      break;
   }
-  Object[] dimensionUpdateRow=new Object[data.dimensionUpdateRowMeta.size()];
-  for (int i=0; i < data.fieldnrs.length; i++) {
-    dimensionUpdateRow[i]=row[data.fieldnrs[i]];
+  if (valueMeta != null) {
+    if (comma)     sql+=", ";
+ else     sql+="  ";
+    comma=true;
+    sql+=meta.getDatabaseMeta().quoteField(valueMeta.getName()) + " = ?" + Const.CR;
+    data.dimensionUpdateRowMeta.addValueMeta(valueMeta);
   }
-  dimensionUpdateRow[data.fieldnrs.length]=dimkey;
-  data.db.setValues(data.dimensionUpdateRowMeta,dimensionUpdateRow,data.prepStatementDimensionUpdate);
-  data.db.insertRow(data.prepStatementDimensionUpdate);
+}
+sql+="WHERE  " + meta.getDatabaseMeta().quoteField(meta.getKeyField()) + " = ?";
+data.dimensionUpdateRowMeta.addValueMeta(new ValueMeta(meta.getKeyField(),ValueMetaInterface.TYPE_INTEGER));
+try {
+  if (log.isDebug())   log.logDebug(toString(),"Preparing statement: [" + sql + "]");
+  data.prepStatementDimensionUpdate=data.db.getConnection().prepareStatement(meta.getDatabaseMeta().stripCR(sql));
+}
+ catch (SQLException ex) {
+  throw new KettleDatabaseException("Couldn't prepare statement :" + Const.CR + sql,ex);
+}
+}
+Object[] dimensionUpdateRow=new Object[data.dimensionUpdateRowMeta.size()];
+int updateIndex=0;
+for (int i=0; i < data.fieldnrs.length; i++) {
+if (data.fieldnrs[i] >= 0) {
+  dimensionUpdateRow[updateIndex++]=row[data.fieldnrs[i]];
+}
+}
+for (int i=0; i < meta.getFieldUpdate().length; i++) {
+switch (meta.getFieldUpdate()[i]) {
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSUP:
+case DimensionLookupMeta.TYPE_UPDATE_DATE_UPDATED:
+  dimensionUpdateRow[updateIndex++]=new Date();
+break;
+}
+}
+dimensionUpdateRow[updateIndex++]=dimkey;
+data.db.setValues(data.dimensionUpdateRowMeta,dimensionUpdateRow,data.prepStatementDimensionUpdate);
+data.db.insertRow(data.prepStatementDimensionUpdate);
 }

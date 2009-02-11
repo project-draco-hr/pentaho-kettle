@@ -21,109 +21,172 @@
       insertRowMeta.addValueMeta(inputRowMeta.getValueMeta(data.keynrs[i]));
     }
     for (int i=0; i < meta.getFieldLookup().length; i++) {
-      sql+=", " + databaseMeta.quoteField(meta.getFieldLookup()[i]);
-      insertRowMeta.addValueMeta(inputRowMeta.getValueMeta(data.fieldnrs[i]));
-    }
-    sql+=") VALUES (";
-    if (!isAutoIncrement()) {
-      sql+="?, ";
-    }
-    sql+="?, ?, ?";
-    for (int i=0; i < data.keynrs.length; i++) {
-      sql+=", ?";
-    }
-    for (int i=0; i < data.fieldnrs.length; i++) {
-      sql+=", ?";
-    }
-    sql+=" )";
-    try {
-      if (technicalKey == null) {
-        log.logDetailed(toString(),"SQL w/ return keys=[" + sql + "]");
-        data.prepStatementInsert=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql),Statement.RETURN_GENERATED_KEYS);
+      if (!DimensionLookupMeta.isUpdateTypeWithoutArgument(meta.getFieldUpdate()[i])) {
+        sql+=", " + databaseMeta.quoteField(meta.getFieldLookup()[i]);
+        insertRowMeta.addValueMeta(inputRowMeta.getValueMeta(data.fieldnrs[i]));
       }
+    }
+    for (int i=0; i < meta.getFieldUpdate().length; i++) {
+      ValueMetaInterface valueMeta=null;
+switch (meta.getFieldUpdate()[i]) {
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSUP:
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSERTED:
+        valueMeta=new ValueMeta(meta.getFieldLookup()[i],ValueMetaInterface.TYPE_DATE);
+      break;
+case DimensionLookupMeta.TYPE_UPDATE_LAST_VERSION:
+    valueMeta=new ValueMeta(meta.getFieldLookup()[i],ValueMetaInterface.TYPE_BOOLEAN);
+  break;
+}
+if (valueMeta != null) {
+sql+=", " + databaseMeta.quoteField(valueMeta.getName());
+insertRowMeta.addValueMeta(valueMeta);
+}
+}
+sql+=") VALUES (";
+if (!isAutoIncrement()) {
+sql+="?, ";
+}
+sql+="?, ?, ?";
+for (int i=0; i < data.keynrs.length; i++) {
+sql+=", ?";
+}
+for (int i=0; i < meta.getFieldLookup().length; i++) {
+if (!DimensionLookupMeta.isUpdateTypeWithoutArgument(meta.getFieldUpdate()[i])) {
+sql+=", ?";
+}
+}
+for (int i=0; i < meta.getFieldUpdate().length; i++) {
+switch (meta.getFieldUpdate()[i]) {
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSUP:
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSERTED:
+case DimensionLookupMeta.TYPE_UPDATE_LAST_VERSION:
+sql+=", ?";
+break;
+}
+}
+sql+=" )";
+try {
+if (technicalKey == null) {
+log.logDetailed(toString(),"SQL w/ return keys=[" + sql + "]");
+data.prepStatementInsert=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql),Statement.RETURN_GENERATED_KEYS);
+}
  else {
-        log.logDetailed(toString(),"SQL=[" + sql + "]");
-        data.prepStatementInsert=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql));
-      }
-    }
- catch (    SQLException ex) {
-      throw new KettleDatabaseException("Unable to prepare dimension insert :" + Const.CR + sql,ex);
-    }
-    RowMetaInterface updateRowMeta=new RowMeta();
-    String sql_upd="UPDATE " + data.schemaTable + Const.CR+ "SET "+ databaseMeta.quoteField(meta.getDateTo())+ " = ?"+ Const.CR;
-    updateRowMeta.addValueMeta(new ValueMeta(meta.getDateTo(),ValueMetaInterface.TYPE_DATE));
-    sql_upd+="WHERE ";
-    for (int i=0; i < meta.getKeyLookup().length; i++) {
-      if (i > 0)       sql_upd+="AND   ";
-      sql_upd+=databaseMeta.quoteField(meta.getKeyLookup()[i]) + " = ?" + Const.CR;
-      updateRowMeta.addValueMeta(inputRowMeta.getValueMeta(data.keynrs[i]));
-    }
-    sql_upd+="AND   " + databaseMeta.quoteField(meta.getVersionField()) + " = ? ";
-    updateRowMeta.addValueMeta(new ValueMeta(meta.getVersionField(),ValueMetaInterface.TYPE_INTEGER));
-    try {
-      log.logDetailed(toString(),"Preparing update: " + Const.CR + sql_upd+ Const.CR);
-      data.prepStatementUpdate=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql_upd));
-    }
- catch (    SQLException ex) {
-      throw new KettleDatabaseException("Unable to prepare dimension update :" + Const.CR + sql_upd,ex);
-    }
-    data.insertRowMeta=insertRowMeta;
-    data.updateRowMeta=updateRowMeta;
-  }
-  Object[] insertRow=new Object[data.insertRowMeta.size()];
-  int insertIndex=0;
-  if (!isAutoIncrement()) {
-    insertRow[insertIndex]=technicalKey;
-    insertIndex++;
-  }
-  insertRow[insertIndex]=versionNr;
-  insertIndex++;
-  insertRow[insertIndex]=dateFrom;
-  insertIndex++;
-  insertRow[insertIndex]=dateTo;
-  insertIndex++;
-  for (int i=0; i < data.keynrs.length; i++) {
-    insertRow[insertIndex]=row[data.keynrs[i]];
-    insertIndex++;
-  }
-  for (int i=0; i < data.fieldnrs.length; i++) {
-    insertRow[insertIndex]=row[data.fieldnrs[i]];
-    insertIndex++;
-  }
-  if (log.isDebug())   log.logDebug(toString(),"rins, size=" + data.insertRowMeta.size() + ", values="+ data.insertRowMeta.getString(insertRow));
-  data.db.setValues(data.insertRowMeta,insertRow,data.prepStatementInsert);
-  data.db.insertRow(data.prepStatementInsert);
-  if (log.isDebug())   log.logDebug(toString(),"Row inserted!");
-  if (isAutoIncrement()) {
-    try {
-      RowMetaAndData keys=data.db.getGeneratedKeys(data.prepStatementInsert);
-      if (keys.getRowMeta().size() > 0) {
-        technicalKey=keys.getRowMeta().getInteger(keys.getData(),0);
-      }
+log.logDetailed(toString(),"SQL=[" + sql + "]");
+data.prepStatementInsert=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql));
+}
+}
+ catch (SQLException ex) {
+throw new KettleDatabaseException("Unable to prepare dimension insert :" + Const.CR + sql,ex);
+}
+RowMetaInterface updateRowMeta=new RowMeta();
+String sql_upd="UPDATE " + data.schemaTable + Const.CR;
+sql+="SET " + databaseMeta.quoteField(meta.getDateTo()) + " = ?"+ Const.CR;
+for (int i=0; i < meta.getFieldUpdate().length; i++) {
+ValueMetaInterface valueMeta=null;
+switch (meta.getFieldUpdate()[i]) {
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSUP:
+case DimensionLookupMeta.TYPE_UPDATE_DATE_UPDATED:
+valueMeta=new ValueMeta(meta.getFieldLookup()[i],ValueMetaInterface.TYPE_DATE);
+break;
+case DimensionLookupMeta.TYPE_UPDATE_LAST_VERSION:
+valueMeta=new ValueMeta(meta.getFieldLookup()[i],ValueMetaInterface.TYPE_BOOLEAN);
+break;
+}
+if (valueMeta != null) {
+sql_upd+=", " + databaseMeta.quoteField(valueMeta.getName());
+updateRowMeta.addValueMeta(valueMeta);
+}
+}
+updateRowMeta.addValueMeta(new ValueMeta(meta.getDateTo(),ValueMetaInterface.TYPE_DATE));
+sql_upd+="WHERE ";
+for (int i=0; i < meta.getKeyLookup().length; i++) {
+if (i > 0) sql_upd+="AND   ";
+sql_upd+=databaseMeta.quoteField(meta.getKeyLookup()[i]) + " = ?" + Const.CR;
+updateRowMeta.addValueMeta(inputRowMeta.getValueMeta(data.keynrs[i]));
+}
+sql_upd+="AND   " + databaseMeta.quoteField(meta.getVersionField()) + " = ? ";
+updateRowMeta.addValueMeta(new ValueMeta(meta.getVersionField(),ValueMetaInterface.TYPE_INTEGER));
+try {
+log.logDetailed(toString(),"Preparing update: " + Const.CR + sql_upd+ Const.CR);
+data.prepStatementUpdate=data.db.getConnection().prepareStatement(databaseMeta.stripCR(sql_upd));
+}
+ catch (SQLException ex) {
+throw new KettleDatabaseException("Unable to prepare dimension update :" + Const.CR + sql_upd,ex);
+}
+data.insertRowMeta=insertRowMeta;
+data.updateRowMeta=updateRowMeta;
+}
+Object[] insertRow=new Object[data.insertRowMeta.size()];
+int insertIndex=0;
+if (!isAutoIncrement()) {
+insertRow[insertIndex++]=technicalKey;
+}
+insertRow[insertIndex++]=versionNr;
+insertRow[insertIndex++]=dateFrom;
+insertRow[insertIndex++]=dateTo;
+for (int i=0; i < data.keynrs.length; i++) {
+insertRow[insertIndex++]=row[data.keynrs[i]];
+}
+for (int i=0; i < data.fieldnrs.length; i++) {
+if (data.fieldnrs[i] >= 0) {
+insertRow[insertIndex++]=row[data.fieldnrs[i]];
+}
+}
+for (int i=0; i < meta.getFieldUpdate().length; i++) {
+switch (meta.getFieldUpdate()[i]) {
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSUP:
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSERTED:
+insertRow[insertIndex++]=new Date();
+break;
+case DimensionLookupMeta.TYPE_UPDATE_LAST_VERSION:
+insertRow[insertIndex++]=Boolean.TRUE;
+break;
+}
+}
+if (log.isDebug()) log.logDebug(toString(),"rins, size=" + data.insertRowMeta.size() + ", values="+ data.insertRowMeta.getString(insertRow));
+data.db.setValues(data.insertRowMeta,insertRow,data.prepStatementInsert);
+data.db.insertRow(data.prepStatementInsert);
+if (log.isDebug()) log.logDebug(toString(),"Row inserted!");
+if (isAutoIncrement()) {
+try {
+RowMetaAndData keys=data.db.getGeneratedKeys(data.prepStatementInsert);
+if (keys.getRowMeta().size() > 0) {
+technicalKey=keys.getRowMeta().getInteger(keys.getData(),0);
+}
  else {
-        throw new KettleDatabaseException("Unable to retrieve value of auto-generated technical key : no value found!");
-      }
-    }
- catch (    Exception e) {
-      throw new KettleDatabaseException("Unable to retrieve value of auto-generated technical key : unexpected error: ",e);
-    }
-  }
-  if (!newEntry) {
-    Object[] updateRow=new Object[data.updateRowMeta.size()];
-    int updateIndex=0;
-    updateRow[updateIndex]=dateFrom;
-    updateIndex++;
-    for (int i=0; i < data.keynrs.length; i++) {
-      updateRow[updateIndex]=row[data.keynrs[i]];
-      updateIndex++;
-    }
-    updateRow[updateIndex]=versionNr - 1;
-    updateIndex++;
-    if (log.isRowLevel())     log.logRowlevel(toString(),"UPDATE using rupd=" + data.updateRowMeta.getString(updateRow));
-    data.db.setValues(data.updateRowMeta,updateRow,data.prepStatementUpdate);
-    if (log.isDebug())     log.logDebug(toString(),"Values set for update (" + data.updateRowMeta.size() + ")");
-    data.db.insertRow(data.prepStatementUpdate);
-    if (log.isDebug())     log.logDebug(toString(),"Row updated!");
-  }
-  return technicalKey;
+throw new KettleDatabaseException("Unable to retrieve value of auto-generated technical key : no value found!");
+}
+}
+ catch (Exception e) {
+throw new KettleDatabaseException("Unable to retrieve value of auto-generated technical key : unexpected error: ",e);
+}
+}
+if (!newEntry) {
+Object[] updateRow=new Object[data.updateRowMeta.size()];
+int updateIndex=0;
+updateRow[updateIndex++]=dateFrom;
+for (int i=0; i < meta.getFieldUpdate().length; i++) {
+switch (meta.getFieldUpdate()[i]) {
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSUP:
+case DimensionLookupMeta.TYPE_UPDATE_DATE_INSERTED:
+updateRow[updateIndex++]=new Date();
+break;
+case DimensionLookupMeta.TYPE_UPDATE_LAST_VERSION:
+updateRow[updateIndex++]=Boolean.FALSE;
+break;
+}
+}
+for (int i=0; i < data.keynrs.length; i++) {
+updateRow[updateIndex]=row[data.keynrs[i]];
+updateIndex++;
+}
+updateRow[updateIndex]=versionNr - 1;
+updateIndex++;
+if (log.isRowLevel()) log.logRowlevel(toString(),"UPDATE using rupd=" + data.updateRowMeta.getString(updateRow));
+data.db.setValues(data.updateRowMeta,updateRow,data.prepStatementUpdate);
+if (log.isDebug()) log.logDebug(toString(),"Values set for update (" + data.updateRowMeta.size() + ")");
+data.db.insertRow(data.prepStatementUpdate);
+if (log.isDebug()) log.logDebug(toString(),"Row updated!");
+}
+return technicalKey;
 }
