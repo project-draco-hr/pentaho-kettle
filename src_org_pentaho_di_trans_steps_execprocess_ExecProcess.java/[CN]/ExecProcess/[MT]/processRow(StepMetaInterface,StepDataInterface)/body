@@ -1,0 +1,60 @@
+{
+  meta=(ExecProcessMeta)smi;
+  data=(ExecProcessData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.previousRowMeta=getInputRowMeta().clone();
+    data.NrPrevFields=data.previousRowMeta.size();
+    data.outputRowMeta=data.previousRowMeta;
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (Const.isEmpty(meta.getProcessField())) {
+      logError(Messages.getString("ExecProcess.Error.ProcessFieldMissing"));
+      throw new KettleException(Messages.getString("ExecProcess.Error.ProcessFieldMissing"));
+    }
+    if (data.indexOfProcess < 0) {
+      data.indexOfProcess=data.previousRowMeta.indexOfValue(meta.getProcessField());
+      if (data.indexOfProcess < 0) {
+        logError(Messages.getString("ExecProcess.Exception.CouldnotFindField") + "[" + meta.getProcessField()+ "]");
+        throw new KettleException(Messages.getString("ExecProcess.Exception.CouldnotFindField",meta.getProcessField()));
+      }
+    }
+  }
+  Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+  for (int i=0; i < data.NrPrevFields; i++) {
+    outputRow[i]=r[i];
+  }
+  String processString=data.previousRowMeta.getString(r,data.indexOfProcess);
+  try {
+    if (Const.isEmpty(processString))     throw new KettleException(Messages.getString("ExecProcess.ProcessEmpty"));
+    String resultString=execProcess(processString);
+    outputRow[data.NrPrevFields]=resultString;
+    int rowIndex=data.NrPrevFields;
+    rowIndex++;
+    putRow(data.outputRowMeta,outputRow);
+    if (log.isRowLevel())     log.logRowlevel(toString(),Messages.getString("ExecProcess.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+  }
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(Messages.getString("ExecProcess.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"ExecProcess001");
+    }
+  }
+  return true;
+}
