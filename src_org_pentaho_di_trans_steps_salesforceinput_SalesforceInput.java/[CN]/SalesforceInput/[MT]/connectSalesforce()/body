@@ -4,25 +4,22 @@
   String module=environmentSubstitute(meta.getModule());
   String condition=environmentSubstitute(meta.getCondition());
   String timeout=environmentSubstitute(meta.getTimeOut());
-  SoapBindingStub binding=getBinding(data.URL,username,password,module,condition,timeout);
-  if (binding == null)   throw new KettleException(Messages.getString("SalesforceInput.Exception.CanNotGetBiding"));
+  data.binding=getBinding(data.URL,username,password,module,condition,timeout);
+  if (data.binding == null)   throw new KettleException(Messages.getString("SalesforceInput.Exception.CanNotGetBiding"));
   try {
-    DescribeSObjectResult describeSObjectResult=binding.describeSObject(module);
+    DescribeSObjectResult describeSObjectResult=data.binding.describeSObject(module);
     if (describeSObjectResult == null)     throw new KettleException(Messages.getString("SalesforceInput.ErrorGettingObject"));
     if (!describeSObjectResult.isQueryable())     throw new KettleException(Messages.getString("SalesforceInputDialog.ObjectNotQueryable",module));
     String SQLString=BuiltSQl();
     if (log.isDetailed())     logDetailed(Messages.getString("SalesforceInput.Log.SQLString") + " : " + SQLString);
     if (meta.includeSQL())     data.SQL=SQLString;
-    if (meta.includeTimestamp())     data.Timestamp=binding.getServerTimestamp().toString();
-    if (log.isDebug())     Messages.getString("SalesforceInput.Log.ServerTimestamp","" + binding.getServerTimestamp());
-    data.qr=binding.query(SQLString);
-    if (data.qr == null)     data.limitReached=true;
- else {
-      if (data.qr.getRecords() == null)       data.limitReached=true;
- else {
-        data.recordcount=data.qr.getRecords().length;
-        data.limitReached=false;
-      }
+    if (meta.includeTimestamp())     data.Timestamp=data.binding.getServerTimestamp().toString();
+    if (log.isDebug())     Messages.getString("SalesforceInput.Log.ServerTimestamp","" + data.binding.getServerTimestamp());
+    data.qr=data.binding.query(SQLString);
+    data.limitReached=true;
+    if (data.qr.getSize() > 0) {
+      data.recordcount=data.qr.getRecords().length;
+      data.limitReached=false;
     }
     if (log.isDetailed())     logDetailed(Messages.getString("SalesforceInput.Log.RecordCount") + " : " + data.recordcount);
   }
