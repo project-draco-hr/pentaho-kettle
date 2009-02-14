@@ -4,7 +4,7 @@
   }
   Object[] outputRowData=buildEmptyRow();
   try {
-    SObject con=data.qr.getRecords()[(int)data.rownr];
+    SObject con=data.qr.getRecords()[(int)data.recordIndex];
     for (int i=0; i < data.nrfields; i++) {
       String value=null;
       if (con.get_any()[i] != null)       value=con.get_any()[i].getValue();
@@ -48,9 +48,26 @@ outputRowData[rowIndex++]=new Long(data.rownr);
 }
 RowMetaInterface irow=getInputRowMeta();
 data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
-if (data.limit > 0 && data.rownr >= data.limit - 1) data.limitReached=true;
 data.rownr++;
-if (!data.qr.isDone()) data.qr=data.binding.queryMore(data.qr.getQueryLocator());
+data.recordIndex++;
+if (data.limit > 0 && data.rownr >= data.limit - 1) {
+data.limitReached=true;
+}
+ else {
+if (data.rownr >= data.nrRecords) {
+if (log.isDetailed()) log.logDetailed(toString(),Messages.getString("SalesforceInput.Log.NeedQueryMore","" + data.rownr));
+if (!data.qr.isDone()) {
+data.qr=data.binding.queryMore(data.qr.getQueryLocator());
+int nr=data.qr.getRecords().length;
+data.nrRecords+=nr;
+if (log.isDetailed()) log.logDetailed(toString(),Messages.getString("SalesforceInput.Log.QueryMoreRetrieved","" + nr));
+data.recordIndex=0;
+}
+ else {
+return null;
+}
+}
+}
 }
  catch (Exception e) {
 throw new KettleException(Messages.getString("SalesforceInput.Exception.CanNotReadFromSalesforce"),e);
