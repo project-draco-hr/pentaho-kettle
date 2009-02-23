@@ -1,4 +1,6 @@
 {
+  CTabFolder wTabFolder;
+  FormData fdTabFolder;
   Shell parent=getParent();
   display=parent.getDisplay();
   shell=new Shell(parent,props.getJobsDialogStyle());
@@ -252,8 +254,30 @@
   wPrevious.setLayoutData(fdPrevious);
   wPrevious.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      wlFields.setEnabled(!wPrevious.getSelection());
-      wFields.setEnabled(!wPrevious.getSelection());
+      jobEntry.setChanged();
+    }
+  }
+);
+  wlPrevToParams=new Label(shell,SWT.RIGHT);
+  wlPrevToParams.setText(Messages.getString("JobJob.PrevToParams.Label"));
+  props.setLook(wlPrevToParams);
+  fdlPrevToParams=new FormData();
+  fdlPrevToParams.left=new FormAttachment(0,0);
+  fdlPrevToParams.top=new FormAttachment(wPrevious,margin * 3);
+  fdlPrevToParams.right=new FormAttachment(middle,-margin);
+  wlPrevToParams.setLayoutData(fdlPrevToParams);
+  wPrevToParams=new Button(shell,SWT.CHECK);
+  props.setLook(wPrevToParams);
+  wPrevToParams.setSelection(jobEntry.argFromPrevious);
+  wPrevToParams.setToolTipText(Messages.getString("JobJob.PrevToParams.Tooltip"));
+  fdPrevToParams=new FormData();
+  fdPrevToParams.left=new FormAttachment(middle,0);
+  fdPrevToParams.top=new FormAttachment(wPrevious,margin * 3);
+  fdPrevToParams.right=new FormAttachment(100,0);
+  wPrevToParams.setLayoutData(fdPrevToParams);
+  wPrevToParams.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      jobEntry.setChanged();
     }
   }
 );
@@ -262,7 +286,7 @@
   props.setLook(wlEveryRow);
   fdlEveryRow=new FormData();
   fdlEveryRow.left=new FormAttachment(0,0);
-  fdlEveryRow.top=new FormAttachment(wPrevious,margin * 3);
+  fdlEveryRow.top=new FormAttachment(wPrevToParams,margin * 3);
   fdlEveryRow.right=new FormAttachment(middle,-margin);
   wlEveryRow.setLayoutData(fdlEveryRow);
   wEveryRow=new Button(shell,SWT.CHECK);
@@ -271,7 +295,7 @@
   wEveryRow.setToolTipText(Messages.getString("JobJob.ExecForEveryInputRow.Tooltip"));
   fdEveryRow=new FormData();
   fdEveryRow.left=new FormAttachment(middle,0);
-  fdEveryRow.top=new FormAttachment(wPrevious,margin * 3);
+  fdEveryRow.top=new FormAttachment(wPrevToParams,margin * 3);
   fdEveryRow.right=new FormAttachment(100,0);
   wEveryRow.setLayoutData(fdEveryRow);
   wEveryRow.addSelectionListener(new SelectionAdapter(){
@@ -341,33 +365,82 @@
   fdFollowingAbortRemotely.top=new FormAttachment(wWaitingToFinish,margin);
   fdFollowingAbortRemotely.right=new FormAttachment(100,0);
   wFollowingAbortRemotely.setLayoutData(fdFollowingAbortRemotely);
-  wlFields=new Label(shell,SWT.NONE);
-  wlFields.setText(Messages.getString("JobJob.Fields.Label"));
-  props.setLook(wlFields);
-  fdlFields=new FormData();
-  fdlFields.left=new FormAttachment(0,0);
-  fdlFields.top=new FormAttachment(wFollowingAbortRemotely,margin);
-  wlFields.setLayoutData(fdlFields);
+  wTabFolder=new CTabFolder(shell,SWT.BORDER);
+  props.setLook(wTabFolder,Props.WIDGET_STYLE_TAB);
+  CTabItem wFieldTab=new CTabItem(wTabFolder,SWT.NONE);
+  wFieldTab.setText(Messages.getString("JobJob.Fields.Argument.Label"));
+  FormLayout fieldLayout=new FormLayout();
+  fieldLayout.marginWidth=Const.MARGIN;
+  fieldLayout.marginHeight=Const.MARGIN;
+  Composite wFieldComp=new Composite(wTabFolder,SWT.NONE);
+  props.setLook(wFieldComp);
+  wFieldComp.setLayout(fieldLayout);
   final int FieldsCols=1;
   int rows=jobEntry.arguments == null ? 1 : (jobEntry.arguments.length == 0 ? 0 : jobEntry.arguments.length);
   final int FieldsRows=rows;
   ColumnInfo[] colinf=new ColumnInfo[FieldsCols];
   colinf[0]=new ColumnInfo(Messages.getString("JobJob.Fields.Argument.Label"),ColumnInfo.COLUMN_TYPE_TEXT,false);
   colinf[0].setUsingVariables(true);
-  wFields=new TableView(jobMeta,shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,lsMod,props);
-  fdFields=new FormData();
-  fdFields.left=new FormAttachment(0,0);
-  fdFields.top=new FormAttachment(wlFields,margin);
-  fdFields.right=new FormAttachment(100,0);
-  fdFields.bottom=new FormAttachment(100,-50);
-  wFields.setLayoutData(fdFields);
-  wlFields.setEnabled(!wPrevious.getSelection());
+  wFields=new TableView(jobMeta,wFieldComp,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,lsMod,props);
   wFields.setEnabled(!wPrevious.getSelection());
+  FormData fdFields=new FormData();
+  fdFields.left=new FormAttachment(0,0);
+  fdFields.top=new FormAttachment(0,margin);
+  fdFields.right=new FormAttachment(100,0);
+  fdFields.bottom=new FormAttachment(100,0);
+  wFields.setLayoutData(fdFields);
+  FormData fdFieldsComp=new FormData();
+  fdFieldsComp.left=new FormAttachment(0,0);
+  fdFieldsComp.top=new FormAttachment(0,0);
+  fdFieldsComp.right=new FormAttachment(100,0);
+  fdFieldsComp.bottom=new FormAttachment(100,0);
+  wFieldComp.setLayoutData(fdFieldsComp);
+  wFieldComp.layout();
+  wFieldTab.setControl(wFieldComp);
+  CTabItem wParametersTab=new CTabItem(wTabFolder,SWT.NONE);
+  wParametersTab.setText(Messages.getString("JobJob.Fields.Parameters.Label"));
+  fieldLayout=new FormLayout();
+  fieldLayout.marginWidth=Const.MARGIN;
+  fieldLayout.marginHeight=Const.MARGIN;
+  Composite wParameterComp=new Composite(wTabFolder,SWT.NONE);
+  props.setLook(wParameterComp);
+  wParameterComp.setLayout(fieldLayout);
+  final int ParameterCols=3;
+  rows=100;
+  final int parameterRows=rows;
+  colinf=new ColumnInfo[ParameterCols];
+  colinf[0]=new ColumnInfo(Messages.getString("JobJob.Parameters.Parameter.Label"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  colinf[1]=new ColumnInfo(Messages.getString("JobJob.Parameters.ColumnName.Label"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  colinf[2]=new ColumnInfo(Messages.getString("JobJob.Parameters.Value.Label"),ColumnInfo.COLUMN_TYPE_TEXT,false);
+  colinf[2].setUsingVariables(true);
+  wParameters=new TableView(jobMeta,wParameterComp,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,parameterRows,lsMod,props);
+  wParameters.setEnabled(!wPrevious.getSelection());
+  FormData fdParameters=new FormData();
+  fdParameters.left=new FormAttachment(0,0);
+  fdParameters.top=new FormAttachment(0,margin);
+  fdParameters.right=new FormAttachment(100,0);
+  fdParameters.bottom=new FormAttachment(100,0);
+  wParameters.setLayoutData(fdParameters);
+  FormData fdParametersComp=new FormData();
+  fdParametersComp.left=new FormAttachment(0,0);
+  fdParametersComp.top=new FormAttachment(0,0);
+  fdParametersComp.right=new FormAttachment(100,0);
+  fdParametersComp.bottom=new FormAttachment(100,0);
+  wParameterComp.setLayoutData(fdParametersComp);
+  wParameterComp.layout();
+  wParametersTab.setControl(wParameterComp);
+  fdTabFolder=new FormData();
+  fdTabFolder.left=new FormAttachment(0,0);
+  fdTabFolder.top=new FormAttachment(wFollowingAbortRemotely,0);
+  fdTabFolder.right=new FormAttachment(100,0);
+  fdTabFolder.bottom=new FormAttachment(100,-50);
+  wTabFolder.setLayoutData(fdTabFolder);
+  wTabFolder.setSelection(0);
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText(Messages.getString("System.Button.OK"));
   wCancel=new Button(shell,SWT.PUSH);
   wCancel.setText(Messages.getString("System.Button.Cancel"));
-  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCancel},margin,wFields);
+  BaseStepDialog.positionBottomButtons(shell,new Button[]{wOK,wCancel},margin,wTabFolder);
   lsCancel=new Listener(){
     public void handleEvent(    Event e){
       cancel();
