@@ -1,0 +1,44 @@
+{
+  try {
+    int index=Collections.binarySearch(rowCache,lookupRowData,this);
+    if (index < 0) {
+      int insertionPoint=-(index + 1);
+      if (insertionPoint < rowCache.size() - 1) {
+        Object[] row=rowCache.get(insertionPoint);
+        int cmp=rowMeta.compare(row,lookupRowData,keyIndexes);
+        if (cmp == 0) {
+          Date fromDate=rowMeta.getDate(row,fromDateIndex);
+          Date toDate=rowMeta.getDate(row,toDateIndex);
+          Date lookupDate=rowMeta.getDate(lookupRowData,fromDateIndex);
+          if (fromDate == null && toDate != null) {
+            if (toDate.compareTo(lookupDate) > 0) {
+              return insertionPoint;
+            }
+ else {
+              throw new KettleException("Key sorting problem detected during row cache lookup: the lookup date of the row retrieved is higher than or equal to the end of the date range.");
+            }
+          }
+ else           if (fromDate != null && toDate == null) {
+            if (fromDate.compareTo(lookupDate) <= 0) {
+              return insertionPoint;
+            }
+ else {
+              throw new KettleException("Key sorting problem detected during row cache lookup: the lookup date of the row retrieved is lower than or equal to the start of the date range.");
+            }
+          }
+ else {
+            if (fromDate.compareTo(lookupDate) <= 0 && toDate.compareTo(lookupDate) > 0) {
+              return insertionPoint;
+            }
+ else {
+            }
+          }
+        }
+      }
+    }
+    return index;
+  }
+ catch (  RuntimeException e) {
+    throw new KettleException(e);
+  }
+}

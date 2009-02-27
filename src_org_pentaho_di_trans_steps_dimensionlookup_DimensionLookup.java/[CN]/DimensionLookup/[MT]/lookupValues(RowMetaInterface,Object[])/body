@@ -1,6 +1,7 @@
 {
   Object[] outputRow=new Object[data.outputRowMeta.size()];
-  Object[] lookupRow=new Object[data.lookupRowMeta.size()];
+  RowMetaInterface lookupRowMeta;
+  Object[] lookupRow;
   Object[] returnRow=null;
   Long technicalKey;
   Long valueVersion;
@@ -8,31 +9,59 @@
   Date valueDateFrom=null;
   Date valueDateTo=null;
   if (data.datefieldnr >= 0) {
-    data.valueDateNow=rowMeta.getDate(row,data.datefieldnr);
+    valueDate=rowMeta.getDate(row,data.datefieldnr);
   }
-  for (int i=0; i < meta.getKeyStream().length; i++) {
-    try {
-      lookupRow[i]=row[data.keynrs[i]];
+ else {
+    valueDate=data.valueDateNow;
+  }
+  if (!meta.isUpdate() && meta.isPreloadingCache()) {
+    RowMetaInterface preloadRowMeta=data.preloadCache.getRowMeta();
+    data.returnRowMeta=data.preloadCache.getRowMeta();
+    lookupRowMeta=preloadRowMeta;
+    lookupRow=new Object[preloadRowMeta.size()];
+    for (int i=0; i < data.preloadIndexes.size(); i++) {
+      int from=data.preloadIndexes.get(i);
+      int to=data.preloadCache.getKeyIndexes()[i];
+      ValueMetaInterface fromValueMeta=rowMeta.getValueMeta(from);
+      ValueMetaInterface toValueMeta=data.preloadCache.getRowMeta().getValueMeta(to);
+      Object fromData=row[from];
+      Object toData=toValueMeta.convertData(fromValueMeta,fromData);
+      lookupRow[to]=toData;
     }
- catch (    Exception e) {
-      throw new KettleStepException(Messages.getString("DimensionLookup.Exception.ErrorDetectedInGettingKey",i + "",data.keynrs[i] + "/" + rowMeta.size(),rowMeta.getString(row)));
+    lookupRow[data.preloadFromDateIndex]=valueDate;
+    int index=data.preloadCache.lookupRow(lookupRow);
+    if (index >= 0) {
+      returnRow=data.preloadCache.getRow(index);
+    }
+ else {
+      returnRow=null;
     }
   }
-  if (data.datefieldnr >= 0)   valueDate=rowMeta.getDate(row,data.datefieldnr);
- else   valueDate=data.valueDateNow;
-  lookupRow[meta.getKeyStream().length]=valueDate;
-  lookupRow[meta.getKeyStream().length + 1]=valueDate;
-  if (log.isDebug())   logDebug(Messages.getString("DimensionLookup.Log.LookupRow") + data.lookupRowMeta.getString(lookupRow));
-  if (meta.getCacheSize() >= 0) {
-    returnRow=getFromCache(lookupRow,valueDate);
-  }
-  if (returnRow == null) {
-    data.db.setValues(data.lookupRowMeta,lookupRow,data.prepStatementLookup);
-    returnRow=data.db.getLookup(data.prepStatementLookup);
-    data.returnRowMeta=data.db.getReturnRowMeta();
-    incrementLinesInput();
-    if (returnRow != null && meta.getCacheSize() >= 0) {
-      addToCache(lookupRow,returnRow);
+ else {
+    lookupRow=new Object[data.lookupRowMeta.size()];
+    lookupRowMeta=data.lookupRowMeta;
+    for (int i=0; i < meta.getKeyStream().length; i++) {
+      try {
+        lookupRow[i]=row[data.keynrs[i]];
+      }
+ catch (      Exception e) {
+        throw new KettleStepException(Messages.getString("DimensionLookup.Exception.ErrorDetectedInGettingKey",i + "",data.keynrs[i] + "/" + rowMeta.size(),rowMeta.getString(row)));
+      }
+    }
+    lookupRow[meta.getKeyStream().length]=valueDate;
+    lookupRow[meta.getKeyStream().length + 1]=valueDate;
+    if (log.isDebug())     logDebug(Messages.getString("DimensionLookup.Log.LookupRow") + data.lookupRowMeta.getString(lookupRow));
+    if (meta.getCacheSize() >= 0) {
+      returnRow=getFromCache(lookupRow,valueDate);
+    }
+    if (returnRow == null) {
+      data.db.setValues(data.lookupRowMeta,lookupRow,data.prepStatementLookup);
+      returnRow=data.db.getLookup(data.prepStatementLookup);
+      data.returnRowMeta=data.db.getReturnRowMeta();
+      incrementLinesInput();
+      if (returnRow != null && meta.getCacheSize() >= 0) {
+        addToCache(lookupRow,returnRow);
+      }
     }
   }
   if (!meta.isUpdate()) {
@@ -49,7 +78,7 @@
   }
  else {
     if (returnRow == null) {
-      if (log.isRowLevel())       logRowlevel(Messages.getString("DimensionLookup.Log.NoDimensionEntryFound") + data.lookupRowMeta.getString(lookupRow) + ")");
+      if (log.isRowLevel())       logRowlevel(Messages.getString("DimensionLookup.Log.NoDimensionEntryFound") + lookupRowMeta.getString(lookupRow) + ")");
       valueDateFrom=data.min_date;
       valueDateTo=data.max_date;
       valueVersion=new Long(1L);
