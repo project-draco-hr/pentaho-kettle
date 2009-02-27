@@ -1,0 +1,36 @@
+{
+  EnvUtil.environmentInit();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("parameter_simple_trans1");
+  StepLoader steploader=StepLoader.getInstance();
+  String getVariablesStepname="get variables step";
+  GetVariableMeta gvm=new GetVariableMeta();
+  String getVariablesPid=steploader.getStepPluginID(gvm);
+  StepMeta getVariablesStep=new StepMeta(getVariablesPid,getVariablesStepname,(StepMetaInterface)gvm);
+  transMeta.addStep(getVariablesStep);
+  String fieldName[]={"PARAM1","PARAM2"};
+  String varName[]={"${Param1}","%%PARAM2%%"};
+  gvm.setFieldName(fieldName);
+  gvm.setVariableString(varName);
+  String dummyStepname1="dummy step 1";
+  DummyTransMeta dm1=new DummyTransMeta();
+  String dummyPid1=steploader.getStepPluginID(dm1);
+  StepMeta dummyStep1=new StepMeta(dummyPid1,dummyStepname1,dm1);
+  transMeta.addStep(dummyStep1);
+  TransHopMeta hi1=new TransHopMeta(getVariablesStep,dummyStep1);
+  transMeta.addTransHop(hi1);
+  Trans trans=new Trans(transMeta);
+  trans.addParameterDefinition("Param1","","Parameter 1");
+  trans.addParameterDefinition("PARAM2","","Parameter 2");
+  trans.setParameterValue("Param1","ParamValue1");
+  trans.setParameterValue("PARAM2","PARAMVALUE2");
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(dummyStepname1,0);
+  RowStepCollector endRc=new RowStepCollector();
+  si.addRowListener(endRc);
+  trans.startThreads();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> goldenImageRows=createResultData1();
+  List<RowMetaAndData> resultRows1=endRc.getRowsWritten();
+  checkRows(resultRows1,goldenImageRows);
+}
