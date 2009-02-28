@@ -1,0 +1,42 @@
+{
+  if (trans.getErrors() > 0) {
+    stepLogMap=new HashMap<StepMeta,String>();
+    lastLog=null;
+    shell.getDisplay().syncExec(new Runnable(){
+      public void run(){
+        lastLog=transLogDelegate.getLoggingText();
+      }
+    }
+);
+    if (!Const.isEmpty(lastLog)) {
+      String lines[]=lastLog.split(Const.CR);
+      for (int i=0; i < lines.length && i < 30; i++) {
+        if (lines[i].indexOf(Log4jKettleLayout.ERROR_STRING) >= 0) {
+          for (          StepMeta stepMeta : transMeta.getSteps()) {
+            if (lines[i].indexOf(stepMeta.getName()) >= 0) {
+              String line=lines[i];
+              int index=lines[i].indexOf(") : ");
+              if (index > 0)               line=lines[i].substring(index + 3);
+              String str=stepLogMap.get(stepMeta);
+              if (str == null) {
+                stepLogMap.put(stepMeta,line);
+              }
+ else {
+                stepLogMap.put(stepMeta,str + Const.CR + line);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+ else {
+    stepLogMap=null;
+  }
+  shell.getDisplay().asyncExec(new Runnable(){
+    public void run(){
+      redraw();
+    }
+  }
+);
+}
