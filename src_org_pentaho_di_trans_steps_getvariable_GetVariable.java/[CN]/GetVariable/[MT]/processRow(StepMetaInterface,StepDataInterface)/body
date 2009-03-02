@@ -21,14 +21,20 @@
     }
     data.outputRowMeta=data.inputRowMeta.clone();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.conversionMeta=data.outputRowMeta.clone();
+    for (    ValueMetaInterface valueMeta : data.conversionMeta.getValueMetaList()) {
+      valueMeta.setType(ValueMetaInterface.TYPE_STRING);
+    }
+    data.extraData=new Object[meta.getFieldName().length];
+    for (int i=0; i < meta.getFieldName().length; i++) {
+      String newValue=environmentSubstitute(meta.getVariableString()[i]);
+      if (log.isDetailed())       logDetailed("field [" + meta.getFieldName()[i] + "] has value ["+ newValue+ "]");
+      ValueMetaInterface targetMeta=data.outputRowMeta.getValueMeta(data.inputRowMeta.size() + i);
+      ValueMetaInterface sourceMeta=data.conversionMeta.getValueMeta(data.inputRowMeta.size() + i);
+      data.extraData[i]=targetMeta.convertData(sourceMeta,newValue);
+    }
   }
-  Object extraData[]=new Object[meta.getFieldName().length];
-  for (int i=0; i < meta.getFieldName().length; i++) {
-    String newValue=environmentSubstitute(meta.getVariableString()[i]);
-    if (log.isDetailed())     logDetailed("field [" + meta.getFieldName()[i] + "] has value ["+ newValue+ "]");
-    extraData[i]=newValue;
-  }
-  rowData=RowDataUtil.addRowData(rowData,data.inputRowMeta.size(),extraData);
+  rowData=RowDataUtil.addRowData(rowData,data.inputRowMeta.size(),data.extraData);
   putRow(data.outputRowMeta,rowData);
   if (!data.readsRows) {
     setOutputDone();
