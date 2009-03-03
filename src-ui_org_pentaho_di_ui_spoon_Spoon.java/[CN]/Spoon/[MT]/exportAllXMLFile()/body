@@ -1,19 +1,36 @@
 {
-  Map<String,ResourceDefinition> definitions=new HashMap<String,ResourceDefinition>();
-  ResourceNamingInterface namingInterface=new SimpleResourceNaming();
-  try {
-    TransMeta transMeta=getActiveTransformation();
-    if (transMeta != null) {
-      String exportResources=transMeta.exportResources(transMeta,definitions,namingInterface);
-      System.out.println("Resources : " + exportResources);
+  ResourceExportInterface resourceExportInterface=getActiveTransformation();
+  if (resourceExportInterface == null)   resourceExportInterface=getActiveJob();
+  if (resourceExportInterface == null)   return;
+  FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+  dialog.setText(Messages.getString("Spoon.ExportResourceSelectZipFile"));
+  dialog.setFilterExtensions(new String[]{"*.zip;*.ZIP","*"});
+  dialog.setFilterNames(new String[]{Messages.getString("System.FileType.ZIPFiles"),Messages.getString("System.FileType.AllFiles")});
+  if (dialog.open() != null) {
+    String zipFilename=dialog.getFilterPath() + Const.FILE_SEPARATOR + dialog.getFileName();
+    try {
+      String launchFile=ResourceUtil.serializeResourceExportInterface(zipFilename,resourceExportInterface,(VariableSpace)resourceExportInterface,rep);
+      String message="This resource can be executed in the exported zip file [" + zipFilename + "]"+ Const.CR;
+      message+="You can do this by running kitchen with the following command:" + Const.CR + Const.CR;
+      if (Const.isWindows()) {
+        message+="Kitchen.bat /file:\"";
+      }
+ else {
+        message+="sh kitchen.sh -file='";
+      }
+      message+=launchFile;
+      if (Const.isWindows()) {
+        message+="\"";
+      }
+ else {
+        message+="'";
+      }
+      EnterTextDialog enterTextDialog=new EnterTextDialog(shell,"Resource serialized","This resource was serialized succesfully!",message);
+      enterTextDialog.setReadOnly();
+      enterTextDialog.open();
     }
-    JobMeta jobMeta=getActiveJob();
-    if (jobMeta != null) {
-      String exportResources=jobMeta.exportResources(jobMeta,definitions,namingInterface);
-      System.out.println("Resources : " + exportResources);
+ catch (    Exception e) {
+      new ErrorDialog(shell,"Error","Error exporting current file",e);
     }
-  }
- catch (  Exception e) {
-    new ErrorDialog(shell,"Error","Error exporting current file",e);
   }
 }

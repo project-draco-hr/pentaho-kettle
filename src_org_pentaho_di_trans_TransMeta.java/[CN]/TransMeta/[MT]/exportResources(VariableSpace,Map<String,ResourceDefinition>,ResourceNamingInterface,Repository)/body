@@ -1,0 +1,44 @@
+{
+  try {
+    String baseName;
+    String originalPath;
+    String fullname;
+    String extension="ktr";
+    if (Const.isEmpty(getFilename())) {
+      originalPath=directory.getPath();
+      baseName=getName();
+      fullname=directory.getPath() + (directory.getPath().endsWith(RepositoryDirectory.DIRECTORY_SEPARATOR) ? "" : RepositoryDirectory.DIRECTORY_SEPARATOR) + getName()+ "."+ extension;
+    }
+ else {
+      FileObject fileObject=KettleVFS.getFileObject(space.environmentSubstitute(getFilename()));
+      originalPath=fileObject.getParent().getName().getPath();
+      baseName=fileObject.getName().getBaseName();
+      fullname=fileObject.getName().getPath();
+    }
+    String exportFileName=resourceNamingInterface.nameResource(baseName,originalPath,extension);
+    ResourceDefinition definition=definitions.get(exportFileName);
+    if (definition == null) {
+      TransMeta transMeta=(TransMeta)this.realClone(false);
+      for (      StepMeta stepMeta : transMeta.getSteps()) {
+        stepMeta.exportResources(space,definitions,resourceNamingInterface,repository);
+      }
+      transMeta.setFilename(exportFileName);
+      String transMetaContent=transMeta.getXML();
+      definition=new ResourceDefinition(exportFileName,transMetaContent);
+      if (Const.isEmpty(this.getFilename())) {
+        definition.setOrigin(fullname);
+      }
+ else {
+        definition.setOrigin(this.getFilename());
+      }
+      definitions.put(fullname,definition);
+    }
+    return exportFileName;
+  }
+ catch (  FileSystemException e) {
+    throw new KettleException(Messages.getString("TransMeta.Exception.ErrorOpeningOrValidatingTheXMLFile",getFilename()),e);
+  }
+catch (  IOException e) {
+    throw new KettleException(Messages.getString("TransMeta.Exception.ErrorOpeningOrValidatingTheXMLFile",getFilename()),e);
+  }
+}

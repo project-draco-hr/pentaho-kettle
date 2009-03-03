@@ -1,0 +1,44 @@
+{
+  String resourceName=null;
+  try {
+    String baseName;
+    String originalPath;
+    String fullname;
+    String extension="kjb";
+    if (Const.isEmpty(getFilename())) {
+      originalPath=directory.getPath();
+      baseName=getName();
+      fullname=directory.getPath() + (directory.getPath().endsWith(RepositoryDirectory.DIRECTORY_SEPARATOR) ? "" : RepositoryDirectory.DIRECTORY_SEPARATOR) + getName()+ "."+ extension;
+    }
+ else {
+      FileObject fileObject=KettleVFS.getFileObject(space.environmentSubstitute(getFilename()));
+      originalPath=fileObject.getParent().getName().getPath();
+      baseName=fileObject.getName().getBaseName();
+      fullname=fileObject.getName().getPath();
+    }
+    resourceName=namingInterface.nameResource(baseName,originalPath,extension);
+    ResourceDefinition definition=definitions.get(resourceName);
+    if (definition == null) {
+      JobMeta jobMeta=(JobMeta)this.realClone(false);
+      for (      JobEntryCopy jobEntry : jobMeta.jobcopies) {
+        jobEntry.getEntry().exportResources(jobMeta,definitions,namingInterface,repository);
+      }
+      String jobMetaContent=jobMeta.getXML();
+      definition=new ResourceDefinition(resourceName,jobMetaContent);
+      if (Const.isEmpty(this.getFilename())) {
+        definition.setOrigin(fullname);
+      }
+ else {
+        definition.setOrigin(this.getFilename());
+      }
+      definitions.put(fullname,definition);
+    }
+  }
+ catch (  FileSystemException e) {
+    throw new KettleException(Messages.getString("JobMeta.Exception.AnErrorOccuredReadingJob",getFilename()),e);
+  }
+catch (  IOException e) {
+    throw new KettleException(Messages.getString("JobMeta.Exception.AnErrorOccuredReadingJob",getFilename()),e);
+  }
+  return resourceName;
+}
