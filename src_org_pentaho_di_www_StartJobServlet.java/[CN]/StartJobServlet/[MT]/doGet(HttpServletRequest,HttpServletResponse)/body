@@ -23,10 +23,16 @@
     Job job=jobMap.getJob(jobName);
     if (job != null) {
       if (job.isInitialized() && !job.isActive()) {
-        if (!job.getRep().getRepositoryInfo().isLocked()) {
+        if (job.getRep() != null && !job.getRep().getRepositoryInfo().isLocked()) {
           job.getRep().connect(toString());
         }
-        job=new Job(LogWriter.getInstance(),StepLoader.getInstance(),job.getRep(),job.getJobMeta());
+synchronized (jobMap) {
+          JobConfiguration jobConfiguration=jobMap.getConfiguration(jobName);
+          Job newJob=new Job(LogWriter.getInstance(),StepLoader.getInstance(),job.getRep(),job.getJobMeta());
+          jobMap.removeJob(jobName);
+          jobMap.addJob(jobName,newJob,jobConfiguration);
+          job=newJob;
+        }
       }
       Log4jStringAppender appender=LogWriter.createStringAppender();
       log.addAppender(appender);
