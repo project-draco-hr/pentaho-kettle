@@ -1,0 +1,54 @@
+{
+  meta=(ParGzipCsvInputMeta)smi;
+  data=(ParGzipCsvInputData)sdi;
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (data.filenames == null) {
+      getFilenamesFromPreviousSteps();
+    }
+    data.parallel=meta.isRunningInParallel() && data.totalNumberOfSteps > 1;
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (    ValueMetaInterface valueMeta : data.convertRowMeta.getValueMetaList()) {
+      valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_BINARY_STRING);
+    }
+    data.filenameFieldIndex=-1;
+    if (!Const.isEmpty(meta.getFilenameField()) && meta.isIncludingFilename()) {
+      data.filenameFieldIndex=meta.getInputFields().length;
+    }
+    data.rownumFieldIndex=-1;
+    if (!Const.isEmpty(meta.getRowNumField())) {
+      data.rownumFieldIndex=meta.getInputFields().length;
+      if (data.filenameFieldIndex >= 0) {
+        data.rownumFieldIndex++;
+      }
+    }
+    if (!openNextFile()) {
+      setOutputDone();
+      return false;
+    }
+  }
+  Object[] outputRowData=readOneRow(true);
+  if (outputRowData == null) {
+    if (skipToNextBlock()) {
+      if (openNextFile()) {
+        return true;
+      }
+ else {
+        setOutputDone();
+        return false;
+      }
+    }
+ else {
+      return true;
+    }
+  }
+ else {
+    putRow(data.outputRowMeta,outputRowData);
+    if (checkFeedback(getLinesInput())) {
+      if (log.isBasic())       logBasic(Messages.getString("ParGzipCsvInput.Log.LineNumber",Long.toString(getLinesInput())));
+    }
+  }
+  return true;
+}

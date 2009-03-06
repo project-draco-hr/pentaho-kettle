@@ -1,0 +1,58 @@
+{
+  try {
+    if (data.gzis != null) {
+      data.gzis.close();
+    }
+    if (data.fis != null) {
+      data.fis.close();
+    }
+    if (data.filenr >= data.filenames.length) {
+      return false;
+    }
+    FileObject fileObject=KettleVFS.getFileObject(data.filenames[data.filenr]);
+    data.fis=KettleVFS.getInputStream(fileObject);
+    if (meta.isLazyConversionActive()) {
+      data.binaryFilename=data.filenames[data.filenr].getBytes();
+    }
+    data.gzis=new GZIPInputStream(data.fis,10000);
+    if (data.parallel) {
+      data.blockSize=data.bufferSize;
+      long bytesToSkip=data.stepNumber * data.bufferSize;
+      if (bytesToSkip > 0) {
+        long bytesSkipped=0L;
+        while (bytesSkipped < bytesToSkip) {
+          long n=data.gzis.skip(bytesToSkip - bytesSkipped);
+          if (n <= 0) {
+            data.eofReached=true;
+            return false;
+          }
+          bytesSkipped+=n;
+        }
+        readOneRow(false);
+      }
+ else {
+        if (meta.isHeaderPresent()) {
+          readOneRow(false);
+        }
+      }
+    }
+ else {
+      data.blockSize=Long.MAX_VALUE;
+      if (meta.isHeaderPresent()) {
+        readOneRow(false);
+      }
+    }
+    if (meta.isAddResultFile()) {
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,fileObject,getTransMeta().getName(),toString());
+      resultFile.setComment("File was read by a Csv input step");
+      addResultFile(resultFile);
+    }
+    data.totalBytesRead=0L;
+    data.filenr++;
+    data.rowNumber=1L;
+    return true;
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+}

@@ -1,0 +1,73 @@
+{
+  InputStream inputStream=null;
+  try {
+    ParGzipCsvInputMeta meta=new ParGzipCsvInputMeta();
+    getInfo(meta);
+    String filename=transMeta.environmentSubstitute(meta.getFilename());
+    FileObject fileObject=KettleVFS.getFileObject(filename);
+    if (!(fileObject instanceof LocalFile)) {
+      throw new KettleException(Messages.getString("ParGzipCsvInput.Log.OnlyLocalFilesAreSupported"));
+    }
+    wFields.table.removeAll();
+    inputStream=KettleVFS.getInputStream(fileObject);
+    InputStreamReader reader=new InputStreamReader(inputStream);
+    String line=TextFileInput.getLine(log,reader,TextFileInputMeta.FILE_FORMAT_MIXED,new StringBuilder(1000));
+    String[] fieldNames=Const.splitString(line,meta.getDelimiter());
+    if (!meta.isHeaderPresent()) {
+      DecimalFormat df=new DecimalFormat("000");
+      for (int i=0; i < fieldNames.length; i++) {
+        fieldNames[i]="Field_" + df.format(i);
+      }
+    }
+ else {
+      if (!Const.isEmpty(meta.getEnclosure())) {
+        for (int i=0; i < fieldNames.length; i++) {
+          if (fieldNames[i].startsWith(meta.getEnclosure()) && fieldNames[i].endsWith(meta.getEnclosure()) && fieldNames[i].length() > 1)           fieldNames[i]=fieldNames[i].substring(1,fieldNames[i].length() - 1);
+        }
+      }
+    }
+    for (int i=0; i < fieldNames.length; i++) {
+      fieldNames[i]=Const.trim(fieldNames[i]);
+    }
+    for (int i=0; i < fieldNames.length; i++) {
+      TableItem item=new TableItem(wFields.table,SWT.NONE);
+      item.setText(1,fieldNames[i]);
+      item.setText(2,ValueMeta.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+    }
+    wFields.removeEmptyRows();
+    wFields.setRowNums();
+    wFields.optWidth(true);
+    String shellText=Messages.getString("ParGzipCsvInputDialog.LinesToSample.DialogTitle");
+    String lineText=Messages.getString("ParGzipCsvInputDialog.LinesToSample.DialogMessage");
+    EnterNumberDialog end=new EnterNumberDialog(shell,100,shellText,lineText);
+    int samples=end.open();
+    if (samples >= 0) {
+      getInfo(meta);
+      TextFileCSVImportProgressDialog pd=new TextFileCSVImportProgressDialog(shell,meta,transMeta,reader,samples,true);
+      String message=pd.open();
+      if (message != null) {
+        wFields.removeAll();
+        getData(meta);
+        wFields.removeEmptyRows();
+        wFields.setRowNums();
+        wFields.optWidth(true);
+        EnterTextDialog etd=new EnterTextDialog(shell,Messages.getString("ParGzipCsvInputDialog.ScanResults.DialogTitle"),Messages.getString("ParGzipCsvInputDialog.ScanResults.DialogMessage"),message,true);
+        etd.setReadOnly();
+        etd.open();
+      }
+    }
+  }
+ catch (  IOException e) {
+    new ErrorDialog(shell,Messages.getString("ParGzipCsvInputDialog.IOError.DialogTitle"),Messages.getString("ParGzipCsvInputDialog.IOError.DialogMessage"),e);
+  }
+catch (  KettleException e) {
+    new ErrorDialog(shell,Messages.getString("System.Dialog.Error.Title"),Messages.getString("ParGzipCsvInputDialog.ErrorGettingFileDesc.DialogMessage"),e);
+  }
+ finally {
+    try {
+      inputStream.close();
+    }
+ catch (    Exception e) {
+    }
+  }
+}

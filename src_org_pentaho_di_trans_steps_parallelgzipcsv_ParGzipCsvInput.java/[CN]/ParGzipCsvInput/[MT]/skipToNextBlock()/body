@@ -1,0 +1,29 @@
+{
+  if (data.eofReached) {
+    return true;
+  }
+  data.totalBytesRead=0L;
+  data.eofReached=false;
+  if (data.parallel) {
+    long bytesToSkip=data.totalNumberOfSteps * data.bufferSize;
+    try {
+      long bytesSkipped=0;
+      while (bytesSkipped < bytesToSkip) {
+        long n=data.gzis.skip(bytesToSkip - bytesSkipped);
+        if (n < 0) {
+          data.eofReached=true;
+          return bytesSkipped == 0;
+        }
+        bytesSkipped+=n;
+      }
+      readOneRow(false);
+      return false;
+    }
+ catch (    IOException e) {
+      throw new KettleException("Error skipping " + bytesToSkip + " bytes to the next block of data",e);
+    }
+  }
+ else {
+    return true;
+  }
+}

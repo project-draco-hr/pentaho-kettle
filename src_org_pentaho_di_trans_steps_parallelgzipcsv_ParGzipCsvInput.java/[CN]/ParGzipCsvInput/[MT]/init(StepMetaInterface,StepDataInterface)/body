@@ -1,0 +1,34 @@
+{
+  meta=(ParGzipCsvInputMeta)smi;
+  data=(ParGzipCsvInputData)sdi;
+  if (super.init(smi,sdi)) {
+    data.bufferSize=Integer.parseInt(environmentSubstitute(meta.getBufferSize()));
+    data.byteBuffer=new byte[]{};
+    if (getTransMeta().findNrPrevSteps(getStepMeta()) == 0) {
+      String filename=environmentSubstitute(meta.getFilename());
+      if (Const.isEmpty(filename)) {
+        logError(Messages.getString("ParGzipCsvInput.MissingFilename.Message"));
+        return false;
+      }
+      data.filenames=new String[]{filename};
+    }
+ else {
+      data.filenames=null;
+      data.filenr=0;
+    }
+    data.delimiter=environmentSubstitute(meta.getDelimiter()).getBytes();
+    if (Const.isEmpty(meta.getEnclosure())) {
+      data.enclosure=null;
+    }
+ else {
+      data.enclosure=environmentSubstitute(meta.getEnclosure()).getBytes();
+    }
+    data.isAddingRowNumber=!Const.isEmpty(meta.getRowNumField());
+    if (meta.isRunningInParallel()) {
+      data.stepNumber=getUniqueStepNrAcrossSlaves();
+      data.totalNumberOfSteps=getUniqueStepCountAcrossSlaves();
+    }
+    return true;
+  }
+  return false;
+}
