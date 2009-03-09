@@ -3,19 +3,22 @@
     return true;
   }
   data.totalBytesRead=0L;
-  data.eofReached=false;
+  data.blockNr++;
   if (data.parallel) {
-    long bytesToSkip=data.totalNumberOfSteps * data.bufferSize;
+    long positionToReach=(data.blockNr * data.bufferSize * data.totalNumberOfSteps) + data.stepNumber * data.bufferSize;
+    long bytesToSkip=positionToReach - data.fileReadPosition;
+    logBasic("Skipping " + bytesToSkip + " to go to position "+ positionToReach+ " for step copy "+ data.stepNumber);
     try {
       long bytesSkipped=0;
       while (bytesSkipped < bytesToSkip) {
         long n=data.gzis.skip(bytesToSkip - bytesSkipped);
-        if (n < 0) {
+        if (n <= 0) {
           data.eofReached=true;
           return bytesSkipped == 0;
         }
         bytesSkipped+=n;
       }
+      data.fileReadPosition+=bytesSkipped;
       readOneRow(false);
       return false;
     }
