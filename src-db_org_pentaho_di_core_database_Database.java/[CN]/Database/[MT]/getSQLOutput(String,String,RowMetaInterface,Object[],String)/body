@@ -9,28 +9,55 @@
       ins.append(databaseMeta.quoteField(name));
     }
     ins.append(") VALUES (");
+    java.text.SimpleDateFormat[] fieldDateFormatters=new java.text.SimpleDateFormat[fields.size()];
     for (int i=0; i < fields.size(); i++) {
+      ValueMetaInterface valueMeta=fields.getValueMeta(i);
+      Object valueData=r[i];
       if (i > 0)       ins.append(",");
-{
-switch (fields.getValueMeta(i).getType()) {
+      if (valueMeta.isNull(valueData)) {
+        ins.append("null");
+      }
+ else {
+switch (valueMeta.getType()) {
 case ValueMetaInterface.TYPE_BOOLEAN:
 case ValueMetaInterface.TYPE_STRING:
-          ins.append("'" + fields.getString(r,i) + "'");
-        break;
-case ValueMetaInterface.TYPE_DATE:
-      if (Const.isEmpty(dateFormat))       ins.append("'" + fields.getString(r,i) + "'");
- else {
-        try {
-          java.text.SimpleDateFormat formatter=new java.text.SimpleDateFormat(dateFormat);
-          ins.append("'" + formatter.format(fields.getDate(r,i)) + "'");
-        }
- catch (        Exception e) {
-          throw new KettleDatabaseException("Error : ",e);
-        }
-      }
-    break;
+          String string=valueMeta.getString(valueData);
+        if (string.contains("'")) {
+switch (databaseMeta.getDatabaseType()) {
+case DatabaseMeta.TYPE_DATABASE_MYSQL:
+            string=string.replace("'","\\'");
+          break;
 default :
-  ins.append(fields.getString(r,i));
+        string.replace("'","''");
+      break;
+  }
+}
+ins.append("'" + string + "'");
+break;
+case ValueMetaInterface.TYPE_DATE:
+Date date=fields.getDate(r,i);
+if (Const.isEmpty(dateFormat)) switch (databaseMeta.getDatabaseType()) {
+case DatabaseMeta.TYPE_DATABASE_ORACLE:
+if (fieldDateFormatters[i] == null) {
+fieldDateFormatters[i]=new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+}
+ins.append("TO_DATE('").append(fieldDateFormatters[i].format(date)).append("', 'YYYY/MM/DD HH24:MI:SS')");
+break;
+default :
+ins.append("'" + fields.getString(r,i) + "'");
+}
+ else {
+try {
+java.text.SimpleDateFormat formatter=new java.text.SimpleDateFormat(dateFormat);
+ins.append("'" + formatter.format(fields.getDate(r,i)) + "'");
+}
+ catch (Exception e) {
+throw new KettleDatabaseException("Error : ",e);
+}
+}
+break;
+default :
+ins.append(fields.getString(r,i));
 break;
 }
 }
