@@ -1,0 +1,44 @@
+{
+  SocketRepositoryEntry entry=socketMap.get(port);
+  if (entry == null) {
+    ServerSocket serverSocket=new ServerSocket();
+    serverSocket.setPerformancePreferences(1,2,3);
+    serverSocket.setReuseAddress(true);
+    try {
+      serverSocket.bind(new InetSocketAddress(port));
+    }
+ catch (    BindException e) {
+      long totalWait=0L;
+      long startTime=System.currentTimeMillis();
+      IOException ioException=null;
+      log.logDetailed("Carte socket repository","Starting a retry loop to bind the server socket on port " + port + ".  We retry for 10 minutes until the socket clears in your operating system.");
+      while (!serverSocket.isBound() && totalWait < 600000) {
+        try {
+          totalWait=System.currentTimeMillis() - startTime;
+          log.logDetailed("Carte socket repository","Retry binding the server socket on port " + port + " after a "+ (totalWait / 1000)+ " seconds wait...");
+          Thread.sleep(10000);
+          serverSocket.bind(new InetSocketAddress(port),100);
+        }
+ catch (        IOException ioe) {
+          ioException=ioe;
+        }
+catch (        Exception ex) {
+          throw new IOException(ex.getMessage());
+        }
+        totalWait=System.currentTimeMillis() - startTime;
+      }
+      if (!serverSocket.isBound()) {
+        throw ioException;
+      }
+      log.logDetailed("Carte socket repository","Succesfully bound the server socket on port " + port + " after "+ (totalWait / 1000)+ " seconds.");
+    }
+    entry=new SocketRepositoryEntry(port,serverSocket,true,user);
+    socketMap.put(port,entry);
+  }
+ else {
+    if (entry.isInUse()) {
+      throw new IOException("Server socket on port " + port + " is already in use by ["+ entry.getUser()+ "]");
+    }
+  }
+  return entry.getServerSocket();
+}

@@ -4,14 +4,15 @@
   rowSet.setThreadNameFromToCopy(sourceStep,sourceStepCopyNr,targetStep,targetStepCopyNr);
   rowSet.setRemoteSlaveServerName(targetSlaveServerName);
   final int portNumber=Integer.parseInt(baseStep.environmentSubstitute(port));
-  String realHostname=baseStep.environmentSubstitute(hostname);
+  final String realHostname=baseStep.environmentSubstitute(hostname);
   long startTime=System.currentTimeMillis();
   boolean connected=false;
   KettleException lastException=null;
   while (!connected && (TIMEOUT_IN_SECONDS > (System.currentTimeMillis() - startTime) / 1000) && !baseStep.isStopped()) {
     try {
-      socket=new Socket(realHostname,portNumber);
-      socket.setSoTimeout(10000);
+      socket=new Socket();
+      socket.setReuseAddress(true);
+      socket.connect(new InetSocketAddress(realHostname,portNumber),5000);
       connected=true;
       if (compressingStreams) {
         inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(socket.getInputStream()),bufferSize));
@@ -40,7 +41,7 @@
  else {
     if (inputStream == null)     throw new KettleException("Unable to connect to the SocketWriter in the " + TIMEOUT_IN_SECONDS + "s timeout period.");
   }
-  baseStep.logBasic("Opened socket to read rows from remote step on server " + realHostname + " port "+ portNumber);
+  baseStep.logDetailed("Opened connection to server socket to read rows from remote step on server " + realHostname + " port "+ portNumber+ " - Local port="+ socket.getLocalPort());
   Runnable runnable=new Runnable(){
     public void run(){
       try {
@@ -76,7 +77,12 @@ catch (      Exception e) {
       }
  finally {
         try {
-          if (socket != null)           socket.close();
+          if (socket != null) {
+            socket.shutdownInput();
+            socket.shutdownOutput();
+            socket.close();
+            baseStep.logDetailed("Closed connection to server socket to read rows from remote step on server " + realHostname + " port "+ portNumber+ " - Local port="+ socket.getLocalPort());
+          }
         }
  catch (        IOException e) {
           baseStep.logError("Error closing client socket connection to remote step",e);
