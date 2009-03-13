@@ -1,4 +1,20 @@
 {
   this();
-  this.originalTransformation=originalTransformation;
+  String transXML=transMeta.getXML();
+  this.originalTransformation=new TransMeta(XMLHandler.getSubNode(XMLHandler.loadXMLString(transXML),TransMeta.XML_TAG),null);
+  this.originalTransformation.shareVariablesWith(transMeta);
+  ClusterSchema clusterSchema=this.originalTransformation.findFirstUsedClusterSchema();
+  if (clusterSchema == null) {
+    throw new KettleException("No clustering is used in this transformation.");
+  }
+  if (clusterSchema.isDynamic()) {
+    List<SlaveServer> slaveServers=clusterSchema.getSlaveServersFromMasterOrLocal();
+    SlaveServer masterSlaveServer=clusterSchema.findMaster();
+    if (masterSlaveServer == null) {
+      throw new KettleException("You always need at least one master in a cluster schema.");
+    }
+    slaveServers.add(0,masterSlaveServer);
+    clusterSchema.setDynamic(false);
+    clusterSchema.setSlaveServers(slaveServers);
+  }
 }
