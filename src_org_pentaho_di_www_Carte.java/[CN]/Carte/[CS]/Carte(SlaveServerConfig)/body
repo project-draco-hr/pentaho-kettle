@@ -1,5 +1,6 @@
 {
   this.config=config;
+  boolean allOK=true;
   TransformationMap transformationMap=new TransformationMap();
   JobMap jobMap=new JobMap();
   List<SlaveServerDetection> detections=new ArrayList<SlaveServerDetection>();
@@ -14,15 +15,24 @@
       port=Integer.parseInt(slaveServer.getPort());
     }
  catch (    Exception e) {
-      System.out.println(Messages.getString("Carte.Error.CanNotPartPort",slaveServer.getHostname(),"" + port));
+      LogWriter.getInstance().logError("Carte",Messages.getString("Carte.Error.CanNotPartPort",slaveServer.getHostname(),"" + port),e);
+      allOK=false;
     }
   }
   if (config.isReportingToMasters()) {
     final SlaveServer client=new SlaveServer("Dynamic slave [" + hostname + ":"+ port+ "]",hostname,"" + port,slaveServer.getUsername(),slaveServer.getPassword());
     for (    final SlaveServer master : config.getMasters()) {
-      SlaveServerDetection slaveServerDetection=new SlaveServerDetection(client);
-      master.sendXML(slaveServerDetection.getXML(),RegisterSlaveServlet.CONTEXT_PATH + "/");
+      try {
+        SlaveServerDetection slaveServerDetection=new SlaveServerDetection(client);
+        master.sendXML(slaveServerDetection.getXML(),RegisterSlaveServlet.CONTEXT_PATH + "/");
+      }
+ catch (      Exception e) {
+        LogWriter.getInstance().logError("Carte","Unable to register to master slave server [" + master.toString() + "] on address ["+ master.getServerAndPort()+ "]");
+        allOK=false;
+      }
     }
   }
-  this.webServer=new WebServer(transformationMap,jobMap,socketRepository,detections,hostname,port,config.isJoining());
+  if (allOK) {
+    this.webServer=new WebServer(transformationMap,jobMap,socketRepository,detections,hostname,port,config.isJoining());
+  }
 }
