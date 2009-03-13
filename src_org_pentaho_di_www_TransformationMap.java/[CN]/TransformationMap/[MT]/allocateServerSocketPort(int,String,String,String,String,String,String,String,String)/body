@@ -4,47 +4,26 @@
     serverSocketPortsMap=new ArrayList<SocketPortAllocation>();
     hostServerSocketPortsMap.put(hostname,serverSocketPortsMap);
   }
-  int removedPort=-1;
   SocketPortAllocation socketPortAllocation=null;
-  for (  SocketPortAllocation spa : new ArrayList<SocketPortAllocation>(serverSocketPortsMap)) {
-    if (spa.getSourceSlaveName().equalsIgnoreCase(sourceSlaveName) && spa.getTargetSlaveName().equalsIgnoreCase(targetSlaveName) && spa.getTransformationName().equalsIgnoreCase(transformationName)&& spa.getSourceStepName().equalsIgnoreCase(sourceStepName)&& spa.getSourceStepCopy().equalsIgnoreCase(sourceStepCopy)&& spa.getTargetStepName().equalsIgnoreCase(targetStepName)&& spa.getTargetStepCopy().equalsIgnoreCase(targetStepCopy)) {
-      long elapsed=spa.getLastRequested().getTime() - System.currentTimeMillis();
-      int hours=(int)(elapsed / (1000 * 60 * 60));
-      if (!spa.isAllocated() || hours < PORT_RECYCLE_PERIOD_IN_HOURSE) {
+  int maxPort=portRangeStart - 1;
+  for (int index=0; index < serverSocketPortsMap.size(); index++) {
+    SocketPortAllocation spa=serverSocketPortsMap.get(index);
+    if (spa.isAllocated()) {
+      if (spa.getSourceSlaveName().equalsIgnoreCase(sourceSlaveName) && spa.getTargetSlaveName().equalsIgnoreCase(targetSlaveName) && spa.getTransformationName().equalsIgnoreCase(transformationName)&& spa.getSourceStepName().equalsIgnoreCase(sourceStepName)&& spa.getSourceStepCopy().equalsIgnoreCase(sourceStepCopy)&& spa.getTargetStepName().equalsIgnoreCase(targetStepName)&& spa.getTargetStepCopy().equalsIgnoreCase(targetStepCopy)) {
         socketPortAllocation=spa;
         break;
       }
+    }
  else {
-        serverSocketPortsMap.remove(spa);
-        removedPort=spa.getPort();
-      }
+      socketPortAllocation=new SocketPortAllocation(spa.getPort(),new Date(),transformationName,sourceSlaveName,sourceStepName,sourceStepCopy,targetSlaveName,targetStepName,targetStepCopy);
+      serverSocketPortsMap.set(index,socketPortAllocation);
+    }
+    if (spa.getPort() > maxPort) {
+      maxPort=spa.getPort();
     }
   }
-  if (socketPortAllocation != null) {
-    socketPortAllocation.setLastRequested(new Date());
-  }
- else {
-    boolean allocated=false;
-    int allocatedPort=-1;
-    if (removedPort > 0) {
-      allocatedPort=removedPort;
-      allocated=true;
-    }
- else {
-      for (int p=portRangeStart; !allocated; p++) {
-        boolean portFound=false;
-        for (        SocketPortAllocation portAllocation : serverSocketPortsMap) {
-          if (portAllocation.getPort() == p) {
-            portFound=true;
-          }
-        }
-        if (!portFound) {
-          allocated=true;
-          allocatedPort=p;
-        }
-      }
-    }
-    socketPortAllocation=new SocketPortAllocation(allocatedPort,new Date(),transformationName,sourceSlaveName,sourceStepName,sourceStepCopy,targetSlaveName,targetStepName,targetStepCopy);
+  if (socketPortAllocation == null) {
+    socketPortAllocation=new SocketPortAllocation(maxPort + 1,new Date(),transformationName,sourceSlaveName,sourceStepName,sourceStepCopy,targetSlaveName,targetStepName,targetStepCopy);
     serverSocketPortsMap.add(socketPortAllocation);
   }
   return socketPortAllocation;
