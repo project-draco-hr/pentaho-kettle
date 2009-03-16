@@ -1,0 +1,36 @@
+{
+  meta=(InfobrightLoaderMetadata)smi;
+  data=(InfobrightLoaderStepData)sdi;
+  Object[] row=getRow();
+  if (row == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.insertRowMeta=getInputRowMeta().clone();
+  }
+  try {
+    Object[] outputRowData=writeToLoader(row,data.insertRowMeta);
+    if (outputRowData != null) {
+      putRow(data.outputRowMeta,row);
+      incrementLinesOutput();
+    }
+    if (checkFeedback(getLinesRead())) {
+      if (log.isBasic()) {
+        logBasic("linenr " + getLinesRead());
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError("Because of an error, this step can't continue: " + e.getMessage());
+    e.printStackTrace();
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  return true;
+}
