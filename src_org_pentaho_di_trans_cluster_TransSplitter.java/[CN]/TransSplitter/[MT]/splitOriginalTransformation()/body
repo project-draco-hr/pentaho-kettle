@@ -36,10 +36,6 @@
               masterStep.setLocation(masterStep.getLocation().x,masterStep.getLocation().y);
               masterTransMeta.addStep(masterStep);
             }
-            int nrOfSourceCopies=previousStep.getCopies();
-            if (masterStep.getCopies() != 1 && masterStep.getCopies() != (nrSlavesNodes * nrOfSourceCopies)) {
-              throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + nrSlavesNodes + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
-            }
             Queue<Integer> masterStepCopyNumbers=new LinkedList<Integer>();
             for (int i=0; i < masterStep.getCopies(); i++) {
               masterStepCopyNumbers.add(i);
@@ -54,6 +50,10 @@
                 }
                 StepPartitioningMeta previousStepPartitioningMeta=previousStep.getStepPartitioningMeta();
                 PartitionSchema previousPartitionSchema=previousStepPartitioningMeta.getPartitionSchema();
+                int nrOfSourceCopies=determineNrOfStepCopies(sourceSlaveServer,previousStep);
+                if (masterStep.getCopies() != 1 && masterStep.getCopies() != nrOfSourceCopies) {
+                  throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + nrSlavesNodes + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
+                }
                 for (int sourceCopyNr=0; sourceCopyNr < nrOfSourceCopies; sourceCopyNr++) {
                   Integer masterStepCopyNr=masterStepCopyNumbers.poll();
                   if (masterStepCopyNr == null) {
@@ -98,10 +98,6 @@
               sourceStep.setLocation(previousStep.getLocation().x,previousStep.getLocation().y);
               masterTransMeta.addStep(sourceStep);
             }
-            int nrOfTargetCopies=referenceStep.getCopies();
-            if (sourceStep.getCopies() != 1 && sourceStep.getCopies() != (nrSlavesNodes * nrOfTargetCopies)) {
-              throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + nrSlavesNodes + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
-            }
             Queue<Integer> masterStepCopyNumbers=new LinkedList<Integer>();
             for (int i=0; i < sourceStep.getCopies(); i++) {
               masterStepCopyNumbers.add(i);
@@ -116,6 +112,10 @@
                 }
                 StepPartitioningMeta targetStepPartitioningMeta=referenceStep.getStepPartitioningMeta();
                 PartitionSchema targetPartitionSchema=targetStepPartitioningMeta.getPartitionSchema();
+                int nrOfTargetCopies=determineNrOfStepCopies(targetSlaveServer,referenceStep);
+                if (sourceStep.getCopies() != 1 && sourceStep.getCopies() != nrOfTargetCopies) {
+                  throw new KettleException("The number of step copies on the master has to be 1 or equal to the number of slaves (" + nrSlavesNodes + ") to work.  Note that you can insert a dummy step to make the transformation work as desired.");
+                }
                 for (int targetCopyNr=0; targetCopyNr < nrOfTargetCopies; targetCopyNr++) {
                   Integer masterStepCopyNr=masterStepCopyNumbers.poll();
                   if (masterStepCopyNr == null) {
