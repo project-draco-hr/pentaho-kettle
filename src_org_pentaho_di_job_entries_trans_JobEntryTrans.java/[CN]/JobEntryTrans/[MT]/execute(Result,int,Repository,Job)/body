@@ -51,7 +51,8 @@
       if (!Const.isEmpty(parameters[idx])) {
         namedParam.addParameterDefinition(parameters[idx],"","Job entry runtime");
         if (Const.isEmpty(Const.trim(parameterFieldNames[idx]))) {
-          namedParam.setParameterValue(parameters[idx],Const.NVL(environmentSubstitute(parameterValues[idx]),""));
+          String value=Const.NVL(environmentSubstitute(parameterValues[idx]),"");
+          namedParam.setParameterValue(parameters[idx],value);
         }
  else {
           namedParam.setParameterValue(parameters[idx],"");
@@ -147,6 +148,22 @@
           }
         }
       }
+      transMeta.clearParameters();
+      String[] parameterNames=transMeta.listParameters();
+      for (int idx=0; idx < parameterNames.length; idx++) {
+        String thisValue=namedParam.getParameterValue(parameterNames[idx]);
+        if (!Const.isEmpty(thisValue)) {
+          transMeta.setParameterValue(parameterNames[idx],thisValue);
+        }
+ else {
+          if (isPassingAllParameters()) {
+            String parentValue=parentJob.getParameterValue(parameterNames[idx]);
+            if (!Const.isEmpty(parentValue)) {
+              transMeta.setParameterValue(parameterNames[idx],parentValue);
+            }
+          }
+        }
+      }
       if (clustering) {
         TransExecutionConfiguration executionConfiguration=new TransExecutionConfiguration();
         executionConfiguration.setClusterPosting(true);
@@ -209,22 +226,6 @@
         }
       }
  else {
-        transMeta.clearParameters();
-        String[] parameterNames=transMeta.listParameters();
-        for (int idx=0; idx < parameterNames.length; idx++) {
-          String thisValue=namedParam.getParameterValue(parameterNames[idx]);
-          if (!Const.isEmpty(thisValue)) {
-            transMeta.setParameterValue(parameterNames[idx],thisValue);
-          }
- else {
-            if (isPassingAllParameters()) {
-              String parentValue=parentJob.getParameterValue(parameterNames[idx]);
-              if (!Const.isEmpty(parentValue)) {
-                transMeta.setParameterValue(parameterNames[idx],parentValue);
-              }
-            }
-          }
-        }
         Trans trans=new Trans(transMeta);
         trans.setSocketRepository(parentJob.getSocketRepository());
         if (parentJob.getJobMeta().isBatchIdPassed()) {
