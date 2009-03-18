@@ -1,0 +1,66 @@
+{
+  if (!request.getRequestURI().equals(CONTEXT_PATH + "/"))   return;
+  if (log.isDebug())   log.logDebug(toString(),"Addition of export requested");
+  PrintWriter out=response.getWriter();
+  BufferedReader in=request.getReader();
+  if (log.isDetailed())   log.logDetailed(toString(),"Encoding: " + request.getCharacterEncoding());
+  boolean isJob=TYPE_JOB.equalsIgnoreCase(request.getParameter(PARAMETER_TYPE));
+  String load=request.getParameter(PARAMETER_LOAD);
+  response.setContentType("text/xml");
+  out.print(XMLHandler.getXMLHeader());
+  response.setStatus(HttpServletResponse.SC_OK);
+  OutputStream outputStream=null;
+  try {
+    FileObject tempFile=KettleVFS.createTempFile("export",".zip",System.getProperty("java.io.tmpdir"));
+    outputStream=KettleVFS.getOutputStream(tempFile,false);
+    int size=0;
+    int c;
+    while ((c=in.read()) != -1) {
+      outputStream.write(c);
+      size++;
+    }
+    outputStream.flush();
+    outputStream.close();
+    outputStream=null;
+    String archiveUrl=tempFile.getName().toString();
+    String fileUrl=null;
+    if (!Const.isEmpty(load)) {
+      fileUrl="zip:" + archiveUrl + "!"+ load;
+      if (isJob) {
+        KettleVFS.getFileObject(fileUrl);
+        JobMeta jobMeta=new JobMeta(log,fileUrl,null);
+        Job job=new Job(log,null,jobMeta);
+        String configUrl="zip:" + archiveUrl + "!"+ Job.CONFIGURATION_IN_EXPORT_FILENAME;
+        Document configDoc=XMLHandler.loadXMLFile(configUrl);
+        JobExecutionConfiguration jobExecutionConfiguration=new JobExecutionConfiguration(XMLHandler.getSubNode(configDoc,JobExecutionConfiguration.XML_TAG));
+        jobMap.addJob(job.getJobname(),job,new JobConfiguration(jobMeta,jobExecutionConfiguration));
+        log.setLogLevel(jobExecutionConfiguration.getLogLevel());
+        jobMeta.setArguments(jobExecutionConfiguration.getArgumentStrings());
+        jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
+        Map<String,String> params=jobExecutionConfiguration.getParams();
+        for (        String param : params.keySet()) {
+          String value=params.get(param);
+          jobMeta.setParameterValue(param,value);
+        }
+      }
+ else {
+        TransMeta transMeta=new TransMeta(fileUrl);
+        Trans trans=new Trans(transMeta);
+        String configUrl="zip:" + archiveUrl + "!"+ Trans.CONFIGURATION_IN_EXPORT_FILENAME;
+        Document configDoc=XMLHandler.loadXMLFile(configUrl);
+        TransExecutionConfiguration executionConfiguration=new TransExecutionConfiguration(XMLHandler.getSubNode(configDoc,TransExecutionConfiguration.XML_TAG));
+        transformationMap.addTransformation(trans.getName(),trans,new TransConfiguration(transMeta,executionConfiguration));
+      }
+    }
+ else {
+      fileUrl=archiveUrl;
+    }
+    out.println(new WebResult(WebResult.STRING_OK,fileUrl));
+  }
+ catch (  Exception ex) {
+    out.println(new WebResult(WebResult.STRING_ERROR,Const.getStackTracker(ex)));
+  }
+ finally {
+    if (outputStream != null)     outputStream.close();
+  }
+}

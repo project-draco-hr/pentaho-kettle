@@ -1,0 +1,41 @@
+{
+  String serviceUrl=AddExportServlet.CONTEXT_PATH;
+  if (type != null && load != null) {
+    serviceUrl=serviceUrl+="/?" + AddExportServlet.PARAMETER_TYPE + "="+ type+ "&"+ AddExportServlet.PARAMETER_LOAD+ "="+ URLEncoder.encode(load,"UTF-8");
+  }
+  String urlString=constructUrl(serviceUrl);
+  log.logDebug(toString(),Messages.getString("SlaveServer.DEBUG_ConnectingTo",urlString));
+  PutMethod putMethod=new PutMethod(urlString);
+  FileObject fileObject=KettleVFS.getFileObject(filename);
+  RequestEntity entity=new InputStreamRequestEntity(KettleVFS.getInputStream(fileObject));
+  putMethod.setRequestEntity(entity);
+  putMethod.setDoAuthentication(true);
+  putMethod.addRequestHeader(new Header("Content-Type","binary/zip"));
+  HttpClient client=new HttpClient();
+  addCredentials(client);
+  try {
+    int result=client.executeMethod(putMethod);
+    log.logDebug(toString(),Messages.getString("SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
+    InputStream inputStream=new BufferedInputStream(putMethod.getResponseBodyAsStream(),1000);
+    StringBuffer bodyBuffer=new StringBuffer();
+    int c;
+    while ((c=inputStream.read()) != -1)     bodyBuffer.append((char)c);
+    inputStream.close();
+    String bodyTmp=bodyBuffer.toString();
+switch (result) {
+case 401:
+      String message="Authentication failed" + Const.DOSCR + Const.DOSCR+ bodyTmp;
+    WebResult webResult=new WebResult(WebResult.STRING_ERROR,message);
+  bodyBuffer.setLength(0);
+bodyBuffer.append(webResult.getXML());
+break;
+}
+String body=bodyBuffer.toString();
+log.logDebug(toString(),Messages.getString("SlaveServer.DEBUG_ResponseBody",body));
+return body;
+}
+  finally {
+putMethod.releaseConnection();
+log.logDetailed(toString(),Messages.getString("SlaveServer.DETAILED_SentExportToService",AddExportServlet.CONTEXT_PATH,environmentSubstitute(hostname)));
+}
+}

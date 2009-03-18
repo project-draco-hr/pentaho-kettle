@@ -18,18 +18,23 @@
   JobExecutionConfigurationDialog dialog=new JobExecutionConfigurationDialog(spoon.getShell(),executionConfiguration,jobMeta);
   if (dialog.open()) {
     JobGraph jobGraph=spoon.getActiveJobGraph();
+    LogWriter.getInstance().setLogLevel(executionConfiguration.getLogLevel());
+    for (    String varName : executionConfiguration.getVariables().keySet()) {
+      String varValue=executionConfiguration.getVariables().get(varName);
+      jobMeta.setVariable(varName,varValue);
+    }
+    for (    String paramName : executionConfiguration.getParams().keySet()) {
+      String paramValue=executionConfiguration.getParams().get(paramName);
+      jobMeta.setParameterValue(paramName,paramValue);
+    }
+    jobMeta.setArguments(executionConfiguration.getArgumentStrings());
     if (executionConfiguration.isExecutingLocally()) {
-      LogWriter.getInstance().setLogLevel(executionConfiguration.getLogLevel());
-      for (      String varName : executionConfiguration.getVariables().keySet()) {
-        String varValue=executionConfiguration.getVariables().get(varName);
-        jobMeta.setVariable(varName,varValue);
-      }
-      jobMeta.setArguments(executionConfiguration.getArgumentStrings());
       jobGraph.startJob(executionConfiguration);
     }
  else     if (executionConfiguration.isExecutingRemotely()) {
+      jobMeta.activateParameters();
       if (executionConfiguration.getRemoteServer() != null) {
-        Job.sendXMLToSlaveServer(jobMeta,executionConfiguration);
+        Job.sendToSlaveServer(jobMeta,executionConfiguration,spoon.rep);
         spoon.delegates.slaves.addSpoonSlave(executionConfiguration.getRemoteServer());
       }
  else {

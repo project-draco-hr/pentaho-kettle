@@ -1,0 +1,36 @@
+{
+  SlaveServer slaveServer=executionConfiguration.getRemoteServer();
+  if (slaveServer == null)   throw new KettleException(Messages.getString("Job.Log.NoSlaveServerSpecified"));
+  if (Const.isEmpty(jobMeta.getName()))   throw new KettleException(Messages.getString("Job.Log.UniqueJobName"));
+  try {
+    for (    String var : Const.INTERNAL_TRANS_VARIABLES)     executionConfiguration.getVariables().put(var,jobMeta.getVariable(var));
+    for (    String var : Const.INTERNAL_JOB_VARIABLES)     executionConfiguration.getVariables().put(var,jobMeta.getVariable(var));
+    if (executionConfiguration.isPassingExport()) {
+      FileObject tempFile=KettleVFS.createTempFile("jobExport",".zip",System.getProperty("java.io.tmpdir"));
+      TopLevelResource topLevelResource=ResourceUtil.serializeResourceExportInterface(tempFile.getName().toString(),jobMeta,jobMeta,repository,executionConfiguration.getXML(),CONFIGURATION_IN_EXPORT_FILENAME);
+      String result=slaveServer.sendExport(topLevelResource.getArchiveName(),AddExportServlet.TYPE_JOB,topLevelResource.getBaseResourceName());
+      WebResult webResult=WebResult.fromXMLString(result);
+      if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+        throw new KettleException("There was an error passing the exported job to the remote server: " + Const.CR + webResult.getMessage());
+      }
+      String remoteFile=webResult.getMessage();
+      LogWriter.getInstance().logBasic(jobMeta.getName(),"Added the remote job to slave server [" + slaveServer.getName() + "] for remote file: "+ remoteFile);
+    }
+ else {
+      String xml=new JobConfiguration(jobMeta,executionConfiguration).getXML();
+      String reply=slaveServer.sendXML(xml,AddJobServlet.CONTEXT_PATH + "/?xml=Y");
+      WebResult webResult=WebResult.fromXMLString(reply);
+      if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+        throw new KettleException("There was an error posting the job on the remote server: " + Const.CR + webResult.getMessage());
+      }
+    }
+    String reply=slaveServer.getContentFromServer(StartJobServlet.CONTEXT_PATH + "/?name=" + URLEncoder.encode(jobMeta.getName(),"UTF-8")+ "&xml=Y");
+    WebResult webResult=WebResult.fromXMLString(reply);
+    if (!webResult.getResult().equalsIgnoreCase(WebResult.STRING_OK)) {
+      throw new KettleException("There was an error starting the job on the remote server: " + Const.CR + webResult.getMessage());
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+}
