@@ -1,0 +1,30 @@
+{
+  db=new Database(meta.getDatabaseMeta());
+  db.connect();
+  requiredRowMeta=meta.getRequiredFields(step);
+  requiredFields=requiredRowMeta.getFieldNames();
+  try {
+    if (meta.getInfobrightProductType() == null) {
+      meta.setDataFormat(DataFormat.TXT_VARIABLE);
+    }
+    DataFormat dataFormat=DataFormat.valueForDisplayName(meta.getInfobrightProductType());
+    Connection conn=db.getConnection();
+    String tableName=meta.getDatabaseMeta().getQuotedSchemaTableCombination(step.environmentSubstitute(meta.getSchemaName()),step.environmentSubstitute(meta.getTablename()));
+    EtlLogger logger=new KettleEtlLogger(step);
+    loader=new InfobrightNamedPipeLoader(tableName,conn,logger,dataFormat);
+    record=loader.createRecord(false);
+    loader.start();
+  }
+ catch (  Exception e) {
+    db.disconnect();
+    db=null;
+    try {
+      loader.killQuery();
+    }
+ catch (    SQLException e1) {
+      throw new KettleDatabaseException(e1);
+    }
+    ;
+    throw new KettleDatabaseException(e);
+  }
+}
