@@ -5,7 +5,7 @@
   data.totalBytesRead=0L;
   data.blockNr++;
   if (data.parallel) {
-    long positionToReach=(data.blockNr * data.bufferSize * data.totalNumberOfSteps) + data.stepNumber * data.bufferSize;
+    long positionToReach=(data.blockNr * data.blockSize * data.totalNumberOfSteps) + data.stepNumber * data.blockSize;
     long bytesToSkip=positionToReach - data.fileReadPosition;
     logBasic("Skipping " + bytesToSkip + " to go to position "+ positionToReach+ " for step copy "+ data.stepNumber);
     try {
@@ -14,11 +14,15 @@
         long n=data.gzis.skip(bytesToSkip - bytesSkipped);
         if (n <= 0) {
           data.eofReached=true;
-          return bytesSkipped == 0;
+          data.fileReadPosition+=bytesSkipped;
+          return true;
         }
         bytesSkipped+=n;
       }
       data.fileReadPosition+=bytesSkipped;
+      data.startBuffer=0;
+      data.endBuffer=0;
+      data.maxBuffer=0;
       readOneRow(false);
       return false;
     }

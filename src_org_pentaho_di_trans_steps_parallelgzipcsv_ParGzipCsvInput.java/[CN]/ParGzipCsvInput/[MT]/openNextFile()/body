@@ -15,10 +15,13 @@
       data.binaryFilename=data.filenames[data.filenr].getBytes();
     }
     data.gzis=new GZIPInputStream(data.fis,10000);
+    data.fileReadPosition=0L;
+    data.eofReached=false;
     if (data.parallel) {
-      data.blockSize=data.bufferSize;
-      long bytesToSkip=data.stepNumber * data.bufferSize;
+      data.blockSize=2 * data.bufferSize;
+      long bytesToSkip=data.stepNumber * data.blockSize;
       if (bytesToSkip > 0) {
+        logBasic("Skipping " + bytesToSkip + " bytes to go to position "+ bytesToSkip+ " for step copy "+ data.stepNumber);
         long bytesSkipped=0L;
         while (bytesSkipped < bytesToSkip) {
           long n=data.gzis.skip(bytesToSkip - bytesSkipped);
@@ -29,9 +32,11 @@
           bytesSkipped+=n;
         }
         data.fileReadPosition+=bytesSkipped;
+        data.totalBytesRead=0L;
         readOneRow(false);
       }
  else {
+        data.totalBytesRead=0L;
         if (meta.isHeaderPresent()) {
           readOneRow(false);
         }
@@ -48,7 +53,6 @@
       resultFile.setComment("File was read by a Csv input step");
       addResultFile(resultFile);
     }
-    data.totalBytesRead=0L;
     data.filenr++;
     data.rowNumber=1L;
     return true;
