@@ -7,7 +7,6 @@
   prop.setProperty("mail.pop3s.rsetbeforequit","true");
   prop.setProperty("mail.pop3.rsetbeforequit","true");
   Session sess=Session.getDefaultInstance(prop,null);
-  sess.setDebug(true);
   FileObject fileObject=null;
   Store st=null;
   Folder f=null;
@@ -23,9 +22,12 @@
         String host=getRealServername();
         String user=getRealUsername();
         String pwd=getRealPassword();
+        int port=-1;
         if (!getUseSSL()) {
           st=sess.getStore("pop3");
-          st.connect(host,user,pwd);
+          port=Const.toInt(getRealSSLPort(),-1);
+          if (port != -1)           st.connect(host,port,user,pwd);
+ else           st.connect(host,user,pwd);
         }
  else {
           String SSL_FACTORY="javax.net.ssl.SSLSocketFactory";
@@ -33,7 +35,8 @@
           prop.setProperty("mail.pop3.socketFactory.fallback","false");
           prop.setProperty("mail.pop3.port",getRealSSLPort());
           prop.setProperty("mail.pop3.socketFactory.port",getRealSSLPort());
-          URLName url=new URLName("pop3",host,Const.toInt(getRealSSLPort(),995),"",user,pwd);
+          port=Const.toInt(getRealSSLPort(),995);
+          URLName url=new URLName("pop3",host,port,"",user,pwd);
           st=new POP3SSLStore(sess,url);
           st.connect();
         }
@@ -59,7 +62,7 @@
             if (!Const.isEmpty(getRealFilenamePattern())) {
               startpattern=getRealFilenamePattern();
             }
-            for (int i=0; i < msg_list.length; i++) {
+            for (int i=0; i < msg_list.length && !parentJob.isStopped(); i++) {
               if ((nb_email_POP <= nbrmailtoretrieve && retrievemails == 2) || (retrievemails != 2)) {
                 Message msg_POP=msg_list[i];
                 if (log.isDetailed()) {
