@@ -1,0 +1,54 @@
+{
+  meta=(MySQLBulkLoaderMeta)smi;
+  data=(MySQLBulkLoaderData)sdi;
+  try {
+    Object[] r=getRow();
+    if (r == null) {
+      setOutputDone();
+      data.fifoStream.close();
+      data.fifoStream=null;
+      data.sqlRunner.join();
+      SqlRunner sqlRunner=data.sqlRunner;
+      data.sqlRunner=null;
+      sqlRunner.checkExcn();
+      return false;
+    }
+    if (first) {
+      first=false;
+      data.keynrs=new int[meta.getFieldStream().length];
+      for (int i=0; i < data.keynrs.length; i++) {
+        data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
+      }
+      data.bulkFormatMeta=new ValueMetaInterface[data.keynrs.length];
+      for (int i=0; i < data.keynrs.length; i++) {
+        ValueMetaInterface sourceMeta=getInputRowMeta().getValueMeta(data.keynrs[i]);
+        if (sourceMeta.isDate()) {
+          if (meta.getFieldFormatType()[i] == MySQLBulkLoaderMeta.FIELD_FORMAT_TYPE_DATE) {
+            data.bulkFormatMeta[i]=data.bulkDateMeta.clone();
+          }
+ else           if (meta.getFieldFormatType()[i] == MySQLBulkLoaderMeta.FIELD_FORMAT_TYPE_TIMESTAMP) {
+            data.bulkFormatMeta[i]=data.bulkTimestampMeta.clone();
+          }
+        }
+ else         if (sourceMeta.isNumeric() && meta.getFieldFormatType()[i] == MySQLBulkLoaderMeta.FIELD_FORMAT_TYPE_NUMBER) {
+          data.bulkFormatMeta[i]=data.bulkNumberMeta.clone();
+        }
+ else {
+          data.bulkFormatMeta[i]=null;
+        }
+      }
+      execute(meta,true);
+    }
+    writeRowToBulk(getInputRowMeta(),r);
+    putRow(getInputRowMeta(),r);
+    incrementLinesOutput();
+    return true;
+  }
+ catch (  Exception e) {
+    logError(Messages.getString("MySQLBulkLoader.Log.ErrorInStep"),e);
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+}

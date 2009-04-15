@@ -1,0 +1,79 @@
+{
+  try {
+    for (int i=0; i < data.keynrs.length; i++) {
+      if (i > 0) {
+        data.fifoStream.write(data.separator);
+      }
+      int index=data.keynrs[i];
+      ValueMetaInterface valueMeta=rowMeta.getValueMeta(index);
+      Object valueData=r[index];
+      if (valueData != null) {
+switch (valueMeta.getType()) {
+case ValueMetaInterface.TYPE_STRING:
+          data.fifoStream.write(data.quote);
+        if (valueMeta.isStorageBinaryString() && meta.getFieldFormatType()[i] == MySQLBulkLoaderMeta.FIELD_FORMAT_TYPE_OK) {
+          data.fifoStream.write((byte[])valueData);
+        }
+ else {
+          String string=valueMeta.getString(valueData);
+          if (meta.getFieldFormatType()[i] == MySQLBulkLoaderMeta.FIELD_FORMAT_TYPE_STRING_ESCAPE) {
+            string=Const.replace(string,meta.getEnclosure(),meta.getEscapeChar() + meta.getEnclosure());
+          }
+          data.fifoStream.write(string.getBytes());
+        }
+      data.fifoStream.write(data.quote);
+    break;
+case ValueMetaInterface.TYPE_INTEGER:
+  if (valueMeta.isStorageBinaryString() && data.bulkFormatMeta[i] == null) {
+    data.fifoStream.write(valueMeta.getBinaryString(valueData));
+  }
+ else {
+    Long integer=valueMeta.getInteger(valueData);
+    data.fifoStream.write(data.bulkFormatMeta[i].getString(integer).getBytes());
+  }
+break;
+case ValueMetaInterface.TYPE_DATE:
+if (valueMeta.isStorageBinaryString() && data.bulkFormatMeta[i] == null) {
+data.fifoStream.write(valueMeta.getBinaryString(valueData));
+}
+ else {
+Date date=valueMeta.getDate(valueData);
+data.fifoStream.write(data.bulkFormatMeta[i].getString(date).getBytes());
+}
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+if (valueMeta.isStorageBinaryString() && data.bulkFormatMeta[i] == null) {
+data.fifoStream.write(valueMeta.getBinaryString(valueData));
+}
+ else {
+Boolean b=valueMeta.getBoolean(valueData);
+data.fifoStream.write(data.bulkFormatMeta[i].getString(b).getBytes());
+}
+break;
+case ValueMetaInterface.TYPE_NUMBER:
+if (valueMeta.isStorageBinaryString() && data.bulkFormatMeta[i] == null) {
+data.fifoStream.write((byte[])valueData);
+}
+ else {
+Double d=valueMeta.getNumber(valueData);
+data.fifoStream.write(data.bulkFormatMeta[i].getString(d).getBytes());
+}
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+if (valueMeta.isStorageBinaryString() && data.bulkFormatMeta[i] == null) {
+data.fifoStream.write((byte[])valueData);
+}
+ else {
+BigDecimal bn=valueMeta.getBigNumber(valueData);
+data.fifoStream.write(data.bulkFormatMeta[i].getString(bn).getBytes());
+}
+break;
+}
+}
+}
+data.fifoStream.write(data.newline);
+}
+ catch (Exception e) {
+throw new KettleException("Error serializing rows of data to the fifo file",e);
+}
+}

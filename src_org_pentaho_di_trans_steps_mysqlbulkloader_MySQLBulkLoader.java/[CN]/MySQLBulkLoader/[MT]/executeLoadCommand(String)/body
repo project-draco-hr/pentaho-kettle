@@ -1,0 +1,25 @@
+{
+  String loadCommand="";
+  loadCommand+="LOAD DATA INFILE '" + meta.getFifoFileName() + "' ";
+  loadCommand+="INTO TABLE " + data.schemaTable + " ";
+  if (meta.isReplacingData()) {
+    loadCommand+="REPLACE ";
+  }
+ else   if (meta.isIgnoringErrors()) {
+    loadCommand+="IGNORE ";
+  }
+  if (!Const.isEmpty(meta.getEncoding())) {
+    loadCommand+="CHARACTER SET " + meta.getEncoding() + " ";
+  }
+  String delStr=meta.getDelimiter();
+  if ("\t".equals(delStr))   delStr="\\t";
+  loadCommand+="FIELDS TERMINATED BY '" + delStr + "' ";
+  if (!Const.isEmpty(meta.getEnclosure())) {
+    loadCommand+="OPTIONALLY ENCLOSED BY '" + meta.getEnclosure() + "' ";
+  }
+  loadCommand+="ESCAPED BY '" + meta.getEscapeChar() + ("\\".equals(meta.getEscapeChar()) ? meta.getEscapeChar() : "")+ "' ";
+  loadCommand+=";" + Const.CR;
+  logBasic("Starting the MySQL bulk Load in a separate thread : " + loadCommand);
+  data.sqlRunner=new SqlRunner(data,loadCommand);
+  data.sqlRunner.start();
+}

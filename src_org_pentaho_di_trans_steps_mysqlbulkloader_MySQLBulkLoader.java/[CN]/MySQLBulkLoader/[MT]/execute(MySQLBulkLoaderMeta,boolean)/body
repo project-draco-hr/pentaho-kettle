@@ -1,0 +1,50 @@
+{
+  Runtime rt=Runtime.getRuntime();
+  try {
+    String tableName=environmentSubstitute(meta.getTableName());
+    data.fifoFilename=environmentSubstitute(meta.getFifoFileName());
+    File fifoFile=new File(data.fifoFilename);
+    if (!fifoFile.exists()) {
+      String mkFifoCmd="mkfifo " + data.fifoFilename;
+      logBasic("Creating FIFO file using this command : " + mkFifoCmd);
+      Process mkFifoProcess=rt.exec(mkFifoCmd);
+      StreamLogger errorLogger=new StreamLogger(mkFifoProcess.getErrorStream(),"mkFifoError");
+      StreamLogger outputLogger=new StreamLogger(mkFifoProcess.getInputStream(),"mkFifoOuptut");
+      new Thread(errorLogger).start();
+      new Thread(outputLogger).start();
+      int result=mkFifoProcess.waitFor();
+      if (result != 0) {
+        throw new Exception("Return code " + result + " received from statement : "+ mkFifoCmd);
+      }
+      String chmodCmd="chmod 666 " + data.fifoFilename;
+      logBasic("Setting FIFO file permissings using this command : " + chmodCmd);
+      Process chmodProcess=rt.exec(chmodCmd);
+      errorLogger=new StreamLogger(chmodProcess.getErrorStream(),"chmodError");
+      outputLogger=new StreamLogger(chmodProcess.getInputStream(),"chmodOuptut");
+      new Thread(errorLogger).start();
+      new Thread(outputLogger).start();
+      result=chmodProcess.waitFor();
+      if (result != 0) {
+        throw new Exception("Return code " + result + " received from statement : "+ chmodCmd);
+      }
+    }
+    DBCache.getInstance().clear(meta.getDatabaseMeta().getName());
+    data.db=new Database(meta.getDatabaseMeta());
+    data.db.shareVariablesWith(this);
+    if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+        data.db.connect(getTrans().getThreadName(),getPartitionID());
+      }
+    }
+ else {
+      data.db.connect(getPartitionID());
+    }
+    logBasic("Connected to MySQL");
+    executeLoadCommand(tableName);
+    data.fifoStream=new BufferedOutputStream(new FileOutputStream(fifoFile),1000);
+  }
+ catch (  Exception ex) {
+    throw new KettleException(ex);
+  }
+  return true;
+}
