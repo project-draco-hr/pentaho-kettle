@@ -5,12 +5,7 @@
     Object[] r=getRow();
     if (r == null) {
       setOutputDone();
-      data.fifoStream.close();
-      data.fifoStream=null;
-      data.sqlRunner.join();
-      SqlRunner sqlRunner=data.sqlRunner;
-      data.sqlRunner=null;
-      sqlRunner.checkExcn();
+      closeOutput();
       return false;
     }
     if (first) {
@@ -37,7 +32,11 @@
           data.bulkFormatMeta[i]=null;
         }
       }
-      execute(meta,true);
+      execute(meta);
+    }
+    if (data.bulkSize > 0 && getLinesOutput() > 0 && (getLinesOutput() % data.bulkSize) == 0) {
+      closeOutput();
+      executeLoadCommand();
     }
     writeRowToBulk(getInputRowMeta(),r);
     putRow(getInputRowMeta(),r);
