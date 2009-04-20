@@ -75,6 +75,7 @@
   start=cal.getTime();
   if (log.isDebug())   log.logDebug("Pan",Messages.getString("Pan.Log.AllocatteNewTrans"));
   TransMeta transMeta=new TransMeta();
+  Repository rep=null;
   try {
     if (log.isDebug())     log.logDebug("Pan",Messages.getString("Pan.Log.StartingToLookOptions"));
     if (!Const.isEmpty(optionRepname) || !Const.isEmpty(optionFilename) || !Const.isEmpty(optionJarFilename)) {
@@ -87,7 +88,7 @@
           repinfo=repsinfo.findRepository(optionRepname.toString());
           if (repinfo != null) {
             if (log.isDebug())             log.logDebug("Pan",Messages.getString("Pan.Log.Allocate&ConnectRep"));
-            Repository rep=new Repository(log,repinfo,userinfo);
+            rep=new Repository(log,repinfo,userinfo);
             if (rep.connect("Pan commandline")) {
               RepositoryDirectory directory=rep.getDirectoryTree();
               if (!Const.isEmpty(optionDirname)) {
@@ -137,7 +138,6 @@
                 userinfo=null;
                 repinfo=null;
               }
-              rep.disconnect();
             }
  else {
               System.out.println(Messages.getString("Pan.Error.CanNotConnectRep"));
@@ -193,11 +193,13 @@
  catch (  Exception e) {
     trans=null;
     transMeta=null;
+    if (rep != null)     rep.disconnect();
     System.out.println(Messages.getString("Pan.Error.ProcessStopError",e.getMessage()));
     e.printStackTrace();
     exitJVM(1);
   }
   if (trans == null) {
+    if (rep != null)     rep.disconnect();
     if (!"Y".equalsIgnoreCase(optionListtrans.toString()) && !"Y".equalsIgnoreCase(optionListdir.toString()) && !"Y".equalsIgnoreCase(optionListrep.toString())&& Const.isEmpty(optionExprep)) {
       System.out.println(Messages.getString("Pan.Error.CanNotLoadTrans"));
       exitJVM(7);
@@ -290,5 +292,8 @@
     log.logError("Pan",Messages.getString("Pan.Log.UnexpectedErrorOccurred","" + ke.getMessage()));
     LogWriter.closeAndRemoveFileAppender();
     exitJVM(2);
+  }
+ finally {
+    if (rep != null)     rep.disconnect();
   }
 }
