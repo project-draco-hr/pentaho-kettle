@@ -1,0 +1,32 @@
+{
+  WsdlOpParameterList parameters=operation.getParameters();
+  String requestOperation=Const.NVL(meta.getOperationRequestName(),meta.getOperationName());
+  Iterator<WsdlOpParameter> iterator=parameters.iterator();
+  List<String> bodyNames=new ArrayList<String>();
+  while (iterator.hasNext()) {
+    WsdlOpParameter wsdlOpParameter=iterator.next();
+    bodyNames.add(wsdlOpParameter.getName().getLocalPart());
+  }
+  List<String> headerNames=new ArrayList<String>(parameters.getHeaderNames());
+  StringBuffer xml=new StringBuffer();
+  xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+  xml.append("<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:" + NS_PREFIX + "=\"");
+  xml.append(meta.getOperationNamespace());
+  xml.append("\">\n");
+  xml.append("  <soapenv:Header>\n");
+  addParametersToXML(xml,headerNames);
+  xml.append("  </soapenv:Header>\n");
+  xml.append("  <soapenv:Body>\n");
+  xml.append("    <" + NS_PREFIX + ":").append(requestOperation).append(">\n");
+  if (meta.getInFieldContainerName() != null) {
+    xml.append("      <" + NS_PREFIX + ":"+ meta.getInFieldContainerName()+ ">\n");
+  }
+  addParametersToXML(xml,bodyNames);
+  if (meta.getInFieldContainerName() != null) {
+    xml.append("      </" + NS_PREFIX + ":"+ meta.getInFieldContainerName()+ ">\n");
+  }
+  xml.append("    </" + NS_PREFIX + ":").append(requestOperation).append(">\n");
+  xml.append("  </soapenv:Body>\n");
+  xml.append("</soapenv:Envelope>\n");
+  return xml.toString();
+}

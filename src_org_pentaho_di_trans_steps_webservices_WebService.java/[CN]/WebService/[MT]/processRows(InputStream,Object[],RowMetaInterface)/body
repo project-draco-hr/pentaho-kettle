@@ -5,11 +5,14 @@
   }
   String response=readStringFromInputStream(anXml);
   try {
-    Document doc=XMLHandler.loadXMLString(response);
-    Node enveloppeNode=XMLHandler.getSubNode(doc,"soapenv:Envelope");
-    if (enveloppeNode == null)     enveloppeNode=XMLHandler.getSubNode(doc,"soap:Envelope");
-    Node bodyNode=XMLHandler.getSubNode(enveloppeNode,"soapenv:body");
-    if (bodyNode == null)     bodyNode=XMLHandler.getSubNode(enveloppeNode,"soap:body");
+    DocumentBuilderFactory documentBuilderFactory=DocumentBuilderFactory.newInstance();
+    documentBuilderFactory.setNamespaceAware(true);
+    DocumentBuilder documentBuilder=documentBuilderFactory.newDocumentBuilder();
+    Document doc=documentBuilder.parse(new InputSource(new StringReader(response)));
+    Node envelopeNode=doc.getFirstChild();
+    String nsPrefix=envelopeNode.getPrefix();
+    Node bodyNode=XMLHandler.getSubNode(envelopeNode,nsPrefix + ":Body");
+    if (bodyNode == null)     XMLHandler.getSubNode(envelopeNode,nsPrefix + ":body");
     TransformerFactory transformerFactory=TransformerFactory.newInstance();
     Transformer transformer=transformerFactory.newTransformer();
     transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,"yes");
@@ -43,8 +46,27 @@
             break;
           }
         }
-        if (responseNode != null) {
-          nodeList=responseNode.getChildNodes();
+        if (meta.getFieldsOut().size() == 1) {
+          WebServiceField field=meta.getFieldsOut().get(0);
+          if (field.getWsName().equals(responseNode.getNodeName())) {
+            StringWriter nodeXML=new StringWriter();
+            transformer.transform(new DOMSource(responseNode),new StreamResult(nodeXML));
+            String xml=nodeXML.toString();
+            Object[] outputRowData=createNewRow(rowData);
+            int index=rowData == null ? 0 : getInputRowMeta().size();
+            outputRowData[index++]=xml;
+            putRow(data.outputRowMeta,outputRowData);
+          }
+ else {
+            if (responseNode != null) {
+              nodeList=responseNode.getChildNodes();
+            }
+          }
+        }
+ else {
+          if (responseNode != null) {
+            nodeList=responseNode.getChildNodes();
+          }
         }
       }
     }
