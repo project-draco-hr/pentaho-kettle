@@ -5,22 +5,29 @@
   String line=reader.readLine();
   while (line != null) {
     row++;
-    if (line.matches("^[ \t]*package .*;[ \t]*$")) {
+    if (packagePattern.matcher(line).matches()) {
       int beginIndex=line.indexOf("org.pentaho.");
       int endIndex=line.indexOf(';');
       messagesPackage=line.substring(beginIndex,endIndex);
     }
-    if (line.matches("^[ \t]*import [a-z\\._0-9]*\\.Messages;[ \t]*$")) {
+    if (importPattern.matcher(line).matches()) {
       int beginIndex=line.indexOf("org.pentaho.");
       int endIndex=line.indexOf(".Messages;");
       messagesPackage=line.substring(beginIndex,endIndex);
     }
-    int index=line.indexOf(MESSAGES_GETSTRING);
-    while (index >= 0) {
-      if (index == 0 || (index > 0 & !Character.isJavaIdentifierPart(line.charAt(index - 1)))) {
-        addLineOccurrence(fileObject,messagesPackage,line,row,index);
+    if (pkgPattern.matcher(line).matches()) {
+      int beginIndex=line.indexOf('"') + 1;
+      int endIndex=line.indexOf('"',beginIndex);
+      messagesPackage=line.substring(beginIndex,endIndex);
+    }
+    for (    String scanPhrase : scanPhrases) {
+      int index=line.indexOf(scanPhrase);
+      while (index >= 0) {
+        if (index == 0 || (index > 0 & !Character.isJavaIdentifierPart(line.charAt(index - 1)))) {
+          addLineOccurrence(fileObject,messagesPackage,line,row,index,scanPhrase);
+        }
+        index=line.indexOf(scanPhrase,index + 1);
       }
-      index=line.indexOf(MESSAGES_GETSTRING,index + 1);
     }
     line=reader.readLine();
   }
