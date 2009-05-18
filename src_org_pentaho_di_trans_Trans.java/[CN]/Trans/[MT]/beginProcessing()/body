@@ -5,18 +5,18 @@
     startDate=Const.MIN_DATE;
     endDate=currentDate;
     SimpleDateFormat df=new SimpleDateFormat(REPLAY_DATE_FORMAT);
-    log.logBasic(toString(),Messages.getString("Trans.Log.TransformationCanBeReplayed") + df.format(currentDate));
+    log.logBasic(toString(),BaseMessages.getString(PKG,"Trans.Log.TransformationCanBeReplayed") + df.format(currentDate));
     Database ldb=null;
     try {
       boolean lockedTable=false;
       DatabaseMeta logcon=transMeta.getLogConnection();
       if (logcon != null) {
         if (transMeta.getLogTable() == null) {
-          throw new KettleTransException(Messages.getString("Trans.Exception.NoLogTableDefined"));
+          throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.NoLogTableDefined"));
         }
         ldb=new Database(logcon);
         ldb.shareVariablesWith(this);
-        if (log.isDetailed())         log.logDetailed(toString(),Messages.getString("Trans.Log.OpeningLogConnection","" + transMeta.getLogConnection()));
+        if (log.isDetailed())         log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.OpeningLogConnection","" + transMeta.getLogConnection()));
         ldb.connect();
         ldb.setCommit(100);
         if (transMeta.isBatchIdUsed()) {
@@ -27,46 +27,46 @@
           Long id_batch=ldb.getNextValue(transMeta.getCounters(),transMeta.getLogTable(),"ID_BATCH");
           setBatchId(id_batch.longValue());
         }
-        Object[] lastr=ldb.getLastLogDate(transMeta.getLogTable(),transMeta.getName(),false,Messages.getString("Trans.Row.Status.End"));
+        Object[] lastr=ldb.getLastLogDate(transMeta.getLogTable(),transMeta.getName(),false,BaseMessages.getString(PKG,"Trans.Row.Status.End"));
         if (lastr != null && lastr.length > 0) {
           startDate=(Date)lastr[0];
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("Trans.Log.StartDateFound") + startDate);
+          if (log.isDetailed())           log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.StartDateFound") + startDate);
         }
         if (transMeta.getMaxDateConnection() != null && transMeta.getMaxDateTable() != null && transMeta.getMaxDateTable().length() > 0 && transMeta.getMaxDateField() != null && transMeta.getMaxDateField().length() > 0) {
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("Trans.Log.LookingForMaxdateConnection","" + transMeta.getMaxDateConnection()));
+          if (log.isDetailed())           log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.LookingForMaxdateConnection","" + transMeta.getMaxDateConnection()));
           DatabaseMeta maxcon=transMeta.getMaxDateConnection();
           if (maxcon != null) {
             Database maxdb=new Database(maxcon);
             maxdb.shareVariablesWith(this);
             try {
-              if (log.isDetailed())               log.logDetailed(toString(),Messages.getString("Trans.Log.OpeningMaximumDateConnection"));
+              if (log.isDetailed())               log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.OpeningMaximumDateConnection"));
               maxdb.connect();
               String sql="SELECT MAX(" + transMeta.getMaxDateField() + ") FROM "+ transMeta.getMaxDateTable();
               RowMetaAndData r1=maxdb.getOneRow(sql);
               if (r1 != null) {
                 Date maxvalue=r1.getRowMeta().getDate(r1.getData(),0);
                 if (maxvalue != null) {
-                  if (log.isDetailed())                   log.logDetailed(toString(),Messages.getString("Trans.Log.LastDateFoundOnTheMaxdateConnection") + r1);
+                  if (log.isDetailed())                   log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.LastDateFoundOnTheMaxdateConnection") + r1);
                   endDate.setTime((long)(maxvalue.getTime() + (transMeta.getMaxDateOffset() * 1000)));
                 }
               }
  else {
-                if (log.isDetailed())                 log.logDetailed(toString(),Messages.getString("Trans.Log.NoLastDateFoundOnTheMaxdateConnection"));
+                if (log.isDetailed())                 log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.NoLastDateFoundOnTheMaxdateConnection"));
               }
             }
  catch (            KettleException e) {
-              throw new KettleTransException(Messages.getString("Trans.Exception.ErrorConnectingToDatabase","" + transMeta.getMaxDateConnection()),e);
+              throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ErrorConnectingToDatabase","" + transMeta.getMaxDateConnection()),e);
             }
  finally {
               maxdb.disconnect();
             }
           }
  else {
-            throw new KettleTransException(Messages.getString("Trans.Exception.MaximumDateConnectionCouldNotBeFound","" + transMeta.getMaxDateConnection()));
+            throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.MaximumDateConnectionCouldNotBeFound","" + transMeta.getMaxDateConnection()));
           }
         }
         if (transMeta.nrDependencies() > 0) {
-          if (log.isDetailed())           log.logDetailed(toString(),Messages.getString("Trans.Log.CheckingForMaxDependencyDate"));
+          if (log.isDetailed())           log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.CheckingForMaxDependencyDate"));
           depDate=Const.MIN_DATE;
           Date maxdepdate=Const.MIN_DATE;
           if (lastr != null && lastr.length > 0) {
@@ -88,30 +88,30 @@
                 if (r1 != null) {
                   Date maxvalue=(Date)r1.getData()[0];
                   if (maxvalue != null) {
-                    if (log.isDetailed())                     log.logDetailed(toString(),Messages.getString("Trans.Log.FoundDateFromTable",td.getTablename(),"." + td.getFieldname()," = " + maxvalue.toString()));
+                    if (log.isDetailed())                     log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.FoundDateFromTable",td.getTablename(),"." + td.getFieldname()," = " + maxvalue.toString()));
                     if (maxvalue.getTime() > maxdepdate.getTime()) {
                       maxdepdate=maxvalue;
                     }
                   }
  else {
-                    throw new KettleTransException(Messages.getString("Trans.Exception.UnableToGetDependencyInfoFromDB",td.getDatabase().getName() + ".",td.getTablename() + ".",td.getFieldname()));
+                    throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.UnableToGetDependencyInfoFromDB",td.getDatabase().getName() + ".",td.getTablename() + ".",td.getFieldname()));
                   }
                 }
  else {
-                  throw new KettleTransException(Messages.getString("Trans.Exception.UnableToGetDependencyInfoFromDB",td.getDatabase().getName() + ".",td.getTablename() + ".",td.getFieldname()));
+                  throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.UnableToGetDependencyInfoFromDB",td.getDatabase().getName() + ".",td.getTablename() + ".",td.getFieldname()));
                 }
               }
  catch (              KettleException e) {
-                throw new KettleTransException(Messages.getString("Trans.Exception.ErrorInDatabase","" + td.getDatabase()),e);
+                throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ErrorInDatabase","" + td.getDatabase()),e);
               }
  finally {
                 depdb.disconnect();
               }
             }
  else {
-              throw new KettleTransException(Messages.getString("Trans.Exception.ConnectionCouldNotBeFound","" + td.getDatabase()));
+              throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ConnectionCouldNotBeFound","" + td.getDatabase()));
             }
-            if (log.isDetailed())             log.logDetailed(toString(),Messages.getString("Trans.Log.Maxdepdate") + (XMLHandler.date2string(maxdepdate)));
+            if (log.isDetailed())             log.logDetailed(toString(),BaseMessages.getString(PKG,"Trans.Log.Maxdepdate") + (XMLHandler.date2string(maxdepdate)));
           }
           if (maxdepdate.getTime() > depDate.getTime()) {
             depDate=maxdepdate;
@@ -127,7 +127,7 @@
         if (endDate.compareTo(maxdesired) > 0)         endDate=maxdesired;
       }
       if (Const.isEmpty(transMeta.getName()) && logcon != null && transMeta.getLogTable() != null) {
-        throw new KettleException(Messages.getString("Trans.Exception.NoTransnameAvailableForLogging"));
+        throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.NoTransnameAvailableForLogging"));
       }
       if (logcon != null && transMeta.getLogTable() != null && transMeta.getName() != null) {
         ldb.writeLogRecord(transMeta.getLogTable(),transMeta.isBatchIdUsed(),getBatchId(),false,transMeta.getName(),Database.LOG_STATUS_START,0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,null);
@@ -139,7 +139,7 @@
       }
     }
  catch (    KettleException e) {
-      throw new KettleTransException(Messages.getString("Trans.Exception.ErrorWritingLogRecordToTable",transMeta.getLogTable()),e);
+      throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ErrorWritingLogRecordToTable",transMeta.getLogTable()),e);
     }
  finally {
       if (ldb != null)       ldb.disconnect();
@@ -152,10 +152,10 @@
       }
       stringAppender.setMaxNrLines(Const.toInt(logLimit,0));
       log.addAppender(stringAppender);
-      stringAppender.setBuffer(new StringBuffer(Messages.getString("Trans.Log.Start") + Const.CR));
+      stringAppender.setBuffer(new StringBuffer(BaseMessages.getString(PKG,"Trans.Log.Start") + Const.CR));
     }
   }
  catch (  KettleException e) {
-    throw new KettleTransException(Messages.getString("Trans.Exception.UnableToBeginProcessingTransformation"),e);
+    throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.UnableToBeginProcessingTransformation"),e);
   }
 }
