@@ -1,0 +1,91 @@
+{
+  if (object == null) {
+    return;
+  }
+  Field declaredFields[]=object.getClass().getDeclaredFields();
+  for (  Field field : declaredFields) {
+    if (Modifier.isFinal(field.getModifiers()) || Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
+      continue;
+    }
+    System.out.println("handling field: " + field.getName());
+    if (!field.isAccessible()) {
+      field.setAccessible(true);
+    }
+    try {
+      Object fieldValue=field.get(object);
+      if (fieldValue == null || "".equals(fieldValue)) {
+        continue;
+      }
+      if (field.getType().isPrimitive() || String.class.isAssignableFrom(field.getType()) || Number.class.isAssignableFrom(field.getType())) {
+        indent(buffer,indentLevel);
+        buffer.append(XMLHandler.addTagValue(field.getName(),fieldValue.toString()));
+      }
+ else       if (field.getType().isArray()) {
+        int length=Array.getLength(fieldValue);
+        indent(buffer,indentLevel);
+        buffer.append("<" + field.getName() + " class=\""+ fieldValue.getClass().getComponentType().getName()+ "\">").append(Const.CR);
+        for (int i=0; i < length; i++) {
+          Object childObject=Array.get(fieldValue,i);
+          if (String.class.isAssignableFrom(childObject.getClass()) || Number.class.isAssignableFrom(childObject.getClass())) {
+            indent(buffer,indentLevel + 1);
+            buffer.append("<").append(fieldValue.getClass().getComponentType().getSimpleName());
+            buffer.append(" value=\"" + childObject.toString() + "\"/>").append(Const.CR);
+          }
+ else           if (Boolean.class.isAssignableFrom(childObject.getClass()) || boolean.class.isAssignableFrom(childObject.getClass())) {
+            indent(buffer,indentLevel + 1);
+            buffer.append("<").append(fieldValue.getClass().getComponentType().getSimpleName());
+            buffer.append(" value=\"" + childObject.toString() + "\"/>").append(Const.CR);
+          }
+ else {
+            indent(buffer,indentLevel + 1);
+            buffer.append("<" + fieldValue.getClass().getComponentType().getSimpleName() + ">").append(Const.CR);
+            write(childObject,indentLevel + 1,buffer);
+            indent(buffer,indentLevel + 1);
+            buffer.append("</" + fieldValue.getClass().getComponentType().getSimpleName() + ">").append(Const.CR);
+          }
+        }
+        buffer.append("    </" + field.getName() + ">").append(Const.CR);
+      }
+ else       if (List.class.isAssignableFrom(field.getType())) {
+        List list=(List)fieldValue;
+        if (list.size() == 0) {
+          continue;
+        }
+        Class listClass=list.get(0).getClass();
+        indent(buffer,indentLevel);
+        buffer.append("<" + field.getName() + " class=\""+ listClass.getName()+ "\">").append(Const.CR);
+        for (        Object childObject : list) {
+          if (String.class.isAssignableFrom(childObject.getClass()) || Number.class.isAssignableFrom(childObject.getClass())) {
+            indent(buffer,indentLevel + 1);
+            buffer.append("<").append(listClass.getSimpleName());
+            buffer.append(" value=\"" + childObject.toString() + "\"/>").append(Const.CR);
+          }
+ else           if (Boolean.class.isAssignableFrom(childObject.getClass()) || boolean.class.isAssignableFrom(childObject.getClass())) {
+            indent(buffer,indentLevel + 1);
+            buffer.append("<").append(listClass.getSimpleName());
+            buffer.append(" value=\"" + childObject.toString() + "\"/>").append(Const.CR);
+          }
+ else {
+            indent(buffer,indentLevel + 1);
+            buffer.append("<" + listClass.getSimpleName() + ">").append(Const.CR);
+            write(childObject,indentLevel + 1,buffer);
+            indent(buffer,indentLevel + 1);
+            buffer.append("</" + listClass.getSimpleName() + ">").append(Const.CR);
+          }
+        }
+        indent(buffer,indentLevel);
+        buffer.append("</" + field.getName() + ">").append(Const.CR);
+      }
+ else {
+        indent(buffer,indentLevel);
+        buffer.append("<" + field.getName() + " class=\""+ fieldValue.getClass().getName()+ "\">").append(Const.CR);
+        write(fieldValue,indentLevel + 1,buffer);
+        indent(buffer,indentLevel);
+        buffer.append("</" + field.getName() + ">").append(Const.CR);
+      }
+    }
+ catch (    Throwable t) {
+      t.printStackTrace();
+    }
+  }
+}

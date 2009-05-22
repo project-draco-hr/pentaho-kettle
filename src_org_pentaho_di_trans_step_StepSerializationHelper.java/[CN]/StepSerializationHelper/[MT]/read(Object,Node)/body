@@ -1,0 +1,173 @@
+{
+  Field declaredFields[]=object.getClass().getDeclaredFields();
+  for (  Field field : declaredFields) {
+    if (Modifier.isFinal(field.getModifiers()) || Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
+      continue;
+    }
+    if (!field.isAccessible()) {
+      field.setAccessible(true);
+    }
+    if (field.getType().isArray()) {
+      try {
+        Node fieldNode=XMLHandler.getSubNode(node,field.getName());
+        if (fieldNode == null) {
+          continue;
+        }
+        String fieldClassName=XMLHandler.getTagAttribute(fieldNode,"class");
+        Class clazz=null;
+        if (fieldClassName.equals("boolean")) {
+          clazz=boolean.class;
+        }
+ else         if (fieldClassName.equals("int")) {
+          clazz=int.class;
+        }
+ else         if (fieldClassName.equals("float")) {
+          clazz=float.class;
+        }
+ else         if (fieldClassName.equals("double")) {
+          clazz=double.class;
+        }
+ else         if (fieldClassName.equals("long")) {
+          clazz=long.class;
+        }
+ else {
+          clazz=Class.forName(fieldClassName);
+        }
+        NodeList childrenNodes=fieldNode.getChildNodes();
+        int arrayLength=0;
+        for (int i=0; i < childrenNodes.getLength(); i++) {
+          Node child=childrenNodes.item(i);
+          if (child.getNodeType() != Node.TEXT_NODE) {
+            arrayLength++;
+          }
+        }
+        Object array=Array.newInstance(clazz,arrayLength);
+        field.set(object,array);
+        int arrayIndex=0;
+        for (int i=0; i < childrenNodes.getLength(); i++) {
+          Node child=childrenNodes.item(i);
+          if (child.getNodeType() == Node.TEXT_NODE) {
+            continue;
+          }
+          if (String.class.isAssignableFrom(clazz) || Number.class.isAssignableFrom(clazz)) {
+            Constructor constructor=clazz.getConstructor(String.class);
+            Object instance=constructor.newInstance(XMLHandler.getTagAttribute(child,"value"));
+            Array.set(array,arrayIndex++,instance);
+          }
+ else           if (Boolean.class.isAssignableFrom(clazz) || boolean.class.isAssignableFrom(clazz)) {
+            Object value=Boolean.valueOf(XMLHandler.getTagAttribute(child,"value"));
+            Array.set(array,arrayIndex++,value);
+          }
+ else           if (Integer.class.isAssignableFrom(clazz) || int.class.isAssignableFrom(clazz)) {
+            Object value=Integer.valueOf(XMLHandler.getTagAttribute(child,"value"));
+            Array.set(array,arrayIndex++,value);
+          }
+ else           if (Float.class.isAssignableFrom(clazz) || float.class.isAssignableFrom(clazz)) {
+            Object value=Float.valueOf(XMLHandler.getTagAttribute(child,"value"));
+            Array.set(array,arrayIndex++,value);
+          }
+ else           if (Double.class.isAssignableFrom(clazz) || double.class.isAssignableFrom(clazz)) {
+            Object value=Double.valueOf(XMLHandler.getTagAttribute(child,"value"));
+            Array.set(array,arrayIndex++,value);
+          }
+ else           if (Long.class.isAssignableFrom(clazz) || long.class.isAssignableFrom(clazz)) {
+            Object value=Long.valueOf(XMLHandler.getTagAttribute(child,"value"));
+            Array.set(array,arrayIndex++,value);
+          }
+ else {
+            Object instance=clazz.newInstance();
+            Array.set(array,arrayIndex++,instance);
+            read(instance,child);
+          }
+        }
+      }
+ catch (      Throwable t) {
+        t.printStackTrace();
+      }
+    }
+ else     if (List.class.isAssignableFrom(field.getType())) {
+      try {
+        Node fieldNode=XMLHandler.getSubNode(node,field.getName());
+        if (fieldNode == null) {
+          continue;
+        }
+        String fieldClassName=XMLHandler.getTagAttribute(fieldNode,"class");
+        Class clazz=Class.forName(fieldClassName);
+        List list=new ArrayList();
+        field.set(object,list);
+        NodeList childrenNodes=fieldNode.getChildNodes();
+        for (int i=0; i < childrenNodes.getLength(); i++) {
+          Node child=childrenNodes.item(i);
+          if (child.getNodeType() == Node.TEXT_NODE) {
+            continue;
+          }
+          if (String.class.isAssignableFrom(clazz) || Number.class.isAssignableFrom(clazz) || Boolean.class.isAssignableFrom(clazz)) {
+            Constructor constructor=clazz.getConstructor(String.class);
+            Object instance=constructor.newInstance(XMLHandler.getTagAttribute(child,"value"));
+            list.add(instance);
+          }
+ else {
+            Object instance=clazz.newInstance();
+            list.add(instance);
+            read(instance,child);
+          }
+        }
+      }
+ catch (      Throwable t) {
+        t.printStackTrace();
+      }
+    }
+ else {
+      try {
+        Object value=XMLHandler.getTagValue(node,field.getName());
+        if (value == null) {
+          continue;
+        }
+        if (field.getType().isPrimitive() && "".equals(value)) {
+        }
+ else         if ("".equals(value)) {
+          field.set(object,value);
+        }
+ else         if (field.getType().isPrimitive()) {
+          if (double.class.isAssignableFrom(field.getType())) {
+            field.set(object,Double.parseDouble(value.toString()));
+          }
+ else           if (float.class.isAssignableFrom(field.getType())) {
+            field.set(object,Float.parseFloat(value.toString()));
+          }
+ else           if (long.class.isAssignableFrom(field.getType())) {
+            field.set(object,Long.parseLong(value.toString()));
+          }
+ else           if (int.class.isAssignableFrom(field.getType())) {
+            field.set(object,Integer.parseInt(value.toString()));
+          }
+ else           if (byte.class.isAssignableFrom(field.getType())) {
+            field.set(object,value.toString().getBytes());
+          }
+ else           if (boolean.class.isAssignableFrom(field.getType())) {
+            field.set(object,"true".equalsIgnoreCase(value.toString()));
+          }
+        }
+ else         if (String.class.isAssignableFrom(field.getType()) || Number.class.isAssignableFrom(field.getType())) {
+          Constructor constructor=field.getType().getConstructor(String.class);
+          Object instance=constructor.newInstance(value);
+          field.set(object,instance);
+        }
+ else {
+          Node fieldNode=XMLHandler.getSubNode(node,field.getName());
+          if (fieldNode == null) {
+            continue;
+          }
+          String fieldClassName=XMLHandler.getTagAttribute(fieldNode,"class");
+          Class clazz=Class.forName(fieldClassName);
+          Object instance=clazz.newInstance();
+          field.set(object,instance);
+          read(instance,fieldNode);
+        }
+      }
+ catch (      Throwable t) {
+        t.printStackTrace();
+      }
+    }
+  }
+}
