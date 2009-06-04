@@ -1,0 +1,113 @@
+{
+  transMeta.setRepository(repository);
+synchronized (repository) {
+    try {
+      String pathAndName=repdir.isRoot() ? repdir + transname : repdir + RepositoryDirectory.DIRECTORY_SEPARATOR + transname;
+      transMeta.setName(transname);
+      transMeta.setRepositoryDirectory(repdir);
+      if (log.isDetailed())       log.logDetailed(toString(),BaseMessages.getString(PKG,"TransMeta.Log.LookingForTransformation",transname,repdir.getPath()));
+      if (monitor != null)       monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.ReadingTransformationInfoTask.Title"));
+      transMeta.setID(getTransformationID(transname,repdir.getID()));
+      if (monitor != null)       monitor.worked(1);
+      if (transMeta.getID() > 0) {
+        long noteids[]=repository.getTransNoteIDs(transMeta.getID());
+        long stepids[]=repository.getStepIDs(transMeta.getID());
+        long hopids[]=getTransHopIDs(transMeta.getID());
+        int nrWork=3 + noteids.length + stepids.length+ hopids.length;
+        if (monitor != null)         monitor.beginTask(BaseMessages.getString(PKG,"TransMeta.Monitor.LoadingTransformationTask.Title") + pathAndName,nrWork);
+        if (log.isDetailed())         log.logDetailed(toString(),BaseMessages.getString(PKG,"TransMeta.Log.LoadingTransformation",transMeta.getName()));
+        if (monitor != null)         monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.ReadingTheAvailableSharedObjectsTask.Title"));
+        try {
+          transMeta.setSharedObjects(readTransSharedObjects(transMeta));
+        }
+ catch (        Exception e) {
+          LogWriter.getInstance().logError(toString(),BaseMessages.getString(PKG,"TransMeta.ErrorReadingSharedObjects.Message",e.toString()));
+          LogWriter.getInstance().logError(toString(),Const.getStackTracker(e));
+        }
+        if (monitor != null)         monitor.worked(1);
+        if (monitor != null)         monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.ReadingNoteTask.Title"));
+        for (int i=0; i < noteids.length; i++) {
+          NotePadMeta ni=repository.loadNotePadMeta(noteids[i]);
+          if (transMeta.indexOfNote(ni) < 0) {
+            transMeta.addNote(ni);
+          }
+          if (monitor != null)           monitor.worked(1);
+        }
+        if (monitor != null)         monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.ReadingStepsTask.Title"));
+        repository.connectionDelegate.fillStepAttributesBuffer(transMeta.getID());
+        for (int i=0; i < stepids.length; i++) {
+          if (log.isDetailed())           log.logDetailed(toString(),BaseMessages.getString(PKG,"TransMeta.Log.LoadingStepWithID") + stepids[i]);
+          if (monitor != null)           monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.ReadingStepTask.Title") + (i + 1) + "/"+ (stepids.length));
+          StepMeta stepMeta=repository.stepDelegate.loadStepMeta(stepids[i],transMeta.getDatabases(),transMeta.getCounters(),transMeta.getPartitionSchemas());
+          transMeta.addOrReplaceStep(stepMeta);
+          if (monitor != null)           monitor.worked(1);
+        }
+        if (monitor != null)         monitor.worked(1);
+        repository.connectionDelegate.setStepAttributesBuffer(null);
+        for (int i=0; i < transMeta.nrSteps(); i++) {
+          StepMetaInterface sii=transMeta.getStep(i).getStepMetaInterface();
+          sii.searchInfoAndTargetSteps(transMeta.getSteps());
+        }
+        if (monitor != null)         monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.LoadingTransformationDetailsTask.Title"));
+        loadRepTrans(transMeta);
+        if (monitor != null)         monitor.worked(1);
+        if (monitor != null)         monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.ReadingHopTask.Title"));
+        for (int i=0; i < hopids.length; i++) {
+          TransHopMeta hi=loadTransHopMeta(hopids[i],transMeta.getSteps());
+          transMeta.addTransHop(hi);
+          if (monitor != null)           monitor.worked(1);
+        }
+        for (int i=0; i < transMeta.nrSteps(); i++) {
+          StepPartitioningMeta stepPartitioningMeta=transMeta.getStep(i).getStepPartitioningMeta();
+          if (stepPartitioningMeta != null) {
+            stepPartitioningMeta.setPartitionSchemaAfterLoading(transMeta.getPartitionSchemas());
+          }
+        }
+        for (int i=0; i < transMeta.nrSteps(); i++) {
+          transMeta.getStep(i).setClusterSchemaAfterLoading(transMeta.getClusterSchemas());
+        }
+        if (monitor != null)         monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.ReadingTheDependenciesTask.Title"));
+        long depids[]=repository.getTransDependencyIDs(transMeta.getID());
+        for (int i=0; i < depids.length; i++) {
+          TransDependency td=loadTransDependency(depids[i],transMeta.getDatabases());
+          transMeta.addDependency(td);
+        }
+        if (monitor != null)         monitor.worked(1);
+        for (int i=0; i < transMeta.nrSteps(); i++) {
+          StepMeta stepMeta=transMeta.getStep(i);
+          String sourceStep=repository.getStepAttributeString(stepMeta.getID(),"step_error_handling_source_step");
+          if (sourceStep != null) {
+            StepErrorMeta stepErrorMeta=repository.loadStepErrorMeta(transMeta,stepMeta,transMeta.getSteps());
+            stepErrorMeta.getSourceStep().setStepErrorMeta(stepErrorMeta);
+          }
+        }
+        if (monitor != null)         monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.SortingStepsTask.Title"));
+        transMeta.sortSteps();
+        if (monitor != null)         monitor.worked(1);
+        if (monitor != null)         monitor.done();
+      }
+ else {
+        throw new KettleException(BaseMessages.getString(PKG,"TransMeta.Exception.TransformationDoesNotExist") + transMeta.getName());
+      }
+      if (log.isDetailed()) {
+        log.logDetailed(toString(),BaseMessages.getString(PKG,"TransMeta.Log.LoadedTransformation2",transname,String.valueOf(transMeta.getRepositoryDirectory() == null)));
+        log.logDetailed(toString(),BaseMessages.getString(PKG,"TransMeta.Log.LoadedTransformation",transname,transMeta.getRepositoryDirectory().getPath()));
+      }
+      return transMeta;
+    }
+ catch (    KettleDatabaseException e) {
+      log.logError(toString(),BaseMessages.getString(PKG,"TransMeta.Log.DatabaseErrorOccuredReadingTransformation") + Const.CR + e);
+      throw new KettleException(BaseMessages.getString(PKG,"TransMeta.Exception.DatabaseErrorOccuredReadingTransformation"),e);
+    }
+catch (    Exception e) {
+      log.logError(toString(),BaseMessages.getString(PKG,"TransMeta.Log.DatabaseErrorOccuredReadingTransformation") + Const.CR + e);
+      throw new KettleException(BaseMessages.getString(PKG,"TransMeta.Exception.DatabaseErrorOccuredReadingTransformation2"),e);
+    }
+ finally {
+      transMeta.initializeVariablesFrom(null);
+      if (setInternalVariables) {
+        transMeta.setInternalKettleVariables();
+      }
+    }
+  }
+}

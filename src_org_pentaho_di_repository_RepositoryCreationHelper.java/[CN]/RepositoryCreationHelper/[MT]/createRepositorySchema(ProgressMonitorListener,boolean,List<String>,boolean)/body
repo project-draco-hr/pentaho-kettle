@@ -10,7 +10,7 @@
   log.logBasic(toString(),"Starting to create or modify the repository tables...");
   String message=(upgrade ? "Upgrading " : "Creating") + " the Kettle repository...";
   if (monitor != null)   monitor.beginTask(message,31);
-  repository.setAutoCommit(true);
+  repository.connectionDelegate.setAutoCommit(true);
   table=new RowMeta();
   tablename=Repository.TABLE_R_REPOSITORY_LOG;
   schemaTable=databaseMeta.getQuotedSchemaTableCombination(null,tablename);
@@ -71,12 +71,12 @@
   try {
     long nextId;
     if (sql.toUpperCase().indexOf("CREATE TABLE") < 0) {
-      nextId=repository.getNextID(schemaTable,Repository.FIELD_VERSION_ID_VERSION);
+      nextId=repository.connectionDelegate.getNextID(schemaTable,Repository.FIELD_VERSION_ID_VERSION);
     }
  else {
       nextId=1;
     }
-    Object[] data=new Object[]{Long.valueOf(nextId),Long.valueOf(Repository.REQUIRED_MAJOR_VERSION),Long.valueOf(Repository.REQUIRED_MINOR_VERSION),new Date(),Boolean.valueOf(upgrade)};
+    Object[] data=new Object[]{Long.valueOf(nextId),Long.valueOf(RepositoryConnectionDelegate.REQUIRED_MAJOR_VERSION),Long.valueOf(RepositoryConnectionDelegate.REQUIRED_MINOR_VERSION),new Date(),Boolean.valueOf(upgrade)};
     if (dryrun) {
       sql=database.getSQLOutput(null,Repository.TABLE_R_VERSION,table,data,null);
       statements.add(sql);
@@ -127,7 +127,7 @@
       if (lookup == null) {
         long nextid=i;
         if (!create) {
-          nextid=repository.getNextDatabaseTypeID();
+          nextid=repository.connectionDelegate.getNextDatabaseTypeID();
         }
         Object[] tableData=new Object[]{new Long(nextid),code[i],desc[i]};
         if (dryrun) {
@@ -183,7 +183,7 @@
       if (lookup == null) {
         long nextid=i + 1;
         if (!create) {
-          nextid=repository.getNextDatabaseConnectionTypeID();
+          nextid=repository.connectionDelegate.getNextDatabaseConnectionTypeID();
         }
         Object[] tableData=new Object[]{new Long(nextid),code[i],desc[i]};
         if (dryrun) {
@@ -953,7 +953,7 @@
       if (upgrade)       lookup=database.getOneRow("SELECT " + repository.quote(Repository.FIELD_LOGLEVEL_ID_LOGLEVEL) + " FROM "+ schemaTable+ " WHERE "+ database.getDatabaseMeta().quoteField("CODE")+ " = '"+ code[i]+ "'");
       if (lookup == null) {
         long nextid=i;
-        if (!create)         nextid=repository.getNextLoglevelID();
+        if (!create)         nextid=repository.connectionDelegate.getNextLoglevelID();
         RowMetaAndData tableData=new RowMetaAndData();
         tableData.addValue(new ValueMeta(Repository.FIELD_LOGLEVEL_ID_LOGLEVEL,ValueMetaInterface.TYPE_INTEGER),new Long(nextid));
         tableData.addValue(new ValueMeta(Repository.FIELD_LOGLEVEL_CODE,ValueMetaInterface.TYPE_STRING),code[i]);
@@ -1282,7 +1282,7 @@
       if (upgrade)       lookup=database.getOneRow("SELECT " + repository.quote(Repository.FIELD_PROFILE_ID_PROFILE) + " FROM "+ schemaTable+ " WHERE "+ repository.quote(Repository.FIELD_PROFILE_NAME)+ " = '"+ code[i]+ "'");
       if (lookup == null) {
         long nextid=i + 1;
-        if (!create)         nextid=repository.getNextProfileID();
+        if (!create)         nextid=repository.connectionDelegate.getNextProfileID();
         RowMetaAndData tableData=new RowMetaAndData();
         tableData.addValue(new ValueMeta(Repository.FIELD_PROFILE_ID_PROFILE,ValueMetaInterface.TYPE_INTEGER),new Long(nextid));
         tableData.addValue(new ValueMeta(Repository.FIELD_PROFILE_NAME,ValueMetaInterface.TYPE_STRING),code[i]);
@@ -1351,7 +1351,7 @@
       if (upgrade)       lookup=database.getOneRow("SELECT " + repository.quote(Repository.FIELD_USER_ID_USER) + " FROM "+ schemaTable+ " WHERE "+ repository.quote(Repository.FIELD_USER_LOGIN)+ " = '"+ user[i]+ "'");
       if (lookup == null) {
         long nextid=i + 1;
-        if (!create)         nextid=repository.getNextUserID();
+        if (!create)         nextid=repository.connectionDelegate.getNextUserID();
         String password=Encr.encryptPassword(pass[i]);
         Long profileID=(Long)profiles.get(prof[i]);
         long id_profile=-1L;
@@ -1420,7 +1420,7 @@
       if (upgrade)       lookup=database.getOneRow("SELECT " + repository.quote(Repository.FIELD_PERMISSION_ID_PERMISSION) + " FROM "+ schemaTable+ " WHERE "+ repository.quote(Repository.FIELD_PERMISSION_CODE)+ " = '"+ code[i]+ "'");
       if (lookup == null) {
         long nextid=i;
-        if (!create)         nextid=repository.getNextPermissionID();
+        if (!create)         nextid=repository.connectionDelegate.getNextPermissionID();
         RowMetaAndData tableData=new RowMetaAndData();
         tableData.addValue(new ValueMeta(Repository.FIELD_PERMISSION_ID_PERMISSION,ValueMetaInterface.TYPE_INTEGER),new Long(nextid));
         tableData.addValue(new ValueMeta(Repository.FIELD_PERMISSION_CODE,ValueMetaInterface.TYPE_STRING),code[i]);

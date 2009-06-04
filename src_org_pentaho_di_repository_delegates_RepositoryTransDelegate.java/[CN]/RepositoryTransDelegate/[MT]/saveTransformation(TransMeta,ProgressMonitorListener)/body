@@ -1,0 +1,119 @@
+{
+  try {
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.LockingRepository"));
+    repository.lockRepository();
+    repository.insertLogEntry("save transformation '" + transMeta.getName() + "'");
+    repository.connectionDelegate.clearNextIDCounters();
+    if (transMeta.getRepositoryDirectory().getID() < 0) {
+      throw new KettleException(BaseMessages.getString(PKG,"TransMeta.Exception.PlsSelectAValidDirectoryBeforeSavingTheTransformation"));
+    }
+    int nrWorks=2 + transMeta.nrDatabases() + transMeta.nrNotes()+ transMeta.nrSteps()+ transMeta.nrTransHops();
+    if (monitor != null)     monitor.beginTask(BaseMessages.getString(PKG,"TransMeta.Monitor.SavingTransformationTask.Title") + transMeta.getPathAndName(),nrWorks);
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingOfTransformationStarted"));
+    if (monitor != null && monitor.isCanceled())     throw new KettleDatabaseException();
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.HandlingOldVersionTransformationTask.Title"));
+    transMeta.setID(getTransformationID(transMeta.getName(),transMeta.getRepositoryDirectory().getID()));
+    if (transMeta.getID() <= 0) {
+      transMeta.setID(repository.connectionDelegate.getNextTransformationID());
+    }
+ else {
+      if (monitor != null)       monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.DeletingOldVersionTransformationTask.Title"));
+      if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.DeletingOldVersionTransformation"));
+      repository.delAllFromTrans(transMeta.getID());
+      if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.OldVersionOfTransformationRemoved"));
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingNotes"));
+    for (int i=0; i < transMeta.nrNotes(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      if (monitor != null)       monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.SavingNoteTask.Title") + (i + 1) + "/"+ transMeta.nrNotes());
+      NotePadMeta ni=transMeta.getNote(i);
+      repository.saveNotePadMeta(ni,transMeta.getID());
+      if (ni.getID() > 0) {
+        repository.insertTransNote(transMeta.getID(),ni.getID());
+      }
+      if (monitor != null)       monitor.worked(1);
+    }
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingDatabaseConnections"));
+    for (int i=0; i < transMeta.nrDatabases(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      if (monitor != null)       monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.SavingDatabaseTask.Title") + (i + 1) + "/"+ transMeta.nrDatabases());
+      DatabaseMeta databaseMeta=transMeta.getDatabase(i);
+      if (databaseMeta.hasChanged() || databaseMeta.getID() <= 0) {
+        repository.save(databaseMeta);
+      }
+      if (monitor != null)       monitor.worked(1);
+    }
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.CheckingStepTypes"));
+    repository.updateStepTypes();
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingSteps"));
+    for (int i=0; i < transMeta.nrSteps(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      if (monitor != null)       monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.SavingStepTask.Title") + (i + 1) + "/"+ transMeta.nrSteps());
+      StepMeta stepMeta=transMeta.getStep(i);
+      repository.stepDelegate.saveStepMeta(stepMeta,transMeta.getID());
+      if (monitor != null)       monitor.worked(1);
+    }
+    repository.connectionDelegate.closeStepAttributeInsertPreparedStatement();
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingHops"));
+    for (int i=0; i < transMeta.nrTransHops(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      if (monitor != null)       monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.SavingHopTask.Title") + (i + 1) + "/"+ transMeta.nrTransHops());
+      TransHopMeta hi=transMeta.getTransHop(i);
+      saveTransHopMeta(hi,transMeta.getID());
+      if (monitor != null)       monitor.worked(1);
+    }
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.FinishingTask.Title"));
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingTransformationInfo"));
+    insertTransformation(transMeta);
+    saveTransParameters(transMeta);
+    repository.connectionDelegate.closeTransAttributeInsertPreparedStatement();
+    for (int i=0; i < transMeta.getPartitionSchemas().size(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      PartitionSchema partitionSchema=transMeta.getPartitionSchemas().get(i);
+      boolean isUsedByTransformation=transMeta.isUsingPartitionSchema(partitionSchema);
+      repository.savePartitionSchema(partitionSchema,transMeta.getID(),isUsedByTransformation);
+    }
+    for (int i=0; i < transMeta.getSlaveServers().size(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      SlaveServer slaveServer=transMeta.getSlaveServers().get(i);
+      boolean isUsedByTransformation=transMeta.isUsingSlaveServer(slaveServer);
+      repository.saveSlaveServer(slaveServer,transMeta.getID(),isUsedByTransformation);
+    }
+    for (int i=0; i < transMeta.getClusterSchemas().size(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      ClusterSchema clusterSchema=transMeta.getClusterSchemas().get(i);
+      boolean isUsedByTransformation=transMeta.isUsingClusterSchema(clusterSchema);
+      repository.saveClusterSchema(clusterSchema,transMeta.getID(),isUsedByTransformation);
+    }
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingDependencies"));
+    for (int i=0; i < transMeta.nrDependencies(); i++) {
+      if (monitor != null && monitor.isCanceled())       throw new KettleDatabaseException(BaseMessages.getString(PKG,"TransMeta.Log.UserCancelledTransSave"));
+      TransDependency td=transMeta.getDependency(i);
+      saveTransDependency(td,transMeta.getID());
+    }
+    for (int i=0; i < transMeta.nrSteps(); i++) {
+      StepMeta stepMeta=transMeta.getStep(i);
+      StepErrorMeta stepErrorMeta=stepMeta.getStepErrorMeta();
+      if (stepErrorMeta != null) {
+        repository.saveStepErrorMeta(stepErrorMeta,transMeta.getID(),stepMeta.getID());
+      }
+    }
+    repository.connectionDelegate.closeStepAttributeInsertPreparedStatement();
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"TransMeta.Log.SavingFinished"));
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.UnlockingRepository"));
+    repository.unlockRepository();
+    repository.commit();
+    transMeta.clearChanged();
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null)     monitor.done();
+  }
+ catch (  KettleDatabaseException dbe) {
+    repository.rollback();
+    log.logError(toString(),BaseMessages.getString(PKG,"TransMeta.Log.ErrorSavingTransformationToRepository") + Const.CR + dbe.getMessage());
+    throw new KettleException(BaseMessages.getString(PKG,"TransMeta.Log.ErrorSavingTransformationToRepository"),dbe);
+  }
+ finally {
+    repository.unlockRepository();
+  }
+}

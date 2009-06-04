@@ -1,0 +1,41 @@
+{
+  StepMeta stepMeta=new StepMeta();
+  StepLoader steploader=StepLoader.getInstance();
+  try {
+    RowMetaAndData r=getStep(id_step);
+    if (r != null) {
+      stepMeta.setID(id_step);
+      stepMeta.setName(r.getString("NAME",null));
+      stepMeta.setDescription(r.getString("DESCRIPTION",null));
+      long id_step_type=r.getInteger("ID_STEP_TYPE",-1L);
+      RowMetaAndData steptyperow=getStepType(id_step_type);
+      stepMeta.setStepID(steptyperow.getString("CODE",null));
+      stepMeta.setDistributes(r.getBoolean("DISTRIBUTE",true));
+      stepMeta.setCopies((int)r.getInteger("COPIES",1));
+      int x=(int)r.getInteger("GUI_LOCATION_X",0);
+      int y=(int)r.getInteger("GUI_LOCATION_Y",0);
+      stepMeta.setLocation(new Point(x,y));
+      stepMeta.setDraw(r.getBoolean("GUI_DRAW",false));
+      StepPlugin sp=steploader.findStepPluginWithID(stepMeta.getStepID());
+      if (sp != null) {
+        stepMeta.setStepMetaInterface(BaseStep.getStepInfo(sp,steploader));
+      }
+ else {
+        throw new KettleStepLoaderException(BaseMessages.getString(PKG,"StepMeta.Exception.UnableToLoadClass",stepMeta.getStepID() + Const.CR));
+      }
+      stepMeta.setStepMetaInterface(BaseStep.getStepInfo(sp,steploader));
+      if (stepMeta.getStepMetaInterface() != null) {
+        stepMeta.getStepMetaInterface().readRep(repository,stepMeta.getID(),databases,counters);
+      }
+      stepMeta.setStepPartitioningMeta(loadStepPartitioningMeta(stepMeta.getID()));
+      stepMeta.setClusterSchemaName(repository.getStepAttributeString(id_step,"cluster_schema"));
+      return stepMeta;
+    }
+ else {
+      throw new KettleException(BaseMessages.getString(PKG,"StepMeta.Exception.StepInfoCouldNotBeFound",String.valueOf(id_step)));
+    }
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleException(BaseMessages.getString(PKG,"StepMeta.Exception.StepCouldNotBeLoaded",String.valueOf(stepMeta.getID())),dbe);
+  }
+}
