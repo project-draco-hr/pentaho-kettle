@@ -12,45 +12,60 @@
     if (!Const.isEmpty(onemask)) {
       try {
         FileObject directoryFileObject=KettleVFS.getFileObject(onefile);
-        if (directoryFileObject != null && directoryFileObject.getType() == FileType.FOLDER) {
-          FileObject[] fileObjects=directoryFileObject.findFiles(new AllFileSelector(){
-            public boolean traverseDescendents(            FileSelectInfo info){
-              return info.getDepth() == 0 || subdirs;
-            }
-            public boolean includeFile(            FileSelectInfo info){
-              if (info.getDepth() == 0) {
-                return false;
-              }
-              FileObject fileObject=info.getFile();
-              try {
-                if (fileObject != null && filter.isFileTypeAllowed(fileObject.getType())) {
-                  String name=fileObject.getName().getBaseName();
-                  boolean matches=Pattern.matches(onemask,name);
-                  return matches;
-                }
-                return false;
-              }
- catch (              FileSystemException ex) {
-                return false;
-              }
-            }
+        boolean processFolder=true;
+        if (onerequired) {
+          if (!directoryFileObject.exists()) {
+            fileInputList.addNonExistantFile(directoryFileObject);
+            processFolder=false;
           }
-);
-          if (fileObjects != null) {
-            for (int j=0; j < fileObjects.length; j++) {
-              if (fileObjects[j].exists())               fileInputList.addFile(fileObjects[j]);
-            }
-          }
-          if (Const.isEmpty(fileObjects)) {
-            if (onerequired)             fileInputList.addNonAccessibleFile(directoryFileObject);
-          }
-          fileInputList.sortFiles();
-        }
  else {
-          FileObject[] children=directoryFileObject.getChildren();
-          for (int j=0; j < children.length; j++) {
-            String name=children[j].getName().getBaseName();
-            if (Pattern.matches(onemask,name))             fileInputList.addFile(children[j]);
+            if (!directoryFileObject.isReadable()) {
+              fileInputList.addNonAccessibleFile(directoryFileObject);
+              processFolder=false;
+            }
+          }
+        }
+        if (processFolder) {
+          if (directoryFileObject != null && directoryFileObject.getType() == FileType.FOLDER) {
+            FileObject[] fileObjects=directoryFileObject.findFiles(new AllFileSelector(){
+              public boolean traverseDescendents(              FileSelectInfo info){
+                return info.getDepth() == 0 || subdirs;
+              }
+              public boolean includeFile(              FileSelectInfo info){
+                if (info.getDepth() == 0) {
+                  return false;
+                }
+                FileObject fileObject=info.getFile();
+                try {
+                  if (fileObject != null && filter.isFileTypeAllowed(fileObject.getType())) {
+                    String name=fileObject.getName().getBaseName();
+                    boolean matches=Pattern.matches(onemask,name);
+                    return matches;
+                  }
+                  return false;
+                }
+ catch (                FileSystemException ex) {
+                  return false;
+                }
+              }
+            }
+);
+            if (fileObjects != null) {
+              for (int j=0; j < fileObjects.length; j++) {
+                if (fileObjects[j].exists())                 fileInputList.addFile(fileObjects[j]);
+              }
+            }
+            if (Const.isEmpty(fileObjects)) {
+              if (onerequired)               fileInputList.addNonAccessibleFile(directoryFileObject);
+            }
+            fileInputList.sortFiles();
+          }
+ else {
+            FileObject[] children=directoryFileObject.getChildren();
+            for (int j=0; j < children.length; j++) {
+              String name=children[j].getName().getBaseName();
+              if (Pattern.matches(onemask,name))               fileInputList.addFile(children[j]);
+            }
           }
         }
       }
