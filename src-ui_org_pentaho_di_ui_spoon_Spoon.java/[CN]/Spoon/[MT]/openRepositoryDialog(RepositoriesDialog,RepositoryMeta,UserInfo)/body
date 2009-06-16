@@ -1,34 +1,24 @@
 {
   if (rd.open()) {
-    repositoryMeta=rd.getRepository();
+    repositoryMeta=rd.getRepositoryMeta();
     userinfo=rd.getUser();
-    if (!userinfo.useTransformations()) {
-      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-      mb.setMessage(BaseMessages.getString(PKG,"Spoon.Dialog.RepositoryUserCannotWork.Message"));
-      mb.setText(BaseMessages.getString(PKG,"Spoon.Dialog.RepositoryUserCannotWork.Title"));
-      mb.open();
-      userinfo=null;
-      repositoryMeta=null;
-      return false;
-    }
- else {
-      String repName=repositoryMeta.getName();
-      RepositoriesMeta repsinfo=new RepositoriesMeta(log);
-      if (repsinfo.readData()) {
-        repositoryMeta=repsinfo.findRepository(repName);
-        if (repositoryMeta != null) {
-          setRepository(new KettleDatabaseRepository(repositoryMeta,userinfo));
-          return true;
-        }
- else {
-          log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.NoRepositoryRrovided"));
-        }
+    String repName=repositoryMeta.getName();
+    RepositoriesMeta repsinfo=new RepositoriesMeta();
+    try {
+      repsinfo.readData();
+      repositoryMeta=repsinfo.findRepository(repName);
+      if (repositoryMeta != null) {
+        setRepository(RepositoryLoader.createRepository(repositoryMeta,userinfo));
+        return true;
       }
  else {
-        log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.NoRepositoriesDefined"));
+        log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.NoRepositoryRrovided"));
       }
-      return false;
     }
+ catch (    Exception e) {
+      log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.NoRepositoriesDefined"));
+    }
+    return false;
   }
  else {
     if (rd.isCancelled()) {

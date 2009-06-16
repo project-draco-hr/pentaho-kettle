@@ -10,50 +10,48 @@
     if (!Const.isEmpty(optionRepname) || !Const.isEmpty(optionFilename)) {
       if (!Const.isEmpty(optionRepname)) {
         if (rep != null) {
-          if (rep.connect(BaseMessages.getString(PKG,"Spoon.Application.Name"))) {
-            if (Const.isEmpty(optionDirname))             optionDirname=new StringBuffer(RepositoryDirectory.DIRECTORY_SEPARATOR);
-            rep.setUserInfo(rep.loadUserInfo(optionUsername.toString(),optionPassword.toString()));
-            if (rep.getUserInfo().getID() > 0) {
-              int t=(Const.isEmpty(optionFilename) ? 0 : 1) + (Const.isEmpty(optionJobname) ? 0 : 1) + (Const.isEmpty(optionTransname) ? 0 : 1);
-              if (t > 1) {
-                log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.MutuallyExcusive"));
-              }
- else               if (t == 1) {
-                if (!Const.isEmpty(optionFilename)) {
-                  openFile(optionFilename.toString(),false);
-                }
- else {
-                  RepositoryDirectory repdir=rep.getDirectoryTree().findDirectory(optionDirname.toString());
-                  if (repdir == null) {
-                    log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.UnableFindDirectory",optionDirname.toString()));
-                  }
- else {
-                    if (!Const.isEmpty(optionTransname)) {
-                      TransMeta transMeta=rep.loadTransformation(optionTransname.toString(),repdir,null,true);
-                      transMeta.setFilename(optionRepname.toString());
-                      transMeta.clearChanged();
-                      transMeta.setInternalKettleVariables();
-                      addTransGraph(transMeta);
-                    }
- else {
-                      JobMeta jobMeta=rep.loadJobMeta(optionJobname.toString(),repdir,null);
-                      jobMeta.setFilename(optionRepname.toString());
-                      jobMeta.clearChanged();
-                      jobMeta.setInternalKettleVariables();
-                      delegates.jobs.addJobGraph(jobMeta);
-                    }
-                  }
-                }
-              }
+          rep.connect(BaseMessages.getString(PKG,"Spoon.Application.Name"));
+          if (Const.isEmpty(optionDirname)) {
+            optionDirname=new StringBuffer(RepositoryDirectory.DIRECTORY_SEPARATOR);
+          }
+          rep.setUserInfo(rep.loadUserInfo(optionUsername.toString(),optionPassword.toString()));
+          if (rep.getUserInfo().getObjectId() != null) {
+            int t=(Const.isEmpty(optionFilename) ? 0 : 1) + (Const.isEmpty(optionJobname) ? 0 : 1) + (Const.isEmpty(optionTransname) ? 0 : 1);
+            if (t > 1) {
+              log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.MutuallyExcusive"));
             }
+ else             if (t == 1) {
+              if (!Const.isEmpty(optionFilename)) {
+                openFile(optionFilename.toString(),false);
+              }
  else {
-              log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.UnableVerifyUser"));
-              rep.disconnect();
-              rep=null;
+                RepositoryDirectory repdir=rep.loadRepositoryDirectoryTree().findDirectory(optionDirname.toString());
+                if (repdir == null) {
+                  log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.UnableFindDirectory",optionDirname.toString()));
+                }
+ else {
+                  if (!Const.isEmpty(optionTransname)) {
+                    TransMeta transMeta=rep.loadTransformation(optionTransname.toString(),repdir,null,true);
+                    transMeta.setFilename(optionRepname.toString());
+                    transMeta.clearChanged();
+                    transMeta.setInternalKettleVariables();
+                    addTransGraph(transMeta);
+                  }
+ else {
+                    JobMeta jobMeta=rep.loadJob(optionJobname.toString(),repdir,null);
+                    jobMeta.setFilename(optionRepname.toString());
+                    jobMeta.clearChanged();
+                    jobMeta.setInternalKettleVariables();
+                    delegates.jobs.addJobGraph(jobMeta);
+                  }
+                }
+              }
             }
           }
  else {
-            log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.UnableConnectToRepository"));
+            log.logError(toString(),BaseMessages.getString(PKG,"Spoon.Log.UnableVerifyUser"));
+            rep.disconnect();
+            rep=null;
           }
         }
  else {
@@ -66,7 +64,11 @@
     }
  else {
       if (rep != null && rep.getUserInfo() != null) {
-        if (!rep.connect(BaseMessages.getString(PKG,"Spoon.Application.Name"))) {
+        try {
+          rep.connect(BaseMessages.getString(PKG,"Spoon.Application.Name"));
+        }
+ catch (        Exception e) {
+          log.logError(toString(),"Unable to connect to repository [" + rep.getName() + "]",e);
           setRepository(null);
         }
       }

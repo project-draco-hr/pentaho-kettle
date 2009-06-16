@@ -1,0 +1,43 @@
+{
+  try {
+    String idField;
+    if (RepositoryObject.STRING_OBJECT_TYPE_TRANSFORMATION.equals(objectType)) {
+      idField=KettleDatabaseRepository.FIELD_TRANSFORMATION_ID_TRANSFORMATION;
+    }
+ else {
+      idField=KettleDatabaseRepository.FIELD_JOB_ID_JOB;
+    }
+    if (id_directory == null) {
+      id_directory=new LongObjectId(0L);
+    }
+    String sql="SELECT " + quote(KettleDatabaseRepository.FIELD_TRANSFORMATION_NAME) + ", "+ quote(KettleDatabaseRepository.FIELD_TRANSFORMATION_MODIFIED_USER)+ ", "+ quote(KettleDatabaseRepository.FIELD_TRANSFORMATION_MODIFIED_DATE)+ ", "+ quote(KettleDatabaseRepository.FIELD_TRANSFORMATION_DESCRIPTION)+ ", "+ quote(idField)+ " "+ "FROM "+ tableName+ " "+ "WHERE "+ quote(KettleDatabaseRepository.FIELD_TRANSFORMATION_ID_DIRECTORY)+ " = "+ id_directory+ " ";
+    List<RepositoryObject> repositoryObjects=new ArrayList<RepositoryObject>();
+    ResultSet rs=database.openQuery(sql);
+    if (rs != null) {
+      List<Object[]> rows=database.getRows(rs,-1,null);
+      if (rs != null) {
+        database.closeQuery(rs);
+      }
+      RowMetaInterface rowMeta=database.getReturnRowMeta();
+      for (      Object[] r : rows) {
+        ObjectId id=new LongObjectId(rowMeta.getInteger(r,4));
+        RepositoryLock lock=null;
+        if (RepositoryObject.STRING_OBJECT_TYPE_TRANSFORMATION.equals(objectType)) {
+          lock=repository.getTransformationLock(id);
+        }
+ else {
+          lock=repository.getJobLock(id);
+        }
+        String lockMessage="";
+        if (lock != null) {
+          lockMessage=lock.getLogin() + "(" + lock.getUsername()+ ") : "+ lock.getMessage();
+        }
+        repositoryObjects.add(new RepositoryObject(rowMeta.getString(r,0),rowMeta.getString(r,1),rowMeta.getDate(r,2),objectType,rowMeta.getString(r,3),lockMessage));
+      }
+    }
+    return repositoryObjects;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to get list of repository objects",e);
+  }
+}

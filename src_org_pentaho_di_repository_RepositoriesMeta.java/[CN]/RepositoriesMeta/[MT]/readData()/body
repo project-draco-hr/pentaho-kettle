@@ -1,4 +1,5 @@
 {
+  LogWriter log=LogWriter.getInstance();
   File file=new File(Const.getKettleLocalRepositoriesFile());
   if (!file.exists() || !file.isFile()) {
     log.logDetailed(toString(),"No repositories file found in the local directory: " + file.getAbsolutePath());
@@ -20,8 +21,7 @@
         doc=db.parse(is);
       }
  else {
-        log.logError(toString(),"Error opening file: " + file.getAbsoluteFile() + " : "+ ef.toString());
-        return false;
+        throw new KettleException("Error opening file: " + file.getAbsoluteFile(),ef);
       }
     }
     clear();
@@ -40,18 +40,18 @@
     for (int i=0; i < nrreps; i++) {
       Node repnode=XMLHandler.getSubNodeByNr(repsnode,"repository",i);
       log.logDebug(toString(),"Looking at repository #" + i);
-      RepositoryMeta repinfo=new RepositoryMeta();
-      if (repinfo.loadXML(repnode,databases)) {
-        addRepository(repinfo);
-        log.logDebug(toString(),"Read repository : " + repinfo.getName());
+      String id=XMLHandler.getTagValue(repnode,"id");
+      if (Const.isEmpty(id)) {
+        id=KettleDatabaseRepositoryMeta.REPOSITORY_TYPE_ID;
       }
+      RepositoryMeta repositoryMeta=RepositoryLoader.createRepositoryMeta(id);
+      repositoryMeta.loadXML(repnode,databases);
+      addRepository(repositoryMeta);
+      log.logDebug(toString(),"Read repository : " + repositoryMeta.getName());
     }
   }
  catch (  Exception e) {
-    log.logError(toString(),"Error reading information from file : " + e.toString());
-    log.logError(toString(),Const.getStackTracker(e));
     clear();
-    return false;
+    throw new KettleException("Error reading information from file : ",e);
   }
-  return true;
 }

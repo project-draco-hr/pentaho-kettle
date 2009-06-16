@@ -1,0 +1,51 @@
+{
+  JobEntryCopy jobEntryCopy=new JobEntryCopy();
+  try {
+    jobEntryCopy.setObjectId(id_jobentry_copy);
+    RowMetaAndData r=getJobEntryCopy(id_jobentry_copy);
+    if (r != null) {
+      ObjectId id_jobentry=new LongObjectId(r.getInteger("ID_JOBENTRY",0));
+      ObjectId id_jobentry_type=new LongObjectId(r.getInteger("ID_JOBENTRY_TYPE",0));
+      jobEntryCopy.setNr((int)r.getInteger("NR",0));
+      int locx=(int)r.getInteger("GUI_LOCATION_X",0);
+      int locy=(int)r.getInteger("GUI_LOCATION_Y",0);
+      boolean isdrawn=r.getBoolean("GUI_DRAW",false);
+      boolean isparallel=r.getBoolean("PARALLEL",false);
+      jobEntryCopy.setEntry(JobMeta.findJobEntry(jobentries,id_jobentry));
+      if (jobEntryCopy.getEntry() == null) {
+        RowMetaAndData rt=getJobEntryType(new LongObjectId(id_jobentry_type));
+        if (rt != null) {
+          String jet_code=rt.getString("CODE",null);
+          JobEntryLoader jobLoader=JobEntryLoader.getInstance();
+          JobPlugin jobPlugin=jobLoader.findJobEntriesWithID(jet_code);
+          if (jobPlugin != null) {
+            JobEntryInterface jobEntry=jobLoader.getJobEntryClass(jobPlugin);
+            jobEntryCopy.setEntry(jobEntry);
+            if (jobEntry instanceof JobEntryBase) {
+              loadJobEntryBase((JobEntryBase)jobEntry,id_jobentry,databases,slaveServers);
+            }
+            jobEntry.loadRep(repository,id_jobentry,databases,slaveServers);
+            jobEntryCopy.getEntry().setID(id_jobentry);
+            jobentries.add(jobEntryCopy.getEntry());
+          }
+ else {
+            throw new KettleException("JobEntryLoader was unable to find Job Entry Plugin with description [" + jet_code + "].");
+          }
+        }
+ else {
+          throw new KettleException("Unable to find Job Entry Type with id=" + id_jobentry_type + " in the repository");
+        }
+      }
+      jobEntryCopy.setLocation(locx,locy);
+      jobEntryCopy.setDrawn(isdrawn);
+      jobEntryCopy.setLaunchingInParallel(isparallel);
+      return jobEntryCopy;
+    }
+ else {
+      throw new KettleException("Unable to find job entry copy in repository with id_jobentry_copy=" + id_jobentry_copy);
+    }
+  }
+ catch (  KettleDatabaseException dbe) {
+    throw new KettleException("Unable to load job entry copy from repository with id_jobentry_copy=" + id_jobentry_copy,dbe);
+  }
+}

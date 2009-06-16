@@ -6,9 +6,12 @@
     if (rep != null) {
       rep.disconnect();
     }
-    rep=new KettleDatabaseRepository(rd.getRepository(),rd.getUser());
+    RepositoryDirectory directoryTree=null;
     try {
+      rep=RepositoryLoader.createRepository(rd.getRepositoryMeta(),rd.getUser());
+      capabilities=rep.getRepositoryMeta().getRepositoryCapabilities();
       rep.connect(APP_NAME);
+      directoryTree=rep.loadRepositoryDirectoryTree();
     }
  catch (    KettleException ke) {
       rep=null;
@@ -18,9 +21,9 @@
     for (int t=0; t < transMetas.length; t++) {
       TransMeta transMeta=transMetas[t];
       for (int i=0; i < transMeta.nrDatabases(); i++) {
-        transMeta.getDatabase(i).setID(-1L);
+        transMeta.getDatabase(i).setObjectId(null);
       }
-      transMeta.setID(-1L);
+      transMeta.setObjectId(null);
       List<DatabaseMeta> oldDatabases=transMeta.getDatabases();
       transMeta.setDatabases(new ArrayList<DatabaseMeta>());
       transMeta.setPartitionSchemas(new ArrayList<PartitionSchema>());
@@ -43,12 +46,12 @@
           transMeta.addDatabase(oldDatabase);
         }
       }
-      RepositoryDirectory redi=rep.getDirectoryTree().findDirectory(transMeta.getRepositoryDirectory().getPath());
+      RepositoryDirectory redi=directoryTree.findDirectory(transMeta.getRepositoryDirectory().getPath());
       if (redi != null) {
         transMeta.setRepositoryDirectory(redi);
       }
  else {
-        transMeta.setRepositoryDirectory(rep.getDirectoryTree());
+        transMeta.setRepositoryDirectory(directoryTree);
       }
     }
     refreshTree();

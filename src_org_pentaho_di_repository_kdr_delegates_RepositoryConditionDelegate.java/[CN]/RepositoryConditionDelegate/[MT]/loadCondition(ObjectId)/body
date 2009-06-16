@@ -1,0 +1,40 @@
+{
+  Condition condition=new Condition();
+  try {
+    RowMetaAndData r=getCondition(id_condition);
+    if (r != null) {
+      condition.setNegated(r.getBoolean("NEGATED",false));
+      condition.setOperator(Condition.getOperator(r.getString("OPERATOR",null)));
+      long conditionId=r.getInteger("ID_CONDITION",-1L);
+      if (conditionId > 0) {
+        condition.setObjectId(new LongObjectId(conditionId));
+      }
+ else {
+        condition.setObjectId(null);
+      }
+      ObjectId subids[]=repository.getSubConditionIDs(condition.getObjectId());
+      if (subids.length == 0) {
+        condition.setLeftValuename(r.getString("LEFT_NAME",null));
+        condition.setFunction(Condition.getFunction(r.getString("CONDITION_FUNCTION",null)));
+        condition.setRightValuename(r.getString("RIGHT_NAME",null));
+        long id_value=r.getInteger("ID_VALUE_RIGHT",-1L);
+        if (id_value > 0) {
+          ValueMetaAndData v=repository.loadValueMetaAndData(new LongObjectId(id_value));
+          condition.setRightExact(v);
+        }
+      }
+ else {
+        for (int i=0; i < subids.length; i++) {
+          condition.addCondition(loadCondition(subids[i]));
+        }
+      }
+      return condition;
+    }
+ else {
+      throw new KettleException("Condition with id_condition=" + id_condition + " could not be found in the repository");
+    }
+  }
+ catch (  KettleException dbe) {
+    throw new KettleException("Error loading condition from the repository (id_condition=" + id_condition + ")",dbe);
+  }
+}

@@ -1,14 +1,14 @@
 {
   try {
     wTree.removeAll();
-    rep.setDirectoryTree(rep.loadRepositoryDirectoryTree());
+    directoryTree=rep.loadRepositoryDirectoryTree();
     TreeItem tiTree=new TreeItem(wTree,SWT.NONE);
     tiTree.setImage(GUIResource.getInstance().getImageFolderConnections());
     tiTree.setText(rep.getName() == null ? "-" : rep.getName());
     TreeItem tiParent=new TreeItem(tiTree,SWT.NONE);
     tiParent.setImage(GUIResource.getInstance().getImageBol());
     tiParent.setText(STRING_DATABASES);
-    if (!userinfo.isReadonly())     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
+    if (!!readonly)     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
       public void action(      TreeItem treeItem){
         newDatabase();
       }
@@ -19,7 +19,7 @@
       TreeItem newDB=new TreeItem(tiParent,SWT.NONE);
       newDB.setImage(GUIResource.getInstance().getImageConnection());
       newDB.setText(Const.NVL(names[i],""));
-      if (!userinfo.isReadonly())       TreeItemAccelerator.addDoubleClick(newDB,new DoubleClickInterface(){
+      if (!readonly)       TreeItemAccelerator.addDoubleClick(newDB,new DoubleClickInterface(){
         public void action(        TreeItem treeItem){
           editDatabase(treeItem.getText());
         }
@@ -29,7 +29,7 @@
     tiParent=new TreeItem(tiTree,SWT.NONE);
     tiParent.setImage(GUIResource.getInstance().getImageBol());
     tiParent.setText(STRING_PARTITIONS);
-    if (!userinfo.isReadonly())     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
+    if (!readonly)     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
       public void action(      TreeItem treeItem){
         newPartitionSchema();
       }
@@ -40,7 +40,7 @@
       TreeItem newItem=new TreeItem(tiParent,SWT.NONE);
       newItem.setImage(GUIResource.getInstance().getImageFolderConnections());
       newItem.setText(Const.NVL(names[i],""));
-      if (!userinfo.isReadonly())       TreeItemAccelerator.addDoubleClick(newItem,new DoubleClickInterface(){
+      if (!readonly)       TreeItemAccelerator.addDoubleClick(newItem,new DoubleClickInterface(){
         public void action(        TreeItem treeItem){
           editPartitionSchema(treeItem.getText());
         }
@@ -50,7 +50,7 @@
     tiParent=new TreeItem(tiTree,SWT.NONE);
     tiParent.setImage(GUIResource.getInstance().getImageBol());
     tiParent.setText(STRING_SLAVES);
-    if (!userinfo.isReadonly())     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
+    if (!readonly)     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
       public void action(      TreeItem treeItem){
         newSlaveServer();
       }
@@ -61,7 +61,7 @@
       TreeItem newItem=new TreeItem(tiParent,SWT.NONE);
       newItem.setImage(GUIResource.getInstance().getImageSlave());
       newItem.setText(Const.NVL(names[i],""));
-      if (!userinfo.isReadonly())       TreeItemAccelerator.addDoubleClick(newItem,new DoubleClickInterface(){
+      if (!readonly)       TreeItemAccelerator.addDoubleClick(newItem,new DoubleClickInterface(){
         public void action(        TreeItem treeItem){
           editSlaveServer(treeItem.getText());
         }
@@ -71,7 +71,7 @@
     tiParent=new TreeItem(tiTree,SWT.NONE);
     tiParent.setImage(GUIResource.getInstance().getImageBol());
     tiParent.setText(STRING_CLUSTERS);
-    if (!userinfo.isReadonly())     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
+    if (!readonly)     TreeItemAccelerator.addDoubleClick(tiParent,new DoubleClickInterface(){
       public void action(      TreeItem treeItem){
         newCluster();
       }
@@ -82,77 +82,79 @@
       TreeItem newItem=new TreeItem(tiParent,SWT.NONE);
       newItem.setImage(GUIResource.getInstance().getImageCluster());
       newItem.setText(Const.NVL(names[i],""));
-      if (!userinfo.isReadonly())       TreeItemAccelerator.addDoubleClick(newItem,new DoubleClickInterface(){
+      if (!readonly)       TreeItemAccelerator.addDoubleClick(newItem,new DoubleClickInterface(){
         public void action(        TreeItem treeItem){
           editCluster(treeItem.getText());
         }
       }
 );
     }
-    if (userinfo.useTransformations()) {
+    if (!capabilities.supportsUsers() || userinfo.useTransformations()) {
       TreeItem tiTrans=new TreeItem(tiTree,SWT.NONE);
       tiTrans.setImage(GUIResource.getInstance().getImageTransGraph());
       tiTrans.setText(STRING_TRANSFORMATIONS);
       TreeItem newCat=new TreeItem(tiTrans,SWT.NONE);
       newCat.setImage(GUIResource.getInstance().getImageLogoSmall());
       Color dircolor=GUIResource.getInstance().getColorDirectory();
-      RepositoryDirectoryUI.getTreeWithNames(newCat,rep,dircolor,sortColumn,ascending,true,false,rep.getDirectoryTree(),null);
+      RepositoryDirectoryUI.getTreeWithNames(newCat,rep,dircolor,sortColumn,ascending,true,false,directoryTree,null);
     }
-    if (userinfo.useJobs()) {
+    if (!capabilities.supportsUsers() || userinfo.useJobs()) {
       TreeItem tiJob=new TreeItem(tiTree,SWT.NONE);
       tiJob.setImage(GUIResource.getInstance().getImageJobGraph());
       tiJob.setText(STRING_JOBS);
       TreeItem newJob=new TreeItem(tiJob,SWT.NONE);
       newJob.setImage(GUIResource.getInstance().getImageLogoSmall());
       Color dircolor=GUIResource.getInstance().getColorDirectory();
-      RepositoryDirectoryUI.getTreeWithNames(newJob,rep,dircolor,sortColumn,ascending,false,true,rep.getDirectoryTree(),null);
+      RepositoryDirectoryUI.getTreeWithNames(newJob,rep,dircolor,sortColumn,ascending,false,true,directoryTree,null);
     }
-    TreeItem tiUser=new TreeItem(tiTree,SWT.NONE);
-    tiUser.setImage(GUIResource.getInstance().getImageBol());
-    tiUser.setText(STRING_USERS);
-    if (!userinfo.isReadonly())     TreeItemAccelerator.addDoubleClick(tiUser,new DoubleClickInterface(){
-      public void action(      TreeItem treeItem){
-        newUser();
+    if (capabilities.supportsUsers()) {
+      TreeItem tiUser=new TreeItem(tiTree,SWT.NONE);
+      tiUser.setImage(GUIResource.getInstance().getImageBol());
+      tiUser.setText(STRING_USERS);
+      if (!readonly)       TreeItemAccelerator.addDoubleClick(tiUser,new DoubleClickInterface(){
+        public void action(        TreeItem treeItem){
+          newUser();
+        }
       }
-    }
 );
-    String users[]=rep.getUserLogins();
-    for (int i=0; i < users.length; i++) {
-      if (userinfo.isAdministrator() || userinfo.getLogin().equalsIgnoreCase(users[i])) {
-        if (users[i] != null) {
-          TreeItem newUser=new TreeItem(tiUser,SWT.NONE);
-          newUser.setImage(GUIResource.getInstance().getImageUser());
-          newUser.setText(users[i]);
-          if (!userinfo.isReadonly())           TreeItemAccelerator.addDoubleClick(newUser,new DoubleClickInterface(){
+      String users[]=rep.getUserLogins();
+      for (int i=0; i < users.length; i++) {
+        if (userinfo.isAdministrator() || userinfo.getLogin().equalsIgnoreCase(users[i])) {
+          if (users[i] != null) {
+            TreeItem newUser=new TreeItem(tiUser,SWT.NONE);
+            newUser.setImage(GUIResource.getInstance().getImageUser());
+            newUser.setText(users[i]);
+            if (!readonly)             TreeItemAccelerator.addDoubleClick(newUser,new DoubleClickInterface(){
+              public void action(              TreeItem treeItem){
+                editUser(treeItem.getText());
+              }
+            }
+);
+          }
+        }
+      }
+      if (userinfo.isAdministrator()) {
+        TreeItem tiProf=new TreeItem(tiTree,SWT.NONE);
+        tiProf.setImage(GUIResource.getInstance().getImageBol());
+        tiProf.setText(STRING_PROFILES);
+        TreeItemAccelerator.addDoubleClick(tiProf,new DoubleClickInterface(){
+          public void action(          TreeItem treeItem){
+            newProfile();
+          }
+        }
+);
+        String prof[]=rep.getProfiles();
+        for (int i=0; i < prof.length; i++) {
+          TreeItem newProf=new TreeItem(tiProf,SWT.NONE);
+          newProf.setImage(GUIResource.getInstance().getImageProfil());
+          newProf.setText(prof[i]);
+          TreeItemAccelerator.addDoubleClick(newProf,new DoubleClickInterface(){
             public void action(            TreeItem treeItem){
-              editUser(treeItem.getText());
+              editProfile(treeItem.getText());
             }
           }
 );
         }
-      }
-    }
-    if (userinfo.isAdministrator()) {
-      TreeItem tiProf=new TreeItem(tiTree,SWT.NONE);
-      tiProf.setImage(GUIResource.getInstance().getImageBol());
-      tiProf.setText(STRING_PROFILES);
-      TreeItemAccelerator.addDoubleClick(tiProf,new DoubleClickInterface(){
-        public void action(        TreeItem treeItem){
-          newProfile();
-        }
-      }
-);
-      String prof[]=rep.getProfiles();
-      for (int i=0; i < prof.length; i++) {
-        TreeItem newProf=new TreeItem(tiProf,SWT.NONE);
-        newProf.setImage(GUIResource.getInstance().getImageProfil());
-        newProf.setText(prof[i]);
-        TreeItemAccelerator.addDoubleClick(newProf,new DoubleClickInterface(){
-          public void action(          TreeItem treeItem){
-            editProfile(treeItem.getText());
-          }
-        }
-);
       }
     }
     TreeMemory.setExpandedFromMemory(wTree,STRING_REPOSITORY_EXPLORER_TREE_NAME);

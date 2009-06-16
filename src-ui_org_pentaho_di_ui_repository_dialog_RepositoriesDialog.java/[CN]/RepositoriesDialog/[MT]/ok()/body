@@ -3,8 +3,10 @@
     int idx=wRepository.getSelectionIndex();
     if (idx >= 0) {
       repinfo=input.getRepository(idx);
-      Repository rep=new KettleDatabaseRepository(repinfo,userinfo);
+      Repository rep=null;
       try {
+        rep=RepositoryLoader.getInstance().createRepositoryObject(repinfo.getId());
+        rep.init(repinfo,userinfo);
         rep.connect(getClass().getName());
       }
  catch (      KettleException ke) {
@@ -38,7 +40,17 @@
       return;
     }
   }
-  input.writeData();
+  try {
+    input.writeData();
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,"Error","Unexpected error writing repository definitions to file",e);
+  }
+  RepositoryCapabilities capabilities=repinfo.getRepositoryCapabilities();
+  if (!capabilities.supportsUsers()) {
+    dispose();
+    return;
+  }
   if (userinfo == null) {
     MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
     mb.setMessage(BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.IncorrectUserPassword.Message"));
