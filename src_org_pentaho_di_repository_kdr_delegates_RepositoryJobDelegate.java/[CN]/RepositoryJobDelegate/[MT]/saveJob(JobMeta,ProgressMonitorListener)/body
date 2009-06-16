@@ -1,5 +1,15 @@
 {
   try {
+    UserInfo userInfo=repository.getUserInfo();
+    if (!userInfo.isAdministrator()) {
+      ObjectId objectId=getJobID(jobMeta.getName(),jobMeta.getRepositoryDirectory().getObjectId());
+      if (objectId != null) {
+        RepositoryLock lock=getJobLock(objectId);
+        if (!lock.getLogin().equals(userInfo.getLogin())) {
+          throw new KettleDatabaseException("Unable to save this job since it's locked by user [" + lock.getLogin() + "] with message : "+ lock.getMessage());
+        }
+      }
+    }
     int nrWorks=2 + jobMeta.nrDatabases() + jobMeta.nrNotes()+ jobMeta.nrJobEntries()+ jobMeta.nrJobHops();
     if (monitor != null)     monitor.beginTask(BaseMessages.getString(PKG,"JobMeta.Monitor.SavingTransformation") + jobMeta.getRepositoryDirectory() + Const.FILE_SEPARATOR+ jobMeta.getName(),nrWorks);
     repository.lockRepository();
