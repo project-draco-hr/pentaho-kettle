@@ -1,91 +1,44 @@
 {
   LogWriter log=LogWriter.getInstance();
   Result result=previousResult;
-  result.setResult(false);
-  String realxmlfilename=getRealxmlfilename();
-  String realxslfilename=getRealxslfilename();
-  String realoutputfilename=getRealoutputfilename();
-  FileObject xmlfile=null;
-  FileObject xslfile=null;
-  FileObject outputfile=null;
-  try {
-    if (xmlfilename != null && xslfilename != null && outputfilename != null) {
-      xmlfile=KettleVFS.getFileObject(realxmlfilename);
-      xslfile=KettleVFS.getFileObject(realxslfilename);
-      outputfile=KettleVFS.getFileObject(realoutputfilename);
-      if (xmlfile.exists() && xslfile.exists()) {
-        if (outputfile.exists() && iffileexists == 2) {
-          log.logError(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists1.Label") + realoutputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists2.Label"));
-          result.setResult(false);
-          result.setNrErrors(1);
-        }
- else         if (outputfile.exists() && iffileexists == 1) {
-          if (log.isDebug())           log.logDebug(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists1.Label") + realoutputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists2.Label"));
-          result.setResult(true);
-        }
- else {
-          if (outputfile.exists() && iffileexists == 0) {
-            String wildcard=realoutputfilename.substring(realoutputfilename.length() - 4,realoutputfilename.length());
-            if (wildcard.substring(0,1).equals(".")) {
-              realoutputfilename=realoutputfilename.substring(0,realoutputfilename.length() - 4) + "_" + StringUtil.getFormattedDateTimeNow(true)+ wildcard;
-            }
- else {
-              realoutputfilename=realoutputfilename + "_" + StringUtil.getFormattedDateTimeNow(true);
-            }
-            if (log.isDebug()) {
-              log.logDebug(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists1.Label") + realoutputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists2.Label"));
-              log.logDebug(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileNameChange1.Label") + realoutputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileNameChange2.Label"));
-            }
-          }
-          TransformerFactory factory=TransformerFactory.newInstance();
-          if (xsltfactory.equals(FACTORY_SAXON)) {
-            factory=new net.sf.saxon.TransformerFactoryImpl();
-          }
-          if (log.isDetailed())           log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactoryInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactory",factory.getClass().getName()));
-          Templates template=factory.newTemplates(new StreamSource(KettleVFS.getInputStream(xslfile)));
-          Transformer xformer=template.newTransformer();
-          if (log.isDetailed())           log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClassInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClass",xformer.getClass().getName()));
-          Source source=new StreamSource(KettleVFS.getInputStream(xmlfile));
-          StreamResult resultat=new StreamResult(KettleVFS.getOutputStream(outputfile,false));
-          xformer.transform(source,resultat);
-          if (isAddFileToResult()) {
-            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(realoutputfilename),parentJob.getJobname(),toString());
-            result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-          }
-          result.setResult(true);
-        }
+  int NrErrors=0;
+  int NrSuccess=0;
+  List<RowMetaAndData> rows=result.getRows();
+  if (isFilenamesFromPrevious()) {
+    if (log.isDetailed())     log.logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+  }
+  if (isFilenamesFromPrevious() && rows != null) {
+    RowMetaAndData resultRow=null;
+    for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
+      resultRow=rows.get(iteration);
+      String xmlfilename_previous=resultRow.getString(0,null);
+      String xslfilename_previous=resultRow.getString(1,null);
+      String ouputfilename_previous=resultRow.getString(2,null);
+      if (!Const.isEmpty(xmlfilename_previous) && !Const.isEmpty(xslfilename_previous) && !Const.isEmpty(ouputfilename_previous)) {
+        if (processOneXMLFile(xmlfilename_previous,xslfilename_previous,ouputfilename_previous,log,result,parentJob))         NrSuccess++;
+ else         NrErrors++;
       }
  else {
-        if (!xmlfile.exists()) {
-          log.logError(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist1.Label") + realxmlfilename + BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist2.Label"));
-        }
-        if (!xslfile.exists()) {
-          log.logError(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist1.Label") + realxslfilename + BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist2.Label"));
-        }
-        result.setResult(false);
-        result.setNrErrors(1);
+        log.logError(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.AllFilesNotNull.Label"));
+        NrErrors++;
       }
+    }
+  }
+ else {
+    String realxmlfilename=getRealxmlfilename();
+    String realxslfilename=getRealxslfilename();
+    String realoutputfilename=getoutputfilename();
+    if (!Const.isEmpty(realxmlfilename) && !Const.isEmpty(realxslfilename) && !Const.isEmpty(realoutputfilename)) {
+      if (processOneXMLFile(realxmlfilename,realxslfilename,realoutputfilename,log,result,parentJob))       NrSuccess++;
+ else       NrErrors++;
     }
  else {
       log.logError(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.AllFilesNotNull.Label"));
-      result.setResult(false);
-      result.setNrErrors(1);
+      NrErrors++;
     }
   }
- catch (  Exception e) {
-    log.logError(toString(),BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLST.Label") + BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXML1.Label") + realxmlfilename+ BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXML2.Label")+ BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXSL1.Label")+ realxslfilename+ BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXSL2.Label")+ e.getMessage());
-    result.setResult(false);
-    result.setNrErrors(1);
-  }
- finally {
-    try {
-      if (xmlfile != null)       xmlfile.close();
-      if (xslfile != null)       xslfile.close();
-      if (outputfile != null)       outputfile.close();
-      System.gc();
-    }
- catch (    IOException e) {
-    }
-  }
+  result.setResult(NrErrors == 0);
+  result.setNrErrors(NrErrors);
+  result.setNrLinesWritten(NrSuccess);
   return result;
 }
