@@ -37,29 +37,39 @@
       outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),checksum);
     }
  else {
-      String checksumCode=createCheckSum(r);
-      outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),checksumCode);
-    }
-    if (checkFeedback(getLinesRead())) {
-      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"CheckSum.Log.LineNumber","" + getLinesRead()));
-    }
-    putRow(data.outputRowMeta,outputRowData);
-  }
- catch (  Exception e) {
-    if (getStepMeta().isDoingErrorHandling()) {
-      sendToErrorRow=true;
-      errorMessage=e.toString();
-    }
+      byte[] o=createCheckSum(r);
+switch (meta.getResultType()) {
+case CheckSumMeta.result_TYPE_BINARY:
+        outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),o);
+      break;
+case CheckSumMeta.result_TYPE_HEXADECIMAL:
+    outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),byteToHexEncode(o));
+  break;
+default :
+outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),getStringFromBytes(o));
+break;
+}
+}
+if (checkFeedback(getLinesRead())) {
+if (log.isDetailed()) logDetailed(BaseMessages.getString(PKG,"CheckSum.Log.LineNumber","" + getLinesRead()));
+}
+putRow(data.outputRowMeta,outputRowData);
+}
+ catch (Exception e) {
+if (getStepMeta().isDoingErrorHandling()) {
+sendToErrorRow=true;
+errorMessage=e.toString();
+}
  else {
-      logError(BaseMessages.getString(PKG,"CheckSum.ErrorInStepRunning") + e.getMessage());
-      setErrors(1);
-      stopAll();
-      setOutputDone();
-      return false;
-    }
-    if (sendToErrorRow) {
-      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"CheckSum001");
-    }
-  }
-  return true;
+logError(BaseMessages.getString(PKG,"CheckSum.ErrorInStepRunning") + e.getMessage());
+setErrors(1);
+stopAll();
+setOutputDone();
+return false;
+}
+if (sendToErrorRow) {
+putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"CheckSum001");
+}
+}
+return true;
 }
