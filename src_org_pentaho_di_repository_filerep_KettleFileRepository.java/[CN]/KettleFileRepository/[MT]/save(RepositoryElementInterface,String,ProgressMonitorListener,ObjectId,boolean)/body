@@ -1,0 +1,24 @@
+{
+  try {
+    if (!(repositoryElement instanceof XMLInterface)) {
+      throw new KettleException("Class [" + repositoryElement.getClass().getName() + "] needs to implement the XML Interface in order to save it to disk");
+    }
+    if (!Const.isEmpty(versionComment)) {
+      insertLogEntry(versionComment);
+    }
+    ObjectId objectId=new StringObjectId(calcObjectId(repositoryElement));
+    FileObject fileObject=getFileObject(repositoryElement);
+    String xml=((XMLInterface)repositoryElement).getXML();
+    OutputStream os=KettleVFS.getOutputStream(fileObject,false);
+    os.write(xml.getBytes(Const.XML_ENCODING));
+    os.close();
+    repositoryElement.clearChanged();
+    if (repositoryElement.getObjectId() != null && !repositoryElement.getObjectId().equals(objectId)) {
+      delObject(repositoryElement.getObjectId());
+    }
+    repositoryElement.setObjectId(objectId);
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to save repository element [" + repositoryElement + "] to XML file : "+ calcFilename(repositoryElement),e);
+  }
+}

@@ -6,18 +6,24 @@
       Repository rep=null;
       try {
         rep=RepositoryLoader.getInstance().createRepositoryObject(repinfo.getId());
+        if (!repinfo.getRepositoryCapabilities().managesUsers()) {
+          userinfo=new UserInfo(wUsername.getText());
+          userinfo.setPassword(wPassword.getText());
+          ProfileMeta adminProfile=new ProfileMeta("Administrator","Administrator");
+          adminProfile.addPermission(Permission.ADMIN);
+          userinfo.setProfile(adminProfile);
+        }
         rep.init(repinfo,userinfo);
         rep.connect();
       }
  catch (      KettleException ke) {
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage(BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.RepositoryUnableToConnect.Message1") + Const.CR + ke.getSuperMessage());
-        mb.setText(BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.RepositoryUnableToConnect.Title"));
-        mb.open();
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.RepositoryUnableToConnect.Title"),BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.RepositoryUnableToConnect.Message1") + Const.CR + ke.getSuperMessage(),ke);
         return;
       }
       try {
-        userinfo=rep.getSecurityProvider().loadUserInfo(wUsername.getText(),wPassword.getText());
+        if (repinfo.getRepositoryCapabilities().managesUsers()) {
+          userinfo=rep.getSecurityProvider().loadUserInfo(wUsername.getText(),wPassword.getText());
+        }
         props.setLastRepository(repinfo.getName());
         props.setLastRepositoryLogin(wUsername.getText());
       }
