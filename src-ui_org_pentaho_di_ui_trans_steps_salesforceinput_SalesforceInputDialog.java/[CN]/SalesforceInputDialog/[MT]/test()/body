@@ -1,17 +1,40 @@
 {
+  boolean successConnection=true;
+  String msgError=null;
+  SalesforceConnection connection=null;
   try {
     SalesforceInputMeta meta=new SalesforceInputMeta();
     getInfo(meta);
-    if (!checkUser())     return;
-    getBinding();
+    String realURL=transMeta.environmentSubstitute(meta.getTargetURL());
+    String realUsername=transMeta.environmentSubstitute(meta.getUserName());
+    String realPassword=transMeta.environmentSubstitute(meta.getPassword());
+    int realTimeOut=Const.toInt(transMeta.environmentSubstitute(meta.getTimeOut()),0);
+    connection=new SalesforceConnection(realURL,realUsername,realPassword,realTimeOut);
+    connection.connect();
+  }
+ catch (  Exception e) {
+    successConnection=false;
+    msgError=e.getMessage();
+  }
+ finally {
+    if (connection != null) {
+      try {
+        connection.close();
+      }
+ catch (      Exception e) {
+      }
+      ;
+    }
+  }
+  if (successConnection) {
     MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
     mb.setMessage(BaseMessages.getString(PKG,"SalesforceInputDialog.Connected.OK",wUserName.getText()) + Const.CR);
     mb.setText(BaseMessages.getString(PKG,"SalesforceInputDialog.Connected.Title.Ok"));
     mb.open();
   }
- catch (  Exception e) {
+ else {
     MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage(BaseMessages.getString(PKG,"SalesforceInputDialog.Connected.NOK",wUserName.getText(),e.getMessage()));
+    mb.setMessage(BaseMessages.getString(PKG,"SalesforceInputDialog.Connected.NOK",wUserName.getText(),msgError));
     mb.setText(BaseMessages.getString(PKG,"SalesforceInputDialog.Connected.Title.Error"));
     mb.open();
   }

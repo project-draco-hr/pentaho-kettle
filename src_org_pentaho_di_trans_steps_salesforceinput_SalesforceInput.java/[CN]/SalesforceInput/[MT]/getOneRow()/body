@@ -10,23 +10,22 @@
     }
  else {
       if (data.rownr >= data.nrRecords) {
-        if (log.isDetailed())         log.logDetailed(toString(),BaseMessages.getString(PKG,"SalesforceInput.Log.NeedQueryMore","" + data.rownr));
-        if (!data.qr.isDone()) {
-          data.qr=data.binding.queryMore(data.qr.getQueryLocator());
-          int nr=data.qr.getRecords().length;
-          data.nrRecords+=nr;
-          if (log.isDetailed())           log.logDetailed(toString(),BaseMessages.getString(PKG,"SalesforceInput.Log.QueryMoreRetrieved","" + nr));
-          data.recordIndex=0;
-        }
+        if (meta.getRecordsFilter() == SalesforceConnectionUtils.RECORDS_FILTER_ALL) {
+          if (log.isDetailed())           log.logDetailed(toString(),BaseMessages.getString(PKG,"SalesforceInput.Log.NeedQueryMore","" + data.rownr));
+          if (data.connection.queryMore()) {
+            int nr=data.connection.getRecordsCount();
+            data.nrRecords+=nr;
+            if (log.isDetailed())             log.logDetailed(toString(),BaseMessages.getString(PKG,"SalesforceInput.Log.QueryMoreRetrieved","" + nr));
+            data.recordIndex=0;
+          }
  else {
-          return null;
+            return null;
+          }
         }
       }
     }
-    SObject con=data.qr.getRecords()[(int)data.recordIndex];
     for (int i=0; i < data.nrfields; i++) {
-      String value=null;
-      if (con.get_any()[i] != null)       value=con.get_any()[i].getValue();
+      String value=data.connection.getRecordValue((int)data.recordIndex,i);
 switch (meta.getInputFields()[i].getTrimType()) {
 case SalesforceInputField.TYPE_TRIM_LEFT:
         value=Const.ltrim(value);
@@ -51,16 +50,16 @@ outputRowData[i]=data.previousRow[i];
 }
 int rowIndex=data.nrfields;
 if (meta.includeTargetURL() && !Const.isEmpty(meta.getTargetURLField())) {
-outputRowData[rowIndex++]=data.URL;
+outputRowData[rowIndex++]=data.connection.getURL();
 }
 if (meta.includeModule() && !Const.isEmpty(meta.getModuleField())) {
-outputRowData[rowIndex++]=data.Module;
+outputRowData[rowIndex++]=data.connection.getModule();
 }
 if (meta.includeSQL() && !Const.isEmpty(meta.getSQLField())) {
-outputRowData[rowIndex++]=data.SQL;
+outputRowData[rowIndex++]=data.connection.getSQL();
 }
 if (meta.includeTimestamp() && !Const.isEmpty(meta.getTimestampField())) {
-outputRowData[rowIndex++]=data.Timestamp;
+outputRowData[rowIndex++]=data.connection.getServerTimestamp();
 }
 if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
 outputRowData[rowIndex++]=new Long(data.rownr);
