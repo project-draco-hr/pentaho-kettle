@@ -1,0 +1,42 @@
+{
+  if (this.binding == null)   throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Exception.CanNotGetBiding"));
+  try {
+    if (!specifyQuery) {
+      DescribeSObjectResult describeSObjectResult=this.binding.describeSObject(this.module);
+      if (describeSObjectResult == null)       throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.ErrorGettingObject"));
+      if (!describeSObjectResult.isQueryable())       throw new KettleException(BaseMessages.getString(PKG,"SalesforceInputDialog.ObjectNotQueryable",module));
+    }
+    if (this.sql != null && log.isDetailed())     log.logDetailed(toString(),BaseMessages.getString(PKG,"SalesforceInput.Log.SQLString") + " : " + this.sql);
+switch (this.recordsFilter) {
+case SalesforceConnectionUtils.RECORDS_FILTER_UPDATED:
+      GetUpdatedResult updatedRecords=this.binding.getUpdated(this.module,this.startDate,this.endDate);
+    if (updatedRecords.getIds() != null && updatedRecords.getIds().length > 0) {
+      this.sObjects=this.binding.retrieve(this.fieldsList,this.module,updatedRecords.getIds());
+      this.queryResultSize=this.sObjects.length;
+    }
+  break;
+case SalesforceConnectionUtils.RECORDS_FILTER_DELETED:
+GetDeletedResult deletedRecordsResult=this.binding.getDeleted(this.module,this.startDate,this.endDate);
+DeletedRecord[] deletedRecords=deletedRecordsResult.getDeletedRecords();
+List<String> idlist=new ArrayList<String>();
+if (deletedRecords != null && deletedRecords.length > 0) {
+for (DeletedRecord deletedRecord : deletedRecords) {
+idlist.add(deletedRecord.getId());
+}
+this.qr=this.binding.queryAll(this.sql);
+this.sObjects=this.qr.getRecords();
+this.queryResultSize=this.sObjects.length;
+}
+break;
+default :
+this.qr=this.binding.query(this.sql);
+this.sObjects=this.qr.getRecords();
+this.queryResultSize=this.qr.getSize();
+break;
+}
+if (this.sObjects != null) this.recordsCount=this.sObjects.length;
+}
+ catch (Exception e) {
+throw new KettleException(BaseMessages.getString(PKG,"SalesforceConnection.Exception.Query"),e);
+}
+}
