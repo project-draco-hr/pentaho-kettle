@@ -5,8 +5,8 @@
     String hostname=environmentSubstitute(meta.getHost());
     String username=environmentSubstitute(meta.getUserName());
     String password=environmentSubstitute(meta.getPassword());
-    String filter=environmentSubstitute(meta.getFilterString());
-    String searchbase=environmentSubstitute(meta.getSearchBase());
+    data.filter=environmentSubstitute(meta.getFilterString()).replace("\n\r","").replace("\n","");
+    data.searchbase=environmentSubstitute(meta.getSearchBase());
     Hashtable<String,String> env=new Hashtable<String,String>();
     env.put(Context.INITIAL_CONTEXT_FACTORY,"com.sun.jndi.ldap.LdapCtxFactory");
     if (hostname.indexOf("ldap://") >= 0)     env.put(Context.PROVIDER_URL,hostname + ":" + portint);
@@ -16,29 +16,38 @@
       env.put(Context.SECURITY_PRINCIPAL,username);
       env.put(Context.SECURITY_CREDENTIALS,password);
     }
-    data.ctx=new InitialDirContext(env);
+    data.ctx=new InitialLdapContext(env,null);
     if (data.ctx == null) {
       logError(BaseMessages.getString(PKG,"LDAPInput.Error.UnableToConnectToServer"));
       throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Error.UnableToConnectToServer"));
     }
     if (log.isBasic())     logBasic(BaseMessages.getString(PKG,"LDAPInput.Log.ConnectedToServer",hostname,username));
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"LDAPInput.ClassUsed.Message",data.ctx.getClass().getName()));
-    SearchControls controls=new SearchControls();
-    controls.setCountLimit(meta.getRowLimit());
-    if (meta.getTimeLimit() > 0)     controls.setTimeLimit(meta.getTimeLimit() * 1000);
+    data.controls=new SearchControls();
+    data.controls.setCountLimit(meta.getRowLimit());
+    if (meta.getTimeLimit() > 0)     data.controls.setTimeLimit(meta.getTimeLimit() * 1000);
     String[] attrReturned=new String[meta.getInputFields().length];
     for (int i=0; i < meta.getInputFields().length; i++) {
       attrReturned[i]=environmentSubstitute(meta.getInputFields()[i].getAttribute());
     }
-    controls.setReturningAttributes(attrReturned);
-    if (Const.isEmpty(searchbase)) {
+    data.controls.setReturningAttributes(attrReturned);
+    if (Const.isEmpty(data.searchbase)) {
       Attributes attrs=data.ctx.getAttributes("",new String[]{"namingContexts"});
       Attribute attr=attrs.get("namingContexts");
-      searchbase=attr.get().toString();
-      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"LDAPInput.SearchBaseFound",searchbase));
+      data.searchbase=attr.get().toString();
+      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"LDAPInput.SearchBaseFound",data.searchbase));
     }
-    controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-    data.results=data.ctx.search(searchbase,filter.replace("\n\r","").replace("\n",""),controls);
+    data.controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+    if (meta.isPaging()) {
+      data.pageSize=Const.toInt(environmentSubstitute(meta.getPageSize()),-1);
+      if (data.pageSize > -1) {
+        data.pagingSet=true;
+        Control[] ctls=new Control[]{new PagedResultsControl(data.pageSize,true)};
+        data.ctx.setRequestControls(ctls);
+        if (log.isDebug())         logDebug(BaseMessages.getString(PKG,"LDAPInput.Log.PageSize",data.pageSize));
+      }
+    }
+    data.results=data.ctx.search(data.searchbase,data.filter,data.controls);
   }
  catch (  Exception e) {
     throw new KettleException(BaseMessages.getString(PKG,"LDAPinput.Exception.ErrorConnecting",e.getMessage()));

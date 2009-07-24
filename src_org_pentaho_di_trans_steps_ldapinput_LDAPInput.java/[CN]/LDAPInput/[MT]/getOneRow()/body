@@ -1,6 +1,34 @@
 {
   while (!data.results.hasMoreElements()) {
-    return null;
+    if (data.pagingSet) {
+      try {
+        Control[] rc=data.ctx.getResponseControls();
+        if (rc != null) {
+          for (int i=0; i < rc.length; i++) {
+            if (rc[i] instanceof PagedResultsResponseControl) {
+              PagedResultsResponseControl prc=(PagedResultsResponseControl)rc[i];
+              data.cookie=prc.getCookie();
+            }
+          }
+        }
+        data.ctx.setRequestControls(new javax.naming.ldap.Control[]{new PagedResultsControl(data.pageSize,data.cookie,Control.CRITICAL)});
+        if ((data.cookie != null) && (data.cookie.length != 0)) {
+          data.results=data.ctx.search(data.searchbase,data.filter,data.controls);
+        }
+ else {
+          return null;
+        }
+      }
+ catch (      Exception e) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Exception.ErrorPaging"),e);
+      }
+      while (!data.results.hasMoreElements()) {
+        return null;
+      }
+    }
+ else {
+      return null;
+    }
   }
   Object[] outputRowData=buildEmptyRow();
   try {
