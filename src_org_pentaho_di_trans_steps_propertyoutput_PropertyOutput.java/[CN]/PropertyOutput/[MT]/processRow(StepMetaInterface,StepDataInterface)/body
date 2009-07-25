@@ -3,9 +3,6 @@
   data=(PropertyOutputData)sdi;
   Object[] r=getRow();
   if (r == null) {
-    if (!first) {
-      saveProperties(data.pro);
-    }
     setOutputDone();
     return false;
   }
@@ -24,26 +21,38 @@
       logError(BaseMessages.getString(PKG,"PropertyOutput.Log.ErrorFindingField",meta.getValueField()));
       throw new KettleException(BaseMessages.getString(PKG,"PropertyOutput.Log.ErrorFindingField",meta.getValueField()));
     }
-    String filename=buildFilename();
-    if (Const.isEmpty(filename)) {
-      logError(BaseMessages.getString(PKG,"PropertyOutput.Log.FilenameEmpty"));
-      throw new KettleException(BaseMessages.getString(PKG,"PropertyOutput.Log.FilenameEmpty"));
+    if (meta.isFileNameInField()) {
+      String realFieldName=environmentSubstitute(meta.getFileNameField());
+      if (Const.isEmpty(realFieldName)) {
+        logError(BaseMessages.getString(PKG,"PropertyOutput.Log.FilenameInFieldEmpty"));
+        throw new KettleException(BaseMessages.getString(PKG,"PropertyOutput.Log.FilenameInFieldEmpty"));
+      }
+      data.indexOfFieldfilename=data.inputRowMeta.indexOfValue(realFieldName);
+      if (data.indexOfFieldfilename < 0) {
+        logError(BaseMessages.getString(PKG,"PropertyOutput.Log.ErrorFindingField",meta.getValueField()));
+        throw new KettleException(BaseMessages.getString(PKG,"PropertyOutput.Log.ErrorFindingField",meta.getValueField()));
+      }
     }
-    try {
-      data.file=KettleVFS.getFileObject(filename);
+ else {
+      data.filename=buildFilename();
+      if (Const.isEmpty(data.filename)) {
+        logError(BaseMessages.getString(PKG,"PropertyOutput.Log.FilenameEmpty"));
+        throw new KettleException(BaseMessages.getString(PKG,"PropertyOutput.Log.FilenameEmpty"));
+      }
+      openNewFile();
     }
- catch (    Exception e) {
-      throw new KettleException(e);
-    }
-    createParentFolder();
   }
-  boolean sendToErrorRow=false;
-  String errorMessage=null;
-  String propkey=null;
-  String propvalue=null;
-  if (data.indexOfKeyField > -1)   propkey=data.inputRowMeta.getString(r,data.indexOfKeyField);
-  if (data.indexOfValueField > -1)   propvalue=data.inputRowMeta.getString(r,data.indexOfValueField);
+  String propkey=data.inputRowMeta.getString(r,data.indexOfKeyField);
+  String propvalue=data.inputRowMeta.getString(r,data.indexOfValueField);
   try {
+    if (meta.isFileNameInField()) {
+      data.filename=data.inputRowMeta.getString(r,data.indexOfFieldfilename);
+      if (Const.isEmpty(data.filename))       throw new KettleException(BaseMessages.getString(PKG,"PropertyOutputMeta.Log.FileNameEmty"));
+      if (!checkSameFile()) {
+        closeFile();
+        openNewFile();
+      }
+    }
     if (!data.KeySet.contains(propkey)) {
       if (log.isDetailed()) {
         log.logDetailed(toString(),BaseMessages.getString(PKG,"PropertyOutput.Log.Key",propkey));
@@ -59,6 +68,8 @@
     }
   }
  catch (  KettleStepException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
     if (getStepMeta().isDoingErrorHandling()) {
       sendToErrorRow=true;
       errorMessage=e.toString();

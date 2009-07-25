@@ -1,17 +1,21 @@
 {
+  if (data.file == null)   return true;
+  boolean retval=false;
   OutputStream propsFile=null;
-  ;
   try {
     propsFile=KettleVFS.getOutputStream(data.file,false);
-    p.store(propsFile,environmentSubstitute(meta.getComment()));
+    data.pro.store(propsFile,environmentSubstitute(meta.getComment()));
     if (meta.AddToResult()) {
       ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
       resultFile.setComment(BaseMessages.getString(PKG,"PropertyOutput.Log.FileAddedResult"));
       addResultFile(resultFile);
     }
+    data.KeySet.clear();
+    retval=true;
   }
  catch (  Exception e) {
-    throw new KettleException(e);
+    logError("Exception trying to close file [" + data.file.getName() + "]! :"+ e.toString());
+    setErrors(1);
   }
  finally {
     if (propsFile != null) {
@@ -23,5 +27,16 @@
       }
       ;
     }
+    if (data.file != null) {
+      try {
+        data.file.close();
+        data.file=null;
+      }
+ catch (      Exception e) {
+      }
+      ;
+    }
+    if (data.pro != null)     data.pro=null;
   }
+  return retval;
 }
