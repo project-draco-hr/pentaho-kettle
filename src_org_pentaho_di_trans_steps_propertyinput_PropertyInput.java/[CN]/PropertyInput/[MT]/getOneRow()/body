@@ -1,30 +1,50 @@
 {
   try {
     if (meta.isFileField()) {
-      while ((data.readrow == null) || (!data.it.hasNext())) {
-        if (!openNextFile())         return null;
+      while ((data.readrow == null) || ((data.propfiles && !data.it.hasNext()) || (!data.propfiles && !data.iniIt.hasNext()))) {
+        if (!data.propfiles && data.realSection == null && data.readrow != null && data.itSection.hasNext()) {
+          data.iniSection=data.wini.get(data.itSection.next().toString());
+          data.iniIt=data.iniSection.keySet().iterator();
+        }
+ else {
+          if (!openNextFile())           return null;
+        }
       }
     }
  else {
-      while ((data.file == null) || (!data.it.hasNext())) {
-        if (!openNextFile())         return null;
+      while ((data.file == null) || ((data.propfiles && !data.it.hasNext()) || (!data.propfiles && !data.iniIt.hasNext()))) {
+        if (!data.propfiles && data.realSection == null && data.file != null && data.itSection.hasNext()) {
+          data.iniSection=data.wini.get(data.itSection.next().toString());
+          data.iniIt=data.iniSection.keySet().iterator();
+        }
+ else {
+          if (!openNextFile())           return null;
+        }
       }
     }
   }
  catch (  Exception IO) {
+    logError("Unable to read row from file : " + IO.getMessage());
     return null;
   }
   Object[] r=buildEmptyRow();
   if (meta.isFileField())   r=data.readrow.clone();
   try {
     String key=null;
-    key=data.it.next().toString();
+    if (data.propfiles)     key=data.it.next().toString();
+ else     key=data.iniIt.next().toString();
     for (int i=0; i < meta.getInputFields().length; i++) {
       String value=null;
       if (meta.getInputFields()[i].getColumnCode().equals(PropertyInputField.ColumnCode[PropertyInputField.COLUMN_KEY]))       value=key;
  else {
-        if (meta.isResolveValueVariable())         value=environmentSubstitute(data.pro.getProperty(key));
- else         value=data.pro.getProperty(key);
+        if (meta.isResolveValueVariable()) {
+          if (data.propfiles)           value=environmentSubstitute(data.pro.getProperty(key));
+ else           value=environmentSubstitute(data.iniSection.fetch(key));
+        }
+ else {
+          if (data.propfiles)           value=data.pro.getProperty(key);
+ else           value=data.iniSection.fetch(key);
+        }
       }
 switch (meta.getInputFields()[i].getTrimType()) {
 case PropertyInputField.TYPE_TRIM_LEFT:
@@ -57,6 +77,9 @@ r[data.totalpreviousfields + rowIndex++]=KettleVFS.getFilename(data.file);
 }
 if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
 r[data.totalpreviousfields + rowIndex++]=new Long(data.rownr);
+}
+if (meta.includeIniSection() && !Const.isEmpty(meta.getINISectionField())) {
+r[data.totalpreviousfields + rowIndex++]=environmentSubstitute(data.iniSection.getName());
 }
 RowMetaInterface irow=getInputRowMeta();
 data.previousRow=irow == null ? r : (Object[])irow.cloneRow(r);

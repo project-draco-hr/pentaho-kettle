@@ -51,13 +51,28 @@
       addResultFile(resultFile);
     }
     File f=new File(KettleVFS.getFilename(data.file));
-    FileInputStream in=new FileInputStream(f);
-    data.pro.load(in);
+    if (data.propfiles) {
+      data.pro=new Properties();
+      data.pro.load(new FileInputStream(f));
+      data.it=data.pro.keySet().iterator();
+    }
+ else {
+      data.wini=new Wini(f);
+      if (!Const.isEmpty(data.realEncoding))       data.wini.getConfig().setFileEncoding(Charset.forName(data.realEncoding));
+      if (data.realSection != null) {
+        data.iniSection=data.wini.get(data.realSection);
+        if (data.iniSection == null)         throw new KettleException(BaseMessages.getString(PKG,"PropertyInput.Error.CanNotFindSection",data.realSection,"" + data.file.getName()));
+      }
+ else {
+        data.itSection=data.wini.keySet().iterator();
+        data.iniSection=data.wini.get(data.itSection.next().toString());
+      }
+      data.iniIt=data.iniSection.keySet().iterator();
+    }
     if (log.isDetailed()) {
       logDetailed(BaseMessages.getString(PKG,"PropertyInput.Log.FileOpened",data.file.toString()));
-      logDetailed(BaseMessages.getString(PKG,"PropertyInput.log.TotalKey","" + data.pro.keySet().size(),KettleVFS.getFilename(data.file)));
+      log.logDetailed(toString(),BaseMessages.getString(PKG,"PropertyInput.log.TotalKey","" + (data.propfiles ? data.pro.size() : data.iniSection.size()),KettleVFS.getFilename(data.file)));
     }
-    data.it=data.pro.keySet().iterator();
   }
  catch (  Exception e) {
     logError(BaseMessages.getString(PKG,"PropertyInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));

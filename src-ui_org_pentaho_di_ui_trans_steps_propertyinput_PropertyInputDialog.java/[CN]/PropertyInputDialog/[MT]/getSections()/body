@@ -1,0 +1,43 @@
+{
+  Wini wini=new Wini();
+  PropertyInputMeta meta=new PropertyInputMeta();
+  try {
+    getInfo(meta);
+    FileInputList fileInputList=meta.getFiles(transMeta);
+    if (fileInputList.nrOfFiles() > 0) {
+      if (fileInputList.getFile(0).exists()) {
+        wini=new Wini(KettleVFS.getInputStream(fileInputList.getFile(0)));
+        Iterator<String> itSection=wini.keySet().iterator();
+        String[] sectionsList=new String[wini.keySet().size()];
+        int i=0;
+        while (itSection.hasNext()) {
+          sectionsList[i]=itSection.next().toString();
+          i++;
+        }
+        Const.sortStrings(sectionsList);
+        EnterSelectionDialog dialog=new EnterSelectionDialog(shell,sectionsList,BaseMessages.getString(PKG,"PropertyInputDialog.Dialog.SelectASection.Title"),BaseMessages.getString(PKG,"PropertyInputDialog.Dialog.SelectASection.Message"));
+        String sectionname=dialog.open();
+        if (sectionname != null) {
+          wSection.setText(sectionname);
+        }
+      }
+ else {
+        throw new KettleException(BaseMessages.getString(PKG,"PropertyInputDialog.Exception.FileDoesNotExist",KettleVFS.getFilename(fileInputList.getFile(0))));
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage(BaseMessages.getString(PKG,"PropertyInputDialog.FilesMissing.DialogMessage"));
+      mb.setText(BaseMessages.getString(PKG,"System.Dialog.Error.Title"));
+      mb.open();
+    }
+  }
+ catch (  Throwable e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"PropertyInputDialog.UnableToGetListOfSections.Title"),BaseMessages.getString(PKG,"PropertyInputDialog.UnableToGetListOfSections.Message"),e);
+  }
+ finally {
+    if (wini != null)     wini.clear();
+    wini=null;
+    meta=null;
+  }
+}
