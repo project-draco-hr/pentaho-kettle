@@ -33,12 +33,6 @@
   TransMeta activeTransMeta=getActiveTransformation();
   JobMeta activeJobMeta=getActiveJob();
   boolean showAll=activeTransMeta == null && activeJobMeta == null;
-  List<TransMeta> transformations=delegates.trans.getTransformationList();
-  Collections.sort(transformations);
-  TransMeta[] transMetas=transformations.toArray(new TransMeta[transformations.size()]);
-  List<JobMeta> jobs=delegates.jobs.getJobList();
-  Collections.sort(jobs);
-  JobMeta[] jobMetas=jobs.toArray(new JobMeta[jobs.size()]);
   selectionTree.removeAll();
   if (!props.isOnlyActiveFileShownInTree() || showAll || activeTransMeta != null) {
     TreeItem tiTrans=new TreeItem(selectionTree,SWT.NONE);
@@ -47,103 +41,106 @@
     if (props.isOnlyActiveFileShownInTree()) {
       TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiTrans,true);
     }
-    for (int t=0; t < transMetas.length; t++) {
-      TransMeta transMeta=transMetas[t];
-      if (!props.isOnlyActiveFileShownInTree() || showAll || (activeTransMeta != null && activeTransMeta.equals(transMeta))) {
-        String name=delegates.tabs.makeTransGraphTabName(transMeta);
-        if (Const.isEmpty(name)) {
-          name=STRING_TRANS_NO_NAME;
-        }
-        TreeItem tiTransName=new TreeItem(tiTrans,SWT.NONE);
-        tiTransName.setText(name);
-        tiTransName.setImage(guiResource.getImageTransGraph());
-        if (props.isOnlyActiveFileShownInTree()) {
-          TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiTransName,true);
-        }
-        TreeItem tiDbTitle=new TreeItem(tiTransName,SWT.NONE);
-        tiDbTitle.setText(STRING_CONNECTIONS);
-        tiDbTitle.setImage(guiResource.getImageBol());
-        String[] dbNames=new String[transMeta.nrDatabases()];
-        for (int i=0; i < dbNames.length; i++)         dbNames[i]=transMeta.getDatabase(i).getName();
-        Arrays.sort(dbNames,new Comparator<String>(){
-          public int compare(          String o1,          String o2){
-            return o1.compareToIgnoreCase(o2);
+    for (    TabMapEntry entry : delegates.tabs.getTabs()) {
+      Object managedObject=entry.getObject().getManagedObject();
+      if (managedObject instanceof TransMeta) {
+        TransMeta transMeta=(TransMeta)managedObject;
+        if (!props.isOnlyActiveFileShownInTree() || showAll || (activeTransMeta != null && activeTransMeta.equals(transMeta))) {
+          String name=delegates.tabs.makeTabName(transMeta,entry.isShowingLocation());
+          if (Const.isEmpty(name)) {
+            name=STRING_TRANS_NO_NAME;
           }
-        }
-);
-        for (int i=0; i < dbNames.length; i++) {
-          DatabaseMeta databaseMeta=transMeta.findDatabase(dbNames[i]);
-          if (!filterMatch(dbNames[i]))           continue;
-          TreeItem tiDb=new TreeItem(tiDbTitle,SWT.NONE);
-          tiDb.setText(databaseMeta.getName());
-          if (databaseMeta.isShared())           tiDb.setFont(guiResource.getFontBold());
-          tiDb.setImage(guiResource.getImageConnection());
-        }
-        TreeItem tiStepTitle=new TreeItem(tiTransName,SWT.NONE);
-        tiStepTitle.setText(STRING_STEPS);
-        tiStepTitle.setImage(guiResource.getImageBol());
-        for (int i=0; i < transMeta.nrSteps(); i++) {
-          StepMeta stepMeta=transMeta.getStep(i);
-          StepPlugin stepPlugin=StepLoader.getInstance().findStepPluginWithID(stepMeta.getStepID());
-          if (!filterMatch(stepMeta.getName()) && !filterMatch(stepMeta.getDescription()))           continue;
-          TreeItem tiStep=new TreeItem(tiStepTitle,SWT.NONE);
-          tiStep.setText(stepMeta.getName());
-          if (stepMeta.isShared())           tiStep.setFont(guiResource.getFontBold());
-          if (!stepMeta.isDrawn())           tiStep.setForeground(guiResource.getColorDarkGray());
-          Image stepIcon=guiResource.getImagesStepsSmall().get(stepPlugin.getID()[0]);
-          if (stepIcon == null)           stepIcon=guiResource.getImageBol();
-          tiStep.setImage(stepIcon);
-        }
-        TreeItem tiHopTitle=new TreeItem(tiTransName,SWT.NONE);
-        tiHopTitle.setText(STRING_HOPS);
-        tiHopTitle.setImage(guiResource.getImageBol());
-        for (int i=0; i < transMeta.nrTransHops(); i++) {
-          TransHopMeta hopMeta=transMeta.getTransHop(i);
-          if (!filterMatch(hopMeta.toString()))           continue;
-          TreeItem tiHop=new TreeItem(tiHopTitle,SWT.NONE);
-          tiHop.setText(hopMeta.toString());
-          if (hopMeta.isEnabled())           tiHop.setImage(guiResource.getImageHop());
- else           tiHop.setImage(guiResource.getImageDisabledHop());
-        }
-        TreeItem tiPartitionTitle=new TreeItem(tiTransName,SWT.NONE);
-        tiPartitionTitle.setText(STRING_PARTITIONS);
-        tiPartitionTitle.setImage(guiResource.getImageBol());
-        for (int i=0; i < transMeta.getPartitionSchemas().size(); i++) {
-          PartitionSchema partitionSchema=transMeta.getPartitionSchemas().get(i);
-          if (!filterMatch(partitionSchema.getName()))           continue;
-          TreeItem tiPartition=new TreeItem(tiPartitionTitle,SWT.NONE);
-          tiPartition.setText(partitionSchema.getName());
-          tiPartition.setImage(guiResource.getImageFolderConnections());
-          if (partitionSchema.isShared())           tiPartition.setFont(guiResource.getFontBold());
-        }
-        TreeItem tiSlaveTitle=new TreeItem(tiTransName,SWT.NONE);
-        tiSlaveTitle.setText(STRING_SLAVES);
-        tiSlaveTitle.setImage(guiResource.getImageBol());
-        String[] slaveNames=transMeta.getSlaveServerNames();
-        Arrays.sort(slaveNames,new Comparator<String>(){
-          public int compare(          String o1,          String o2){
-            return o1.compareToIgnoreCase(o2);
+          TreeItem tiTransName=new TreeItem(tiTrans,SWT.NONE);
+          tiTransName.setText(name);
+          tiTransName.setImage(guiResource.getImageTransGraph());
+          if (props.isOnlyActiveFileShownInTree()) {
+            TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiTransName,true);
           }
-        }
+          TreeItem tiDbTitle=new TreeItem(tiTransName,SWT.NONE);
+          tiDbTitle.setText(STRING_CONNECTIONS);
+          tiDbTitle.setImage(guiResource.getImageBol());
+          String[] dbNames=new String[transMeta.nrDatabases()];
+          for (int i=0; i < dbNames.length; i++)           dbNames[i]=transMeta.getDatabase(i).getName();
+          Arrays.sort(dbNames,new Comparator<String>(){
+            public int compare(            String o1,            String o2){
+              return o1.compareToIgnoreCase(o2);
+            }
+          }
 );
-        for (int i=0; i < slaveNames.length; i++) {
-          SlaveServer slaveServer=transMeta.findSlaveServer(slaveNames[i]);
-          if (!filterMatch(slaveServer.getName()))           continue;
-          TreeItem tiSlave=new TreeItem(tiSlaveTitle,SWT.NONE);
-          tiSlave.setText(slaveServer.getName());
-          tiSlave.setImage(guiResource.getImageSlave());
-          if (slaveServer.isShared())           tiSlave.setFont(guiResource.getFontBold());
-        }
-        TreeItem tiClusterTitle=new TreeItem(tiTransName,SWT.NONE);
-        tiClusterTitle.setText(STRING_CLUSTERS);
-        tiClusterTitle.setImage(guiResource.getImageBol());
-        for (int i=0; i < transMeta.getClusterSchemas().size(); i++) {
-          ClusterSchema clusterSchema=transMeta.getClusterSchemas().get(i);
-          if (!filterMatch(clusterSchema.getName()))           continue;
-          TreeItem tiCluster=new TreeItem(tiClusterTitle,SWT.NONE);
-          tiCluster.setText(clusterSchema.toString());
-          tiCluster.setImage(guiResource.getImageCluster());
-          if (clusterSchema.isShared())           tiCluster.setFont(guiResource.getFontBold());
+          for (int i=0; i < dbNames.length; i++) {
+            DatabaseMeta databaseMeta=transMeta.findDatabase(dbNames[i]);
+            if (!filterMatch(dbNames[i]))             continue;
+            TreeItem tiDb=new TreeItem(tiDbTitle,SWT.NONE);
+            tiDb.setText(databaseMeta.getName());
+            if (databaseMeta.isShared())             tiDb.setFont(guiResource.getFontBold());
+            tiDb.setImage(guiResource.getImageConnection());
+          }
+          TreeItem tiStepTitle=new TreeItem(tiTransName,SWT.NONE);
+          tiStepTitle.setText(STRING_STEPS);
+          tiStepTitle.setImage(guiResource.getImageBol());
+          for (int i=0; i < transMeta.nrSteps(); i++) {
+            StepMeta stepMeta=transMeta.getStep(i);
+            StepPlugin stepPlugin=StepLoader.getInstance().findStepPluginWithID(stepMeta.getStepID());
+            if (!filterMatch(stepMeta.getName()) && !filterMatch(stepMeta.getDescription()))             continue;
+            TreeItem tiStep=new TreeItem(tiStepTitle,SWT.NONE);
+            tiStep.setText(stepMeta.getName());
+            if (stepMeta.isShared())             tiStep.setFont(guiResource.getFontBold());
+            if (!stepMeta.isDrawn())             tiStep.setForeground(guiResource.getColorDarkGray());
+            Image stepIcon=guiResource.getImagesStepsSmall().get(stepPlugin.getID()[0]);
+            if (stepIcon == null)             stepIcon=guiResource.getImageBol();
+            tiStep.setImage(stepIcon);
+          }
+          TreeItem tiHopTitle=new TreeItem(tiTransName,SWT.NONE);
+          tiHopTitle.setText(STRING_HOPS);
+          tiHopTitle.setImage(guiResource.getImageBol());
+          for (int i=0; i < transMeta.nrTransHops(); i++) {
+            TransHopMeta hopMeta=transMeta.getTransHop(i);
+            if (!filterMatch(hopMeta.toString()))             continue;
+            TreeItem tiHop=new TreeItem(tiHopTitle,SWT.NONE);
+            tiHop.setText(hopMeta.toString());
+            if (hopMeta.isEnabled())             tiHop.setImage(guiResource.getImageHop());
+ else             tiHop.setImage(guiResource.getImageDisabledHop());
+          }
+          TreeItem tiPartitionTitle=new TreeItem(tiTransName,SWT.NONE);
+          tiPartitionTitle.setText(STRING_PARTITIONS);
+          tiPartitionTitle.setImage(guiResource.getImageBol());
+          for (int i=0; i < transMeta.getPartitionSchemas().size(); i++) {
+            PartitionSchema partitionSchema=transMeta.getPartitionSchemas().get(i);
+            if (!filterMatch(partitionSchema.getName()))             continue;
+            TreeItem tiPartition=new TreeItem(tiPartitionTitle,SWT.NONE);
+            tiPartition.setText(partitionSchema.getName());
+            tiPartition.setImage(guiResource.getImageFolderConnections());
+            if (partitionSchema.isShared())             tiPartition.setFont(guiResource.getFontBold());
+          }
+          TreeItem tiSlaveTitle=new TreeItem(tiTransName,SWT.NONE);
+          tiSlaveTitle.setText(STRING_SLAVES);
+          tiSlaveTitle.setImage(guiResource.getImageBol());
+          String[] slaveNames=transMeta.getSlaveServerNames();
+          Arrays.sort(slaveNames,new Comparator<String>(){
+            public int compare(            String o1,            String o2){
+              return o1.compareToIgnoreCase(o2);
+            }
+          }
+);
+          for (int i=0; i < slaveNames.length; i++) {
+            SlaveServer slaveServer=transMeta.findSlaveServer(slaveNames[i]);
+            if (!filterMatch(slaveServer.getName()))             continue;
+            TreeItem tiSlave=new TreeItem(tiSlaveTitle,SWT.NONE);
+            tiSlave.setText(slaveServer.getName());
+            tiSlave.setImage(guiResource.getImageSlave());
+            if (slaveServer.isShared())             tiSlave.setFont(guiResource.getFontBold());
+          }
+          TreeItem tiClusterTitle=new TreeItem(tiTransName,SWT.NONE);
+          tiClusterTitle.setText(STRING_CLUSTERS);
+          tiClusterTitle.setImage(guiResource.getImageBol());
+          for (int i=0; i < transMeta.getClusterSchemas().size(); i++) {
+            ClusterSchema clusterSchema=transMeta.getClusterSchemas().get(i);
+            if (!filterMatch(clusterSchema.getName()))             continue;
+            TreeItem tiCluster=new TreeItem(tiClusterTitle,SWT.NONE);
+            tiCluster.setText(clusterSchema.toString());
+            tiCluster.setImage(guiResource.getImageCluster());
+            if (clusterSchema.isShared())             tiCluster.setFont(guiResource.getFontBold());
+          }
         }
       }
     }
@@ -156,80 +153,83 @@
       tiJobs.setExpanded(true);
       TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiJobs,true);
     }
-    for (int t=0; t < jobMetas.length; t++) {
-      JobMeta jobMeta=jobMetas[t];
-      if (!props.isOnlyActiveFileShownInTree() || showAll || (activeJobMeta != null && activeJobMeta.equals(jobMeta))) {
-        String name=delegates.tabs.makeJobGraphTabName(jobMeta);
-        if (Const.isEmpty(name)) {
-          name=STRING_JOB_NO_NAME;
-        }
-        if (!filterMatch(name)) {
-          continue;
-        }
-        TreeItem tiJobName=new TreeItem(tiJobs,SWT.NONE);
-        tiJobName.setText(name);
-        tiJobName.setImage(guiResource.getImageJobGraph());
-        if (props.isOnlyActiveFileShownInTree()) {
-          TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiJobName,true);
-        }
-        TreeItem tiDbTitle=new TreeItem(tiJobName,SWT.NONE);
-        tiDbTitle.setText(STRING_CONNECTIONS);
-        tiDbTitle.setImage(guiResource.getImageBol());
-        String[] dbNames=new String[jobMeta.nrDatabases()];
-        for (int i=0; i < dbNames.length; i++)         dbNames[i]=jobMeta.getDatabase(i).getName();
-        Arrays.sort(dbNames,new Comparator<String>(){
-          public int compare(          String o1,          String o2){
-            return o1.compareToIgnoreCase(o2);
+    for (    TabMapEntry entry : delegates.tabs.getTabs()) {
+      Object managedObject=entry.getObject().getManagedObject();
+      if (managedObject instanceof JobMeta) {
+        JobMeta jobMeta=(JobMeta)managedObject;
+        if (!props.isOnlyActiveFileShownInTree() || showAll || (activeJobMeta != null && activeJobMeta.equals(jobMeta))) {
+          String name=delegates.tabs.makeTabName(jobMeta,true);
+          if (Const.isEmpty(name)) {
+            name=STRING_JOB_NO_NAME;
           }
-        }
+          if (!filterMatch(name)) {
+            continue;
+          }
+          TreeItem tiJobName=new TreeItem(tiJobs,SWT.NONE);
+          tiJobName.setText(name);
+          tiJobName.setImage(guiResource.getImageJobGraph());
+          if (props.isOnlyActiveFileShownInTree()) {
+            TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiJobName,true);
+          }
+          TreeItem tiDbTitle=new TreeItem(tiJobName,SWT.NONE);
+          tiDbTitle.setText(STRING_CONNECTIONS);
+          tiDbTitle.setImage(guiResource.getImageBol());
+          String[] dbNames=new String[jobMeta.nrDatabases()];
+          for (int i=0; i < dbNames.length; i++)           dbNames[i]=jobMeta.getDatabase(i).getName();
+          Arrays.sort(dbNames,new Comparator<String>(){
+            public int compare(            String o1,            String o2){
+              return o1.compareToIgnoreCase(o2);
+            }
+          }
 );
-        for (int i=0; i < dbNames.length; i++) {
-          DatabaseMeta databaseMeta=jobMeta.findDatabase(dbNames[i]);
-          if (!filterMatch(databaseMeta.getName()))           continue;
-          TreeItem tiDb=new TreeItem(tiDbTitle,SWT.NONE);
-          tiDb.setText(databaseMeta.getName());
-          if (databaseMeta.isShared())           tiDb.setFont(guiResource.getFontBold());
-          tiDb.setImage(guiResource.getImageConnection());
-        }
-        TreeItem tiJobEntriesTitle=new TreeItem(tiJobName,SWT.NONE);
-        tiJobEntriesTitle.setText(STRING_JOB_ENTRIES);
-        tiJobEntriesTitle.setImage(guiResource.getImageBol());
-        for (int i=0; i < jobMeta.nrJobEntries(); i++) {
-          JobEntryCopy jobEntry=jobMeta.getJobEntry(i);
-          if (!filterMatch(jobEntry.getName()) && !filterMatch(jobEntry.getDescription()))           continue;
-          TreeItem tiJobEntry=ConstUI.findTreeItem(tiJobEntriesTitle,jobEntry.getName());
-          if (tiJobEntry != null)           continue;
-          tiJobEntry=new TreeItem(tiJobEntriesTitle,SWT.NONE);
-          tiJobEntry.setText(jobEntry.getName());
-          if (jobEntry.isStart()) {
-            tiJobEntry.setImage(GUIResource.getInstance().getImageStart());
+          for (int i=0; i < dbNames.length; i++) {
+            DatabaseMeta databaseMeta=jobMeta.findDatabase(dbNames[i]);
+            if (!filterMatch(databaseMeta.getName()))             continue;
+            TreeItem tiDb=new TreeItem(tiDbTitle,SWT.NONE);
+            tiDb.setText(databaseMeta.getName());
+            if (databaseMeta.isShared())             tiDb.setFont(guiResource.getFontBold());
+            tiDb.setImage(guiResource.getImageConnection());
           }
- else           if (jobEntry.isDummy()) {
-            tiJobEntry.setImage(GUIResource.getInstance().getImageDummy());
-          }
+          TreeItem tiJobEntriesTitle=new TreeItem(tiJobName,SWT.NONE);
+          tiJobEntriesTitle.setText(STRING_JOB_ENTRIES);
+          tiJobEntriesTitle.setImage(guiResource.getImageBol());
+          for (int i=0; i < jobMeta.nrJobEntries(); i++) {
+            JobEntryCopy jobEntry=jobMeta.getJobEntry(i);
+            if (!filterMatch(jobEntry.getName()) && !filterMatch(jobEntry.getDescription()))             continue;
+            TreeItem tiJobEntry=ConstUI.findTreeItem(tiJobEntriesTitle,jobEntry.getName());
+            if (tiJobEntry != null)             continue;
+            tiJobEntry=new TreeItem(tiJobEntriesTitle,SWT.NONE);
+            tiJobEntry.setText(jobEntry.getName());
+            if (jobEntry.isStart()) {
+              tiJobEntry.setImage(GUIResource.getInstance().getImageStart());
+            }
+ else             if (jobEntry.isDummy()) {
+              tiJobEntry.setImage(GUIResource.getInstance().getImageDummy());
+            }
  else {
-            String key=jobEntry.getEntry().getTypeId();
-            Image image=GUIResource.getInstance().getImagesJobentriesSmall().get(key);
-            tiJobEntry.setImage(image);
+              String key=jobEntry.getEntry().getTypeId();
+              Image image=GUIResource.getInstance().getImagesJobentriesSmall().get(key);
+              tiJobEntry.setImage(image);
+            }
           }
-        }
-        TreeItem tiSlaveTitle=new TreeItem(tiJobName,SWT.NONE);
-        tiSlaveTitle.setText(STRING_SLAVES);
-        tiSlaveTitle.setImage(guiResource.getImageBol());
-        String[] slaveNames=jobMeta.getSlaveServerNames();
-        Arrays.sort(slaveNames,new Comparator<String>(){
-          public int compare(          String o1,          String o2){
-            return o1.compareToIgnoreCase(o2);
+          TreeItem tiSlaveTitle=new TreeItem(tiJobName,SWT.NONE);
+          tiSlaveTitle.setText(STRING_SLAVES);
+          tiSlaveTitle.setImage(guiResource.getImageBol());
+          String[] slaveNames=jobMeta.getSlaveServerNames();
+          Arrays.sort(slaveNames,new Comparator<String>(){
+            public int compare(            String o1,            String o2){
+              return o1.compareToIgnoreCase(o2);
+            }
           }
-        }
 );
-        for (int i=0; i < slaveNames.length; i++) {
-          SlaveServer slaveServer=jobMeta.findSlaveServer(slaveNames[i]);
-          if (!filterMatch(slaveServer.getName()))           continue;
-          TreeItem tiSlave=new TreeItem(tiSlaveTitle,SWT.NONE);
-          tiSlave.setText(slaveServer.getName());
-          tiSlave.setImage(guiResource.getImageSlave());
-          if (slaveServer.isShared())           tiSlave.setFont(guiResource.getFontBold());
+          for (int i=0; i < slaveNames.length; i++) {
+            SlaveServer slaveServer=jobMeta.findSlaveServer(slaveNames[i]);
+            if (!filterMatch(slaveServer.getName()))             continue;
+            TreeItem tiSlave=new TreeItem(tiSlaveTitle,SWT.NONE);
+            tiSlave.setText(slaveServer.getName());
+            tiSlave.setImage(guiResource.getImageSlave());
+            if (slaveServer.isShared())             tiSlave.setFont(guiResource.getFontBold());
+          }
         }
       }
     }

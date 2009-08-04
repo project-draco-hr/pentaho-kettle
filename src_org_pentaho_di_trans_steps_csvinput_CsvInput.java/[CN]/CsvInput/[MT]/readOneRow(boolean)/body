@@ -4,6 +4,8 @@
     int outputIndex=0;
     boolean newLineFound=false;
     int newLines=0;
+    List<Exception> conversionExceptions=null;
+    List<ValueMetaInterface> exceptionFields=null;
     while (!newLineFound && outputIndex < meta.getInputFields().length) {
       if (checkBufferSize()) {
         if (outputRowData != null) {
@@ -99,7 +101,18 @@
         }
  else {
           ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(outputIndex);
-          outputRowData[outputIndex++]=sourceValueMeta.convertBinaryStringToNativeType(field);
+          try {
+            outputRowData[outputIndex++]=sourceValueMeta.convertBinaryStringToNativeType(field);
+          }
+ catch (          KettleValueException e) {
+            outputRowData[outputIndex++]=null;
+            if (conversionExceptions == null) {
+              conversionExceptions=new ArrayList<Exception>();
+              exceptionFields=new ArrayList<ValueMetaInterface>();
+            }
+            conversionExceptions.add(e);
+            exceptionFields.add(sourceValueMeta);
+          }
         }
       }
  else {
@@ -143,9 +156,15 @@
       outputRowData[data.rownumFieldIndex]=new Long(data.rowNumber++);
     }
     incrementLinesInput();
+    if (conversionExceptions != null && conversionExceptions.size() > 0) {
+      throw new KettleConversionException("There were " + conversionExceptions.size() + " conversion errors on line "+ getLinesInput(),conversionExceptions,exceptionFields,outputRowData);
+    }
     return outputRowData;
   }
- catch (  Exception e) {
+ catch (  KettleConversionException e) {
+    throw e;
+  }
+catch (  Exception e) {
     throw new KettleFileException("Exception reading line using NIO",e);
   }
 }

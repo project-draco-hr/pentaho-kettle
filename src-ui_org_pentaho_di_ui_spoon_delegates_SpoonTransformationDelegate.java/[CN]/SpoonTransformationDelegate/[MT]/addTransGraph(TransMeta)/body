@@ -1,12 +1,27 @@
 {
-  String key=addTransformation(transMeta);
-  if (key != null) {
-    String tabName=spoon.delegates.tabs.makeTransGraphTabName(transMeta);
-    TabItem tabItem=spoon.delegates.tabs.findTabItem(tabName,ObjectType.TRANSFORMATION_GRAPH);
-    if (tabItem == null) {
+  boolean added=addTransformation(transMeta);
+  if (added) {
+    boolean showLocation=false;
+    boolean addTab=true;
+    String tabName=spoon.delegates.tabs.makeTabName(transMeta,showLocation);
+    TabMapEntry tabEntry=spoon.delegates.tabs.findTabMapEntry(tabName,ObjectType.TRANSFORMATION_GRAPH);
+    if (tabEntry != null) {
+      showLocation=true;
+      tabName=spoon.delegates.tabs.makeTabName(transMeta,showLocation);
+      TabMapEntry exactSameEntry=spoon.delegates.tabs.findTabMapEntry(tabName,ObjectType.TRANSFORMATION_GRAPH);
+      if (exactSameEntry != null) {
+        addTab=false;
+      }
+ else {
+        tabEntry.setShowingLocation(true);
+        String newTabName=spoon.delegates.tabs.makeTabName(tabEntry.getObject().getMeta(),showLocation);
+        tabEntry.getTabItem().setText(newTabName);
+      }
+    }
+    if (addTab) {
       TransGraph transGraph=new TransGraph(spoon.tabfolder.getSwtTabset(),spoon,transMeta);
-      tabItem=new TabItem(spoon.tabfolder,tabName,tabName);
-      String toolTipText=BaseMessages.getString(PKG,"Spoon.TabTrans.Tooltip",spoon.delegates.tabs.makeTransGraphTabName(transMeta));
+      TabItem tabItem=new TabItem(spoon.tabfolder,tabName,tabName);
+      String toolTipText=BaseMessages.getString(PKG,"Spoon.TabTrans.Tooltip",spoon.delegates.tabs.makeTabName(transMeta,showLocation));
       if (!Const.isEmpty(transMeta.getFilename()))       toolTipText+=Const.CR + Const.CR + transMeta.getFilename();
       tabItem.setToolTipText(toolTipText);
       tabItem.setImage(GUIResource.getInstance().getImageTransGraph());
@@ -16,9 +31,11 @@
         transGraph.extraViewTabFolder.setSelection(transGraph.transHistoryDelegate.getTransHistoryTab());
       }
       String versionLabel=transMeta.getObjectVersion() == null ? null : transMeta.getObjectVersion().getName();
-      spoon.delegates.tabs.addTab(new TabMapEntry(tabItem,transMeta.getFilename(),transMeta.getName(),transMeta.getRepositoryDirectory(),versionLabel,transGraph,ObjectType.TRANSFORMATION_GRAPH));
+      tabEntry=new TabMapEntry(tabItem,transMeta.getFilename(),transMeta.getName(),transMeta.getRepositoryDirectory(),versionLabel,transGraph,ObjectType.TRANSFORMATION_GRAPH);
+      tabEntry.setShowingLocation(showLocation);
+      spoon.delegates.tabs.addTab(tabEntry);
     }
-    int idx=spoon.tabfolder.indexOf(tabItem);
+    int idx=spoon.tabfolder.indexOf(tabEntry.getTabItem());
     spoon.tabfolder.setSelected(idx);
     spoon.setUndoMenu(transMeta);
     spoon.enableMenus();

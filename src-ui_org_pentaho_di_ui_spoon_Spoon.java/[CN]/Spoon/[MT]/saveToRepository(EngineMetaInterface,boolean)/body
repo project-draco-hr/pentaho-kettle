@@ -40,45 +40,51 @@
       }
       boolean saved=false;
       if (response == SWT.YES) {
-        shell.setCursor(cursor_hourglass);
-        if (meta.getCreatedDate() == null) {
-          meta.setCreatedDate(new Date());
-          if (rep.getSecurityProvider().supportsUsers()) {
-            meta.setCreatedUser(rep.getUserInfo().getLogin());
+        try {
+          shell.setCursor(cursor_hourglass);
+          if (meta.getCreatedDate() == null) {
+            meta.setCreatedDate(new Date());
+            if (rep.getSecurityProvider().supportsUsers()) {
+              meta.setCreatedUser(rep.getUserInfo().getLogin());
+            }
           }
-        }
-        meta.setModifiedDate(new Date());
-        if (rep.getSecurityProvider().supportsUsers()) {
-          meta.setModifiedUser(rep.getUserInfo().getLogin());
-        }
-        String versionComment=null;
-        boolean versionOk=false;
-        while (!versionOk) {
-          versionComment=RepositorySecurityUI.getVersionComment(shell,rep,"Modification of [" + meta.getName() + "]");
-          if (Const.isEmpty(versionComment) && rep.getSecurityProvider().isVersionCommentMandatory()) {
-            if (!RepositorySecurityUI.showVersionCommentMandatoryDialog(shell)) {
+          meta.setModifiedDate(new Date());
+          if (rep.getSecurityProvider().supportsUsers()) {
+            meta.setModifiedUser(rep.getUserInfo().getLogin());
+          }
+          String versionComment=null;
+          boolean versionOk=false;
+          while (!versionOk) {
+            versionComment=RepositorySecurityUI.getVersionComment(shell,rep,meta.getName());
+            if (Const.isEmpty(versionComment) && rep.getSecurityProvider().isVersionCommentMandatory()) {
+              if (!RepositorySecurityUI.showVersionCommentMandatoryDialog(shell)) {
+                return false;
+              }
+            }
+ else {
               versionOk=true;
             }
           }
- else {
-            versionOk=true;
+          if (versionOk) {
+            SaveProgressDialog tspd=new SaveProgressDialog(shell,rep,meta,versionComment);
+            if (tspd.open()) {
+              saved=true;
+              if (!props.getSaveConfirmation()) {
+                MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"Spoon.Message.Warning.SaveOK"),null,BaseMessages.getString(PKG,"Spoon.Message.Warning.TransformationWasStored"),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"Spoon.Message.Warning.OK")},0,BaseMessages.getString(PKG,"Spoon.Message.Warning.NotShowThisMessage"),props.getSaveConfirmation());
+                MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
+                md.open();
+                props.setSaveConfirmation(md.getToggleState());
+              }
+              props.addLastFile(meta.getFileType(),meta.getName(),meta.getRepositoryDirectory().getPath(),true,getRepositoryName());
+              saveSettings();
+              addMenuLast();
+              setShellText();
+            }
           }
         }
-        SaveProgressDialog tspd=new SaveProgressDialog(shell,rep,meta,versionComment);
-        if (tspd.open()) {
-          saved=true;
-          if (!props.getSaveConfirmation()) {
-            MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"Spoon.Message.Warning.SaveOK"),null,BaseMessages.getString(PKG,"Spoon.Message.Warning.TransformationWasStored"),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"Spoon.Message.Warning.OK")},0,BaseMessages.getString(PKG,"Spoon.Message.Warning.NotShowThisMessage"),props.getSaveConfirmation());
-            MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
-            md.open();
-            props.setSaveConfirmation(md.getToggleState());
-          }
-          props.addLastFile(meta.getFileType(),meta.getName(),meta.getRepositoryDirectory().getPath(),true,getRepositoryName());
-          saveSettings();
-          addMenuLast();
-          setShellText();
+  finally {
+          shell.setCursor(null);
         }
-        shell.setCursor(null);
       }
       return saved;
     }

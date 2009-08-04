@@ -38,20 +38,37 @@
       return false;
     }
   }
-  Object[] outputRowData=readOneRow(true);
-  if (outputRowData == null) {
-    if (openNextFile()) {
-      return true;
+  try {
+    Object[] outputRowData=readOneRow(true);
+    if (outputRowData == null) {
+      if (openNextFile()) {
+        return true;
+      }
+ else {
+        setOutputDone();
+        return false;
+      }
     }
  else {
-      setOutputDone();
-      return false;
+      putRow(data.outputRowMeta,outputRowData);
+      if (checkFeedback(getLinesInput())) {
+        if (log.isBasic())         logBasic(BaseMessages.getString(PKG,"CsvInput.Log.LineNumber",Long.toString(getLinesInput())));
+      }
     }
   }
- else {
-    putRow(data.outputRowMeta,outputRowData);
-    if (checkFeedback(getLinesInput())) {
-      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"CsvInput.Log.LineNumber",Long.toString(getLinesInput())));
+ catch (  KettleConversionException e) {
+    if (meta.supportsErrorHandling()) {
+      StringBuffer errorDescriptions=new StringBuffer(100);
+      StringBuffer errorFields=new StringBuffer(50);
+      for (int i=0; i < e.getCauses().size(); i++) {
+        if (i > 0) {
+          errorDescriptions.append(", ");
+          errorFields.append(", ");
+        }
+        errorDescriptions.append(e.getCauses().get(i).getMessage());
+        errorFields.append(e.getFields().get(i).toStringMeta());
+      }
+      putError(data.outputRowMeta,e.getRowData(),e.getCauses().size(),errorDescriptions.toString(),errorFields.toString(),"CSVINPUT001");
     }
   }
   return true;
