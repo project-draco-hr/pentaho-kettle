@@ -50,10 +50,11 @@
         }
         return false;
       }
+      FileObject newFileObject=null;
       try {
         if (log.isDetailed())         log.logDetailed(toString(),BaseMessages.getString(PKG,"JobUnZip.Log.ProcessingZipEntry",item.getName().getURI(),sourceFileObject.toString()));
         String newFileName=realTargetdirectory + Const.FILE_SEPARATOR + getTargetFilename(item.getName().getPath());
-        FileObject newFileObject=KettleVFS.getFileObject(newFileName);
+        newFileObject=KettleVFS.getFileObject(newFileName);
         if (item.getType().equals(FileType.FOLDER)) {
           if (log.isDetailed())           log.logDetailed(toString(),BaseMessages.getString(PKG,"JobUnZip.CreatingDirectory.Label",newFileName));
           if (!newFileObject.exists())           newFileObject.createFolder();
@@ -106,6 +107,18 @@
  catch (      Exception e) {
         updateErrors();
         log.logError(toString(),BaseMessages.getString(PKG,"JobUnZip.Error.CanNotProcessZipEntry",item.getName().getURI(),sourceFileObject.toString()),e);
+      }
+ finally {
+        if (newFileObject != null) {
+          try {
+            newFileObject.close();
+          }
+ catch (          Exception e) {
+          }
+          ;
+        }
+        VFS.getManager().closeFileSystem(item.getFileSystem());
+        if (items != null)         items=null;
       }
     }
     if (afterunzip == 1) {
