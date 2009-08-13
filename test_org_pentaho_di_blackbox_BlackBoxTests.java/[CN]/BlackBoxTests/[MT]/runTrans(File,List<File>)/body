@@ -6,23 +6,27 @@
   log.addAppender(stringAppender);
   boolean ok=false;
   int failsIn=failures;
-  String actualFile=expected.getAbsolutePath();
-  actualFile=actualFile.replaceFirst(".expected.",".actual.");
   try {
     currentFile=transFile;
     if (!transFile.exists()) {
       log.logError("BlackBoxTest","Transformation does not exist: " + getPath(transFile));
       addFailure("Transformation does not exist: " + getPath(transFile));
     }
-    if (!expected.exists()) {
-      fail("Expected output file does not exist: " + getPath(expected));
-      addFailure("Expected output file does not exist: " + getPath(expected));
+    if (expectedFiles.isEmpty()) {
+      fail("No expected output files found: " + getPath(transFile));
+      addFailure("No expected output files found: " + getPath(transFile));
     }
-    File actual=new File(actualFile);
     try {
       ok=runTrans(transFile.getAbsolutePath(),log);
-      if (ok) {
-        fileCompare(expected,actual,log);
+      for (int i=0; i < expectedFiles.size(); i++) {
+        File expected=expectedFiles.get(i);
+        String actualFile=expected.getAbsolutePath();
+        actualFile=actualFile.replaceFirst(".expected.",".actual.");
+        actualFile=actualFile.replaceFirst(".expected_" + i + ".",".actual_" + i + ".");
+        File actual=new File(actualFile);
+        if (ok) {
+          fileCompare(expected,actual,log);
+        }
       }
     }
  catch (    KettleException ke) {
@@ -36,7 +40,8 @@ catch (    Throwable t) {
     System.err.println(failure.getMessage());
   }
   log.removeAppender(stringAppender);
-  if (!ok) {
+  if (!ok && expectedFiles.size() == 1) {
+    File expected=expectedFiles.get(0);
     String logStr=stringAppender.getBuffer().toString();
     String tmpFileName=transFile.getAbsolutePath().substring(0,transFile.getAbsolutePath().length() - 4) + "-log.txt";
     File logFile=new File(tmpFileName);
