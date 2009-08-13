@@ -1,0 +1,96 @@
+{
+  try {
+    mailConn.closeFolder(true);
+    if (!usePOP3 && !Const.isEmpty(realIMAPFolder)) {
+      mailConn.openFolder(realIMAPFolder,!(getActionType() == ACTION_TYPE_GET && getAfterGetIMAP() == AFTER_GET_IMAP_NOTHING));
+    }
+ else {
+      mailConn.openFolder(!(getActionType() == ACTION_TYPE_GET && getAfterGetIMAP() == AFTER_GET_IMAP_NOTHING));
+    }
+    mailConn.retrieveMessages();
+    int messagesCount=mailConn.getMessagesCount();
+    if (log.isDetailed()) {
+      log.logDetailed(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.TotalMessagesFolder.Label","" + messagesCount,Const.NVL(mailConn.getFolderName(),MailConnection.INBOX_FOLDER)));
+    }
+    messagesCount=nbrmailtoretrieve > 0 ? nbrmailtoretrieve > messagesCount ? messagesCount : nbrmailtoretrieve : messagesCount;
+    if (messagesCount > 0) {
+switch (getActionType()) {
+case ACTION_TYPE_DELETE:
+        if (nbrmailtoretrieve > 0) {
+          for (int i=0; i < messagesCount && !parentJob.isStopped(); i++) {
+            mailConn.fetchNext();
+            mailConn.deleteMessage();
+            if (log.isDebug())             log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessageDeleted","" + i));
+          }
+        }
+ else {
+          mailConn.deleteMessages(true);
+          if (log.isDebug())           log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessagesDeleted","" + messagesCount));
+        }
+      break;
+case ACTION_TYPE_MOVE:
+    if (nbrmailtoretrieve > 0) {
+      for (int i=0; i < messagesCount && !parentJob.isStopped(); i++) {
+        mailConn.fetchNext();
+        mailConn.moveMessage();
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessageMoved","" + i,realMoveToIMAPFolder));
+      }
+    }
+ else {
+      mailConn.moveMessages();
+      if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessagesMoved","" + messagesCount,realMoveToIMAPFolder));
+    }
+  break;
+default :
+for (int i=0; i < messagesCount && !parentJob.isStopped(); i++) {
+  mailConn.fetchNext();
+  int messagenumber=mailConn.getMessage().getMessageNumber();
+  boolean okPOP3=usePOP3 ? true : false;
+  boolean okIMAP=!usePOP3;
+  if (okPOP3 || okIMAP) {
+    if (log.isDebug()) {
+      log.logDebug(toString(),"--------------------------------------------------");
+      log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessageNumber.Label","" + messagenumber));
+      log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.ReceivedDate.Label",df.format(mailConn.getMessage().getReceivedDate())));
+      log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.ContentType.Label",mailConn.getMessage().getContentType()));
+      log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.EmailFrom.Label",Const.NVL(mailConn.getMessage().getFrom()[0].toString(),"")));
+      log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.EmailSubject.Label",Const.NVL(mailConn.getMessage().getSubject(),"")));
+    }
+    if (isSaveMessage()) {
+      String localfilename_message=replaceTokens(realFilenamePattern,i);
+      if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.LocalFilename.Label",localfilename_message));
+      mailConn.saveMessageContentToFile(localfilename_message,realOutputFolder);
+      if (log.isDetailed())       log.logDetailed(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessageSaved.Label","" + messagenumber,localfilename_message,realOutputFolder));
+    }
+    if (isSaveAttachment()) {
+      mailConn.saveAttachedFiles(targetAttachmentFolder,attachementPattern);
+    }
+    if (usePOP3) {
+      if (getDelete()) {
+        mailConn.deleteMessage();
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessageDeleted","" + messagenumber));
+      }
+    }
+ else {
+switch (getAfterGetIMAP()) {
+case AFTER_GET_IMAP_DELETE:
+        mailConn.deleteMessage();
+      if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessageDeleted","" + messagenumber));
+    break;
+case AFTER_GET_IMAP_MOVE:
+  mailConn.moveMessage();
+if (log.isDebug()) log.logDebug(toString(),BaseMessages.getString(PKG,"JobGetMailsFromPOP.MessageMoved","" + messagenumber,realMoveToIMAPFolder));
+break;
+default :
+}
+}
+}
+}
+break;
+}
+}
+}
+ catch (Exception e) {
+throw new KettleException(e);
+}
+}
