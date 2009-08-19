@@ -122,8 +122,9 @@
         addBacktracking(jobTracker,messageText);
       }
     }
-    Multipart parts=new MimeMultipart();
+    MimeMultipart parts=new MimeMultipart();
     MimeBodyPart part1=new MimeBodyPart();
+    int nrattachedFiles=0;
     if (useHTML) {
       if (!Const.isEmpty(getEncoding())) {
         part1.setContent(messageText.toString(),"text/html; " + "charset=" + getEncoding());
@@ -151,6 +152,7 @@
                 files.setDataHandler(new DataHandler(fds));
                 files.setFileName(file.getName().getBaseName());
                 parts.addBodyPart(files);
+                nrattachedFiles++;
                 log.logBasic(toString(),"Added file '" + fds.getName() + "' to the mail message.");
               }
             }
@@ -177,6 +179,7 @@
                 }
                 inputStream.close();
                 zipOutputStream.closeEntry();
+                nrattachedFiles++;
                 log.logBasic(toString(),"Added file '" + file.getName().getURI() + "' to the mail message in a zip archive.");
               }
             }
@@ -208,6 +211,46 @@
           }
         }
       }
+    }
+    int nrEmbeddedImages=0;
+    if (embeddedimages != null && embeddedimages.length > 0) {
+      FileObject imageFile=null;
+      for (int i=0; i < embeddedimages.length; i++) {
+        String realImageFile=environmentSubstitute(embeddedimages[i]);
+        try {
+          boolean found=false;
+          imageFile=KettleVFS.getFileObject(realImageFile);
+          if (imageFile.exists() && imageFile.getType() == FileType.FILE)           found=true;
+ else           log.logError(toString(),"We can not find [" + realImageFile + "] or it is not a file");
+          if (found) {
+            MimeBodyPart messageBodyPart=new MimeBodyPart();
+            URLDataSource fds=new URLDataSource(imageFile.getURL());
+            messageBodyPart.setDataHandler(new DataHandler(fds));
+            messageBodyPart.setHeader("Content-ID","<" + environmentSubstitute(contentids[i]) + ">");
+            parts.addBodyPart(messageBodyPart);
+            nrEmbeddedImages++;
+            log.logBasic(toString(),"Image '" + fds.getName() + "' was embedded in message.");
+          }
+        }
+ catch (        Exception e) {
+          log.logError(toString(),"Error embedding image [" + realImageFile + "] in message : "+ e.toString());
+          log.logError(toString(),Const.getStackTracker(e));
+          result.setNrErrors(1);
+        }
+ finally {
+          if (imageFile != null) {
+            try {
+              imageFile.close();
+            }
+ catch (            Exception e) {
+            }
+            ;
+          }
+        }
+      }
+    }
+    if (nrEmbeddedImages > 0 && nrattachedFiles == 0) {
+      parts.setSubType("related");
     }
     msg.setContent(parts);
     Transport transport=null;
