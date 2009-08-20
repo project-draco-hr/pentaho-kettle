@@ -7,11 +7,16 @@
     try {
       int result=httpclient.executeMethod(method);
       if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"HTTP.Log.ResponseStatusCode","" + result));
-      InputStream inputStream=method.getResponseBodyAsStream();
+      String encoding=method.getResponseHeader("Content-Type").getValue().replaceFirst("^.*;\\s*charset\\s*=\\s*","").trim();
+      if (encoding == null)       encoding="ISO-8859-1";
+      if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"HTTP.Log.ResponseHeaderEncoding",encoding));
+      InputStreamReader inputStreamReader=new InputStreamReader(method.getResponseBodyAsStream(),encoding);
       StringBuffer bodyBuffer=new StringBuffer();
       int c;
-      while ((c=inputStream.read()) != -1)       bodyBuffer.append((char)c);
-      inputStream.close();
+      while ((c=inputStreamReader.read()) != -1) {
+        bodyBuffer.append((char)c);
+      }
+      inputStreamReader.close();
       String body=bodyBuffer.toString();
       if (log.isDebug())       log.logDebug(toString(),"Response body: " + body);
       return RowDataUtil.addValueData(rowData,rowMeta.size(),body);
