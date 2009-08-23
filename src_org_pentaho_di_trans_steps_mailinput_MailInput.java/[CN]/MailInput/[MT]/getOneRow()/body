@@ -1,0 +1,79 @@
+{
+  while ((data.rownr >= data.messagesCount || data.folder == null)) {
+    if (!openNextFolder())     return null;
+  }
+  Object[] r=buildEmptyRow();
+  if (meta.isDynamicFolder())   System.arraycopy(data.readrow,0,r,0,data.readrow.length);
+  try {
+    data.mailConn.fetchNext();
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"MailInput.Log.FetchingMessage",data.mailConn.getMessage().getMessageNumber()));
+    for (int i=0; i < meta.getInputFields().length; i++) {
+      int index=data.totalpreviousfields + i;
+switch (meta.getInputFields()[i].getColumn()) {
+case MailInputField.COLUMN_MESSAGE_NR:
+        r[index]=new Long(data.mailConn.getMessage().getMessageNumber());
+      break;
+case MailInputField.COLUMN_SUBJECT:
+    r[index]=data.mailConn.getMessage().getSubject();
+  break;
+case MailInputField.COLUMN_SENDER:
+String From=null;
+if (data.mailConn.getMessage().getFrom() != null) {
+for (int f=0; f < data.mailConn.getMessage().getFrom().length; f++) {
+  if (From == null)   From=data.mailConn.getMessage().getFrom()[f].toString();
+ else   From+=";" + data.mailConn.getMessage().getFrom()[f].toString();
+}
+}
+r[index]=From;
+break;
+case MailInputField.COLUMN_REPLY_TO:
+String replyto=null;
+if (data.mailConn.getMessage().getFrom() != null) {
+for (int f=0; f < data.mailConn.getMessage().getReplyTo().length; f++) {
+if (replyto == null) replyto=data.mailConn.getMessage().getReplyTo()[f].toString();
+ else replyto+=";" + data.mailConn.getMessage().getReplyTo()[f].toString();
+}
+}
+r[index]=replyto;
+break;
+case MailInputField.COLUMN_RECIPIENTS:
+String Recipients=null;
+for (int f=0; f < data.mailConn.getMessage().getAllRecipients().length; f++) {
+if (Recipients == null) Recipients=data.mailConn.getMessage().getAllRecipients()[f].toString();
+ else Recipients+=";" + data.mailConn.getMessage().getAllRecipients()[f].toString();
+}
+r[index]=Recipients;
+break;
+case MailInputField.COLUMN_DESCRIPTION:
+r[index]=data.mailConn.getMessage().getDescription();
+break;
+case MailInputField.COLUMN_BODY:
+r[index]=data.mailConn.getMessageBody();
+break;
+case MailInputField.COLUMN_RECEIVED_DATE:
+r[index]=new Date(data.mailConn.getMessage().getReceivedDate().getTime());
+break;
+case MailInputField.COLUMN_SENT_DATE:
+r[index]=new Date(data.mailConn.getMessage().getReceivedDate().getTime());
+break;
+case MailInputField.COLUMN_CONTENT_TYPE:
+r[index]=data.mailConn.getMessage().getContentType();
+break;
+case MailInputField.COLUMN_FOLDER_NAME:
+r[index]=data.mailConn.getFolderName();
+break;
+case MailInputField.COLUMN_SIZE:
+r[index]=new Long(data.mailConn.getMessage().getSize());
+break;
+default :
+break;
+}
+}
+incrementLinesInput();
+data.rownr++;
+}
+ catch (Exception e) {
+throw new KettleException("Error adding values to row!",e);
+}
+return r;
+}

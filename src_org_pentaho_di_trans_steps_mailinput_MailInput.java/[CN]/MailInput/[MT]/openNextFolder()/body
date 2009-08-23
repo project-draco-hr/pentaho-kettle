@@ -1,0 +1,68 @@
+{
+  try {
+    if (!meta.isDynamicFolder()) {
+      if (data.folderenr >= data.folders.length) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"MailInput.Log.FinishedProcessing"));
+        return false;
+      }
+    }
+ else {
+      if (first) {
+        first=false;
+        data.readrow=getRow();
+        if (data.readrow == null) {
+          if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"MailInput.Log.FinishedProcessing"));
+          return false;
+        }
+        data.inputRowMeta=getInputRowMeta();
+        data.outputRowMeta=data.inputRowMeta.clone();
+        meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+        data.totalpreviousfields=data.inputRowMeta.size();
+        if (Const.isEmpty(meta.getFolderField())) {
+          log.logError(toString(),BaseMessages.getString(PKG,"MailInput.Error.DynamicFolderFieldMissing"));
+          stopAll();
+          setErrors(1);
+          return false;
+        }
+        data.indexOfFolderField=data.inputRowMeta.indexOfValue(meta.getFolderField());
+        if (data.indexOfFolderField < 0) {
+          log.logError(toString(),BaseMessages.getString(PKG,"MailInput.Error.DynamicFolderUnreachable",meta.getFolderField()));
+          stopAll();
+          setErrors(1);
+          return false;
+        }
+        String foldername=data.inputRowMeta.getString(data.readrow,data.indexOfFolderField);
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"MailInput.Log.FoldernameInStream",meta.getFolderField(),foldername));
+        data.folders=getFolders(foldername);
+      }
+      if (data.folderenr >= data.folders.length) {
+        data.readrow=getRow();
+        if (data.readrow == null) {
+          if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"MailInput.Log.FinishedProcessing"));
+          return false;
+        }
+        String foldername=data.inputRowMeta.getString(data.readrow,data.indexOfFolderField);
+        data.folders=getFolders(foldername);
+      }
+    }
+    data.folder=data.folders[data.folderenr];
+    data.folderenr++;
+    if (!data.usePOP && !Const.isEmpty(data.folder)) {
+      data.mailConn.openFolder(data.folder,false);
+    }
+ else {
+      data.mailConn.openFolder(false);
+    }
+    data.mailConn.retrieveMessages();
+    data.messagesCount=data.mailConn.getMessagesCount();
+    if (log.isDebug())     log.logDebug(toString(),BaseMessages.getString(PKG,"MailInput.Log.MessagesInFolder",data.folder,data.messagesCount));
+  }
+ catch (  Exception e) {
+    logError("Error opening folder " + data.folderenr + " "+ data.folder+ ": "+ e.toString());
+    logError(Const.getStackTracker(e));
+    stopAll();
+    setErrors(1);
+    return false;
+  }
+  return true;
+}

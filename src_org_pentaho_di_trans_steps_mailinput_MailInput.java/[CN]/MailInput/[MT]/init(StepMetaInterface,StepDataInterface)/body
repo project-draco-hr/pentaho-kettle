@@ -1,0 +1,69 @@
+{
+  meta=(MailInputMeta)smi;
+  data=(MailInputData)sdi;
+  if (super.init(smi,sdi)) {
+    if (!meta.isDynamicFolder()) {
+      try {
+        data.outputRowMeta=new RowMeta();
+        meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"MailInput.ErrorInit",e.toString()));
+        logError(Const.getStackTracker(e));
+        return false;
+      }
+    }
+    data.usePOP=meta.getProtocol().equals(MailConnectionMeta.PROTOCOL_STRING_POP3);
+    String realserver=environmentSubstitute(meta.getServerName());
+    String realusername=environmentSubstitute(meta.getUserName());
+    String realpassword=environmentSubstitute(meta.getPassword());
+    int realport=Const.toInt(environmentSubstitute(meta.getPort()),-1);
+    String realProxyUsername=environmentSubstitute(meta.getProxyUsername());
+    Date beginDate=null;
+    Date endDate=null;
+    SimpleDateFormat df=new SimpleDateFormat();
+    try {
+switch (meta.getConditionOnReceivedDate()) {
+case MailConnectionMeta.CONDITION_DATE_EQUAL:
+case MailConnectionMeta.CONDITION_DATE_GREATER:
+case MailConnectionMeta.CONDITION_DATE_SMALLER:
+        String realBeginDate=environmentSubstitute(meta.getReceivedDate1());
+      if (Const.isEmpty(realBeginDate))       throw new KettleException(BaseMessages.getString(PKG,"MailInput.Error.ReceivedDateSearchTermEmpty"));
+    beginDate=df.parse(realBeginDate);
+  break;
+case MailConnectionMeta.CONDITION_DATE_BETWEEN:
+realBeginDate=environmentSubstitute(meta.getReceivedDate1());
+if (Const.isEmpty(realBeginDate)) throw new KettleException(BaseMessages.getString(PKG,"MailInput.Error.ReceivedDatesSearchTermEmpty"));
+beginDate=df.parse(realBeginDate);
+String realEndDate=environmentSubstitute(meta.getReceivedDate2());
+if (Const.isEmpty(realEndDate)) throw new KettleException(BaseMessages.getString(PKG,"MailInput.Error.ReceivedDatesSearchTermEmpty"));
+endDate=df.parse(realEndDate);
+break;
+default :
+break;
+}
+}
+ catch (Exception e) {
+logError(BaseMessages.getString(PKG,"MailInput.Error.SettingSearchTerms",e.getMessage()));
+setErrors(1);
+stopAll();
+}
+try {
+data.mailConn=new MailConnection(data.usePOP ? MailConnectionMeta.PROTOCOL_POP3 : MailConnectionMeta.PROTOCOL_IMAP,realserver,realport,realusername,realpassword,meta.isUseSSL(),meta.isUseProxy(),realProxyUsername);
+data.mailConn.connect();
+applySearch(beginDate,endDate);
+if (!meta.isDynamicFolder()) {
+String realIMAPFolder=environmentSubstitute(meta.getIMAPFolder());
+data.folders=getFolders(realIMAPFolder);
+log.logBasic(toString(),"Sous r?pertoire ---------------------->" + data.folders.length);
+}
+}
+ catch (Exception e) {
+logError(BaseMessages.getString(PKG,"MailInput.Error.OpeningConnection",e.getMessage()));
+setErrors(1);
+stopAll();
+}
+return true;
+}
+return false;
+}
