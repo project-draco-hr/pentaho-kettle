@@ -34,11 +34,16 @@
       if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseCode","" + statusCode));
       String body=null;
       if (statusCode != -1) {
-        inputStream=post.getResponseBodyAsStream();
+        String encoding=post.getResponseHeader("Content-Type").getValue().replaceFirst("^.*;\\s*charset\\s*=\\s*","").trim();
+        if (encoding == null)         encoding="ISO-8859-1";
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.Encoding",encoding));
+        InputStreamReader inputStreamReader=new InputStreamReader(post.getResponseBodyAsStream(),encoding);
         StringBuffer bodyBuffer=new StringBuffer();
         int c;
-        while ((c=inputStream.read()) != -1)         bodyBuffer.append((char)c);
-        inputStream.close();
+        while ((c=inputStreamReader.read()) != -1) {
+          bodyBuffer.append((char)c);
+        }
+        inputStreamReader.close();
         body=bodyBuffer.toString();
         if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseBody",body));
       }
