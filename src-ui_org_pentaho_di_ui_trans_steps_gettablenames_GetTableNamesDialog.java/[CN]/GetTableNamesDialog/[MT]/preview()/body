@@ -1,0 +1,30 @@
+{
+  GetTableNamesMeta oneMeta=new GetTableNamesMeta();
+  getInfo(oneMeta);
+  if (oneMeta.getDatabase() == null) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+    mb.setMessage(BaseMessages.getString(PKG,"GetTableNamesDialog.InvalidConnection.DialogMessage"));
+    mb.setText(BaseMessages.getString(PKG,"GetTableNamesDialog.InvalidConnection.DialogTitle"));
+    mb.open();
+    return;
+  }
+  if (!checkUserInput(oneMeta))   return;
+  TransMeta previewMeta=TransPreviewFactory.generatePreviewTransformation(transMeta,oneMeta,wStepname.getText());
+  EnterNumberDialog numberDialog=new EnterNumberDialog(shell,props.getDefaultPreviewSize(),BaseMessages.getString(PKG,"GetTableNamesDialog.PreviewSize.DialogTitle"),BaseMessages.getString(PKG,"GetTableNamesDialog.PreviewSize.DialogMessage"));
+  int previewSize=numberDialog.open();
+  if (previewSize > 0) {
+    TransPreviewProgressDialog progressDialog=new TransPreviewProgressDialog(shell,previewMeta,new String[]{wStepname.getText()},new int[]{previewSize});
+    progressDialog.open();
+    if (!progressDialog.isCancelled()) {
+      Trans trans=progressDialog.getTrans();
+      String loggingText=progressDialog.getLoggingText();
+      if (trans.getResult() != null && trans.getResult().getNrErrors() > 0) {
+        EnterTextDialog etd=new EnterTextDialog(shell,BaseMessages.getString(PKG,"System.Dialog.Error.Title"),BaseMessages.getString(PKG,"GetTableNamesDialog.ErrorInPreview.DialogMessage"),loggingText,true);
+        etd.setReadOnly();
+        etd.open();
+      }
+      PreviewRowsDialog prd=new PreviewRowsDialog(shell,transMeta,SWT.NONE,wStepname.getText(),progressDialog.getPreviewRowsMeta(wStepname.getText()),progressDialog.getPreviewRows(wStepname.getText()),loggingText);
+      prd.open();
+    }
+  }
+}

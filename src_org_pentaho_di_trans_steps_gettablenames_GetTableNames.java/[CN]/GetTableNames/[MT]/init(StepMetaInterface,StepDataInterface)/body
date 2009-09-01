@@ -1,0 +1,44 @@
+{
+  meta=(GetTableNamesMeta)smi;
+  data=(GetTableNamesData)sdi;
+  if (super.init(smi,sdi)) {
+    if (Const.isEmpty(meta.getTablenameFieldName())) {
+      log.logError(toString(),BaseMessages.getString(PKG,"GetTableNames.Error.TablenameFieldNameMissing"));
+      return false;
+    }
+    data.realTableNameFieldName=environmentSubstitute(meta.getTablenameFieldName());
+    data.realObjectTypeFieldName=environmentSubstitute(meta.getObjectTypeFieldName());
+    data.realIsSystemObjectFieldName=environmentSubstitute(meta.isSystemObjectFieldName());
+    if (!meta.isIncludeTable() && !meta.isIncludeView() && !meta.isIncludeProcedure()&& !meta.isIncludeSyonym()) {
+      log.logError(toString(),BaseMessages.getString(PKG,"GetTableNames.Error.includeAtLeastOneType"));
+      return false;
+    }
+    try {
+      data.outputRowMeta=new RowMeta();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    }
+ catch (    Exception e) {
+      logError("Error initializing step: " + e.toString());
+      logError(Const.getStackTracker(e));
+      return false;
+    }
+    data.db=new Database(meta.getDatabase());
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"GetTableNames.Log.ConnectedToDB"));
+      return true;
+    }
+ catch (    KettleException e) {
+      logError(BaseMessages.getString(PKG,"GetTableNames.Log.DBException") + e.getMessage());
+      if (data.db != null)       data.db.disconnect();
+    }
+  }
+  return false;
+}
