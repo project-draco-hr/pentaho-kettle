@@ -1,49 +1,132 @@
 {
   meta=(GetTableNamesMeta)smi;
   data=(GetTableNamesData)sdi;
-  String tableNames[]=data.db.getTablenames();
-  if (meta.isIncludeTable()) {
-    String ObjectType=BaseMessages.getString(PKG,"GetTableNamesDialog.ObjectType.Table");
-    for (int i=0; i < tableNames.length && !isStopped(); i++) {
-      Object[] outputRow=buildEmptyRow();
-      int outputIndex=0;
-      String tableName=tableNames[i];
-      outputRow[outputIndex++]=tableName;
+  if (meta.isDynamicSchema()) {
+    data.readrow=getRow();
+    if (data.readrow == null) {
+      setOutputDone();
+      return false;
+    }
+  }
+  if (first) {
+    first=false;
+    if (meta.isDynamicSchema()) {
+      data.inputRowMeta=getInputRowMeta();
+      data.outputRowMeta=data.inputRowMeta.clone();
+      data.totalpreviousfields=data.inputRowMeta.size();
+      if (Const.isEmpty(meta.getSchemaFieldName())) {
+        logError(BaseMessages.getString(PKG,"GetTableNames.Log.NoSchemaField"));
+        throw new KettleException(BaseMessages.getString(PKG,"GetTableNames.Log.NoSchemaField"));
+      }
+      if (data.indexOfSchemaField < 0) {
+        data.indexOfSchemaField=data.inputRowMeta.indexOfValue(meta.getSchemaFieldName());
+        if (data.indexOfSchemaField < 0) {
+          logError(BaseMessages.getString(PKG,"GetTableNames.Log.ErrorFindingField") + "[" + meta.getSchemaFieldName()+ "]");
+          throw new KettleException(BaseMessages.getString(PKG,"GetTableNames.Exception.CouldnotFindField",meta.getSchemaFieldName()));
+        }
+      }
+    }
+ else {
+      data.outputRowMeta=new RowMeta();
+    }
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+  }
+  if (meta.isDynamicSchema()) {
+    data.realSchemaName=data.inputRowMeta.getString(data.readrow,data.indexOfSchemaField);
+  }
+  Object[] outputRow=buildEmptyRow();
+  if (meta.isDynamicSchema()) {
+    System.arraycopy(data.readrow,0,outputRow,0,data.readrow.length);
+  }
+  if (meta.isIncludeCatalog()) {
+    String ObjectType=BaseMessages.getString(PKG,"GetTableNames.ObjectType.Catalog");
+    String catalogsNames[]=data.db.getCatalogs();
+    for (int i=0; i < catalogsNames.length && !isStopped(); i++) {
+      Object[] outputRowSchema=outputRow;
+      int outputIndex=data.totalpreviousfields;
+      String catalogName=catalogsNames[i];
+      outputRowSchema[outputIndex++]=catalogName;
       if (!Const.isEmpty(data.realObjectTypeFieldName)) {
-        outputRow[outputIndex++]=ObjectType;
+        outputRowSchema[outputIndex++]=ObjectType;
       }
       if (!Const.isEmpty(data.realIsSystemObjectFieldName)) {
-        outputRow[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(tableName));
+        outputRowSchema[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(catalogName));
       }
       data.rownr++;
-      putRow(data.outputRowMeta,outputRow);
+      putRow(data.outputRowMeta,outputRowSchema);
       if (checkFeedback(getLinesRead())) {
         if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"GetTableNames.LineNumber","" + getLinesRead()));
       }
-      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRow)));
+      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRowSchema)));
+    }
+  }
+  if (meta.isIncludeSchema()) {
+    String ObjectType=BaseMessages.getString(PKG,"GetTableNamesDialog.ObjectType.Schema");
+    String schemaNames[]=new String[]{};
+    if (!Const.isEmpty(data.realSchemaName))     schemaNames=new String[]{data.realSchemaName};
+ else     schemaNames=data.db.getSchemas();
+    for (int i=0; i < schemaNames.length && !isStopped(); i++) {
+      Object[] outputRowSchema=outputRow;
+      int outputIndex=data.totalpreviousfields;
+      String schemaName=schemaNames[i];
+      outputRowSchema[outputIndex++]=schemaName;
+      if (!Const.isEmpty(data.realObjectTypeFieldName)) {
+        outputRowSchema[outputIndex++]=ObjectType;
+      }
+      if (!Const.isEmpty(data.realIsSystemObjectFieldName)) {
+        outputRowSchema[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(schemaName));
+      }
+      data.rownr++;
+      putRow(data.outputRowMeta,outputRowSchema);
+      if (checkFeedback(getLinesRead())) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"GetTableNames.LineNumber","" + getLinesRead()));
+      }
+      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRowSchema)));
+    }
+  }
+  if (meta.isIncludeTable()) {
+    String tableNames[]=data.db.getTablenames(data.realSchemaName,meta.isAddSchemaInOut());
+    String ObjectType=BaseMessages.getString(PKG,"GetTableNamesDialog.ObjectType.Table");
+    for (int i=0; i < tableNames.length && !isStopped(); i++) {
+      Object[] outputRowTable=outputRow;
+      int outputIndex=data.totalpreviousfields;
+      String tableName=tableNames[i];
+      outputRowTable[outputIndex++]=tableName;
+      if (!Const.isEmpty(data.realObjectTypeFieldName)) {
+        outputRowTable[outputIndex++]=ObjectType;
+      }
+      if (!Const.isEmpty(data.realIsSystemObjectFieldName)) {
+        outputRowTable[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(tableName));
+      }
+      data.rownr++;
+      putRow(data.outputRowMeta,outputRowTable);
+      if (checkFeedback(getLinesRead())) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"GetTableNames.LineNumber","" + getLinesRead()));
+      }
+      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRowTable)));
     }
   }
   if (meta.isIncludeView()) {
     try {
-      String viewNames[]=data.db.getViews();
+      String viewNames[]=data.db.getViews(data.realSchemaName,meta.isAddSchemaInOut());
       String ObjectType=BaseMessages.getString(PKG,"GetTableNamesDialog.ObjectType.View");
       for (int i=0; i < viewNames.length && !isStopped(); i++) {
-        Object[] outputRow=buildEmptyRow();
-        int outputIndex=0;
+        Object[] outputRowView=outputRow;
+        int outputIndex=data.totalpreviousfields;
         String viewName=viewNames[i];
-        outputRow[outputIndex++]=viewName;
+        outputRowView[outputIndex++]=viewName;
         if (!Const.isEmpty(data.realObjectTypeFieldName)) {
-          outputRow[outputIndex++]=ObjectType;
+          outputRowView[outputIndex++]=ObjectType;
         }
         if (!Const.isEmpty(data.realIsSystemObjectFieldName)) {
-          outputRow[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(viewName));
+          outputRowView[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(viewName));
         }
         data.rownr++;
-        putRow(data.outputRowMeta,outputRow);
+        putRow(data.outputRowMeta,outputRowView);
         if (checkFeedback(getLinesRead())) {
           if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"GetTableNames.LineNumber","" + getLinesRead()));
         }
-        if (log.isRowLevel())         logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRow)));
+        if (log.isRowLevel())         logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRowView)));
       }
     }
  catch (    Exception e) {
@@ -54,46 +137,51 @@
     String procNames[]=data.db.getProcedures();
     String ObjectType=BaseMessages.getString(PKG,"GetTableNamesDialog.ObjectType.Procedure");
     for (int i=0; i < procNames.length && !isStopped(); i++) {
-      Object[] outputRow=buildEmptyRow();
-      int outputIndex=0;
+      Object[] outputRowProc=outputRow;
+      int outputIndex=data.totalpreviousfields;
       String procName=procNames[i];
-      outputRow[outputIndex++]=procName;
+      outputRowProc[outputIndex++]=procName;
       if (!Const.isEmpty(data.realObjectTypeFieldName)) {
-        outputRow[outputIndex++]=ObjectType;
+        outputRowProc[outputIndex++]=ObjectType;
       }
       if (!Const.isEmpty(data.realIsSystemObjectFieldName)) {
-        outputRow[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(procName));
+        outputRowProc[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(procName));
       }
       data.rownr++;
-      putRow(data.outputRowMeta,outputRow);
+      putRow(data.outputRowMeta,outputRowProc);
       if (checkFeedback(getLinesRead())) {
         if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"GetTableNames.LineNumber","" + getLinesRead()));
       }
-      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRow)));
+      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRowProc)));
     }
   }
-  if (meta.isIncludeSyonym()) {
-    String Synonyms[]=data.db.getSynonyms();
+  if (meta.isIncludeSynonym()) {
+    String Synonyms[]=data.db.getSynonyms(data.realSchemaName,meta.isAddSchemaInOut());
     String ObjectType=BaseMessages.getString(PKG,"GetTableNamesDialog.ObjectType.Synonym");
     for (int i=0; i < Synonyms.length && !isStopped(); i++) {
-      Object[] outputRow=buildEmptyRow();
-      int outputIndex=0;
+      Object[] outputRowSyn=outputRow;
+      int outputIndex=data.totalpreviousfields;
       String Synonym=Synonyms[i];
-      outputRow[outputIndex++]=Synonym;
+      outputRowSyn[outputIndex++]=Synonym;
       if (!Const.isEmpty(data.realObjectTypeFieldName)) {
-        outputRow[outputIndex++]=ObjectType;
+        outputRowSyn[outputIndex++]=ObjectType;
       }
       if (!Const.isEmpty(data.realIsSystemObjectFieldName)) {
-        outputRow[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(Synonym));
+        outputRowSyn[outputIndex++]=Boolean.valueOf(data.db.isSystemTable(Synonym));
       }
       data.rownr++;
-      putRow(data.outputRowMeta,outputRow);
+      putRow(data.outputRowMeta,outputRowSyn);
       if (checkFeedback(getLinesRead())) {
         if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"GetTableNames.LineNumber","" + getLinesRead()));
       }
-      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRow)));
+      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"GetTableNames.Log.PutoutRow",data.outputRowMeta.getString(outputRowSyn)));
     }
   }
-  setOutputDone();
-  return false;
+  if (!meta.isDynamicSchema()) {
+    setOutputDone();
+    return false;
+  }
+ else {
+    return true;
+  }
 }
