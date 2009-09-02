@@ -1,0 +1,42 @@
+{
+  newTab.removeAll();
+  String tableName=tablename;
+  String st[]=tableName.split("\\.",2);
+  if (st.length > 1) {
+    tableName=st[1];
+  }
+  if (dbMeta.isInNeedOfQuoting(tablename))   tableName=dbMeta.quoteField(tableName);
+  String sql=dbMeta.getSQLQueryFields(tableName);
+  Database db=new Database(dbMeta);
+  RowMetaInterface result=null;
+  HashSet<String> pk=new HashSet<String>();
+  try {
+    db.connect();
+    result=db.getQueryFields(sql,false);
+    if (result != null) {
+      pk=db.getPrimaryKeys(tableName);
+      System.out.println("-----" + pk.toString());
+      for (int c=0; c < result.size(); c++) {
+        ValueMetaInterface v=result.getValueMeta(c);
+        if (v.getName() != null) {
+          TreeItem newCol=new TreeItem(newTab,SWT.NONE);
+          if (pk.contains(v.getName())) {
+            System.out.println("-----" + v.getName());
+            newCol.setImage(GUIResource.getInstance().getImageKeySmall());
+          }
+ else           newCol.setImage(GUIResource.getInstance().getImageColumnSmall());
+          newCol.setText(v.getName() + " (" + v.getTypeDesc()+ " "+ (v.getLength() < 0 ? "" : "" + v.getLength())+ ")");
+        }
+      }
+    }
+    newTab.setExpanded(true);
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,"Error","Error getting colums from table [" + tablename + "]",e);
+  }
+ finally {
+    db.disconnect();
+    pk.clear();
+    pk=null;
+  }
+}
