@@ -1,8 +1,6 @@
 {
   meta=(ExecProcessMeta)smi;
   data=(ExecProcessData)sdi;
-  boolean sendToErrorRow=false;
-  String errorMessage=null;
   Object[] r=getRow();
   if (r == null) {
     setOutputDone();
@@ -31,16 +29,32 @@
     outputRow[i]=r[i];
   }
   String processString=data.previousRowMeta.getString(r,data.indexOfProcess);
+  ProcessResult processResult=new ProcessResult();
   try {
     if (Const.isEmpty(processString))     throw new KettleException(BaseMessages.getString(PKG,"ExecProcess.ProcessEmpty"));
-    String resultString=execProcess(processString);
-    outputRow[data.NrPrevFields]=resultString;
+    execProcess(processString,processResult);
+    if (meta.isFailWhenNotSuccess()) {
+      if (processResult.getExistStatus() != 0) {
+        String errorString=processResult.getErrorStream();
+        if (Const.isEmpty(errorString)) {
+          errorString=processResult.getOutputStream();
+        }
+        throw new KettleException(errorString);
+      }
+    }
+    outputRow[data.NrPrevFields]=processResult.getOutputStream();
     int rowIndex=data.NrPrevFields;
+    rowIndex++;
+    outputRow[data.NrPrevFields]=processResult.getErrorStream();
+    rowIndex++;
+    outputRow[data.NrPrevFields]=processResult.getExistStatus();
     rowIndex++;
     putRow(data.outputRowMeta,outputRow);
     if (log.isRowLevel())     log.logRowlevel(toString(),BaseMessages.getString(PKG,"ExecProcess.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
   }
  catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
     if (getStepMeta().isDoingErrorHandling()) {
       sendToErrorRow=true;
       errorMessage=e.toString();
