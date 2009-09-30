@@ -4,17 +4,33 @@
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"HTTPPOST.Log.ConnectingToURL",data.realUrl));
     HttpClient HTTPPOSTclient=new HttpClient();
     PostMethod post=new PostMethod(data.realUrl);
-    if (Const.isEmpty(data.realEncoding))     post.setRequestHeader("Content-type","text/xml");
- else     post.setRequestHeader("Content-type","text/xml; " + data.realEncoding);
+    if (!data.contentTypeHeaderOverwrite) {
+      if (Const.isEmpty(data.realEncoding)) {
+        post.setRequestHeader(CONTENT_TYPE,CONTENT_TYPE_TEXT_XML);
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.HeaderValue",CONTENT_TYPE,CONTENT_TYPE_TEXT_XML));
+      }
+ else {
+        post.setRequestHeader(CONTENT_TYPE,CONTENT_TYPE_TEXT_XML + "; " + data.realEncoding);
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.HeaderValue",CONTENT_TYPE,CONTENT_TYPE_TEXT_XML + "; " + data.realEncoding));
+      }
+    }
+    if (data.useHeaderParameters) {
+      for (int i=0; i < data.header_parameters_nrs.length; i++) {
+        post.addRequestHeader(data.headerParameters[i].getName(),data.inputRowMeta.getString(rowData,data.header_parameters_nrs[i]));
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.HeaderValue",data.headerParameters[i].getName(),data.inputRowMeta.getString(rowData,data.header_parameters_nrs[i])));
+      }
+    }
     if (data.useBodyParameters) {
       for (int i=0; i < data.body_parameters_nrs.length; i++) {
         data.bodyParameters[i].setValue(data.inputRowMeta.getString(rowData,data.body_parameters_nrs[i]));
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.BodyValue",data.bodyParameters[i].getName(),data.inputRowMeta.getString(rowData,data.body_parameters_nrs[i])));
       }
-      post.setRequestBody(data.bodyParameters);
     }
+    post.setRequestBody(data.bodyParameters);
     if (data.useQueryParameters) {
       for (int i=0; i < data.query_parameters_nrs.length; i++) {
         data.queryParameters[i].setValue(data.inputRowMeta.getString(rowData,data.query_parameters_nrs[i]));
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.QueryValue",data.queryParameters[i].getName(),data.inputRowMeta.getString(rowData,data.query_parameters_nrs[i])));
       }
       post.setQueryString(data.queryParameters);
     }
@@ -29,6 +45,7 @@
       }
     }
     InputStream inputStream=null;
+    Object[] newRow=null;
     try {
       int statusCode=HTTPPOSTclient.executeMethod(post);
       if (log.isDebug())       log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseCode","" + statusCode));
@@ -47,12 +64,20 @@
         body=bodyBuffer.toString();
         if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseBody",body));
       }
-      return RowDataUtil.addValueData(rowData,data.inputRowMeta.size(),body);
+      int returnFieldsOffset=data.inputRowMeta.size();
+      if (!Const.isEmpty(meta.getFieldName())) {
+        newRow=RowDataUtil.addValueData(rowData,returnFieldsOffset,body);
+        returnFieldsOffset++;
+      }
+      if (!Const.isEmpty(meta.getResultCodeFieldName())) {
+        newRow=RowDataUtil.addValueData(rowData,returnFieldsOffset,new Long(statusCode));
+      }
     }
   finally {
       if (inputStream != null)       inputStream.close();
       post.releaseConnection();
     }
+    return newRow;
   }
  catch (  Exception e) {
     throw new KettleException(BaseMessages.getString(PKG,"HTTPPOST.Error.CanNotReadURL",data.realUrl),e);

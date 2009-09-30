@@ -32,16 +32,46 @@
     }
     int nrargs=meta.getArgumentField().length;
     if (nrargs > 0) {
-      data.useBodyParameters=true;
-      data.body_parameters_nrs=new int[nrargs];
-      data.bodyParameters=new NameValuePair[nrargs];
+      data.useBodyParameters=false;
+      data.useHeaderParameters=false;
+      data.contentTypeHeaderOverwrite=false;
+      int nrheader=0;
+      int nrbody=0;
       for (int i=0; i < nrargs; i++) {
-        data.body_parameters_nrs[i]=data.inputRowMeta.indexOfValue(meta.getArgumentField()[i]);
-        if (data.body_parameters_nrs[i] < 0) {
+        if (meta.getArgumentHeader()[i]) {
+          data.useHeaderParameters=true;
+          nrheader++;
+        }
+ else {
+          data.useBodyParameters=true;
+          nrbody++;
+        }
+      }
+      data.header_parameters_nrs=new int[nrheader];
+      data.headerParameters=new NameValuePair[nrheader];
+      data.body_parameters_nrs=new int[nrbody];
+      data.bodyParameters=new NameValuePair[nrbody];
+      int posHeader=0;
+      int posBody=0;
+      for (int i=0; i < nrargs; i++) {
+        int fieldIndex=data.inputRowMeta.indexOfValue(meta.getArgumentField()[i]);
+        if (fieldIndex < 0) {
           logError(BaseMessages.getString(PKG,"HTTPPOST.Log.ErrorFindingField") + meta.getArgumentField()[i] + "]");
           throw new KettleStepException(BaseMessages.getString(PKG,"HTTPPOST.Exception.CouldnotFindField",meta.getArgumentField()[i]));
         }
-        data.bodyParameters[i]=new NameValuePair(environmentSubstitute(meta.getArgumentParameter()[i]),data.outputRowMeta.getString(r,data.body_parameters_nrs[i]));
+        if (meta.getArgumentHeader()[i]) {
+          data.header_parameters_nrs[posHeader]=fieldIndex;
+          data.headerParameters[posHeader]=new NameValuePair(environmentSubstitute(meta.getArgumentParameter()[i]),data.outputRowMeta.getString(r,data.header_parameters_nrs[posHeader]));
+          posHeader++;
+          if (CONTENT_TYPE.equalsIgnoreCase(meta.getArgumentField()[i])) {
+            data.contentTypeHeaderOverwrite=true;
+          }
+        }
+ else {
+          data.body_parameters_nrs[posBody]=fieldIndex;
+          data.bodyParameters[posBody]=new NameValuePair(environmentSubstitute(meta.getArgumentParameter()[i]),data.outputRowMeta.getString(r,data.body_parameters_nrs[posBody]));
+          posBody++;
+        }
       }
     }
     int nrQuery=meta.getQueryField().length;
