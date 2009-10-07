@@ -1,0 +1,31 @@
+{
+  boolean retval=false;
+  try {
+    incrFilesToProcess();
+    File sourceDataFile=new File(sourceFilename);
+    File targetDbFile=new File(targetFilename);
+    if (!targetDbFile.exists()) {
+      Database.create(targetDbFile);
+      logBasic(BaseMessages.getString(PKG,"JobEntryMSAccessBulkLoad.Log.DbCreated",targetFilename));
+    }
+ else {
+      Database db=Database.open(targetDbFile);
+      logBasic(BaseMessages.getString(PKG,"JobEntryMSAccessBulkLoad.Log.DbOpened",targetFilename));
+      if (db.getTable(tablename) != null) {
+        logBasic(BaseMessages.getString(PKG,"JobEntryMSAccessBulkLoad.Log.TableExists",tablename));
+      }
+      if (db != null)       db.close();
+      logBasic(BaseMessages.getString(PKG,"JobEntryMSAccessBulkLoad.Log.DbCosed",targetFilename));
+    }
+    Database.open(targetDbFile).importFile(tablename,sourceDataFile,delimiter);
+    logBasic(BaseMessages.getString(PKG,"JobEntryMSAccessBulkLoad.Log.FileImported",sourceFilename,tablename,targetFilename));
+    if (add_result_filenames)     addFileToResultFilenames(sourceFilename,result,parentJob);
+    retval=true;
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobEntryMSAccessBulkLoad.Error.LoadingDataToFile",sourceFilename,targetFilename,e.getMessage()));
+  }
+  if (retval)   incrSuccess();
+ else   incrErrors();
+  return retval;
+}

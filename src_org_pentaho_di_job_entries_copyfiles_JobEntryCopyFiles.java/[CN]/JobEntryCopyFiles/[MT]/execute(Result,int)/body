@@ -1,0 +1,55 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  int NbrFail=0;
+  NbrFail=0;
+  if (log.isBasic())   logBasic(BaseMessages.getString(PKG,"JobCopyFiles.Log.Starting"));
+  String vsourcefilefolder[]=source_filefolder;
+  String vdestinationfilefolder[]=destination_filefolder;
+  String vwildcard[]=wildcard;
+  result.setResult(false);
+  result.setNrErrors(1);
+  if (arg_from_previous) {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobCopyFiles.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+  }
+  if (arg_from_previous && rows != null) {
+    for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
+      resultRow=rows.get(iteration);
+      String vsourcefilefolder_previous=resultRow.getString(0,null);
+      String vdestinationfilefolder_previous=resultRow.getString(1,null);
+      String vwildcard_previous=resultRow.getString(2,null);
+      if (!Const.isEmpty(vsourcefilefolder_previous) && !Const.isEmpty(vdestinationfilefolder_previous)) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobCopyFiles.Log.ProcessingRow",vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous));
+        if (!ProcessFileFolder(vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous,parentJob,result)) {
+          NbrFail++;
+        }
+      }
+ else {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobCopyFiles.Log.IgnoringRow",vsourcefilefolder[iteration],vdestinationfilefolder[iteration],vwildcard[iteration]));
+      }
+    }
+  }
+ else   if (vsourcefilefolder != null && vdestinationfilefolder != null) {
+    for (int i=0; i < vsourcefilefolder.length && !parentJob.isStopped(); i++) {
+      if (!Const.isEmpty(vsourcefilefolder[i]) && !Const.isEmpty(vdestinationfilefolder[i])) {
+        if (log.isBasic())         logBasic(BaseMessages.getString(PKG,"JobCopyFiles.Log.ProcessingRow",vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i]));
+        if (!ProcessFileFolder(vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i],parentJob,result)) {
+          NbrFail++;
+        }
+      }
+ else {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobCopyFiles.Log.IgnoringRow",vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i]));
+      }
+    }
+  }
+  if (NbrFail == 0) {
+    result.setResult(true);
+    result.setNrErrors(0);
+  }
+ else {
+    result.setNrErrors(NbrFail);
+  }
+  return result;
+}

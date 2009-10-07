@@ -1,0 +1,95 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  log4j.info(BaseMessages.getString(PKG,"JobEntrySNMPTrap.Started",serverName));
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  String servername=environmentSubstitute(serverName);
+  int nrPort=Const.toInt(environmentSubstitute("" + port),DEFAULT_PORT);
+  String Oid=environmentSubstitute(oid);
+  int timeOut=Const.toInt(environmentSubstitute("" + timeout),DEFAULT_TIME_OUT);
+  int retry=Const.toInt(environmentSubstitute("" + nrretry),1);
+  String messageString=environmentSubstitute(message);
+  Snmp snmp=null;
+  try {
+    TransportMapping transMap=new DefaultUdpTransportMapping();
+    snmp=new Snmp(transMap);
+    UdpAddress udpAddress=new UdpAddress(InetAddress.getByName(servername),nrPort);
+    ResponseEvent response=null;
+    if (targettype.equals(target_type_Code[0])) {
+      String community=environmentSubstitute(comString);
+      CommunityTarget target=new CommunityTarget();
+      PDUv1 pdu1=new PDUv1();
+      transMap.listen();
+      target.setCommunity(new OctetString(community));
+      target.setVersion(SnmpConstants.version1);
+      target.setAddress(udpAddress);
+      if (target.getAddress().isValid()) {
+        if (log.isDebug())         logDebug("Valid IP address");
+      }
+ else       throw new KettleException("Invalid IP address");
+      target.setRetries(retry);
+      target.setTimeout(timeOut);
+      pdu1.setGenericTrap(6);
+      pdu1.setSpecificTrap(PDUv1.ENTERPRISE_SPECIFIC);
+      pdu1.setEnterprise(new OID(Oid));
+      pdu1.add(new VariableBinding(new OID(Oid),new OctetString(messageString)));
+      response=snmp.send(pdu1,target);
+    }
+ else {
+      String userName=environmentSubstitute(user);
+      String passPhrase=environmentSubstitute(passphrase);
+      String engineID=environmentSubstitute(engineid);
+      UserTarget usertarget=new UserTarget();
+      transMap.listen();
+      usertarget.setAddress(udpAddress);
+      if (usertarget.getAddress().isValid()) {
+        if (log.isDebug())         logDebug("Valid IP address");
+      }
+ else       throw new KettleException("Invalid IP address");
+      usertarget.setRetries(retry);
+      usertarget.setTimeout(timeOut);
+      usertarget.setVersion(SnmpConstants.version3);
+      usertarget.setSecurityLevel(SecurityLevel.AUTH_PRIV);
+      usertarget.setSecurityName(new OctetString("MD5DES"));
+      UsmUser uu=new UsmUser(new OctetString(userName),AuthMD5.ID,new OctetString(passPhrase),PrivDES.ID,new OctetString(passPhrase));
+      if (uu == null) {
+        throw new KettleException("Null UsmUser");
+      }
+ else {
+        if (log.isDebug())         logDebug("Valid UsmUser");
+      }
+      USM usm=snmp.getUSM();
+      if (usm == null)       throw new KettleException("Null Usm");
+ else {
+        usm=new USM(SecurityProtocols.getInstance(),new OctetString(MPv3.createLocalEngineID()),0);
+        usm.addUser(new OctetString(userName),uu);
+        if (log.isDebug())         logDebug("Valid Usm");
+      }
+      ScopedPDU pdu=new ScopedPDU();
+      pdu.add(new VariableBinding(new OID(Oid),new OctetString(messageString)));
+      pdu.setType(PDU.TRAP);
+      if (!Const.isEmpty(engineID))       pdu.setContextEngineID(new OctetString(engineID));
+      response=snmp.send(pdu,usertarget);
+    }
+    if (response == null) {
+    }
+ else {
+      if (log.isDebug())       logDebug("Received response from: " + response.getPeerAddress() + response.toString());
+    }
+    result.setNrErrors(0);
+    result.setResult(true);
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobEntrySNMPTrap.ErrorGetting",e.getMessage()));
+  }
+ finally {
+    try {
+      if (snmp != null)       snmp.close();
+    }
+ catch (    Exception e) {
+    }
+    ;
+  }
+  return result;
+}

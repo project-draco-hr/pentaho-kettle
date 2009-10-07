@@ -1,0 +1,85 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Log4jFileAppender appender=null;
+  int backupLogLevel=log.getLogLevel();
+  if (setLogfile) {
+    try {
+      appender=LogWriter.createFileAppender(environmentSubstitute(getLogFilename()),true,setAppendLogfile);
+    }
+ catch (    KettleException e) {
+      logError(BaseMessages.getString(PKG,"JobEntryShell.Error.UnableopenAppenderFile",getLogFilename(),e.toString()));
+      logError(Const.getStackTracker(e));
+      result.setNrErrors(1);
+      result.setResult(false);
+      return result;
+    }
+    log.addAppender(appender);
+    log.setLogLevel(loglevel);
+  }
+  result.setEntryNr(nr);
+  String substArgs[]=null;
+  if (arguments != null) {
+    substArgs=new String[arguments.length];
+    for (int idx=0; idx < arguments.length; idx++) {
+      substArgs[idx]=environmentSubstitute(arguments[idx]);
+    }
+  }
+  int iteration=0;
+  String args[]=substArgs;
+  RowMetaAndData resultRow=null;
+  boolean first=true;
+  List<RowMetaAndData> rows=result.getRows();
+  if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"JobEntryShell.Log.FoundPreviousRows","" + (rows != null ? rows.size() : 0)));
+  while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
+    first=false;
+    if (rows != null && execPerRow) {
+      resultRow=(RowMetaAndData)rows.get(iteration);
+    }
+ else {
+      resultRow=null;
+    }
+    List<RowMetaAndData> cmdRows=null;
+    if (execPerRow) {
+      if (argFromPrevious) {
+        if (resultRow != null) {
+          args=new String[resultRow.size()];
+          for (int i=0; i < resultRow.size(); i++) {
+            args[i]=resultRow.getString(i,null);
+          }
+        }
+      }
+ else {
+        List<RowMetaAndData> newList=new ArrayList<RowMetaAndData>();
+        newList.add(resultRow);
+        cmdRows=newList;
+      }
+    }
+ else {
+      if (argFromPrevious) {
+        args=null;
+        if (resultRow != null) {
+          args=new String[resultRow.size()];
+          for (int i=0; i < resultRow.size(); i++) {
+            args[i]=resultRow.getString(i,null);
+          }
+        }
+ else {
+          cmdRows=rows;
+        }
+      }
+ else {
+        cmdRows=rows;
+      }
+    }
+    executeShell(result,cmdRows,args);
+    iteration++;
+  }
+  if (setLogfile) {
+    if (appender != null) {
+      log.removeAppender(appender);
+      appender.close();
+    }
+    log.setLogLevel(backupLogLevel);
+  }
+  return result;
+}

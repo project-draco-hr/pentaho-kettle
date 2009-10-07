@@ -1,0 +1,37 @@
+{
+  List<LoggingEvent> lines=new ArrayList<LoggingEvent>();
+synchronized (buffer) {
+    for (    BufferLine line : buffer) {
+      if (line.getNr() > from && line.getNr() <= to) {
+        Object payload=line.getEvent().getMessage();
+        if (payload instanceof LogMessage) {
+          LogMessage message=(LogMessage)payload;
+          boolean include=channelId == null;
+          if (!include) {
+            LoggingObjectInterface loggingObject=LoggingRegistry.getInstance().getLoggingObject(message.getLogChannelId());
+            if (includeGeneral && LoggingObjectType.GENERAL.equals(loggingObject.getObjectType())) {
+              include=true;
+            }
+            if (!include) {
+              for (              String id : channelId) {
+                if (message.getLogChannelId().equals(id)) {
+                  include=true;
+                  break;
+                }
+              }
+            }
+          }
+          if (include) {
+            try {
+              lines.add(line.getEvent());
+            }
+ catch (            Exception e) {
+              e.printStackTrace();
+            }
+          }
+        }
+      }
+    }
+  }
+  return lines;
+}

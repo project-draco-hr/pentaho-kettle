@@ -1,0 +1,39 @@
+{
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  String hostname=getRealHostname();
+  int timeoutInt=Const.toInt(getRealTimeOut(),300);
+  int packets=Const.toInt(getRealNbrPackets(),2);
+  boolean status=false;
+  if (Const.isEmpty(hostname)) {
+    logError(BaseMessages.getString(PKG,"JobPing.SpecifyHost.Label"));
+    return result;
+  }
+  try {
+    if (ipingtype == isystemPing || ipingtype == ibothPings) {
+      status=systemPing(hostname,timeoutInt);
+      if (status) {
+        if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"JobPing.SystemPing"),BaseMessages.getString(PKG,"JobPing.OK.Label",hostname));
+      }
+ else       log.logError(BaseMessages.getString(PKG,"JobPing.SystemPing"),BaseMessages.getString(PKG,"JobPing.NOK.Label",hostname));
+    }
+    if ((ipingtype == iclassicPing) || (ipingtype == ibothPings && !status)) {
+      status=classicPing(hostname,packets);
+      if (status) {
+        if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"JobPing.ClassicPing"),BaseMessages.getString(PKG,"JobPing.OK.Label",hostname));
+      }
+ else       log.logError(BaseMessages.getString(PKG,"JobPing.ClassicPing"),BaseMessages.getString(PKG,"JobPing.NOK.Label",hostname));
+    }
+  }
+ catch (  Exception ex) {
+    logError(BaseMessages.getString(PKG,"JobPing.Error.Label") + ex.getMessage());
+  }
+  if (status) {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobPing.OK.Label",hostname));
+    result.setNrErrors(0);
+    result.setResult(true);
+  }
+ else   logError(BaseMessages.getString(PKG,"JobPing.NOK.Label",hostname));
+  return result;
+}

@@ -1,0 +1,44 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  int NrErrors=0;
+  int NrSuccess=0;
+  List<RowMetaAndData> rows=result.getRows();
+  if (isFilenamesFromPrevious()) {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobEntryXSLT.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+  }
+  if (isFilenamesFromPrevious() && rows != null) {
+    RowMetaAndData resultRow=null;
+    for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
+      resultRow=rows.get(iteration);
+      String xmlfilename_previous=resultRow.getString(0,null);
+      String xslfilename_previous=resultRow.getString(1,null);
+      String ouputfilename_previous=resultRow.getString(2,null);
+      if (!Const.isEmpty(xmlfilename_previous) && !Const.isEmpty(xslfilename_previous) && !Const.isEmpty(ouputfilename_previous)) {
+        if (processOneXMLFile(xmlfilename_previous,xslfilename_previous,ouputfilename_previous,result,parentJob))         NrSuccess++;
+ else         NrErrors++;
+      }
+ else {
+        logError(BaseMessages.getString(PKG,"JobEntryXSLT.AllFilesNotNull.Label"));
+        NrErrors++;
+      }
+    }
+  }
+ else {
+    String realxmlfilename=getRealxmlfilename();
+    String realxslfilename=getRealxslfilename();
+    String realoutputfilename=getoutputfilename();
+    if (!Const.isEmpty(realxmlfilename) && !Const.isEmpty(realxslfilename) && !Const.isEmpty(realoutputfilename)) {
+      if (processOneXMLFile(realxmlfilename,realxslfilename,realoutputfilename,result,parentJob))       NrSuccess++;
+ else       NrErrors++;
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"JobEntryXSLT.AllFilesNotNull.Label"));
+      NrErrors++;
+    }
+  }
+  result.setResult(NrErrors == 0);
+  result.setNrErrors(NrErrors);
+  result.setNrLinesWritten(NrSuccess);
+  return result;
+}

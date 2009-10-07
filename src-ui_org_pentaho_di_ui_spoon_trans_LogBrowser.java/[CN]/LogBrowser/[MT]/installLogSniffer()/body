@@ -1,0 +1,49 @@
+{
+  final AtomicInteger lastLogId=new AtomicInteger(-1);
+  final AtomicBoolean busy=new AtomicBoolean(false);
+  final Log4jKettleLayout logLayout=new Log4jKettleLayout(true);
+  final Timer logRefreshTimer=new Timer();
+  TimerTask timerTask=new TimerTask(){
+    public void run(){
+      text.getDisplay().asyncExec(new Runnable(){
+        public void run(){
+          HasLogChannelInterface provider=logProvider.getLogChannelProvider();
+          if (provider != null && !text.isDisposed() && !busy.get()) {
+            busy.set(true);
+            LogChannelInterface logChannel=provider.getLogChannel();
+            int lastNr=CentralLogStore.getLastBufferLineNr();
+            if (lastNr > lastLogId.get()) {
+              String parentLogChannelId=logChannel.getLogChannelId();
+              List<LoggingEvent> logLines=CentralLogStore.getLogBufferFromTo(parentLogChannelId,true,lastLogId.get(),lastNr);
+              int maxSize=Props.getInstance().getMaxNrLinesInLog() * 150;
+              int position=text.getSelection().x;
+              StringBuffer buffer=new StringBuffer(text.getText());
+              for (              LoggingEvent event : logLines) {
+                String line=logLayout.format(event);
+                buffer.append(line).append(Const.CR);
+                int size=buffer.length();
+                if (maxSize > 0 && size > maxSize) {
+                  int nextCr=buffer.indexOf(Const.CR,size - maxSize) + Const.CR.length();
+                  buffer.delete(0,nextCr);
+                }
+              }
+              text.setText(buffer.toString());
+              text.setSelection(position);
+              lastLogId.set(lastNr);
+            }
+            busy.set(false);
+          }
+        }
+      }
+);
+    }
+  }
+;
+  logRefreshTimer.schedule(timerTask,2000,2000);
+  text.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent event){
+      logRefreshTimer.cancel();
+    }
+  }
+);
+}

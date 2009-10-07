@@ -1,32 +1,33 @@
 {
   try {
-    stopped=false;
-    finished=false;
-    initialized=true;
+    stopped=new AtomicBoolean(false);
+    finished=new AtomicBoolean(false);
+    initialized=new AtomicBoolean(true);
     variables.initializeVariablesFrom(parentJob);
     setInternalKettleVariables(variables);
     copyParametersFrom(jobMeta);
     activateParameters();
-    result=execute(false);
+    result=execute();
+    fireJobListeners();
   }
  catch (  Throwable je) {
-    log.logError(toString(),BaseMessages.getString(PKG,"Job.Log.ErrorExecJob",je.getMessage()));
-    log.logError(toString(),Const.getStackTracker(je));
+    log.logError(BaseMessages.getString(PKG,"Job.Log.ErrorExecJob",je.getMessage()));
+    log.logError(Const.getStackTracker(je));
     result=new Result();
     result.setNrErrors(1L);
     result.setResult(false);
     addErrors(1);
-    active=false;
-    finished=true;
-    stopped=false;
+    active.set(false);
+    finished.set(true);
+    stopped.set(false);
   }
  finally {
     try {
       endProcessing(Database.LOG_STATUS_END,result);
     }
  catch (    KettleJobException e) {
-      log.logError(toString(),BaseMessages.getString(PKG,"Job.Log.ErrorExecJob",e.getMessage()));
-      log.logError(toString(),Const.getStackTracker(e));
+      log.logError(BaseMessages.getString(PKG,"Job.Log.ErrorExecJob",e.getMessage()));
+      log.logError(Const.getStackTracker(e));
     }
     fireJobListeners();
   }

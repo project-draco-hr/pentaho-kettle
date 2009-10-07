@@ -1,0 +1,134 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  boolean ok=true;
+  String realFilename1=getRealFilename1();
+  String realFilename2=getRealFilename2();
+  FileObject folder1=null;
+  FileObject folder2=null;
+  FileObject filefolder1=null;
+  FileObject filefolder2=null;
+  try {
+    if (filename1 != null && filename2 != null) {
+      folder1=KettleVFS.getFileObject(realFilename1);
+      folder2=KettleVFS.getFileObject(realFilename2);
+      if (folder1.exists() && folder2.exists()) {
+        if (!folder1.getType().equals(folder2.getType())) {
+          logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.CanNotCompareFilesFolders"));
+          if (folder1.getType() == FileType.FILE)           logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFile",realFilename1));
+ else           if (folder1.getType() == FileType.FOLDER)           logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFolder",realFilename1));
+ else           logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsUnknownFileType",realFilename1));
+          if (folder2.getType() == FileType.FILE)           logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFile",realFilename2));
+ else           if (folder2.getType() == FileType.FOLDER)           logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFolder",realFilename2));
+ else           logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsUnknownFileType",realFilename2));
+        }
+ else {
+          if (folder1.getType() == FileType.FILE) {
+            if (equalFileContents(folder1,folder2))             result.setResult(true);
+ else             result.setResult(false);
+          }
+ else           if (folder1.getType() == FileType.FOLDER) {
+            FileObject list1[]=folder1.findFiles(new TextFileSelector(folder1.toString()));
+            FileObject list2[]=folder2.findFiles(new TextFileSelector(folder2.toString()));
+            int lenList1=list1.length;
+            int lenList2=list2.length;
+            if (log.isDetailed()) {
+              logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FolderContains",realFilename1,"" + lenList1));
+              logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FolderContains",realFilename2,"" + lenList2));
+            }
+            if (lenList1 == lenList2) {
+              HashMap<String,String> collection1=new HashMap<String,String>();
+              HashMap<String,String> collection2=new HashMap<String,String>();
+              for (int i=0; i < list1.length; i++) {
+                collection1.put(list1[i].getName().getBaseName(),list1[i].toString());
+              }
+              for (int i=0; i < list2.length; i++) {
+                collection2.put(list2[i].getName().getBaseName(),list2[i].toString());
+              }
+              Set<Map.Entry<String,String>> entrees=collection1.entrySet();
+              Iterator<Map.Entry<String,String>> iterateur=entrees.iterator();
+              while (iterateur.hasNext()) {
+                Map.Entry<String,String> entree=iterateur.next();
+                if (!collection2.containsKey(entree.getKey())) {
+                  ok=false;
+                  if (log.isDetailed())                   logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FileCanNotBeFoundIn",entree.getKey().toString(),realFilename2));
+                }
+ else {
+                  if (log.isDebug())                   logDebug(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FileIsFoundIn",entree.getKey().toString(),realFilename2));
+                  filefolder1=KettleVFS.getFileObject(entree.getValue().toString());
+                  filefolder2=KettleVFS.getFileObject(collection2.get(entree.getKey()).toString());
+                  if (!filefolder2.getType().equals(filefolder1.getType())) {
+                    ok=false;
+                    if (log.isDetailed())                     logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FilesNotSameType",filefolder1.toString(),filefolder2.toString()));
+                    if (filefolder1.getType() == FileType.FILE)                     logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFile",filefolder1.toString()));
+ else                     if (filefolder1.getType() == FileType.FOLDER)                     logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFolder",filefolder1.toString()));
+ else                     logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsUnknownFileType",filefolder1.toString()));
+                    if (filefolder2.getType() == FileType.FILE)                     logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFile",filefolder2.toString()));
+ else                     if (filefolder2.getType() == FileType.FOLDER)                     logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsAFolder",filefolder2.toString()));
+ else                     logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.IsUnknownFileType",filefolder2.toString()));
+                  }
+ else {
+                    if (filefolder2.getType() == FileType.FILE) {
+                      if (comparefilesize) {
+                        long filefolder1_size=filefolder1.getContent().getSize();
+                        long filefolder2_size=filefolder2.getContent().getSize();
+                        if (filefolder1_size != filefolder2_size) {
+                          ok=false;
+                          if (log.isDetailed()) {
+                            logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FilesNotSameSize",filefolder1.toString(),filefolder2.toString()));
+                            logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.SizeFileIs",filefolder1.toString(),"" + filefolder1_size));
+                            logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.SizeFileIs",filefolder2.toString(),"" + filefolder2_size));
+                          }
+                        }
+                      }
+                      if (ok) {
+                        if (comparefilecontent) {
+                          if (!equalFileContents(filefolder1,filefolder2)) {
+                            ok=false;
+                            if (log.isDetailed())                             logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FilesNotSameContent",filefolder1.toString(),filefolder2.toString()));
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              result.setResult(ok);
+            }
+ else {
+              if (log.isDetailed())               logDetailed(BaseMessages.getString(PKG,"JobFoldersCompare.Log.FoldersDifferentFiles",realFilename1.toString(),realFilename2.toString()));
+            }
+          }
+ else {
+          }
+        }
+      }
+ else {
+        if (!folder1.exists())         logError(BaseMessages.getString(PKG,"JobFileCompare.Log.FileNotExist",realFilename1));
+        if (!folder2.exists())         logError(BaseMessages.getString(PKG,"JobFileCompare.Log.FileNotExist",realFilename2));
+        result.setResult(false);
+        result.setNrErrors(1);
+      }
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.Need2Files"));
+    }
+  }
+ catch (  Exception e) {
+    result.setResult(false);
+    result.setNrErrors(1);
+    logError(BaseMessages.getString(PKG,"JobFoldersCompare.Log.ErrorComparing",realFilename2,realFilename2,e.getMessage()));
+  }
+ finally {
+    try {
+      if (folder1 != null)       folder1.close();
+      if (folder2 != null)       folder2.close();
+      if (filefolder1 != null)       filefolder1.close();
+      if (filefolder2 != null)       filefolder2.close();
+    }
+ catch (    IOException e) {
+    }
+  }
+  return result;
+}

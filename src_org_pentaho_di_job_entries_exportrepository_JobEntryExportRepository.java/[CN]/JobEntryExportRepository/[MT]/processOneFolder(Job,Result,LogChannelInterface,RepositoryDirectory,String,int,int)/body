@@ -1,0 +1,45 @@
+{
+  boolean retval=false;
+  try {
+    if (!repdir.isRoot()) {
+      if (repdir.toString().lastIndexOf("/") == 0) {
+        String filename=repdir.toString().replace("/","");
+        String foldername=realoutfilename;
+        if (newfolder) {
+          foldername=realoutfilename + Const.FILE_SEPARATOR + filename;
+          this.file=KettleVFS.getFileObject(foldername);
+          if (!this.file.exists()) {
+            this.file.createFolder();
+          }
+        }
+        filename=foldername + Const.FILE_SEPARATOR + buildFilename(filename)+ ".xml";
+        this.file=KettleVFS.getFileObject(filename);
+        if (this.file.exists()) {
+          if (iffileexists.equals(If_FileExists_Skip)) {
+            return true;
+          }
+ else           if (iffileexists.equals(If_FileExists_Uniquename)) {
+            filename=realoutfilename + Const.FILE_SEPARATOR + buildUniqueFilename(filename)+ ".xml";
+          }
+ else           if (iffileexists.equals(If_FileExists_Fail)) {
+            return false;
+          }
+        }
+        if (log.isDetailed()) {
+          logDetailed("---");
+          logDetailed(BaseMessages.getString(PKG,"JobExportRepository.Log.FolderProcessing","" + folderno,"" + totalfolders));
+          logDetailed(BaseMessages.getString(PKG,"JobExportRepository.Log.OutFilename",repdir.toString(),filename));
+        }
+        new RepositoryExporter(this.repository).exportAllObjects(null,filename,repdir,"all");
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobExportRepository.Log.OutFilenameEnd",repdir.toString(),filename));
+        if (add_result_filesname)         addFileToResultFilenames(filename,log,result,parentJob);
+      }
+    }
+    retval=true;
+  }
+ catch (  Exception e) {
+    updateErrors();
+    logError(BaseMessages.getString(PKG,"JobExportRepository.ErrorExportingFolder",repdir.toString(),e.toString()));
+  }
+  return retval;
+}

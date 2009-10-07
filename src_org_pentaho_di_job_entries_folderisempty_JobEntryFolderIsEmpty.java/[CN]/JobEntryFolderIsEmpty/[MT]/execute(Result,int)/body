@@ -1,0 +1,51 @@
+{
+  Result result=previousResult;
+  result.setResult(false);
+  result.setNrErrors(1);
+  filescount=0;
+  folderscount=0;
+  pattern=null;
+  if (!Const.isEmpty(getWildcard()))   pattern=Pattern.compile(getRealWildcard());
+  if (foldername != null) {
+    String realFoldername=getRealFoldername();
+    FileObject FolderObject=null;
+    try {
+      FolderObject=KettleVFS.getFileObject(realFoldername);
+      if (FolderObject.exists()) {
+        if (FolderObject.getType() == FileType.FOLDER) {
+          FolderObject.findFiles(new TextFileSelector(FolderObject.toString()));
+          if (log.isBasic())           log.logBasic("Total files","We found : " + filescount + " file(s)");
+          if (filescount == 0) {
+            result.setResult(true);
+            result.setNrErrors(0);
+          }
+        }
+ else {
+          log.logError("[" + realFoldername + "] is not a folder, failing.");
+        }
+      }
+ else {
+        if (log.isBasic())         logBasic("we can not find [" + realFoldername + "] !");
+      }
+    }
+ catch (    IOException e) {
+      logError("Could not create Folder [" + realFoldername + "], exception: "+ e.getMessage());
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+ finally {
+      if (FolderObject != null) {
+        try {
+          FolderObject.close();
+        }
+ catch (        IOException ex) {
+        }
+        ;
+      }
+    }
+  }
+ else {
+    logError("No Foldername is defined.");
+  }
+  return result;
+}

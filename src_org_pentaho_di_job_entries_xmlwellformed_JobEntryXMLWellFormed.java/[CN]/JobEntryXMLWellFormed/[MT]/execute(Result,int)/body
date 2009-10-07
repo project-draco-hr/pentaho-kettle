@@ -1,0 +1,63 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  NrErrors=0;
+  NrWellFormed=0;
+  NrBadFormed=0;
+  limitFiles=Const.toInt(environmentSubstitute(getNrErrorsLessThan()),10);
+  successConditionBroken=false;
+  successConditionBrokenExit=false;
+  String vsourcefilefolder[]=source_filefolder;
+  String vwildcard[]=wildcard;
+  if (arg_from_previous) {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobXMLWellFormed.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+  }
+  if (arg_from_previous && rows != null) {
+    for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
+      if (successConditionBroken) {
+        if (!successConditionBrokenExit) {
+          logError(BaseMessages.getString(PKG,"JobXMLWellFormed.Error.SuccessConditionbroken","" + NrAllErrors));
+          successConditionBrokenExit=true;
+        }
+        result.setEntryNr(NrAllErrors);
+        result.setNrLinesRejected(NrBadFormed);
+        result.setNrLinesWritten(NrWellFormed);
+        return result;
+      }
+      resultRow=rows.get(iteration);
+      String vsourcefilefolder_previous=resultRow.getString(0,null);
+      String vwildcard_previous=resultRow.getString(1,null);
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobXMLWellFormed.Log.ProcessingRow",vsourcefilefolder_previous,vwildcard_previous));
+      ProcessFileFolder(vsourcefilefolder_previous,vwildcard_previous,parentJob,result);
+    }
+  }
+ else   if (vsourcefilefolder != null) {
+    for (int i=0; i < vsourcefilefolder.length && !parentJob.isStopped(); i++) {
+      if (successConditionBroken) {
+        if (!successConditionBrokenExit) {
+          logError(BaseMessages.getString(PKG,"JobXMLWellFormed.Error.SuccessConditionbroken","" + NrAllErrors));
+          successConditionBrokenExit=true;
+        }
+        result.setEntryNr(NrAllErrors);
+        result.setNrLinesRejected(NrBadFormed);
+        result.setNrLinesWritten(NrWellFormed);
+        return result;
+      }
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobXMLWellFormed.Log.ProcessingRow",vsourcefilefolder[i],vwildcard[i]));
+      ProcessFileFolder(vsourcefilefolder[i],vwildcard[i],parentJob,result);
+    }
+  }
+  result.setNrErrors(NrAllErrors);
+  result.setNrLinesRejected(NrBadFormed);
+  result.setNrLinesWritten(NrWellFormed);
+  if (getSuccessStatus()) {
+    result.setNrErrors(0);
+    result.setResult(true);
+  }
+  displayResults(log);
+  return result;
+}

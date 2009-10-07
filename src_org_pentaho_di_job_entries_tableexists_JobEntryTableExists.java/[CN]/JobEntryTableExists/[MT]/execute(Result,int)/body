@@ -1,0 +1,43 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  if (connection != null) {
+    Database db=new Database(this,connection);
+    db.shareVariablesWith(this);
+    try {
+      db.connect();
+      String realTablename=environmentSubstitute(tablename);
+      String realSchemaname=environmentSubstitute(schemaname);
+      if (!Const.isEmpty(realSchemaname)) {
+        realTablename=db.getDatabaseMeta().getQuotedSchemaTableCombination(realSchemaname,realTablename);
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"TableExists.Log.SchemaTable",realTablename));
+      }
+ else       realTablename=db.getDatabaseMeta().quoteField(realTablename);
+      if (db.checkTableExists(realTablename)) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"TableExists.Log.TableExists",realTablename));
+        result.setResult(true);
+      }
+ else {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"TableExists.Log.TableNotExists",realTablename));
+      }
+    }
+ catch (    KettleDatabaseException dbe) {
+      result.setNrErrors(1);
+      logError(BaseMessages.getString(PKG,"TableExists.Error.RunningJobEntry",dbe.getMessage()));
+    }
+ finally {
+      if (db != null)       try {
+        db.disconnect();
+      }
+ catch (      Exception e) {
+      }
+      ;
+    }
+  }
+ else {
+    result.setNrErrors(1);
+    logError(BaseMessages.getString(PKG,"TableExists.Error.NoConnectionDefined"));
+  }
+  return result;
+}

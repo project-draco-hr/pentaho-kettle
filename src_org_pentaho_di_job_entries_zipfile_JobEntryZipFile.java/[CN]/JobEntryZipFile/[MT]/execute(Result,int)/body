@@ -1,0 +1,108 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  List<RowMetaAndData> rows=result.getRows();
+  String realZipfilename=null;
+  String realWildcard=null;
+  String realWildcardExclude=null;
+  String realTargetdirectory=null;
+  String realMovetodirectory=environmentSubstitute(movetodirectory);
+  boolean SanityControlOK=true;
+  if (afterzip == 2) {
+    if (Const.isEmpty(realMovetodirectory)) {
+      SanityControlOK=false;
+      logError(BaseMessages.getString(PKG,"JobZipFiles.AfterZip_No_DestinationFolder_Defined.Label"));
+    }
+ else {
+      FileObject moveToDirectory=null;
+      try {
+        moveToDirectory=KettleVFS.getFileObject(realMovetodirectory);
+        if (moveToDirectory.exists()) {
+          if (moveToDirectory.getType() == FileType.FOLDER) {
+            if (log.isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobZipFiles.Log.MoveToFolderExist",realMovetodirectory));
+          }
+ else {
+            SanityControlOK=false;
+            logError(BaseMessages.getString(PKG,"JobZipFiles.Log.MoveToFolderNotFolder",realMovetodirectory));
+          }
+        }
+ else {
+          if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobZipFiles.Log.MoveToFolderNotNotExist",realMovetodirectory));
+          if (createMoveToDirectory) {
+            moveToDirectory.createFolder();
+            if (log.isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobZipFiles.Log.MoveToFolderCreaterd",realMovetodirectory));
+          }
+ else {
+            SanityControlOK=false;
+            logError(BaseMessages.getString(PKG,"JobZipFiles.Log.MoveToFolderNotNotExist",realMovetodirectory));
+          }
+        }
+      }
+ catch (      Exception e) {
+        SanityControlOK=false;
+        logError(BaseMessages.getString(PKG,"JobZipFiles.ErrorGettingMoveToFolder.Label",realMovetodirectory));
+      }
+ finally {
+        if (moveToDirectory != null) {
+          realMovetodirectory=KettleVFS.getFilename(moveToDirectory);
+          try {
+            moveToDirectory.close();
+            moveToDirectory=null;
+          }
+ catch (          Exception e) {
+          }
+          ;
+        }
+      }
+    }
+  }
+  if (!SanityControlOK) {
+    result.setNrErrors(1);
+    result.setResult(false);
+    return result;
+  }
+  if (isfromprevious) {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobZipFiles.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+  }
+  if (isfromprevious && rows != null) {
+    try {
+      for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
+        RowMetaAndData resultRow=rows.get(iteration);
+        realTargetdirectory=resultRow.getString(0,null);
+        if (!Const.isEmpty(realTargetdirectory)) {
+          if (!Const.isEmpty(resultRow.getString(1,null)))           realWildcard=resultRow.getString(1,null);
+          if (!Const.isEmpty(resultRow.getString(2,null)))           realWildcardExclude=resultRow.getString(2,null);
+          realZipfilename=resultRow.getString(3,null);
+          if (!Const.isEmpty(realZipfilename)) {
+            if (!processRowFile(parentJob,result,realZipfilename,realWildcard,realWildcardExclude,realTargetdirectory,realMovetodirectory,createparentfolder)) {
+              result.setResult(false);
+              return result;
+            }
+          }
+ else {
+            logError("destination zip filename is empty! Ignoring row...");
+          }
+        }
+ else {
+          logError("Target directory is empty! Ignoring row...");
+        }
+      }
+    }
+ catch (    Exception e) {
+      logError("Erreur during process!");
+    }
+  }
+ else   if (!isfromprevious) {
+    if (!Const.isEmpty(sourcedirectory)) {
+      realZipfilename=getFullFilename(environmentSubstitute(zipFilename),adddate,addtime,SpecifyFormat,date_time_format);
+      realWildcard=environmentSubstitute(wildcard);
+      realWildcardExclude=environmentSubstitute(wildcardexclude);
+      realTargetdirectory=environmentSubstitute(sourcedirectory);
+      result.setResult(processRowFile(parentJob,result,realZipfilename,realWildcard,realWildcardExclude,realTargetdirectory,realMovetodirectory,createparentfolder));
+    }
+ else {
+      logError("Source folder/file is empty! Ignoring row...");
+    }
+  }
+  return result;
+}

@@ -1,0 +1,53 @@
+{
+  Result result=previousResult;
+  result.setResult(false);
+  String realFilename1=getRealFilename1();
+  String realFilename2=getRealFilename2();
+  FileObject file1=null;
+  FileObject file2=null;
+  try {
+    if (filename1 != null && filename2 != null) {
+      file1=KettleVFS.getFileObject(realFilename1);
+      file2=KettleVFS.getFileObject(realFilename2);
+      if (file1.exists() && file2.exists()) {
+        if (equalFileContents(file1,file2)) {
+          result.setResult(true);
+        }
+ else {
+          result.setResult(false);
+        }
+        if (addFilenameToResult && file1.getType() == FileType.FILE && file2.getType() == FileType.FILE) {
+          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file1,parentJob.getJobname(),toString());
+          resultFile.setComment(BaseMessages.getString(PKG,"JobWaitForFile.FilenameAdded"));
+          result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+          resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,file2,parentJob.getJobname(),toString());
+          resultFile.setComment(BaseMessages.getString(PKG,"JobWaitForFile.FilenameAdded"));
+          result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+        }
+      }
+ else {
+        if (!file1.exists())         logError(BaseMessages.getString(PKG,"JobEntryFileCompare.ERROR_0004_File1_Does_Not_Exist",realFilename1));
+        if (!file2.exists())         logError(BaseMessages.getString(PKG,"JobEntryFileCompare.ERROR_0005_File2_Does_Not_Exist",realFilename2));
+        result.setResult(false);
+        result.setNrErrors(1);
+      }
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"JobEntryFileCompare.ERROR_0006_Need_Two_Filenames"));
+    }
+  }
+ catch (  Exception e) {
+    result.setResult(false);
+    result.setNrErrors(1);
+    logError(BaseMessages.getString(PKG,"JobEntryFileCompare.ERROR_0007_Comparing_Files",realFilename2,realFilename2,e.getMessage()));
+  }
+ finally {
+    try {
+      if (file1 != null)       file1.close();
+      if (file2 != null)       file2.close();
+    }
+ catch (    IOException e) {
+    }
+  }
+  return result;
+}

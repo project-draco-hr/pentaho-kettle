@@ -1,0 +1,49 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  if (foldername != null) {
+    String realFoldername=getRealFoldername();
+    FileObject FolderObject=null;
+    try {
+      FolderObject=KettleVFS.getFileObject(realFoldername);
+      if (FolderObject.exists()) {
+        boolean isFolder=false;
+        if (FolderObject.getType() == FileType.FOLDER)         isFolder=true;
+        if (isFailOfFolderExists()) {
+          result.setResult(false);
+          if (isFolder)           logError("Folder [" + realFoldername + "] exists, failing.");
+ else           logError("File [" + realFoldername + "] exists, failing.");
+        }
+ else {
+          result.setResult(true);
+          if (log.isDetailed())           logDetailed("Folder [" + realFoldername + "] already exists, not recreating.");
+        }
+      }
+ else {
+        FolderObject.createFolder();
+        if (log.isDetailed())         logDetailed("Folder [" + realFoldername + "] created!");
+        result.setResult(true);
+      }
+    }
+ catch (    IOException e) {
+      logError("Could not create Folder [" + realFoldername + "], exception: "+ e.getMessage());
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+ finally {
+      if (FolderObject != null) {
+        try {
+          FolderObject.close();
+        }
+ catch (        IOException ex) {
+        }
+        ;
+      }
+    }
+  }
+ else {
+    logError("No Foldername is defined.");
+  }
+  return result;
+}

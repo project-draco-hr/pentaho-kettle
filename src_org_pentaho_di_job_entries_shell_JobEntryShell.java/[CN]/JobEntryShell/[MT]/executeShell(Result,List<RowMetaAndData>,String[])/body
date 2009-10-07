@@ -1,12 +1,11 @@
 {
-  LogWriter log=LogWriter.getInstance();
   FileObject fileObject=null;
   String realScript=null;
   FileObject tempFile=null;
   try {
     String base[]=null;
     List<String> cmds=new ArrayList<String>();
-    if (log.isBasic())     log.logBasic(toString(),BaseMessages.getString(PKG,"JobShell.RunningOn",Const.getOS()));
+    if (log.isBasic())     logBasic(BaseMessages.getString(PKG,"JobShell.RunningOn",Const.getOS()));
     if (insertScript) {
       realScript=environmentSubstitute(script);
     }
@@ -34,8 +33,8 @@
           String tempFilename=KettleVFS.getFilename(tempFile);
           ProcessBuilder procBuilder=new ProcessBuilder("chmod","+x",tempFilename);
           Process proc=procBuilder.start();
-          StreamLogger errorLogger=new StreamLogger(proc.getErrorStream(),toString() + " (stderr)");
-          StreamLogger outputLogger=new StreamLogger(proc.getInputStream(),toString() + " (stdout)");
+          StreamLogger errorLogger=new StreamLogger(log,proc.getErrorStream(),toString() + " (stderr)");
+          StreamLogger outputLogger=new StreamLogger(log,proc.getInputStream(),toString() + " (stdout)");
           new Thread(errorLogger).start();
           new Thread(outputLogger).start();
           proc.waitFor();
@@ -100,7 +99,7 @@
  else       first=false;
       command.append((String)it.next());
     }
-    if (log.isBasic())     log.logBasic(toString(),BaseMessages.getString(PKG,"JobShell.ExecCommand",command.toString()));
+    if (log.isBasic())     logBasic(BaseMessages.getString(PKG,"JobShell.ExecCommand",command.toString()));
     ProcessBuilder procBuilder=new ProcessBuilder(cmds);
     Map<String,String> env=procBuilder.environment();
     String[] variables=listVariables();
@@ -113,30 +112,30 @@
       procBuilder.directory(file);
     }
     Process proc=procBuilder.start();
-    StreamLogger errorLogger=new StreamLogger(proc.getErrorStream(),toString() + " (stderr)");
-    StreamLogger outputLogger=new StreamLogger(proc.getInputStream(),toString() + " (stdout)");
+    StreamLogger errorLogger=new StreamLogger(log,proc.getErrorStream(),toString() + " (stderr)");
+    StreamLogger outputLogger=new StreamLogger(log,proc.getInputStream(),toString() + " (stdout)");
     new Thread(errorLogger).start();
     new Thread(outputLogger).start();
     proc.waitFor();
-    if (log.isDetailed())     log.logDetailed(toString(),BaseMessages.getString(PKG,"JobShell.CommandFinished",command.toString()));
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobShell.CommandFinished",command.toString()));
     result.setExitStatus(proc.exitValue());
     if (result.getExitStatus() != 0) {
-      if (log.isDetailed())       log.logDetailed(toString(),BaseMessages.getString(PKG,"JobShell.ExitStatus",environmentSubstitute(getFilename()),"" + result.getExitStatus()));
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobShell.ExitStatus",environmentSubstitute(getFilename()),"" + result.getExitStatus()));
       result.setNrErrors(1);
     }
     proc.getErrorStream().close();
     proc.getOutputStream().close();
   }
  catch (  IOException ioe) {
-    log.logError(toString(),BaseMessages.getString(PKG,"JobShell.ErrorRunningShell",environmentSubstitute(getFilename()),ioe.toString()));
+    logError(BaseMessages.getString(PKG,"JobShell.ErrorRunningShell",environmentSubstitute(getFilename()),ioe.toString()));
     result.setNrErrors(1);
   }
 catch (  InterruptedException ie) {
-    log.logError(toString(),BaseMessages.getString(PKG,"JobShell.Shellinterupted",environmentSubstitute(getFilename()),ie.toString()));
+    logError(BaseMessages.getString(PKG,"JobShell.Shellinterupted",environmentSubstitute(getFilename()),ie.toString()));
     result.setNrErrors(1);
   }
 catch (  Exception e) {
-    log.logError(toString(),BaseMessages.getString(PKG,"JobShell.UnexpectedError",environmentSubstitute(getFilename()),e.toString()));
+    logError(BaseMessages.getString(PKG,"JobShell.UnexpectedError",environmentSubstitute(getFilename()),e.toString()));
     result.setNrErrors(1);
   }
  finally {

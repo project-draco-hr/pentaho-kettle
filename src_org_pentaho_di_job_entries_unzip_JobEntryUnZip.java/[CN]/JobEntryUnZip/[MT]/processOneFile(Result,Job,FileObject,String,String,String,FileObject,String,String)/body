@@ -1,0 +1,50 @@
+{
+  boolean retval=false;
+  try {
+    if (fileObject.getType().equals(FileType.FILE)) {
+      if (!unzipFile(fileObject,realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))       updateErrors();
+ else       updateSuccess();
+    }
+ else {
+      FileObject[] children=fileObject.getChildren();
+      for (int i=0; i < children.length && !parentJob.isStopped(); i++) {
+        if (successConditionBroken) {
+          if (!successConditionBrokenExit) {
+            logError(BaseMessages.getString(PKG,"JobUnZip.Error.SuccessConditionbroken","" + NrErrors));
+            successConditionBrokenExit=true;
+          }
+          return false;
+        }
+        if (!children[i].getType().equals(FileType.FOLDER)) {
+          boolean unzip=true;
+          String filename=children[i].getName().getPath();
+          Pattern patternSource=null;
+          if (!Const.isEmpty(realWildcardSource))           patternSource=Pattern.compile(realWildcardSource);
+          if (patternSource != null) {
+            Matcher matcher=patternSource.matcher(filename);
+            unzip=matcher.matches();
+          }
+          if (unzip) {
+            if (!unzipFile(children[i],realTargetdirectory,realWildcard,realWildcardExclude,result,parentJob,fileObject,movetodir,realMovetodirectory))             updateErrors();
+ else             updateSuccess();
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    updateErrors();
+    logError(BaseMessages.getString(PKG,"JobUnZip.Error.Label",e.getMessage()));
+  }
+ finally {
+    if (fileObject != null) {
+      try {
+        fileObject.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return retval;
+}

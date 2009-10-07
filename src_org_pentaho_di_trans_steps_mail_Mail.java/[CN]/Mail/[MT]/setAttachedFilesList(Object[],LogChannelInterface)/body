@@ -1,0 +1,113 @@
+{
+  String realSourceFileFoldername=null;
+  String realSourceWildcard=null;
+  FileObject sourcefile=null;
+  FileObject file=null;
+  ZipOutputStream zipOutputStream=null;
+  File masterZipfile=null;
+  if (meta.isZipFilenameDynamic())   data.ZipFilename=data.previousRowMeta.getString(r,data.indexOfDynamicZipFilename);
+  try {
+    if (meta.isDynamicFilename()) {
+      if (data.indexOfSourceFilename > -1)       realSourceFileFoldername=data.previousRowMeta.getString(r,data.indexOfSourceFilename);
+      if (data.indexOfSourceWildcard > -1)       realSourceWildcard=data.previousRowMeta.getString(r,data.indexOfSourceWildcard);
+    }
+ else {
+      realSourceFileFoldername=data.realSourceFileFoldername;
+      realSourceWildcard=data.realSourceWildcard;
+    }
+    if (!Const.isEmpty(realSourceFileFoldername)) {
+      sourcefile=KettleVFS.getFileObject(realSourceFileFoldername);
+      if (sourcefile.exists()) {
+        long FileSize=0;
+        FileObject list[]=null;
+        if (sourcefile.getType() == FileType.FILE) {
+          list=new FileObject[1];
+          list[0]=sourcefile;
+        }
+ else         list=sourcefile.findFiles(new TextFileSelector(sourcefile.toString(),realSourceWildcard));
+        if (list.length > 0) {
+          boolean zipFiles=meta.isZipFiles();
+          if (zipFiles && data.zipFileLimit == 0) {
+            masterZipfile=new File(System.getProperty("java.io.tmpdir") + Const.FILE_SEPARATOR + data.ZipFilename);
+            zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
+          }
+          for (int i=0; i < list.length; i++) {
+            file=KettleVFS.getFileObject(KettleVFS.getFilename(list[i]));
+            if (zipFiles) {
+              if (data.zipFileLimit == 0) {
+                ZipEntry zipEntry=new ZipEntry(file.getName().getBaseName());
+                zipOutputStream.putNextEntry(zipEntry);
+                BufferedInputStream inputStream=new BufferedInputStream(file.getContent().getInputStream());
+                int c;
+                while ((c=inputStream.read()) >= 0) {
+                  zipOutputStream.write(c);
+                }
+                inputStream.close();
+                zipOutputStream.closeEntry();
+              }
+ else               FileSize+=file.getContent().getSize();
+            }
+ else {
+              addAttachedFilePart(file);
+            }
+          }
+          if (zipFiles) {
+            if (log.isDebug())             logDebug(BaseMessages.getString(PKG,"Mail.Log.FileSize","" + FileSize));
+            if (log.isDebug())             logDebug(BaseMessages.getString(PKG,"Mail.Log.LimitSize","" + data.zipFileLimit));
+            if (data.zipFileLimit > 0 && FileSize > data.zipFileLimit) {
+              masterZipfile=new File(System.getProperty("java.io.tmpdir") + Const.FILE_SEPARATOR + data.ZipFilename);
+              zipOutputStream=new ZipOutputStream(new FileOutputStream(masterZipfile));
+              for (int i=0; i < list.length; i++) {
+                file=KettleVFS.getFileObject(KettleVFS.getFilename(list[i]));
+                ZipEntry zipEntry=new ZipEntry(file.getName().getBaseName());
+                zipOutputStream.putNextEntry(zipEntry);
+                BufferedInputStream inputStream=new BufferedInputStream(file.getContent().getInputStream());
+                int c;
+                while ((c=inputStream.read()) >= 0) {
+                  zipOutputStream.write(c);
+                }
+                inputStream.close();
+                zipOutputStream.closeEntry();
+              }
+            }
+            if (data.zipFileLimit > 0 && FileSize > data.zipFileLimit || data.zipFileLimit == 0) {
+              file=KettleVFS.getFileObject(masterZipfile.getAbsolutePath());
+              addAttachedFilePart(file);
+            }
+          }
+        }
+      }
+ else {
+        logError(BaseMessages.getString(PKG,"Mail.Error.SourceFileFolderNotExists",realSourceFileFoldername));
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError(e.getMessage());
+  }
+ finally {
+    if (sourcefile != null) {
+      try {
+        sourcefile.close();
+      }
+ catch (      Exception e) {
+      }
+    }
+    if (file != null) {
+      try {
+        file.close();
+      }
+ catch (      Exception e) {
+      }
+    }
+    if (zipOutputStream != null) {
+      try {
+        zipOutputStream.finish();
+        zipOutputStream.close();
+      }
+ catch (      IOException e) {
+        logError("Unable to close attachement zip file archive : " + e.toString());
+      }
+    }
+  }
+}

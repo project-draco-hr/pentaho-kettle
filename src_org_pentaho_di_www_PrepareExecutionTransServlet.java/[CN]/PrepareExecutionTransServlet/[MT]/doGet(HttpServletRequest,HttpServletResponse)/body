@@ -1,6 +1,6 @@
 {
   if (!request.getContextPath().equals(CONTEXT_PATH))   return;
-  if (log.isDebug())   log.logDebug(toString(),BaseMessages.getString(PKG,"PrepareExecutionTransServlet.TransPrepareExecutionRequested"));
+  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"PrepareExecutionTransServlet.TransPrepareExecutionRequested"));
   String transName=request.getParameter("name");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
   response.setStatus(HttpServletResponse.SC_OK);
@@ -28,9 +28,6 @@
       trans.setReplayDate(executionConfiguration.getReplayDate());
       trans.setSafeModeEnabled(executionConfiguration.isSafeModeEnabled());
       trans.injectVariables(executionConfiguration.getVariables());
-      Log4jStringAppender appender=LogWriter.createStringAppender();
-      log.addAppender(appender);
-      transformationMap.addAppender(transName,appender);
       try {
         trans.prepareExecution(null);
         if (useXML) {
@@ -42,13 +39,14 @@
         }
       }
  catch (      Exception e) {
+        String logText=CentralLogStore.getAppender().getBuffer(trans.getLogChannel().getLogChannelId(),true).toString();
         if (useXML) {
-          out.println(new WebResult(WebResult.STRING_ERROR,BaseMessages.getString(PKG,"PrepareExecutionTransServlet.Error.TransInitFailed",Const.CR + appender.getBuffer().toString() + Const.CR+ e.getLocalizedMessage())));
+          out.println(new WebResult(WebResult.STRING_ERROR,BaseMessages.getString(PKG,"PrepareExecutionTransServlet.Error.TransInitFailed",Const.CR + logText + Const.CR+ e.getLocalizedMessage())));
         }
  else {
           out.println("<H1>" + BaseMessages.getString(PKG,"PrepareExecutionTransServlet.Log.TransNotInit",transName) + "</H1>");
           out.println("<pre>");
-          out.println(appender.getBuffer().toString());
+          out.println(logText);
           out.println(e.getLocalizedMessage());
           out.println("</pre>");
           out.println("<a href=\"/kettle/transStatus?name=" + URLEncoder.encode(transName,"UTF-8") + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToTransStatusPage")+ "</a><p>");

@@ -1,0 +1,52 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  if (filename != null) {
+    String realFilename=getRealFilename();
+    FileObject fileObject=null;
+    try {
+      fileObject=KettleVFS.getFileObject(realFilename);
+      if (!fileObject.exists()) {
+        if (isFailIfFileNotExists()) {
+          result.setResult(false);
+          logError(BaseMessages.getString(PKG,"JobEntryDeleteFile.ERROR_0004_File_Does_Not_Exist",realFilename));
+        }
+ else {
+          result.setResult(true);
+          if (log.isBasic())           logBasic(BaseMessages.getString(PKG,"JobEntryDeleteFile.File_Already_Deleted",realFilename));
+        }
+      }
+ else {
+        System.gc();
+        boolean deleted=fileObject.delete();
+        if (!deleted) {
+          logError(BaseMessages.getString(PKG,"JobEntryDeleteFile.ERROR_0005_Could_Not_Delete_File",realFilename));
+          result.setResult(false);
+          result.setNrErrors(1);
+        }
+        if (log.isBasic())         logBasic(BaseMessages.getString(PKG,"JobEntryDeleteFile.File_Deleted",realFilename));
+        result.setResult(true);
+      }
+    }
+ catch (    IOException e) {
+      logError(BaseMessages.getString(PKG,"JobEntryDeleteFile.ERROR_0006_Exception_Deleting_File",realFilename,e.getMessage()));
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+ finally {
+      if (fileObject != null) {
+        try {
+          fileObject.close();
+        }
+ catch (        IOException ex) {
+        }
+        ;
+      }
+    }
+  }
+ else {
+    logError(BaseMessages.getString(PKG,"JobEntryDeleteFile.ERROR_0007_No_Filename_Is_Defined"));
+  }
+  return result;
+}

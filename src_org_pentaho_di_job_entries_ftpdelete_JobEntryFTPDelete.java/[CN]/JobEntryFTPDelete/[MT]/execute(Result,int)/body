@@ -1,0 +1,162 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  log4j.info(BaseMessages.getString(PKG,"JobEntryFTPDelete.Started",serverName));
+  RowMetaAndData resultRow=null;
+  Result result=previousResult;
+  List<RowMetaAndData> rows=result.getRows();
+  result.setResult(false);
+  NrErrors=0;
+  NrfilesDeleted=0;
+  successConditionBroken=false;
+  HashSet<String> list_previous_files=new HashSet<String>();
+  String realservername=environmentSubstitute(serverName);
+  String realserverpassword=environmentSubstitute(password);
+  String realFtpDirectory=environmentSubstitute(ftpDirectory);
+  int realserverport=Const.toInt(environmentSubstitute(port),0);
+  String realUsername=environmentSubstitute(userName);
+  String realPassword=environmentSubstitute(password);
+  String realproxyhost=environmentSubstitute(proxyHost);
+  String realproxyusername=environmentSubstitute(proxyUsername);
+  String realproxypassword=environmentSubstitute(proxyPassword);
+  int realproxyport=Const.toInt(environmentSubstitute(proxyPort),0);
+  String realkeyFilename=environmentSubstitute(keyFilename);
+  String realkeyPass=environmentSubstitute(keyFilePass);
+  if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"JobEntryFTPDelete.Start"));
+  if (copyprevious && rows.size() == 0) {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobEntryFTPDelete.ArgsFromPreviousNothing"));
+    result.setResult(true);
+    return result;
+  }
+  try {
+    String[] filelist=null;
+    if (protocol.equals("FTP")) {
+      FTPConnect(log,realservername,realUsername,realPassword,realserverport,realFtpDirectory,realproxyhost,realproxyusername,realproxypassword,realproxyport,timeout);
+      filelist=ftpclient.dir();
+      if (filelist.length == 1) {
+        String translatedWildcard=environmentSubstitute(wildcard);
+        if (!Const.isEmpty(translatedWildcard)) {
+          if (filelist[0].startsWith(translatedWildcard)) {
+            throw new FTPException(filelist[0]);
+          }
+        }
+      }
+    }
+ else     if (protocol.equals("SFTP")) {
+      SFTPConnect(log,realservername,realUsername,realserverport,realPassword,realFtpDirectory);
+      filelist=sftpclient.dir();
+    }
+ else     if (protocol.equals("SSH")) {
+      SSHConnect(log,realservername,realserverpassword,realserverport,realUsername,realPassword,realproxyhost,realproxyusername,realproxypassword,realproxyport,realkeyFilename,realkeyPass);
+      String sourceFolder=".";
+      if (realFtpDirectory != null)       sourceFolder=realFtpDirectory + "/";
+ else       sourceFolder="./";
+      Vector<SFTPv3DirectoryEntry> vfilelist=sshclient.ls(sourceFolder);
+      int i=0;
+      if (vfilelist != null) {
+        filelist=new String[vfilelist.size()];
+        Iterator<SFTPv3DirectoryEntry> iterator=vfilelist.iterator();
+        while (iterator.hasNext()) {
+          SFTPv3DirectoryEntry dirEntry=iterator.next();
+          if (dirEntry != null && !dirEntry.filename.equals(".") && !dirEntry.filename.equals("..") && !isDirectory(sshclient,sourceFolder + dirEntry.filename)) {
+            filelist[i++]=dirEntry.filename;
+          }
+        }
+      }
+    }
+    if (log.isDetailed())     logDetailed("JobEntryFTPDelete.FoundNFiles","" + filelist.length);
+    int found=filelist == null ? 0 : filelist.length;
+    if (found == 0) {
+      result.setResult(true);
+      return result;
+    }
+    Pattern pattern=null;
+    if (copyprevious) {
+      for (int iteration=0; iteration < rows.size(); iteration++) {
+        resultRow=rows.get(iteration);
+        String file_previous=resultRow.getString(0,null);
+        if (!Const.isEmpty(file_previous)) {
+          list_previous_files.add(file_previous);
+        }
+      }
+    }
+ else {
+      if (!Const.isEmpty(wildcard)) {
+        String realWildcard=environmentSubstitute(wildcard);
+        pattern=Pattern.compile(realWildcard);
+      }
+    }
+    if (!getSuccessCondition().equals(SUCCESS_IF_ALL_FILES_DOWNLOADED))     limitFiles=Const.toInt(environmentSubstitute(getLimitSuccess()),10);
+    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      if (successConditionBroken)       throw new Exception(BaseMessages.getString(PKG,"JobEntryFTPDelete.SuccesConditionBroken"));
+      boolean getIt=false;
+      if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"JobEntryFTPDelete.AnalysingFile",filelist[i]));
+      try {
+        if (copyprevious) {
+          if (list_previous_files.contains(filelist[i]))           getIt=true;
+        }
+ else {
+          if (pattern != null) {
+            Matcher matcher=pattern.matcher(filelist[i]);
+            getIt=matcher.matches();
+          }
+        }
+        if (getIt) {
+          if (protocol.equals("FTP")) {
+            ftpclient.delete(filelist[i]);
+          }
+ else           if (protocol.equals("SFTP")) {
+            sftpclient.delete(filelist[i]);
+          }
+ else           if (protocol.equals("SSH")) {
+            sshclient.rm(filelist[i]);
+          }
+          if (log.isDetailed())           logDetailed("JobEntryFTPDelete.RemotfileDeleted",filelist[i]);
+          updateDeletedFiles();
+        }
+      }
+ catch (      Exception e) {
+        updateErrors();
+        logError(BaseMessages.getString(PKG,"JobFTP.UnexpectedError",e.getMessage()));
+        if (successConditionBroken)         throw new Exception(BaseMessages.getString(PKG,"JobEntryFTPDelete.SuccesConditionBroken"));
+      }
+    }
+  }
+ catch (  Exception e) {
+    updateErrors();
+    logError(BaseMessages.getString(PKG,"JobEntryFTPDelete.ErrorGetting",e.getMessage()));
+    logError(Const.getStackTracker(e));
+  }
+ finally {
+    if (ftpclient != null && ftpclient.connected()) {
+      try {
+        ftpclient.quit();
+        ftpclient=null;
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"JobEntryFTPDelete.ErrorQuitting",e.getMessage()));
+      }
+    }
+    if (sftpclient != null) {
+      try {
+        sftpclient.disconnect();
+        sftpclient=null;
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"JobEntryFTPDelete.ErrorQuitting",e.getMessage()));
+      }
+    }
+    if (sshclient != null) {
+      try {
+        sshclient.close();
+        sshclient=null;
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"JobEntryFTPDelete.ErrorQuitting",e.getMessage()));
+      }
+    }
+  }
+  result.setResult(!successConditionBroken);
+  result.setNrFilesRetrieved(NrfilesDeleted);
+  result.setNrErrors(NrErrors);
+  return result;
+}

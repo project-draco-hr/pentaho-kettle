@@ -1,3 +1,28 @@
 {
-  return execute(true);
+  finished.set(false);
+  stopped.set(false);
+  log.logMinimal(BaseMessages.getString(PKG,"Job.Comment.JobStarted"));
+  JobEntryResult jerStart=new JobEntryResult(null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),BaseMessages.getString(PKG,"Job.Reason.Started"),null);
+  jobTracker.addJobTracker(new JobTracker(jobMeta,jerStart));
+  active.set(true);
+  JobEntryCopy startpoint;
+  beginProcessing();
+  startpoint=jobMeta.findJobEntry(JobMeta.STRING_SPECIAL_START,0,false);
+  if (startpoint == null) {
+    throw new KettleJobException(BaseMessages.getString(PKG,"Job.Log.CounldNotFindStartingPoint"));
+  }
+  JobEntrySpecial jes=(JobEntrySpecial)startpoint.getEntry();
+  Result res=null;
+  boolean isFirst=true;
+  while ((jes.isRepeat() || isFirst) && !isStopped()) {
+    isFirst=false;
+    res=execute(0,null,startpoint,null,BaseMessages.getString(PKG,"Job.Reason.Started"));
+  }
+  JobEntryResult jerEnd=new JobEntryResult(res,BaseMessages.getString(PKG,"Job.Comment.JobFinished"),BaseMessages.getString(PKG,"Job.Reason.Finished"),null);
+  jobTracker.addJobTracker(new JobTracker(jobMeta,jerEnd));
+  log.logMinimal(BaseMessages.getString(PKG,"Job.Comment.JobFinished"));
+  active.set(false);
+  finished.set(true);
+  fireJobListeners();
+  return res;
 }

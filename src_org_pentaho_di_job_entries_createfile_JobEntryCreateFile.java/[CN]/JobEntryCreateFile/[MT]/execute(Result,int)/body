@@ -1,0 +1,48 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  if (filename != null) {
+    String realFilename=getRealFilename();
+    FileObject fileObject=null;
+    try {
+      fileObject=KettleVFS.getFileObject(realFilename);
+      if (fileObject.exists()) {
+        if (isFailIfFileExists()) {
+          result.setResult(false);
+          logError("File [" + realFilename + "] exists, failing.");
+        }
+ else {
+          result.setResult(true);
+          logBasic("File [" + realFilename + "] already exists, not recreating.");
+        }
+        if (isAddFilenameToResult())         addFilenameToResult(realFilename,log,result,parentJob);
+      }
+ else {
+        fileObject.createFile();
+        logBasic("File [" + realFilename + "] created!");
+        if (isAddFilenameToResult())         addFilenameToResult(realFilename,log,result,parentJob);
+        result.setResult(true);
+      }
+    }
+ catch (    IOException e) {
+      logError("Could not create file [" + realFilename + "], exception: "+ e.getMessage());
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+ finally {
+      if (fileObject != null) {
+        try {
+          fileObject.close();
+        }
+ catch (        IOException ex) {
+        }
+        ;
+      }
+    }
+  }
+ else {
+    logError("No filename is defined.");
+  }
+  return result;
+}

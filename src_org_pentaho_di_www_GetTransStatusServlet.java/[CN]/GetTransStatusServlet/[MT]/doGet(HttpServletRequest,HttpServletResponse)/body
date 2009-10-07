@@ -1,8 +1,9 @@
 {
   if (!request.getContextPath().equals(CONTEXT_PATH))   return;
-  if (log.isDebug())   log.logDebug(toString(),BaseMessages.getString(PKG,"TransStatusServlet.Log.TransStatusRequested"));
+  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"TransStatusServlet.Log.TransStatusRequested"));
   String transName=request.getParameter("name");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
+  int startLineNr=Const.toInt(request.getParameter("from"),0);
   response.setStatus(HttpServletResponse.SC_OK);
   if (useXML) {
     response.setContentType("text/xml");
@@ -15,6 +16,7 @@
   Trans trans=transformationMap.getTransformation(transName);
   if (trans != null) {
     String status=trans.getStatus();
+    String logText=CentralLogStore.getAppender().getBuffer(trans.getLogChannel().getLogChannelId(),true,startLineNr).toString();
     if (useXML) {
       response.setContentType("text/xml");
       response.setCharacterEncoding(Const.XML_ENCODING);
@@ -27,18 +29,20 @@
           transStatus.getStepStatusList().add(stepStatus);
         }
       }
-      Log4jStringAppender appender=(Log4jStringAppender)transformationMap.getAppender(transName);
-      if (appender != null) {
-        ByteArrayOutputStream baos=new ByteArrayOutputStream();
-        GZIPOutputStream gzos=new GZIPOutputStream(baos);
-        gzos.write(appender.getBuffer().toString().getBytes());
-        gzos.close();
-        String loggingString=new String(Base64.encodeBase64(baos.toByteArray()));
-        transStatus.setLoggingString(loggingString);
-      }
+      ByteArrayOutputStream baos=new ByteArrayOutputStream();
+      GZIPOutputStream gzos=new GZIPOutputStream(baos);
+      gzos.write(logText.getBytes());
+      gzos.close();
+      String loggingString=new String(Base64.encodeBase64(baos.toByteArray()));
+      transStatus.setLoggingString(loggingString);
       transStatus.setResult(trans.getResult());
       transStatus.setPaused(trans.isPaused());
-      out.println(transStatus.getXML());
+      try {
+        out.println(transStatus.getXML());
+      }
+ catch (      KettleException e) {
+        throw new ServletException("Unable to get the transformation status in XML format",e);
+      }
     }
  else {
       response.setContentType("text/html");
@@ -84,15 +88,12 @@
         out.print("<a href=\"/kettle/transStatus/?name=" + URLEncoder.encode(transName,"UTF-8") + "&xml=y\">"+ BaseMessages.getString(PKG,"TransStatusServlet.ShowAsXml")+ "</a><br>");
         out.print("<a href=\"/kettle/status\">" + BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage") + "</a><br>");
         out.print("<p><a href=\"/kettle/transStatus?name=" + URLEncoder.encode(transName,"UTF-8") + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.Refresh")+ "</a>");
-        Log4jStringAppender appender=(Log4jStringAppender)transformationMap.getAppender(transName);
-        if (appender != null) {
-          out.println("<p>");
-          out.println("<textarea id=\"translog\" cols=\"120\" rows=\"20\" wrap=\"off\" name=\"Transformation log\" readonly=\"readonly\">" + appender.getBuffer().toString() + "</textarea>");
-          out.println("<script type=\"text/javascript\"> ");
-          out.println("  translog.scrollTop=translog.scrollHeight; ");
-          out.println("</script> ");
-          out.println("<p>");
-        }
+        out.println("<p>");
+        out.println("<textarea id=\"translog\" cols=\"120\" rows=\"20\" wrap=\"off\" name=\"Transformation log\" readonly=\"readonly\">" + logText + "</textarea>");
+        out.println("<script type=\"text/javascript\"> ");
+        out.println("  translog.scrollTop=translog.scrollHeight; ");
+        out.println("</script> ");
+        out.println("<p>");
       }
  catch (      Exception ex) {
         out.println("<p>");

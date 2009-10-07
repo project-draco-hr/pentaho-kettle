@@ -1,0 +1,55 @@
+{
+  Result result=new Result();
+  KettleEnvironment.init();
+  Trans trans=null;
+  TransMeta transMeta=new TransMeta();
+  try {
+    transMeta=new TransMeta(fileName);
+    trans=new Trans(transMeta);
+    result=trans.getResult();
+  }
+ catch (  Exception e) {
+    result=trans.getResult();
+    trans=null;
+    transMeta=null;
+    addFailure("Processing has stopped because of an error: " + getPath(fileName));
+    log.logError("BlackBoxTest","Processing has stopped because of an error: " + getPath(fileName),e);
+    return result;
+  }
+  if (trans == null) {
+    addFailure("Can't continue because the transformation couldn't be loaded." + getPath(fileName));
+    log.logError("BlackBoxTest","Can't continue because the transformation couldn't be loaded." + getPath(fileName));
+    return result;
+  }
+  try {
+    trans.initializeVariablesFrom(null);
+    trans.getTransMeta().setInternalKettleVariables(trans);
+    trans.setSafeModeEnabled(true);
+    List<CheckResultInterface> remarks=new ArrayList<CheckResultInterface>();
+    trans.getTransMeta().checkSteps(remarks,false,null);
+    for (    CheckResultInterface remark : remarks) {
+      if (remark.getType() == CheckResultInterface.TYPE_RESULT_ERROR) {
+        addFailure("Check error: " + getPath(fileName) + ", "+ remark.getErrorCode());
+        log.logError("BlackBoxTest","Check error: " + getPath(fileName) + ", "+ remark.getErrorCode());
+      }
+    }
+    try {
+      trans.execute(null);
+    }
+ catch (    Exception e) {
+      addFailure("Unable to prepare and initialize this transformation: " + getPath(fileName));
+      log.logError("BlackBoxTest","Unable to prepare and initialize this transformation: " + getPath(fileName));
+      return null;
+    }
+    trans.waitUntilFinished();
+    trans.endProcessing(Database.LOG_STATUS_END);
+    return trans.getResult();
+  }
+ catch (  KettleException ke) {
+    addFailure("Unexpected error occurred: " + getPath(fileName));
+    log.logError("BlackBoxTest","Unexpected error occurred: " + getPath(fileName),ke);
+    result.setResult(false);
+    result.setNrErrors(1);
+    return result;
+  }
+}

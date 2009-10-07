@@ -1,0 +1,124 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  long timeStart=System.currentTimeMillis() / 1000;
+  if (filename != null) {
+    FileObject fileObject=null;
+    String realFilename=getRealFilename();
+    try {
+      fileObject=KettleVFS.getFileObject(realFilename);
+      long iMaximumTimeout=Const.toInt(getRealMaximumTimeout(),Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0));
+      long iCycleTime=Const.toInt(getRealCheckCycleTime(),Const.toInt(DEFAULT_CHECK_CYCLE_TIME,0));
+      if (iMaximumTimeout < 0) {
+        iMaximumTimeout=Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0);
+        if (log.isBasic())         logBasic("Maximum timeout invalid, reset to " + iMaximumTimeout);
+      }
+      if (iCycleTime < 1) {
+        iCycleTime=Const.toInt(DEFAULT_CHECK_CYCLE_TIME,1);
+        if (log.isBasic())         logBasic("Check cycle time invalid, reset to " + iCycleTime);
+      }
+      if (iMaximumTimeout == 0) {
+        if (log.isBasic())         logBasic("Waiting indefinitely for file [" + realFilename + "]");
+      }
+ else {
+        if (log.isBasic())         logBasic("Waiting " + iMaximumTimeout + " seconds for file ["+ realFilename+ "]");
+      }
+      boolean continueLoop=true;
+      while (continueLoop && !parentJob.isStopped()) {
+        fileObject=KettleVFS.getFileObject(realFilename);
+        if (fileObject.exists()) {
+          if (log.isBasic())           logBasic("Detected file [" + realFilename + "] within timeout");
+          result.setResult(true);
+          continueLoop=false;
+          if (addFilenameToResult && fileObject.getType() == FileType.FILE) {
+            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,fileObject,parentJob.getJobname(),toString());
+            resultFile.setComment(BaseMessages.getString(PKG,"JobWaitForFile.FilenameAdded"));
+            result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+          }
+        }
+ else {
+          long now=System.currentTimeMillis() / 1000;
+          if ((iMaximumTimeout > 0) && (now > (timeStart + iMaximumTimeout))) {
+            continueLoop=false;
+            if (isSuccessOnTimeout()) {
+              if (log.isBasic())               logBasic("Didn't detect file [" + realFilename + "] before timeout, success");
+              result.setResult(true);
+            }
+ else {
+              if (log.isBasic())               logBasic("Didn't detect file [" + realFilename + "] before timeout, failure");
+              result.setResult(false);
+            }
+          }
+          long sleepTime=0;
+          if (iMaximumTimeout == 0) {
+            sleepTime=iCycleTime;
+          }
+ else {
+            if ((now + iCycleTime) < (timeStart + iMaximumTimeout)) {
+              sleepTime=iCycleTime;
+            }
+ else {
+              sleepTime=iCycleTime - ((now + iCycleTime) - (timeStart + iMaximumTimeout));
+            }
+          }
+          try {
+            if (sleepTime > 0) {
+              if (log.isDetailed()) {
+                logDetailed("Sleeping " + sleepTime + " seconds before next check for file ["+ realFilename+ "]");
+              }
+              Thread.sleep(sleepTime * 1000);
+            }
+          }
+ catch (          InterruptedException e) {
+            result.setResult(false);
+            continueLoop=false;
+          }
+        }
+      }
+      if (!parentJob.isStopped() && fileObject.exists() && isFileSizeCheck()) {
+        long oldSize=-1;
+        long newSize=fileObject.getContent().getSize();
+        if (log.isDetailed())         logDetailed("File [" + realFilename + "] is "+ newSize+ " bytes long");
+        if (log.isBasic())         logBasic("Waiting until file [" + realFilename + "] stops growing for "+ iCycleTime+ " seconds");
+        while (oldSize != newSize && !parentJob.isStopped()) {
+          try {
+            if (log.isDetailed()) {
+              logDetailed("Sleeping " + iCycleTime + " seconds, waiting for file ["+ realFilename+ "] to stop growing");
+            }
+            Thread.sleep(iCycleTime * 1000);
+          }
+ catch (          InterruptedException e) {
+            result.setResult(false);
+            continueLoop=false;
+          }
+          oldSize=newSize;
+          newSize=fileObject.getContent().getSize();
+          if (log.isDetailed()) {
+            logDetailed("File [" + realFilename + "] is "+ newSize+ " bytes long");
+          }
+        }
+        if (log.isBasic())         logBasic("Stopped waiting for file [" + realFilename + "] to stop growing");
+      }
+      if (parentJob.isStopped()) {
+        result.setResult(false);
+      }
+    }
+ catch (    IOException e) {
+      logBasic("Exception while waiting for file [" + realFilename + "] to stop growing: "+ e.getMessage());
+    }
+ finally {
+      if (fileObject != null) {
+        try {
+          fileObject.close();
+        }
+ catch (        Exception e) {
+        }
+      }
+    }
+  }
+ else {
+    logError("No filename is defined.");
+  }
+  return result;
+}

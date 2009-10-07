@@ -1,11 +1,11 @@
 {
   Result res=null;
-  if (stopped) {
+  if (stopped.get()) {
     res=new Result(nr);
     res.stopped=true;
     return res;
   }
-  if (log.isDetailed())   log.logDetailed(toString(),"exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (startpoint != null ? startpoint.toString() : "null")+ ")");
+  if (log.isDetailed())   log.logDetailed("exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (startpoint != null ? startpoint.toString() : "null")+ ")");
   JobEntryInterface jei=startpoint.getEntry();
   JobEntryResult jerBefore=new JobEntryResult(null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),reason,startpoint);
   jobTracker.addJobTracker(new JobTracker(jobMeta,jerBefore));
@@ -20,7 +20,10 @@
   Thread.currentThread().setContextClassLoader(jei.getClass().getClassLoader());
   JobEntryInterface cloneJei=(JobEntryInterface)jei.clone();
   ((VariableSpace)cloneJei).copyVariablesFrom(this);
-  final Result result=cloneJei.execute(prevResult,nr,rep,this);
+  cloneJei.setRepository(rep);
+  cloneJei.setParentJob(this);
+  cloneJei.getLogChannel().logDetailed("Starting job entry");
+  final Result result=cloneJei.execute(prevResult,nr);
   Thread.currentThread().setContextClassLoader(cl);
   addErrors((int)result.getNrErrors());
   JobEntryResult jerAfter=new JobEntryResult(result,BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,startpoint);
@@ -59,7 +62,7 @@
               threadResults.add(threadResult);
             }
  catch (            Throwable e) {
-              log.logError(toString(),Const.getStackTracker(e));
+              log.logError(Const.getStackTracker(e));
               threadExceptions.add(new KettleException(BaseMessages.getString(PKG,"Job.Log.UnexpectedError",nextEntry.toString()),e));
               Result threadResult=new Result();
               threadResult.setResult(false);
@@ -72,17 +75,17 @@
         Thread thread=new Thread(runnable);
         threads.add(thread);
         thread.start();
-        if (log.isBasic())         log.logBasic(jobMeta.toString(),BaseMessages.getString(PKG,"Job.Log.LaunchedJobEntryInParallel",nextEntry.getName()));
+        if (log.isBasic())         log.logBasic(BaseMessages.getString(PKG,"Job.Log.LaunchedJobEntryInParallel",nextEntry.getName()));
       }
  else {
         try {
           res=execute(nr + 1,result,nextEntry,startpoint,nextComment);
         }
  catch (        Throwable e) {
-          log.logError(toString(),Const.getStackTracker(e));
+          log.logError(Const.getStackTracker(e));
           throw new KettleException(BaseMessages.getString(PKG,"Job.Log.UnexpectedError",nextEntry.toString()),e);
         }
-        if (log.isBasic())         log.logBasic(jobMeta.toString(),BaseMessages.getString(PKG,"Job.Log.FinishedJobEntry",nextEntry.getName(),res.getResult() + ""));
+        if (log.isBasic())         log.logBasic(BaseMessages.getString(PKG,"Job.Log.FinishedJobEntry",nextEntry.getName(),res.getResult() + ""));
       }
     }
   }

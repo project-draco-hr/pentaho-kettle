@@ -1,0 +1,62 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  String realdestinationFolder=environmentSubstitute(getDestinationFolder());
+  if (!CreateDestinationFolder(realdestinationFolder,log)) {
+    return result;
+  }
+  if (previousResult != null) {
+    NrErrors=0;
+    limitFiles=Const.toInt(environmentSubstitute(getNrErrorsLessThan()),10);
+    NrErrors=0;
+    NrSuccess=0;
+    successConditionBroken=false;
+    successConditionBrokenExit=false;
+    FileObject file=null;
+    try {
+      int size=result.getResultFiles().size();
+      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"JobEntryCopyMoveResultFilenames.log.FilesFound","" + size));
+      List<ResultFile> resultFiles=result.getResultFilesList();
+      if (resultFiles != null && resultFiles.size() > 0) {
+        for (Iterator<ResultFile> it=resultFiles.iterator(); it.hasNext() && !parentJob.isStopped(); ) {
+          if (successConditionBroken) {
+            logError(BaseMessages.getString(PKG,"JobEntryCopyMoveResultFilenames.Error.SuccessConditionbroken","" + NrErrors));
+            throw new Exception(BaseMessages.getString(PKG,"JobEntryCopyMoveResultFilenames.Error.SuccessConditionbroken","" + NrErrors));
+          }
+          ResultFile resultFile=(ResultFile)it.next();
+          file=resultFile.getFile();
+          if (file != null && file.exists()) {
+            if (!specifywildcard || (CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcard),true) && !CheckFileWildcard(file.getName().getBaseName(),environmentSubstitute(wildcardexclude),false) && specifywildcard)) {
+              if (!ProcessFile(file,realdestinationFolder,log,result,parentJob)) {
+                updateErrors();
+              }
+            }
+          }
+ else {
+            logError(BaseMessages.getString(PKG,"JobEntryCopyMoveResultFilenames.log.ErrorCanNotFindFile",file.toString()));
+            updateErrors();
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      logError(BaseMessages.getString(PKG,"JobEntryCopyMoveResultFilenames.Error",e.toString()));
+    }
+ finally {
+      if (file != null) {
+        try {
+          file.close();
+        }
+ catch (        Exception ex) {
+        }
+        ;
+      }
+    }
+  }
+  result.setNrErrors(NrErrors);
+  result.setNrLinesWritten(NrSuccess);
+  if (getSuccessStatus())   result.setResult(true);
+  return result;
+}

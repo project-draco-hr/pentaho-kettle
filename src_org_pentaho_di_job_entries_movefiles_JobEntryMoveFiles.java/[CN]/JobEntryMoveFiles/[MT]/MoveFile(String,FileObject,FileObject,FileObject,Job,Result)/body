@@ -1,0 +1,99 @@
+{
+  FileObject destinationfile=null;
+  boolean retval=false;
+  try {
+    if (!destinationfilename.exists()) {
+      if (!simulate)       sourcefilename.moveTo(destinationfilename);
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileMoved",sourcefilename.getName().toString(),destinationfilename.getName().toString()));
+      if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))       addFileToResultFilenames(destinationfilename.toString(),result,parentJob);
+      updateSuccess();
+    }
+ else {
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileExists",destinationfilename.toString()));
+      if (iffileexists.equals("overwrite_file")) {
+        if (!simulate)         sourcefilename.moveTo(destinationfilename);
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileOverwrite",destinationfilename.getName().toString()));
+        if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))         addFileToResultFilenames(destinationfilename.toString(),result,parentJob);
+        updateSuccess();
+      }
+ else       if (iffileexists.equals("unique_name")) {
+        String short_filename=shortfilename;
+        try {
+          short_filename=getMoveDestinationFilename(short_filename,"ddMMyyyy_HHmmssSSS");
+        }
+ catch (        Exception e) {
+          logError(BaseMessages.getString(PKG,BaseMessages.getString(PKG,"JobMoveFiles.Error.GettingFilename",short_filename)));
+          return retval;
+        }
+        String movetofilenamefull=destinationfilename.getParent().toString() + Const.FILE_SEPARATOR + short_filename;
+        destinationfile=KettleVFS.getFileObject(movetofilenamefull);
+        if (!simulate)         sourcefilename.moveTo(destinationfile);
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileMoved",sourcefilename.getName().toString(),destinationfile.getName().toString()));
+        if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))         addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+        updateSuccess();
+      }
+ else       if (iffileexists.equals("delete_file")) {
+        if (!simulate)         destinationfilename.delete();
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileDeleted",destinationfilename.getName().toString()));
+      }
+ else       if (iffileexists.equals("move_file")) {
+        String short_filename=shortfilename;
+        try {
+          short_filename=getMoveDestinationFilename(short_filename,null);
+        }
+ catch (        Exception e) {
+          logError(BaseMessages.getString(PKG,BaseMessages.getString(PKG,"JobMoveFiles.Error.GettingFilename",short_filename)));
+          return retval;
+        }
+        String movetofilenamefull=movetofolderfolder.toString() + Const.FILE_SEPARATOR + short_filename;
+        destinationfile=KettleVFS.getFileObject(movetofilenamefull);
+        if (!destinationfile.exists()) {
+          if (!simulate)           sourcefilename.moveTo(destinationfile);
+          if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileMoved",sourcefilename.getName().toString(),destinationfile.getName().toString()));
+          if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))           addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+        }
+ else {
+          if (ifmovedfileexists.equals("overwrite_file")) {
+            if (!simulate)             sourcefilename.moveTo(destinationfile);
+            if (log.isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileOverwrite",destinationfile.getName().toString()));
+            if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))             addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+            updateSuccess();
+          }
+ else           if (ifmovedfileexists.equals("unique_name")) {
+            SimpleDateFormat daf=new SimpleDateFormat();
+            Date now=new Date();
+            daf.applyPattern("ddMMyyyy_HHmmssSSS");
+            String dt=daf.format(now);
+            short_filename+="_" + dt;
+            String destinationfilenamefull=movetofolderfolder.toString() + Const.FILE_SEPARATOR + short_filename;
+            destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
+            if (!simulate)             sourcefilename.moveTo(destinationfile);
+            if (log.isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobMoveFiles.Log.FileMoved",destinationfile.getName().toString()));
+            if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))             addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+            updateSuccess();
+          }
+ else           if (ifmovedfileexists.equals("fail")) {
+            updateErrors();
+          }
+        }
+      }
+ else       if (iffileexists.equals("fail")) {
+        updateErrors();
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobMoveFiles.Error.Exception.MoveProcessError",sourcefilename.toString(),destinationfilename.toString(),e.getMessage()));
+  }
+ finally {
+    if (destinationfile != null) {
+      try {
+        destinationfile.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return retval;
+}

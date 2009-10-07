@@ -1,0 +1,75 @@
+{
+  boolean retval=false;
+  FileObject xmlfile=null;
+  FileObject xslfile=null;
+  FileObject outputfile=null;
+  try {
+    xmlfile=KettleVFS.getFileObject(xmlfilename);
+    xslfile=KettleVFS.getFileObject(xslfilename);
+    outputfile=KettleVFS.getFileObject(outputfilename);
+    if (xmlfile.exists() && xslfile.exists()) {
+      if (outputfile.exists() && iffileexists == 2) {
+        logError(BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists1.Label") + outputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists2.Label"));
+        return retval;
+      }
+ else       if (outputfile.exists() && iffileexists == 1) {
+        if (log.isDebug())         logDebug(BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists1.Label") + outputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists2.Label"));
+        retval=true;
+        return retval;
+      }
+ else {
+        if (outputfile.exists() && iffileexists == 0) {
+          String wildcard=outputfilename.substring(outputfilename.length() - 4,outputfilename.length());
+          if (wildcard.substring(0,1).equals(".")) {
+            outputfilename=outputfilename.substring(0,outputfilename.length() - 4) + "_" + StringUtil.getFormattedDateTimeNow(true)+ wildcard;
+          }
+ else {
+            outputfilename=outputfilename + "_" + StringUtil.getFormattedDateTimeNow(true);
+          }
+          if (log.isDebug()) {
+            logDebug(BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists1.Label") + outputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileExists2.Label"));
+            logDebug(BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileNameChange1.Label") + outputfilename + BaseMessages.getString(PKG,"JobEntryXSLT.OuputFileNameChange2.Label"));
+          }
+        }
+        TransformerFactory factory=TransformerFactory.newInstance();
+        if (xsltfactory.equals(FACTORY_SAXON)) {
+          factory=new net.sf.saxon.TransformerFactoryImpl();
+        }
+        if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactoryInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactory",factory.getClass().getName()));
+        Templates template=factory.newTemplates(new StreamSource(KettleVFS.getInputStream(xslfile)));
+        Transformer xformer=template.newTransformer();
+        if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClassInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClass",xformer.getClass().getName()));
+        Source source=new StreamSource(KettleVFS.getInputStream(xmlfile));
+        StreamResult resultat=new StreamResult(KettleVFS.getOutputStream(outputfile,false));
+        xformer.transform(source,resultat);
+        if (isAddFileToResult()) {
+          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(outputfilename),parentJob.getJobname(),toString());
+          result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+        }
+        retval=true;
+      }
+    }
+ else {
+      if (!xmlfile.exists()) {
+        logError(BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist1.Label") + xmlfilename + BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist2.Label"));
+      }
+      if (!xslfile.exists()) {
+        logError(BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist1.Label") + xmlfilename + BaseMessages.getString(PKG,"JobEntryXSLT.FileDoesNotExist2.Label"));
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLST.Label") + BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXML1.Label") + xmlfilename+ BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXML2.Label")+ BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXSL1.Label")+ xslfilename+ BaseMessages.getString(PKG,"JobEntryXSLT.ErrorXLSTXSL2.Label")+ e.getMessage());
+  }
+ finally {
+    try {
+      if (xmlfile != null)       xmlfile.close();
+      if (xslfile != null)       xslfile.close();
+      if (outputfile != null)       outputfile.close();
+      System.gc();
+    }
+ catch (    IOException e) {
+    }
+  }
+  return retval;
+}
