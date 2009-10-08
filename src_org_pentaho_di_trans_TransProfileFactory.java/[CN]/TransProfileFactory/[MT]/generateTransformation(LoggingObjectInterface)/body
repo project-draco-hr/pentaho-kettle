@@ -1,0 +1,80 @@
+{
+  StepLoader stepLoader=StepLoader.getInstance();
+  tableLayout=getTableFields(parentLoggingInterface);
+  TransMeta transMeta=new TransMeta(databaseMeta);
+  transMeta.addDatabase(databaseMeta);
+  TableInputMeta readMeta=new TableInputMeta();
+  readMeta.setSQL("SELECT * FROM " + schemaTable);
+  readMeta.setDatabaseMeta(databaseMeta);
+  StepMeta read=new StepMeta(stepLoader.getStepPluginID(readMeta),"Read data",readMeta);
+  read.setLocation(50,50);
+  read.setDraw(true);
+  transMeta.addStep(read);
+  int numericCalculations[]=new int[]{GroupByMeta.TYPE_GROUP_MIN,GroupByMeta.TYPE_GROUP_MAX,GroupByMeta.TYPE_GROUP_SUM,GroupByMeta.TYPE_GROUP_COUNT_ALL,GroupByMeta.TYPE_GROUP_AVERAGE,GroupByMeta.TYPE_GROUP_STANDARD_DEVIATION};
+  int stringCalculations[]=new int[]{GroupByMeta.TYPE_GROUP_MIN,GroupByMeta.TYPE_GROUP_MAX,GroupByMeta.TYPE_GROUP_COUNT_ALL};
+  int dateCalculations[]=new int[]{GroupByMeta.TYPE_GROUP_MIN,GroupByMeta.TYPE_GROUP_MAX,GroupByMeta.TYPE_GROUP_COUNT_ALL};
+  int booleanCalculations[]=new int[]{GroupByMeta.TYPE_GROUP_MIN,GroupByMeta.TYPE_GROUP_MAX,GroupByMeta.TYPE_GROUP_COUNT_ALL};
+  GroupByMeta statsMeta=new GroupByMeta();
+  int nrNumeric=0;
+  int nrDates=0;
+  int nrStrings=0;
+  int nrBooleans=0;
+  for (  ValueMetaInterface valueMeta : tableLayout.getValueMetaList()) {
+    if (valueMeta.isNumeric())     nrNumeric++;
+    if (valueMeta.isDate())     nrDates++;
+    if (valueMeta.isString())     nrStrings++;
+    if (valueMeta.isBoolean())     nrBooleans++;
+  }
+  int nrCalculations=nrNumeric * numericCalculations.length + nrDates * dateCalculations.length + nrStrings * stringCalculations.length + nrBooleans * booleanCalculations.length;
+  statsMeta.allocate(0,nrCalculations);
+  int calcIndex=0;
+  for (int i=0; i < tableLayout.size(); i++) {
+    ValueMetaInterface valueMeta=tableLayout.getValueMeta(i);
+    if (valueMeta.isNumeric()) {
+      for (int c=0; c < numericCalculations.length; c++) {
+        statsMeta.getAggregateField()[calcIndex]=valueMeta.getName() + "(" + GroupByMeta.getTypeDesc(numericCalculations[c])+ ")";
+        statsMeta.getSubjectField()[calcIndex]=valueMeta.getName();
+        statsMeta.getAggregateType()[calcIndex]=numericCalculations[c];
+        calcIndex++;
+      }
+    }
+    if (valueMeta.isString()) {
+      for (int c=0; c < stringCalculations.length; c++) {
+        statsMeta.getAggregateField()[calcIndex]=valueMeta.getName() + "(" + GroupByMeta.getTypeDesc(stringCalculations[c])+ ")";
+        statsMeta.getSubjectField()[calcIndex]=valueMeta.getName();
+        statsMeta.getAggregateType()[calcIndex]=stringCalculations[c];
+        calcIndex++;
+      }
+    }
+    if (valueMeta.isDate()) {
+      for (int c=0; c < dateCalculations.length; c++) {
+        statsMeta.getAggregateField()[calcIndex]=valueMeta.getName() + "(" + GroupByMeta.getTypeDesc(dateCalculations[c])+ ")";
+        statsMeta.getSubjectField()[calcIndex]=valueMeta.getName();
+        statsMeta.getAggregateType()[calcIndex]=dateCalculations[c];
+        calcIndex++;
+      }
+    }
+    if (valueMeta.isBoolean()) {
+      for (int c=0; c < booleanCalculations.length; c++) {
+        statsMeta.getAggregateField()[calcIndex]=valueMeta.getName() + "(" + GroupByMeta.getTypeDesc(booleanCalculations[c])+ ")";
+        statsMeta.getSubjectField()[calcIndex]=valueMeta.getName();
+        statsMeta.getAggregateType()[calcIndex]=booleanCalculations[c];
+        calcIndex++;
+      }
+    }
+  }
+  StepMeta calc=new StepMeta(stepLoader.getStepPluginID(statsMeta),"Calc",statsMeta);
+  calc.setLocation(250,50);
+  calc.setDraw(true);
+  transMeta.addStep(calc);
+  TransHopMeta hop=new TransHopMeta(read,calc);
+  transMeta.addTransHop(hop);
+  DummyTransMeta dummyMeta=new DummyTransMeta();
+  StepMeta result=new StepMeta(stepLoader.getStepPluginID(dummyMeta),RESULT_STEP_NAME,dummyMeta);
+  result.setLocation(450,50);
+  result.setDraw(true);
+  transMeta.addStep(result);
+  TransHopMeta hop2=new TransHopMeta(calc,result);
+  transMeta.addTransHop(hop2);
+  return transMeta;
+}

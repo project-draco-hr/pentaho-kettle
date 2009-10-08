@@ -1,0 +1,135 @@
+{
+  if (monitor != null) {
+    monitor.beginTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingInfoFromDb"),8);
+  }
+  Database db=new Database(parentLoggingObject,dbInfo);
+  try {
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.ConnectingDb"));
+    db.connect();
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingMetaData"));
+    DatabaseMetaData dbmd=db.getDatabaseMetaData();
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingInfo"));
+    if (dbInfo.supportsCatalogs() && dbmd.supportsCatalogsInTableDefinitions()) {
+      ArrayList<Catalog> catalogList=new ArrayList<Catalog>();
+      ResultSet catalogResultSet=dbmd.getCatalogs();
+      while (catalogResultSet != null && catalogResultSet.next()) {
+        String catalogName=catalogResultSet.getString(1);
+        catalogList.add(new Catalog(catalogName));
+      }
+      catalogResultSet.close();
+      for (      Catalog catalog : catalogList) {
+        ArrayList<String> catalogTables=new ArrayList<String>();
+        try {
+          ResultSet catalogTablesResultSet=dbmd.getTables(catalog.getCatalogName(),null,null,null);
+          while (catalogTablesResultSet.next()) {
+            String tableName=catalogTablesResultSet.getString(3);
+            if (!db.isSystemTable(tableName)) {
+              catalogTables.add(tableName);
+            }
+          }
+          catalogTablesResultSet.close();
+          Collections.sort(catalogTables);
+        }
+ catch (        Exception e) {
+        }
+        catalog.setItems(catalogTables.toArray(new String[catalogTables.size()]));
+      }
+      setCatalogs(catalogList.toArray(new Catalog[catalogList.size()]));
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingSchemaInfo"));
+    if (dbInfo.supportsSchemas() && dbmd.supportsSchemasInTableDefinitions()) {
+      ArrayList<Schema> schemaList=new ArrayList<Schema>();
+      try {
+        if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
+          Statement schemaStatement=db.getConnection().createStatement();
+          ResultSet schemaResultSet=schemaStatement.executeQuery("select name from sys.schemas");
+          while (schemaResultSet != null && schemaResultSet.next()) {
+            String schemaName=schemaResultSet.getString("name");
+            schemaList.add(new Schema(schemaName));
+          }
+          schemaResultSet.close();
+          schemaStatement.close();
+        }
+ else {
+          ResultSet schemaResultSet=dbmd.getSchemas();
+          while (schemaResultSet != null && schemaResultSet.next()) {
+            String schemaName=schemaResultSet.getString(1);
+            schemaList.add(new Schema(schemaName));
+          }
+          schemaResultSet.close();
+        }
+        for (        Schema schema : schemaList) {
+          ArrayList<String> schemaTables=new ArrayList<String>();
+          try {
+            ResultSet schemaTablesResultSet=dbmd.getTables(null,schema.getSchemaName(),null,null);
+            while (schemaTablesResultSet.next()) {
+              String tableName=schemaTablesResultSet.getString(3);
+              if (!db.isSystemTable(tableName)) {
+                schemaTables.add(tableName);
+              }
+            }
+            schemaTablesResultSet.close();
+            Collections.sort(schemaTables);
+          }
+ catch (          Exception e) {
+          }
+          schema.setItems(schemaTables.toArray(new String[schemaTables.size()]));
+        }
+      }
+ catch (      Exception e) {
+      }
+      setSchemas(schemaList.toArray(new Schema[schemaList.size()]));
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingTables"));
+    if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
+      setTables(db.getTablenames(true));
+    }
+ else {
+      setTables(db.getTablenames());
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingViews"));
+    if (dbInfo.supportsViews()) {
+      if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
+        setViews(db.getViews(true));
+      }
+ else {
+        setViews(db.getViews());
+      }
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingSynonyms"));
+    if (dbInfo.supportsSynonyms()) {
+      if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
+        setSynonyms(db.getSynonyms(true));
+      }
+ else {
+        setSynonyms(db.getSynonyms());
+      }
+    }
+    if (monitor != null)     monitor.worked(1);
+    if (monitor != null && monitor.isCanceled())     return;
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingProcedures"));
+    setProcedures(db.getProcedures());
+    if (monitor != null)     monitor.worked(1);
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException(BaseMessages.getString(PKG,"DatabaseMeta.Error.UnableRetrieveDbInfo"),e);
+  }
+ finally {
+    if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.ClosingDbConnection"));
+    db.disconnect();
+    if (monitor != null)     monitor.worked(1);
+  }
+  if (monitor != null)   monitor.done();
+}
