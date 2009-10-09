@@ -1,0 +1,32 @@
+{
+  if (logCleanerTimer != null) {
+    logCleanerTimer.cancel();
+  }
+  logCleanerTimer=new Timer();
+  final AtomicBoolean busy=new AtomicBoolean(false);
+  TimerTask timerTask=new TimerTask(){
+    public void run(){
+      if (!busy.get()) {
+        busy.set(true);
+        int nrRemovedLines=0;
+        long minTimeBoundary=new Date().getTime() - maxLogTimeoutMinutes * 60 * 1000;
+synchronized (appender) {
+          Iterator<BufferLine> i=appender.getBufferIterator();
+          while (i.hasNext()) {
+            BufferLine bufferLine=i.next();
+            if (bufferLine.getEvent().timeStamp < minTimeBoundary) {
+              i.remove();
+              nrRemovedLines++;
+            }
+ else {
+              break;
+            }
+          }
+        }
+        busy.set(false);
+      }
+    }
+  }
+;
+  logCleanerTimer.schedule(timerTask,10000,10000);
+}
