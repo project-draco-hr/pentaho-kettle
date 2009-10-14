@@ -10,49 +10,85 @@
     setMenu(real.x,real.y);
     return;
   }
-  startHopStep=null;
   if (e.button == 1) {
-    List<AreaOwner> areaOwners=findAreaOwners(real.x,real.y);
-    for (    AreaOwner areaOwner : areaOwners) {
-      if (areaOwner.getParent() instanceof StepMeta && areaOwner.getOwner().equals(TransPainter.STRING_OUTPUT_HOP_ICON)) {
+    AreaOwner areaOwner=getVisibleAreaOwner(real.x,real.y);
+    if (areaOwner != null) {
+switch (areaOwner.getAreaType()) {
+case STEP_OUTPUT_HOP_ICON:
         showHopInputIcons=true;
-        selectedStep=null;
-        startHopStep=(StepMeta)areaOwner.getParent();
-      }
-    }
-  }
-  if (candidate != null) {
-    addCandidateAsHop();
-  }
-  StepMeta stepMeta=transMeta.getStep(real.x,real.y,iconsize);
-  if (stepMeta != null) {
-    if (e.button == 1 && alt && stepMeta.supportsErrorHandling()) {
-      spoon.editStepErrorHandling(transMeta,stepMeta);
-      return;
-    }
- else     if (e.button == 2 || (e.button == 1 && shift)) {
-      startHopStep=stepMeta;
-    }
+      selectedStep=null;
+    startHopStep=(StepMeta)areaOwner.getParent();
+  candidateHopType=null;
+startErrorHopStep=false;
+break;
+case STEP_INFO_HOP_ICON:
+if (startHopStep != null) {
+StepMeta stepMeta=(StepMeta)areaOwner.getParent();
+StreamInterface stream=(StreamInterface)areaOwner.getOwner();
+candidate=new TransHopMeta(startHopStep,stepMeta);
+stream.setStepMeta(startHopStep);
+}
+startHopStep=null;
+break;
+case STEP_INPUT_HOP_ICON:
+if (startHopStep != null) {
+StepMeta stepMeta=(StepMeta)areaOwner.getParent();
+candidate=new TransHopMeta(startHopStep,stepMeta);
+}
+break;
+case STEP_ERROR_HOP_ICON:
+if (startHopStep == null) {
+startHopStep=(StepMeta)areaOwner.getParent();
+startErrorHopStep=true;
+}
+break;
+default :
+startHopStep=null;
+}
+}
+}
+if (candidate != null) {
+if (startErrorHopStep) {
+StepErrorMeta errorMeta=candidate.getFromStep().getStepErrorMeta();
+if (errorMeta == null) {
+errorMeta=new StepErrorMeta(transMeta,candidate.getFromStep());
+}
+errorMeta.setEnabled(true);
+errorMeta.setTargetStep(candidate.getToStep());
+candidate.getFromStep().setStepErrorMeta(errorMeta);
+startErrorHopStep=false;
+}
+addCandidateAsHop();
+}
+StepMeta stepMeta=transMeta.getStep(real.x,real.y,iconsize);
+if (stepMeta != null) {
+if (e.button == 1 && alt && stepMeta.supportsErrorHandling()) {
+spoon.editStepErrorHandling(transMeta,stepMeta);
+return;
+}
+ else if (e.button == 2 || (e.button == 1 && shift)) {
+startHopStep=stepMeta;
+}
  else {
-      selectedSteps=transMeta.getSelectedSteps();
-      selectedStep=stepMeta;
-      previous_step_locations=transMeta.getSelectedStepLocations();
-      Point p=stepMeta.getLocation();
-      iconoffset=new Point(real.x - p.x,real.y - p.y);
-    }
-  }
+selectedSteps=transMeta.getSelectedSteps();
+selectedStep=stepMeta;
+previous_step_locations=transMeta.getSelectedStepLocations();
+Point p=stepMeta.getLocation();
+iconoffset=new Point(real.x - p.x,real.y - p.y);
+}
+}
  else {
-    NotePadMeta ni=transMeta.getNote(real.x,real.y);
-    if (ni != null && last_button == 1) {
-      selectedNotes=transMeta.getSelectedNotes();
-      selectedNote=ni;
-      Point loc=ni.getLocation();
-      previous_note_locations=transMeta.getSelectedNoteLocations();
-      noteoffset=new Point(real.x - loc.x,real.y - loc.y);
-    }
+NotePadMeta ni=transMeta.getNote(real.x,real.y);
+if (ni != null && last_button == 1) {
+selectedNotes=transMeta.getSelectedNotes();
+selectedNote=ni;
+Point loc=ni.getLocation();
+previous_note_locations=transMeta.getSelectedNoteLocations();
+noteoffset=new Point(real.x - loc.x,real.y - loc.y);
+}
  else {
-      if (!control)       selectionRegion=new Rectangle(real.x,real.y,0,0);
-    }
-  }
-  redraw();
+if (!control) selectionRegion=new Rectangle(real.x,real.y,0,0);
+}
+}
+redraw();
 }

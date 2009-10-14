@@ -38,7 +38,7 @@
     gc.drawLine(point.x + textExtent.x,point.y + textExtent.y / 2,screen.x - iconsize / 2,point.y + textExtent.y / 2);
     drawArrow(gc,screen.x - iconsize / 2,point.y + textExtent.y / 2,screen.x + iconsize / 3,screen.y,Math.toRadians(15),15,1.8,null,null);
     if (!shadow) {
-      areaOwners.add(new AreaOwner(point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_REMOTE_INPUT_STEPS));
+      areaOwners.add(new AreaOwner(AreaType.REMOTE_INPUT_STEP,point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_REMOTE_INPUT_STEPS));
     }
   }
   if (!stepMeta.getRemoteOutputSteps().isEmpty()) {
@@ -56,7 +56,7 @@
     gc.drawLine(point.x,point.y + textExtent.y / 2,screen.x + iconsize + iconsize / 2,point.y + textExtent.y / 2);
     drawArrow(gc,screen.x + 2 * iconsize / 3,screen.y,screen.x + iconsize + iconsize / 2,point.y + textExtent.y / 2,Math.toRadians(15),15,1.8,null,null);
     if (!shadow) {
-      areaOwners.add(new AreaOwner(point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_REMOTE_OUTPUT_STEPS));
+      areaOwners.add(new AreaOwner(AreaType.REMOTE_OUTPUT_STEP,point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_REMOTE_OUTPUT_STEPS));
     }
   }
   if (stepMeta.isPartitioned()) {
@@ -84,7 +84,7 @@
       gc.setForeground(gray);
       gc.drawText(Const.NVL(partitionSchema.getName(),"<no partition name>"),point.x,point.y + textExtent.y + 3,true);
       if (!shadow) {
-        areaOwners.add(new AreaOwner(point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_PARTITIONING_CURRENT_STEP));
+        areaOwners.add(new AreaOwner(AreaType.STEP_PARTITIONING,point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_PARTITIONING_CURRENT_STEP));
       }
     }
   }
@@ -92,7 +92,7 @@
   if (stepMeta.isSelected())   gc.setLineWidth(linewidth + 2);
  else   gc.setLineWidth(linewidth);
   if (!shadow) {
-    areaOwners.add(new AreaOwner(screen.x,screen.y,iconsize,iconsize,transMeta,stepMeta));
+    areaOwners.add(new AreaOwner(AreaType.STEP_ICON,screen.x,screen.y,iconsize,iconsize,transMeta,stepMeta));
   }
   gc.fillRectangle(screen.x,screen.y,iconsize,iconsize);
   String steptype=stepMeta.getStepID();
@@ -137,24 +137,56 @@
     Image image=GUIResource.getInstance().getImageStepError();
     gc.drawImage(image,xError,yError);
     if (!shadow) {
-      areaOwners.add(new AreaOwner(pt.x + iconsize - 5,pt.y + iconsize - 5,image.getBounds().width,image.getBounds().height,log,STRING_STEP_ERROR_LOG));
+      areaOwners.add(new AreaOwner(AreaType.STEP_ERROR_ICON,pt.x + iconsize - 5,pt.y + iconsize - 5,image.getBounds().width,image.getBounds().height,log,STRING_STEP_ERROR_LOG));
     }
   }
-  if (ioMeta.isInputAcceptor() && candidate == null && mouseOverStep != null && mouseOverStep.equals(stepMeta)) {
+  if (ioMeta.isInputAcceptor() && candidate == null && ((mouseOverSteps.contains(stepMeta)) || showingHopInputIcons)) {
     Image hopInput=GUIResource.getInstance().getImageHopInput();
     Rectangle inputBounds=hopInput.getBounds();
-    int xIcon=x - inputBounds.width / 2;
-    int yIcon=y + iconsize - inputBounds.height / 2;
+    int xIcon=x - inputBounds.width - 3;
+    int yIcon=y + iconsize / 2 - inputBounds.height / 2;
     gc.drawImage(hopInput,xIcon,yIcon);
-    areaOwners.add(new AreaOwner(xIcon,yIcon,inputBounds.width,inputBounds.height,stepMeta,STRING_INPUT_HOP_ICON));
+    areaOwners.add(new AreaOwner(AreaType.STEP_INPUT_HOP_ICON,xIcon,yIcon,inputBounds.width,inputBounds.height,stepMeta,ioMeta));
   }
-  if (ioMeta.isOutputProducer() && candidate == null && mouseOverStep != null && mouseOverStep.equals(stepMeta)) {
+  if (ioMeta.isOutputProducer() && candidate == null && mouseOverSteps.contains(stepMeta) && !showingHopInputIcons) {
     Image hopOutput=GUIResource.getInstance().getImageHopOutput();
     Rectangle outputBounds=hopOutput.getBounds();
-    int xIcon=x + iconsize - outputBounds.width / 2;
-    int yIcon=y + iconsize - outputBounds.height / 2;
+    int xIcon=x + iconsize + 3;
+    int yIcon=y + iconsize / 2 - outputBounds.height / 2;
     gc.drawImage(hopOutput,xIcon,yIcon);
-    areaOwners.add(new AreaOwner(xIcon,yIcon,outputBounds.width,outputBounds.height,stepMeta,STRING_OUTPUT_HOP_ICON));
+    areaOwners.add(new AreaOwner(AreaType.STEP_OUTPUT_HOP_ICON,xIcon,yIcon,outputBounds.width,outputBounds.height,stepMeta,ioMeta));
+  }
+  if (ioMeta.isOutputProducer() && candidate == null && mouseOverSteps.contains(stepMeta) && !showingHopInputIcons) {
+    Image hopOutput=GUIResource.getInstance().getImageHopOutput();
+    Rectangle outputBounds=hopOutput.getBounds();
+    int xIcon=x + iconsize + 3;
+    int yIcon=y + iconsize / 2 - outputBounds.height / 2;
+    gc.drawImage(hopOutput,xIcon,yIcon);
+    areaOwners.add(new AreaOwner(AreaType.STEP_OUTPUT_HOP_ICON,xIcon,yIcon,outputBounds.width,outputBounds.height,stepMeta,ioMeta));
+  }
+  int topIconIndex=0;
+  if ((mouseOverSteps.contains(stepMeta)) || showingHopInputIcons) {
+    StreamInterface[] infoStreams=ioMeta.getInfoStreams();
+    if (!Const.isEmpty(infoStreams)) {
+      for (int i=0; i < infoStreams.length; i++) {
+        StreamInterface stream=infoStreams[i];
+        Image infoImage=GUIResource.getInstance().getImageInfoHop();
+        Rectangle bounds=infoImage.getBounds();
+        int xIcon=x + i * (bounds.width + 5);
+        int yIcon=y - bounds.height - 3;
+        gc.drawImage(infoImage,xIcon,yIcon);
+        areaOwners.add(new AreaOwner(AreaType.STEP_INFO_HOP_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,stream));
+        topIconIndex++;
+      }
+    }
+  }
+  if (stepMeta.supportsErrorHandling() && candidate == null && mouseOverSteps.contains(stepMeta) && !showingHopInputIcons) {
+    Image hopError=GUIResource.getInstance().getImageErrorHop();
+    Rectangle bounds=hopError.getBounds();
+    int xIcon=x + topIconIndex * (bounds.width + 5);
+    int yIcon=y - bounds.height - 3;
+    gc.drawImage(hopError,xIcon,yIcon);
+    areaOwners.add(new AreaOwner(AreaType.STEP_ERROR_HOP_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,ioMeta));
   }
   if (startHopStep != null && !ioMeta.isInputAcceptor()) {
     gc.setAlpha(alpha);
