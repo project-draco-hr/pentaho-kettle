@@ -1,0 +1,24 @@
+{
+  if (tempFile != null && fileContent != null) {
+    try {
+      tempFile.createFile();
+      OutputStream outputStream=tempFile.getContent().getOutputStream();
+      outputStream.write(fileContent.getBytes());
+      outputStream.close();
+      if (!Const.getOS().startsWith("Windows")) {
+        String tempFilename=KettleVFS.getFilename(tempFile);
+        ProcessBuilder procBuilder=new ProcessBuilder("chmod","+x",tempFilename);
+        Process proc=procBuilder.start();
+        StreamLogger errorLogger=new StreamLogger(log,proc.getErrorStream(),toString() + " (stderr)");
+        StreamLogger outputLogger=new StreamLogger(log,proc.getInputStream(),toString() + " (stdout)");
+        new Thread(errorLogger).start();
+        new Thread(outputLogger).start();
+        proc.waitFor();
+      }
+    }
+ catch (    Exception e) {
+      throw new Exception("Unable to create temporary file to execute script",e);
+    }
+  }
+  return tempFile;
+}

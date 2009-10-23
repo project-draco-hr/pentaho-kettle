@@ -15,43 +15,31 @@
     }
     if (Const.getOS().equals("Windows 95")) {
       base=new String[]{"command.com","/C"};
+      if (insertScript) {
+        tempFile=KettleVFS.createTempFile("kettle","shell.bat",workDirectory);
+        fileObject=createTemporaryShellFile(tempFile,realScript);
+      }
     }
  else     if (Const.getOS().startsWith("Windows")) {
       base=new String[]{"cmd.exe","/C"};
+      if (insertScript) {
+        tempFile=KettleVFS.createTempFile("kettle","shell.bat",workDirectory);
+        fileObject=createTemporaryShellFile(tempFile,realScript);
+      }
     }
  else {
-      if (!insertScript) {
-        base=new String[]{KettleVFS.getFilename(fileObject)};
+      if (insertScript) {
+        tempFile=KettleVFS.createTempFile("kettle","shell",workDirectory);
+        fileObject=createTemporaryShellFile(tempFile,realScript);
       }
- else {
-        try {
-          tempFile=KettleVFS.createTempFile("kettle","shell",workDirectory);
-          tempFile.createFile();
-          OutputStream outputStream=tempFile.getContent().getOutputStream();
-          outputStream.write(realScript.getBytes());
-          outputStream.close();
-          String tempFilename=KettleVFS.getFilename(tempFile);
-          ProcessBuilder procBuilder=new ProcessBuilder("chmod","+x",tempFilename);
-          Process proc=procBuilder.start();
-          StreamLogger errorLogger=new StreamLogger(log,proc.getErrorStream(),toString() + " (stderr)");
-          StreamLogger outputLogger=new StreamLogger(log,proc.getInputStream(),toString() + " (stdout)");
-          new Thread(errorLogger).start();
-          new Thread(outputLogger).start();
-          proc.waitFor();
-          base=new String[]{tempFilename};
-        }
- catch (        Exception e) {
-          throw new Exception("Unable to create temporary file to execute script",e);
-        }
-      }
+      base=new String[]{KettleVFS.getFilename(fileObject)};
     }
     if (argFromPrevious && cmdRows != null) {
       for (int i=0; i < base.length; i++)       cmds.add(base[i]);
       if (Const.getOS().equals("Windows 95") || Const.getOS().startsWith("Windows")) {
         StringBuffer cmdline=new StringBuffer(300);
         cmdline.append('"');
-        if (insertScript)         cmdline.append(realScript);
- else         cmdline.append(Const.optionallyQuoteStringByOS(KettleVFS.getFilename(fileObject)));
+        cmdline.append(Const.optionallyQuoteStringByOS(KettleVFS.getFilename(fileObject)));
         for (int i=0; i < cmdRows.size(); i++) {
           RowMetaAndData r=(RowMetaAndData)cmdRows.get(i);
           for (int j=0; j < r.size(); j++) {
@@ -76,8 +64,7 @@
       if (Const.getOS().equals("Windows 95") || Const.getOS().startsWith("Windows")) {
         StringBuffer cmdline=new StringBuffer(300);
         cmdline.append('"');
-        if (insertScript)         cmdline.append(realScript);
- else         cmdline.append(Const.optionallyQuoteStringByOS(KettleVFS.getFilename(fileObject)));
+        cmdline.append(Const.optionallyQuoteStringByOS(KettleVFS.getFilename(fileObject)));
         for (int i=0; i < args.length; i++) {
           cmdline.append(' ');
           cmdline.append(Const.optionallyQuoteStringByOS(args[i]));
