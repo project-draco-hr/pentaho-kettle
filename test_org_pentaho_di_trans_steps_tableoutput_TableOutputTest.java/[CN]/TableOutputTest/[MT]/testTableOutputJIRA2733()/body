@@ -1,0 +1,71 @@
+{
+  int dataDelay=100;
+  EnvUtil.environmentInit();
+  try {
+    TransMeta transMeta=new TransMeta();
+    transMeta.setName("table output JIRA2733 test");
+    for (int i=0; i < databasesXML.length; i++) {
+      DatabaseMeta databaseMeta=new DatabaseMeta(databasesXML[i]);
+      transMeta.addDatabase(databaseMeta);
+    }
+    DatabaseMeta dbInfo=transMeta.findDatabase("db");
+    Database database=new Database(transMeta,dbInfo);
+    database.connect();
+    createTable(database,target_table3,createSourceRowMetaInterface1());
+    database.execStatement("ALTER TABLE " + target_table3 + " ADD COLUMN ts TIMESTAMP DEFAULT NOW() ");
+    StepLoader steploader=StepLoader.getInstance();
+    String injectorStepname="injector step";
+    InjectorMeta im=new InjectorMeta();
+    String injectorPid=steploader.getStepPluginID(im);
+    StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,(StepMetaInterface)im);
+    transMeta.addStep(injectorStep);
+    String outputname="output to [" + target_table3 + "]";
+    TableOutputMeta tom=new TableOutputMeta();
+    tom.setDatabaseMeta(transMeta.findDatabase("db"));
+    tom.setTablename(target_table3);
+    tom.setTruncateTable(true);
+    tom.setUseBatchUpdate(true);
+    String fromid=steploader.getStepPluginID(tom);
+    StepMeta fromstep=new StepMeta(fromid,outputname,(StepMetaInterface)tom);
+    fromstep.setDescription("write data to table [" + target_table3 + "] on database ["+ dbInfo+ "]");
+    transMeta.addStep(fromstep);
+    TransHopMeta hi=new TransHopMeta(injectorStep,fromstep);
+    transMeta.addTransHop(hi);
+    long goldRowCounts[]={7,7,4,3,2,2,2,1,1};
+    for (int commitSize=0; commitSize <= 8; commitSize++) {
+      tom.setCommitSize(commitSize);
+      Trans trans=new Trans(transMeta);
+      trans.prepareExecution(null);
+      StepInterface si=trans.getStepInterface(outputname,0);
+      RowStepCollector rc=new RowStepCollector();
+      si.addRowListener(rc);
+      RowProducer rp=trans.addRowProducer(injectorStepname,0);
+      trans.startThreads();
+      List<RowMetaAndData> inputList=createNormalDataRows();
+      for (      RowMetaAndData rm : inputList) {
+        Thread.sleep(dataDelay);
+        rp.putRow(rm.getRowMeta(),rm.getData());
+      }
+      rp.finished();
+      trans.waitUntilFinished();
+      String query="SELECT ts FROM " + target_table3 + " ORDER BY ts";
+      ResultSet rs=database.openQuery(query);
+      Timestamp last_ts=null;
+      int actual_commits=0;
+      while (rs.next()) {
+        Timestamp ts=rs.getTimestamp("ts");
+        if (last_ts == null || (!ts.equals(last_ts) && (ts.getTime() - last_ts.getTime() > dataDelay / 2))) {
+          actual_commits++;
+          last_ts=ts;
+        }
+      }
+      long expected_commits=goldRowCounts[commitSize];
+      if (expected_commits != actual_commits) {
+        fail("With commitSize=" + commitSize + " expected "+ expected_commits+ " commits but actually got "+ actual_commits);
+        ;
+      }
+    }
+  }
+  finally {
+  }
+}
