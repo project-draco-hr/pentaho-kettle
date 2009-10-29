@@ -25,39 +25,41 @@
     String fieldname=outputField.getFieldName();
     ValueMetaInterface v=getInputRowMeta().getValueMeta(data.fieldIndexes[i]);
     Object valueData=r[data.fieldIndexes[i]];
-    String value=formatField(v,valueData,outputField);
-    String element=outputField.getElementName();
-    if (element == null || element.length() == 0)     element=fieldname;
-    if (element == null || element.length() == 0) {
-      throw new KettleException("XML does not allow empty strings for element names.");
-    }
-    if (outputField.isAttribute()) {
-      String attributeParentName=outputField.getAttributeParentName();
-      Element node;
-      if (attributeParentName == null || attributeParentName.length() == 0) {
-        node=root;
+    if (!meta.isOmitNullValues() || !v.isNull(valueData)) {
+      String value=formatField(v,valueData,outputField);
+      String element=outputField.getElementName();
+      if (element == null || element.length() == 0)       element=fieldname;
+      if (element == null || element.length() == 0) {
+        throw new KettleException("XML does not allow empty strings for element names.");
       }
- else {
-        NodeList nodelist=root.getElementsByTagName(attributeParentName);
-        if (nodelist.getLength() > 0) {
-          node=(Element)nodelist.item(0);
-        }
- else {
+      if (outputField.isAttribute()) {
+        String attributeParentName=outputField.getAttributeParentName();
+        Element node;
+        if (attributeParentName == null || attributeParentName.length() == 0) {
           node=root;
         }
-      }
-      node.setAttribute(element,value);
-    }
  else {
-      if (!element.equals(meta.getRootNode())) {
-        Element e=xmldoc.createElement(element);
-        Node n=xmldoc.createTextNode(value);
-        e.appendChild(n);
-        root.appendChild(e);
+          NodeList nodelist=root.getElementsByTagName(attributeParentName);
+          if (nodelist.getLength() > 0) {
+            node=(Element)nodelist.item(0);
+          }
+ else {
+            node=root;
+          }
+        }
+        node.setAttribute(element,value);
       }
  else {
-        Node n=xmldoc.createTextNode(value);
-        root.appendChild(n);
+        if (!element.equals(meta.getRootNode())) {
+          Element e=xmldoc.createElement(element);
+          Node n=xmldoc.createTextNode(value);
+          e.appendChild(n);
+          root.appendChild(e);
+        }
+ else {
+          Node n=xmldoc.createTextNode(value);
+          root.appendChild(n);
+        }
       }
     }
   }
