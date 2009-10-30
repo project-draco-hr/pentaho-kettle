@@ -4,45 +4,57 @@
     int tempIndex=rowMeta.size();
     if (data.expressionEvaluators == null) {
       data.expressionEvaluators=new ExpressionEvaluator[meta.getFormula().length];
-      String[] parameterNames=new String[data.outputRowMeta.size()];
-      Class<?>[] parameterTypes=new Class[data.outputRowMeta.size()];
-      for (int i=0; i < data.outputRowMeta.size(); i++) {
-switch (data.outputRowMeta.getValueMeta(i).getType()) {
+      data.argumentIndexes=new ArrayList<List<Integer>>();
+      for (int i=0; i < meta.getFormula().length; i++) {
+        List<Integer> argIndexes=new ArrayList<Integer>();
+        data.argumentIndexes.add(argIndexes);
+      }
+      for (int m=0; m < meta.getFormula().length; m++) {
+        List<Integer> argIndexes=data.argumentIndexes.get(m);
+        List<String> parameterNames=new ArrayList<String>();
+        List<Class<?>> parameterTypes=new ArrayList<Class<?>>();
+        for (int i=0; i < data.outputRowMeta.size(); i++) {
+          ValueMetaInterface valueMeta=data.outputRowMeta.getValueMeta(i);
+          if (meta.getFormula()[m].getFormula().contains(valueMeta.getName())) {
+            argIndexes.add(i);
+            Class<?> parameterType;
+switch (valueMeta.getType()) {
 case ValueMetaInterface.TYPE_STRING:
-          parameterTypes[i]=String.class;
-        break;
+              parameterType=String.class;
+            break;
 case ValueMetaInterface.TYPE_NUMBER:
-      parameterTypes[i]=Double.class;
-    break;
+          parameterType=Double.class;
+        break;
 case ValueMetaInterface.TYPE_INTEGER:
-  parameterTypes[i]=Long.class;
-break;
+      parameterType=Long.class;
+    break;
 case ValueMetaInterface.TYPE_DATE:
-parameterTypes[i]=Date.class;
+  parameterType=Date.class;
 break;
 case ValueMetaInterface.TYPE_BIGNUMBER:
-parameterTypes[i]=BigDecimal.class;
+parameterType=BigDecimal.class;
 break;
 case ValueMetaInterface.TYPE_BOOLEAN:
-parameterTypes[i]=Boolean.class;
+parameterType=Boolean.class;
 break;
 case ValueMetaInterface.TYPE_BINARY:
-parameterTypes[i]=byte[].class;
+parameterType=byte[].class;
 break;
 default :
-parameterTypes[i]=String.class;
+parameterType=String.class;
 break;
 }
-parameterNames[i]=data.outputRowMeta.getValueMeta(i).getName();
+parameterTypes.add(parameterType);
+parameterNames.add(valueMeta.getName());
 }
-for (int i=0; i < meta.getFormula().length; i++) {
-JaninoMetaFunction fn=meta.getFormula()[i];
+}
+JaninoMetaFunction fn=meta.getFormula()[m];
 if (!Const.isEmpty(fn.getFieldName())) {
-data.expressionEvaluators[i]=new ExpressionEvaluator();
-data.expressionEvaluators[i].setParameters(parameterNames,parameterTypes);
-data.expressionEvaluators[i].setReturnType(Object.class);
-data.expressionEvaluators[i].setThrownExceptions(new Class[]{Exception.class});
-data.expressionEvaluators[i].cook(fn.getFormula());
+data.expressionEvaluators[m]=new ExpressionEvaluator();
+data.expressionEvaluators[m].setParameters(parameterNames.toArray(new String[parameterNames.size()]),parameterTypes.toArray(new Class<?>[parameterTypes.size()]));
+data.expressionEvaluators[m].setReturnType(Object.class);
+data.expressionEvaluators[m].setThrownExceptions(new Class[]{Exception.class});
+data.expressionEvaluators[m].cook(fn.getFormula());
 }
  else {
 throw new KettleException("Unable to find field name for formula [" + Const.NVL(fn.getFormula(),"") + "]");
@@ -51,9 +63,14 @@ throw new KettleException("Unable to find field name for formula [" + Const.NVL(
 }
 for (int i=0; i < meta.getFormula().length; i++) {
 JaninoMetaFunction fn=meta.getFormula()[i];
-Object[] rowData=new Object[data.outputRowMeta.size()];
-System.arraycopy(outputRowData,0,rowData,0,rowData.length);
-Object formulaResult=data.expressionEvaluators[i].evaluate(rowData);
+List<Integer> argumentIndexes=data.argumentIndexes.get(i);
+Object[] argumentData=new Object[argumentIndexes.size()];
+for (int x=0; x < argumentIndexes.size(); x++) {
+int index=argumentIndexes.get(x);
+ValueMetaInterface outputValueMeta=data.outputRowMeta.getValueMeta(index);
+argumentData[x]=outputValueMeta.convertToNormalStorageType(outputRowData[index]);
+}
+Object formulaResult=data.expressionEvaluators[i].evaluate(argumentData);
 if (data.returnType[i] < 0) {
 if (formulaResult instanceof String) {
 data.returnType[i]=JaninoData.RETURN_TYPE_STRING;

@@ -1,0 +1,63 @@
+{
+  if (aggregate == null) {
+    data.aggMeta=new RowMeta();
+  }
+ else {
+    aggregate.counts=new long[data.subjectnrs.length];
+    for (int i=0; i < aggregate.counts.length; i++) {
+      aggregate.counts[i]=0;
+    }
+    aggregate.distinctObjs=null;
+    aggregate.agg=new Object[data.subjectnrs.length];
+    aggregate.mean=new double[data.subjectnrs.length];
+  }
+  for (int i=0; i < data.subjectnrs.length; i++) {
+    ValueMetaInterface subjMeta=data.inputRowMeta.getValueMeta(data.subjectnrs[i]);
+    Object v=null;
+    ValueMetaInterface vMeta=null;
+switch (meta.getAggregateType()[i]) {
+case MemoryGroupByMeta.TYPE_GROUP_SUM:
+case MemoryGroupByMeta.TYPE_GROUP_AVERAGE:
+case MemoryGroupByMeta.TYPE_GROUP_STANDARD_DEVIATION:
+      vMeta=new ValueMeta(meta.getAggregateField()[i],ValueMetaInterface.TYPE_NUMBER);
+    v=new Double(0.0);
+  break;
+case MemoryGroupByMeta.TYPE_GROUP_COUNT_DISTINCT:
+case MemoryGroupByMeta.TYPE_GROUP_COUNT_ALL:
+vMeta=new ValueMeta(meta.getAggregateField()[i],ValueMetaInterface.TYPE_INTEGER);
+v=new Long(0L);
+break;
+case MemoryGroupByMeta.TYPE_GROUP_FIRST:
+case MemoryGroupByMeta.TYPE_GROUP_LAST:
+case MemoryGroupByMeta.TYPE_GROUP_FIRST_INCL_NULL:
+case MemoryGroupByMeta.TYPE_GROUP_LAST_INCL_NULL:
+case MemoryGroupByMeta.TYPE_GROUP_MIN:
+case MemoryGroupByMeta.TYPE_GROUP_MAX:
+vMeta=subjMeta.clone();
+vMeta.setName(meta.getAggregateField()[i]);
+v=r == null ? null : r[data.subjectnrs[i]];
+break;
+case MemoryGroupByMeta.TYPE_GROUP_CONCAT_COMMA:
+vMeta=new ValueMeta(meta.getAggregateField()[i],ValueMetaInterface.TYPE_STRING);
+v="";
+break;
+case MemoryGroupByMeta.TYPE_GROUP_CONCAT_STRING:
+vMeta=new ValueMeta(meta.getAggregateField()[i],ValueMetaInterface.TYPE_STRING);
+v="";
+break;
+default :
+throw new KettleException("Unknown data type for aggregation : " + meta.getAggregateField()[i]);
+}
+if (meta.getAggregateType()[i] != MemoryGroupByMeta.TYPE_GROUP_COUNT_ALL && meta.getAggregateType()[i] != MemoryGroupByMeta.TYPE_GROUP_COUNT_DISTINCT) {
+vMeta.setLength(subjMeta.getLength(),subjMeta.getPrecision());
+}
+if (aggregate == null) {
+data.aggMeta.addValueMeta(vMeta);
+}
+ else {
+if (v != null) {
+aggregate.agg[i]=v;
+}
+}
+}
+}

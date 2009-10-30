@@ -1,0 +1,63 @@
+{
+  meta=(MemoryGroupByMeta)smi;
+  data=(MemoryGroupByData)sdi;
+  Object[] r=getRow();
+  if (first) {
+    first=false;
+    data.inputRowMeta=getInputRowMeta();
+    if (data.inputRowMeta == null) {
+      data.inputRowMeta=getTransMeta().getPrevStepFields(getStepMeta());
+    }
+    data.outputRowMeta=data.inputRowMeta.clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.subjectnrs=new int[meta.getSubjectField().length];
+    for (int i=0; i < meta.getSubjectField().length; i++) {
+      data.subjectnrs[i]=data.inputRowMeta.indexOfValue(meta.getSubjectField()[i]);
+      if (data.subjectnrs[i] < 0) {
+        logError(BaseMessages.getString(PKG,"MemoryGroupBy.Log.AggregateSubjectFieldCouldNotFound",meta.getSubjectField()[i]));
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+    data.groupnrs=new int[meta.getGroupField().length];
+    for (int i=0; i < meta.getGroupField().length; i++) {
+      data.groupnrs[i]=data.inputRowMeta.indexOfValue(meta.getGroupField()[i]);
+      if (data.groupnrs[i] < 0) {
+        logError(BaseMessages.getString(PKG,"MemoryGroupBy.Log.GroupFieldCouldNotFound",meta.getGroupField()[i]));
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+    data.valueMetaInteger=new ValueMeta("count",ValueMetaInterface.TYPE_INTEGER);
+    data.valueMetaNumber=new ValueMeta("sum",ValueMetaInterface.TYPE_NUMBER);
+    initGroupMeta(data.inputRowMeta);
+    newAggregate(r,null);
+    data.groupAggMeta=new RowMeta();
+    data.groupAggMeta.addRowMeta(data.groupMeta);
+    data.groupAggMeta.addRowMeta(data.aggMeta);
+  }
+  if (r == null) {
+    for (    HashEntry entry : data.map.keySet()) {
+      Aggregate aggregate=data.map.get(entry);
+      Object[] aggregateResult=getAggregateResult(aggregate);
+      Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+      int index=0;
+      for (int i=0; i < data.groupMeta.size(); i++) {
+        outputRowData[index++]=entry.getGroupData()[i];
+      }
+      for (int i=0; i < data.aggMeta.size(); i++) {
+        outputRowData[index++]=aggregateResult[i];
+      }
+      putRow(data.outputRowMeta,outputRowData);
+    }
+    setOutputDone();
+    return false;
+  }
+  addToAggregate(r);
+  if (checkFeedback(getLinesRead())) {
+    if (log.isBasic())     logBasic(BaseMessages.getString(PKG,"MemoryGroupBy.LineNumber") + getLinesRead());
+  }
+  return true;
+}

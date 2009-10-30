@@ -4,30 +4,31 @@
     logDate=new Date();
     startDate=Const.MIN_DATE;
     endDate=currentDate;
+    DatabaseMeta logConnection=transMeta.getTransLogTable().getDatabaseMeta();
+    String logTable=transMeta.getTransLogTable().getTableName();
     SimpleDateFormat df=new SimpleDateFormat(REPLAY_DATE_FORMAT);
     log.logBasic(BaseMessages.getString(PKG,"Trans.Log.TransformationCanBeReplayed") + df.format(currentDate));
     Database ldb=null;
     try {
       boolean lockedTable=false;
-      DatabaseMeta logcon=transMeta.getLogConnection();
-      if (logcon != null) {
-        if (transMeta.getLogTable() == null) {
+      if (logConnection != null) {
+        if (Const.isEmpty(logTable)) {
           throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.NoLogTableDefined"));
         }
-        ldb=new Database(this,logcon);
+        ldb=new Database(this,logConnection);
         ldb.shareVariablesWith(this);
-        if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.OpeningLogConnection","" + transMeta.getLogConnection()));
+        if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.OpeningLogConnection","" + logConnection));
         ldb.connect();
         ldb.setCommit(100);
-        if (transMeta.isBatchIdUsed()) {
-          ldb.lockTables(new String[]{transMeta.getLogTable()});
+        if (transMeta.getTransLogTable().isBatchIdUsed()) {
+          ldb.lockTables(new String[]{logTable});
           lockedTable=true;
-          String sql="INSERT INTO " + logcon.quoteField(transMeta.getLogTable()) + "("+ logcon.quoteField("ID_BATCH")+ ") values (-1)";
+          String sql="INSERT INTO " + logConnection.quoteField(logTable) + "("+ logConnection.quoteField("ID_BATCH")+ ") values (-1)";
           ldb.execStatement(sql);
-          Long id_batch=ldb.getNextValue(transMeta.getCounters(),transMeta.getLogTable(),"ID_BATCH");
+          Long id_batch=ldb.getNextValue(transMeta.getCounters(),logTable,"ID_BATCH");
           setBatchId(id_batch.longValue());
         }
-        Object[] lastr=ldb.getLastLogDate(transMeta.getLogTable(),transMeta.getName(),false,BaseMessages.getString(PKG,"Trans.Row.Status.End"));
+        Object[] lastr=ldb.getLastLogDate(logTable,transMeta.getName(),false,BaseMessages.getString(PKG,"Trans.Row.Status.End"));
         if (lastr != null && lastr.length > 0) {
           startDate=(Date)lastr[0];
           if (log.isDetailed())           log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.StartDateFound") + startDate);
@@ -126,20 +127,20 @@
         Date maxdesired=new Date(startDate.getTime() + ((long)transMeta.getMaxDateDifference() * 1000));
         if (endDate.compareTo(maxdesired) > 0)         endDate=maxdesired;
       }
-      if (Const.isEmpty(transMeta.getName()) && logcon != null && transMeta.getLogTable() != null) {
+      if (Const.isEmpty(transMeta.getName()) && logConnection != null && logTable != null) {
         throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.NoTransnameAvailableForLogging"));
       }
-      if (logcon != null && transMeta.getLogTable() != null && transMeta.getName() != null) {
-        ldb.writeLogRecord(transMeta.getLogTable(),transMeta.isBatchIdUsed(),getBatchId(),false,transMeta.getName(),Database.LOG_STATUS_START,0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,null);
+      if (logConnection != null && logTable != null && transMeta.getName() != null) {
+        ldb.writeLogRecord(logTable,transMeta.getTransLogTable().isBatchIdUsed(),getBatchId(),false,transMeta.getName(),Database.LOG_STATUS_START,0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,null);
       }
       if (lockedTable) {
-        String sql="DELETE FROM " + logcon.quoteField(transMeta.getLogTable()) + " WHERE "+ logcon.quoteField("ID_BATCH")+ "= -1";
+        String sql="DELETE FROM " + logConnection.quoteField(logTable) + " WHERE "+ logConnection.quoteField("ID_BATCH")+ "= -1";
         ldb.execStatement(sql);
-        ldb.unlockTables(new String[]{transMeta.getLogTable()});
+        ldb.unlockTables(new String[]{logTable});
       }
     }
  catch (    KettleException e) {
-      throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ErrorWritingLogRecordToTable",transMeta.getLogTable()),e);
+      throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ErrorWritingLogRecordToTable",logTable),e);
     }
  finally {
       if (ldb != null)       ldb.disconnect();

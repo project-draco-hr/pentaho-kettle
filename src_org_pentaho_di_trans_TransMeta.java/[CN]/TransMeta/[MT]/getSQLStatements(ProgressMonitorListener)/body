@@ -12,30 +12,30 @@
     if (monitor != null)     monitor.worked(1);
   }
   if (monitor != null)   monitor.subTask(BaseMessages.getString(PKG,"TransMeta.Monitor.GettingTheSQLForTransformationTask.Title2"));
-  if (logConnection != null && (!Const.isEmpty(logTable) || !Const.isEmpty(stepPerformanceLogTable))) {
-    Database db=new Database(this,logConnection);
+  if (transLogTable.getDatabaseMeta() != null && (!Const.isEmpty(transLogTable.getTableName()) || !Const.isEmpty(stepPerformanceLogTable))) {
+    Database db=new Database(this,transLogTable.getDatabaseMeta());
     db.shareVariablesWith(this);
     try {
       db.connect();
-      if (!Const.isEmpty(logTable)) {
-        RowMetaInterface fields=Database.getTransLogrecordFields(false,useBatchId,logfieldUsed);
-        String sql=db.getDDL(logTable,fields);
+      if (!Const.isEmpty(transLogTable.getTableName())) {
+        RowMetaInterface fields=Database.getTransLogrecordFields(false,transLogTable.isBatchIdUsed(),transLogTable.isLogFieldUsed());
+        String sql=db.getDDL(transLogTable.getTableName(),fields);
         if (sql != null && sql.length() > 0) {
-          SQLStatement stat=new SQLStatement("<this transformation>",logConnection,sql);
+          SQLStatement stat=new SQLStatement("<this transformation>",transLogTable.getDatabaseMeta(),sql);
           stats.add(stat);
         }
       }
       if (!Const.isEmpty(stepPerformanceLogTable)) {
         RowMetaInterface fields=Database.getStepPerformanceLogrecordFields();
-        String sql=db.getDDL(logTable,fields);
+        String sql=db.getDDL(stepPerformanceLogTable,fields);
         if (sql != null && sql.length() > 0) {
-          SQLStatement stat=new SQLStatement("<this transformation>",logConnection,sql);
+          SQLStatement stat=new SQLStatement("<this transformation>",transLogTable.getDatabaseMeta(),sql);
           stats.add(stat);
         }
       }
     }
  catch (    KettleDatabaseException dbe) {
-      SQLStatement stat=new SQLStatement("<this transformation>",logConnection,null);
+      SQLStatement stat=new SQLStatement("<this transformation>",transLogTable.getDatabaseMeta(),null);
       stat.setError(BaseMessages.getString(PKG,"TransMeta.SQLStatement.ErrorDesc.ErrorObtainingTransformationLogTableInfo") + dbe.getMessage());
       stats.add(stat);
     }
