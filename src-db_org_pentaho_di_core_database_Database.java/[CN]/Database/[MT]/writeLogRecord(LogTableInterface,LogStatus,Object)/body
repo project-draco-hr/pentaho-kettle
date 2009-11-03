@@ -1,0 +1,35 @@
+{
+  try {
+    RowMetaAndData logRecord=logTable.getLogRecord(status,subject);
+    boolean update=logTable.containsKeyField() && !status.equals(LogStatus.START);
+    String schemaTable=databaseMeta.getSchemaTableCombination(logTable.getSchemaName(),logTable.getTableName());
+    RowMetaInterface rowMeta=logRecord.getRowMeta();
+    Object[] rowData=logRecord.getData();
+    if (update) {
+      RowMetaInterface updateRowMeta=new RowMeta();
+      Object[] updateRowData=new Object[rowMeta.size()];
+      ValueMetaInterface keyValueMeta=rowMeta.getValueMeta(0);
+      String sql="UPDATE " + schemaTable + " SET ";
+      for (int i=1; i < rowMeta.size(); i++) {
+        ValueMetaInterface valueMeta=rowMeta.getValueMeta(i);
+        if (i > 1) {
+          sql+=", ";
+        }
+        sql+=databaseMeta.quoteField(valueMeta.getName()) + "=? ";
+        updateRowMeta.addValueMeta(valueMeta);
+        updateRowData[i - 1]=rowData[i];
+      }
+      sql+="WHERE ";
+      sql+=databaseMeta.quoteField(keyValueMeta.getName()) + "=? ";
+      updateRowMeta.addValueMeta(keyValueMeta);
+      updateRowData[rowMeta.size() - 1]=rowData[0];
+      execStatement(sql,updateRowMeta,updateRowData);
+    }
+ else {
+      insertRow(logTable.getSchemaName(),logTable.getTableName(),logRecord.getRowMeta(),logRecord.getData());
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Unable to write log record to log table " + logTable.getTableName(),e);
+  }
+}

@@ -1,0 +1,69 @@
+{
+  TransLogTable transLogTable=transMeta.getTransLogTable();
+  int intervalInSeconds=Const.toInt(environmentSubstitute(transLogTable.getLogInterval()),-1);
+  Result result=getResult();
+  if (transMeta.isUsingUniqueConnections() && (status.equals(LogStatus.END) || status.equals(LogStatus.STOP))) {
+    closeUniqueDatabaseConnections(result);
+  }
+  logDate=new Date();
+  DatabaseMeta logcon=transMeta.getTransLogTable().getDatabaseMeta();
+  String logTable=transMeta.getTransLogTable().getTableName();
+  if (logcon != null) {
+    Database ldb=null;
+    if (transLogTableDatabaseConnection == null) {
+      ldb=new Database(this,logcon);
+      ldb.shareVariablesWith(this);
+    }
+ else {
+      ldb=transLogTableDatabaseConnection;
+    }
+    try {
+      if (transLogTableDatabaseConnection == null) {
+        ldb.connect();
+      }
+      if (!Const.isEmpty(logTable)) {
+        transLogTableDatabaseConnection.writeLogRecord(transLogTable,status,this);
+      }
+      if (!Const.isEmpty(transMeta.getPerformanceLogTable().getTableName()) && transMeta.isCapturingStepPerformanceSnapShots()) {
+        RowMetaInterface rowMeta=Database.getStepPerformanceLogrecordFields();
+        ldb.prepareInsert(rowMeta,transMeta.getPerformanceLogTable().getTableName());
+        for (        String key : stepPerformanceSnapShots.keySet()) {
+          List<StepPerformanceSnapShot> snapshots=stepPerformanceSnapShots.get(key);
+          long seqNr=1;
+          for (          StepPerformanceSnapShot snapshot : snapshots) {
+            Object[] row=new Object[rowMeta.size()];
+            int outputIndex=0;
+            row[outputIndex++]=new Long(getBatchId());
+            row[outputIndex++]=new Long(seqNr++);
+            row[outputIndex++]=snapshot.getDate();
+            row[outputIndex++]=transMeta.getName();
+            row[outputIndex++]=snapshot.getStepName();
+            row[outputIndex++]=new Long(snapshot.getStepCopy());
+            row[outputIndex++]=new Long(snapshot.getLinesRead());
+            row[outputIndex++]=new Long(snapshot.getLinesWritten());
+            row[outputIndex++]=new Long(snapshot.getLinesUpdated());
+            row[outputIndex++]=new Long(snapshot.getLinesInput());
+            row[outputIndex++]=new Long(snapshot.getLinesOutput());
+            row[outputIndex++]=new Long(snapshot.getLinesRejected());
+            row[outputIndex++]=new Long(snapshot.getErrors());
+            row[outputIndex++]=new Long(snapshot.getInputBufferSize());
+            row[outputIndex++]=new Long(snapshot.getOutputBufferSize());
+            ldb.setValuesInsert(rowMeta,row);
+            ldb.insertRow(true);
+          }
+        }
+        ldb.insertFinished(true);
+      }
+    }
+ catch (    Exception e) {
+      throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.ErrorWritingLogRecordToTable") + transMeta.getTransLogTable().getTableName() + "]",e);
+    }
+ finally {
+      if (intervalInSeconds <= 0 || (status.equals(LogStatus.END) || status.equals(LogStatus.STOP))) {
+        ldb.disconnect();
+        transLogTableDatabaseConnection=null;
+      }
+    }
+  }
+  return true;
+}

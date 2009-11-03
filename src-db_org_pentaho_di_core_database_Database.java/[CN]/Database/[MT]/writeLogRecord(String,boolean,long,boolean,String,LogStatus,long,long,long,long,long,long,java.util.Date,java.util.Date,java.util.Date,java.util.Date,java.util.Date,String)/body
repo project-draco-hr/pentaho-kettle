@@ -1,0 +1,65 @@
+{
+  boolean update=use_id && log_string != null && !status.equals(LogStatus.START);
+  RowMetaInterface rowMeta;
+  if (job) {
+    rowMeta=getJobLogrecordFields(update,use_id,!Const.isEmpty(log_string));
+  }
+ else {
+    rowMeta=getTransLogrecordFields(update,use_id,!Const.isEmpty(log_string));
+  }
+  if (update) {
+    String sql="UPDATE " + logTable + " SET ";
+    for (int i=0; i < rowMeta.size() - 1; i++) {
+      ValueMetaInterface valueMeta=rowMeta.getValueMeta(i);
+      if (i > 0) {
+        sql+=", ";
+      }
+      sql+=databaseMeta.quoteField(valueMeta.getName()) + "=? ";
+    }
+    sql+="WHERE ";
+    if (job) {
+      sql+=databaseMeta.quoteField("ID_JOB") + "=? ";
+    }
+ else {
+      sql+=databaseMeta.quoteField("ID_BATCH") + "=? ";
+    }
+    Object[] data=new Object[]{status.toString(),Long.valueOf(read),Long.valueOf(written),Long.valueOf(updated),Long.valueOf(input),Long.valueOf(output),Long.valueOf(errors),startdate,enddate,logdate,depdate,replayDate,log_string,Long.valueOf(id)};
+    execStatement(sql,rowMeta,data);
+  }
+ else {
+    try {
+      List<Object> data=new ArrayList<Object>();
+      if (job) {
+        if (use_id) {
+          data.add(Long.valueOf(id));
+        }
+        data.add(name);
+      }
+ else {
+        if (use_id) {
+          data.add(Long.valueOf(id));
+        }
+        data.add(name);
+      }
+      data.add(status.toString());
+      data.add(Long.valueOf(read));
+      data.add(Long.valueOf(written));
+      data.add(Long.valueOf(updated));
+      data.add(Long.valueOf(input));
+      data.add(Long.valueOf(output));
+      data.add(Long.valueOf(errors));
+      data.add(startdate);
+      data.add(enddate);
+      data.add(logdate);
+      data.add(depdate);
+      data.add(replayDate);
+      if (!Const.isEmpty(log_string)) {
+        data.add(log_string);
+      }
+      insertRow(logTable,rowMeta,data.toArray(new Object[data.size()]));
+    }
+ catch (    Exception ex) {
+      throw new KettleDatabaseException("Unable to write log record to log table " + logTable,ex);
+    }
+  }
+}

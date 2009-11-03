@@ -1,0 +1,46 @@
+{
+  meta=(JavaFilterMeta)smi;
+  data=(JavaFilterData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (data.chosesTargetSteps) {
+      StreamInterface[] targetStreams=meta.getStepIOMeta().getTargetStreams();
+      data.trueRowSet=findOutputRowSet(getStepname(),getCopy(),targetStreams[0].getStepname(),0);
+      if (data.trueRowSet == null) {
+        throw new KettleException(BaseMessages.getString(PKG,"JavaFilter.Log.TargetStepInvalid",targetStreams[0].getStepname()));
+      }
+      data.falseRowSet=findOutputRowSet(getStepname(),getCopy(),targetStreams[1].getStepname(),0);
+      if (data.falseRowSet == null) {
+        throw new KettleException(BaseMessages.getString(PKG,"JavaFilter.Log.TargetStepInvalid",targetStreams[1].getStepname()));
+      }
+    }
+  }
+  if (log.isRowLevel())   logRowlevel("Read row #" + getLinesRead() + " : "+ getInputRowMeta().getString(r));
+  boolean keep=calcFields(getInputRowMeta(),r);
+  if (!data.chosesTargetSteps) {
+    if (keep) {
+      putRow(data.outputRowMeta,r);
+    }
+  }
+ else {
+    if (keep) {
+      if (log.isRowLevel())       logRowlevel("Sending row to true  :" + data.trueStepname + " : "+ getInputRowMeta().getString(r));
+      putRowTo(data.outputRowMeta,r,data.trueRowSet);
+    }
+ else {
+      if (log.isRowLevel())       logRowlevel("Sending row to false :" + data.falseStepname + " : "+ getInputRowMeta().getString(r));
+      putRowTo(data.outputRowMeta,r,data.falseRowSet);
+    }
+  }
+  if (checkFeedback(getLinesRead())) {
+    if (log.isBasic())     logBasic(BaseMessages.getString(PKG,"JavaFilter.Log.LineNumber") + getLinesRead());
+  }
+  return true;
+}

@@ -11,7 +11,13 @@ synchronized (Trans.this) {
           if (nrOfFinishedSteps >= steps.size()) {
             finished.set(true);
             addStepPerformanceSnapShot();
-            fireTransFinishedListeners();
+            try {
+              fireTransFinishedListeners();
+            }
+ catch (            Exception e) {
+              step.setErrors(step.getErrors() + 1L);
+              log.logError(getName(),BaseMessages.getString(PKG,"Trans.Log.UnexpectedErrorAtTransformationEnd"));
+            }
           }
           if (step.getErrors() > 0) {
             log.logMinimal(getName(),BaseMessages.getString(PKG,"Trans.Log.TransformationDetectedErrors"));
@@ -25,6 +31,7 @@ synchronized (Trans.this) {
     sid.step.addStepListener(stepListener);
   }
   if (transMeta.isCapturingStepPerformanceSnapShots()) {
+    stepPerformanceSnapshotSeqNr=new AtomicInteger(0);
     stepPerformanceSnapShots=new HashMap<String,List<StepPerformanceSnapShot>>();
     stepPerformanceSnapShotTimer=new Timer();
     TimerTask timerTask=new TimerTask(){

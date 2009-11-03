@@ -1,0 +1,65 @@
+{
+  try {
+    if (data.expressionEvaluator == null) {
+      data.argumentIndexes=new ArrayList<Integer>();
+      List<String> parameterNames=new ArrayList<String>();
+      List<Class<?>> parameterTypes=new ArrayList<Class<?>>();
+      for (int i=0; i < data.outputRowMeta.size(); i++) {
+        ValueMetaInterface valueMeta=data.outputRowMeta.getValueMeta(i);
+        if (meta.getCondition().contains(valueMeta.getName())) {
+          data.argumentIndexes.add(i);
+          Class<?> parameterType;
+switch (valueMeta.getType()) {
+case ValueMetaInterface.TYPE_STRING:
+            parameterType=String.class;
+          break;
+case ValueMetaInterface.TYPE_NUMBER:
+        parameterType=Double.class;
+      break;
+case ValueMetaInterface.TYPE_INTEGER:
+    parameterType=Long.class;
+  break;
+case ValueMetaInterface.TYPE_DATE:
+parameterType=Date.class;
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+parameterType=BigDecimal.class;
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+parameterType=Boolean.class;
+break;
+case ValueMetaInterface.TYPE_BINARY:
+parameterType=byte[].class;
+break;
+default :
+parameterType=String.class;
+break;
+}
+parameterTypes.add(parameterType);
+parameterNames.add(valueMeta.getName());
+}
+}
+data.expressionEvaluator=new ExpressionEvaluator();
+data.expressionEvaluator.setParameters(parameterNames.toArray(new String[parameterNames.size()]),parameterTypes.toArray(new Class<?>[parameterTypes.size()]));
+data.expressionEvaluator.setReturnType(Object.class);
+data.expressionEvaluator.setThrownExceptions(new Class[]{Exception.class});
+data.expressionEvaluator.cook(meta.getCondition());
+data.argumentData=new Object[data.argumentIndexes.size()];
+}
+for (int x=0; x < data.argumentIndexes.size(); x++) {
+int index=data.argumentIndexes.get(x);
+ValueMetaInterface outputValueMeta=data.outputRowMeta.getValueMeta(index);
+data.argumentData[x]=outputValueMeta.convertToNormalStorageType(r[index]);
+}
+Object formulaResult=data.expressionEvaluator.evaluate(data.argumentData);
+if (formulaResult instanceof Boolean) {
+return (Boolean)formulaResult;
+}
+ else {
+throw new KettleException("The result of the filter expression must be a boolean and we got back : " + formulaResult.getClass().getName());
+}
+}
+ catch (Exception e) {
+throw new KettleValueException(e);
+}
+}
