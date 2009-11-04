@@ -4,8 +4,9 @@
   startDate=Const.MIN_DATE;
   endDate=currentDate;
   resetErrors();
-  DatabaseMeta logcon=jobMeta.getLogConnection();
-  if (logcon != null && !Const.isEmpty(jobMeta.getLogTable())) {
+  DatabaseMeta logcon=jobMeta.getJobLogTable().getDatabaseMeta();
+  String tableName=jobMeta.getJobLogTable().getTableName();
+  if (logcon != null && !Const.isEmpty(tableName)) {
     Database ldb=new Database(this,logcon);
     ldb.shareVariablesWith(this);
     try {
@@ -13,42 +14,42 @@
       ldb.connect();
       ldb.setCommit(100);
       Long id_batch=new Long(1);
-      if (jobMeta.isBatchIdUsed()) {
-        ldb.lockTables(new String[]{jobMeta.getLogTable()});
+      if (jobMeta.getJobLogTable().isBatchIdUsed()) {
+        ldb.lockTables(new String[]{tableName});
         lockedTable=true;
-        String sql="INSERT INTO " + logcon.quoteField(jobMeta.getLogTable()) + "("+ logcon.quoteField("ID_JOB")+ ") values (-1)";
+        String sql="INSERT INTO " + logcon.quoteField(tableName) + "("+ logcon.quoteField("ID_JOB")+ ") values (-1)";
         ldb.execStatement(sql);
-        id_batch=ldb.getNextValue(null,jobMeta.getLogTable(),"ID_JOB");
+        id_batch=ldb.getNextValue(null,tableName,"ID_JOB");
         setBatchId(id_batch.longValue());
         if (getPassedBatchId() <= 0) {
           setPassedBatchId(id_batch.longValue());
         }
       }
-      Object[] lastr=ldb.getLastLogDate(jobMeta.getLogTable(),jobMeta.getName(),true,LogStatus.END);
+      Object[] lastr=ldb.getLastLogDate(tableName,jobMeta.getName(),true,LogStatus.END);
       if (!Const.isEmpty(lastr)) {
         Date last;
         try {
           last=ldb.getReturnRowMeta().getDate(lastr,0);
         }
  catch (        KettleValueException e) {
-          throw new KettleJobException(BaseMessages.getString(PKG,"Job.Log.ConversionError","" + jobMeta.getLogTable()),e);
+          throw new KettleJobException(BaseMessages.getString(PKG,"Job.Log.ConversionError","" + tableName),e);
         }
         if (last != null) {
           startDate=last;
         }
       }
       depDate=currentDate;
-      ldb.writeLogRecord(jobMeta.getLogTable(),jobMeta.isBatchIdUsed(),getBatchId(),true,jobMeta.getName(),LogStatus.START,0L,0L,0L,0L,0L,0L,startDate,endDate,logDate,depDate,currentDate,null);
+      ldb.writeLogRecord(jobMeta.getJobLogTable(),LogStatus.START,this);
       if (lockedTable) {
-        String sql="DELETE FROM " + logcon.quoteField(jobMeta.getLogTable()) + " WHERE "+ logcon.quoteField("ID_JOB")+ "= -1";
+        String sql="DELETE FROM " + logcon.quoteField(tableName) + " WHERE "+ logcon.quoteField("ID_JOB")+ "= -1";
         ldb.execStatement(sql);
-        ldb.unlockTables(new String[]{jobMeta.getLogTable()});
+        ldb.unlockTables(new String[]{tableName});
       }
       ldb.disconnect();
     }
  catch (    KettleDatabaseException dbe) {
       addErrors(1);
-      throw new KettleJobException(BaseMessages.getString(PKG,"Job.Log.UnableToProcessLoggingStart","" + jobMeta.getLogTable()),dbe);
+      throw new KettleJobException(BaseMessages.getString(PKG,"Job.Log.UnableToProcessLoggingStart","" + tableName),dbe);
     }
  finally {
       ldb.disconnect();

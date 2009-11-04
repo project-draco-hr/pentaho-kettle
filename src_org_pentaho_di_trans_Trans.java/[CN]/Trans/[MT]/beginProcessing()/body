@@ -40,10 +40,64 @@
  else {
                 endProcessing(LogStatus.END);
               }
+              lastWrittenStepPerformanceSequenceNr=writeStepPerformanceLogRecords(lastWrittenStepPerformanceSequenceNr);
             }
  catch (            KettleException e) {
               throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.UnableToPerformLoggingAtTransEnd"),e);
             }
+          }
+        }
+);
+      }
+      StepLogTable stepLogTable=transMeta.getStepLogTable();
+      if (stepLogTable.isDefined()) {
+        addTransListener(new TransListener(){
+          public void transFinished(          Trans trans) throws KettleException {
+            try {
+              writeStepLogInformation();
+            }
+ catch (            KettleException e) {
+              throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.UnableToPerformLoggingAtTransEnd"),e);
+            }
+          }
+        }
+);
+      }
+      ChannelLogTable channelLogTable=transMeta.getChannelLogTable();
+      if (channelLogTable.isDefined()) {
+        addTransListener(new TransListener(){
+          public void transFinished(          Trans trans) throws KettleException {
+            try {
+              writeLogChannelInformation();
+            }
+ catch (            KettleException e) {
+              throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.UnableToPerformLoggingAtTransEnd"),e);
+            }
+          }
+        }
+);
+      }
+      PerformanceLogTable performanceLogTable=transMeta.getPerformanceLogTable();
+      int perfLogInterval=Const.toInt(environmentSubstitute(performanceLogTable.getLogInterval()),-1);
+      if (performanceLogTable.isDefined() && perfLogInterval > 0) {
+        final Timer timer=new Timer(getName() + " - step performance log interval timer");
+        TimerTask timerTask=new TimerTask(){
+          public void run(){
+            try {
+              lastWrittenStepPerformanceSequenceNr=writeStepPerformanceLogRecords(lastWrittenStepPerformanceSequenceNr);
+            }
+ catch (            Exception e) {
+              log.logError(BaseMessages.getString(PKG,"Trans.Exception.UnableToPerformIntervalPerformanceLogging"),e);
+              errors.incrementAndGet();
+              stopAll();
+            }
+          }
+        }
+;
+        timer.schedule(timerTask,perfLogInterval * 1000,perfLogInterval * 1000);
+        addTransListener(new TransListener(){
+          public void transFinished(          Trans trans){
+            timer.cancel();
           }
         }
 );

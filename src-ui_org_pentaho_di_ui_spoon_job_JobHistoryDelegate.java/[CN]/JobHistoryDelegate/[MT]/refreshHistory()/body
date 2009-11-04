@@ -1,20 +1,23 @@
 {
   JobMeta jobMeta=jobGraph.getManagedObject();
   if (jobMeta != null && !Const.isEmpty(jobMeta.getName())) {
-    if (jobMeta.getLogConnection() != null) {
-      if (!Const.isEmpty(jobMeta.getLogTable())) {
+    JobLogTable jobLogTable=jobMeta.getJobLogTable();
+    DatabaseMeta logCon=jobLogTable.getDatabaseMeta();
+    String tableName=jobLogTable.getTableName();
+    if (logCon != null) {
+      if (!Const.isEmpty(tableName)) {
         Database database=null;
         try {
-          database=new Database(loggingObject,jobMeta.getLogConnection());
+          database=new Database(loggingObject,logCon);
           database.shareVariablesWith(jobMeta);
           database.connect();
-          RowMetaInterface jobLogMeta=Database.getJobLogrecordFields(false,jobMeta.isBatchIdUsed(),jobMeta.isLogfieldUsed());
+          RowMetaInterface jobLogMeta=jobLogTable.getLogRecord(LogStatus.START,null).getRowMeta();
           String sql="SELECT ";
           for (int i=0; i < jobLogMeta.size(); i++) {
             if (i > 0)             sql+=", ";
             sql+=jobLogMeta.getValueMeta(i).getName();
           }
-          sql+=" FROM " + jobMeta.getLogTable();
+          sql+=" FROM " + tableName;
           sql+=" WHERE jobName= ?";
           sql+=" ORDER BY ID_JOB DESC";
           RowMetaAndData params=new RowMetaAndData();

@@ -1,57 +1,38 @@
 {
-  getTransLogTableOptions();
-  getPerformanceLogTableOptions();
-  DatabaseMeta ci=transMeta.findDatabase(wLogconnection.getText());
-  if (ci != null) {
-    String tablename=transLogTable.getTableName();
-    String stepTablename=performanceLogTable.getTableName();
-    if (!Const.isEmpty(tablename) || !Const.isEmpty(stepTablename)) {
-      Database db=new Database(transMeta,ci);
-      db.shareVariablesWith(transMeta);
-      try {
-        db.connect();
-        RowMetaInterface r;
-        String createTable="";
-        if (!Const.isEmpty(tablename)) {
-          r=transLogTable.getLogRecord(LogStatus.START,null).getRowMeta();
-          createTable+=db.getDDL(tablename,r);
-        }
-        if (!Const.isEmpty(stepTablename)) {
-          r=performanceLogTable.getLogRecord(LogStatus.START,null).getRowMeta();
-          createTable+=db.getDDL(stepTablename,r);
-        }
-        if (!Const.isEmpty(createTable)) {
-          SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,ci,transMeta.getDbCache(),createTable);
-          sqledit.open();
-        }
+  getLogInfo();
+  try {
+    for (    LogTableInterface logTable : new LogTableInterface[]{transLogTable,performanceLogTable,channelLogTable,stepLogTable}) {
+      if (logTable.getDatabaseMeta() != null && !Const.isEmpty(logTable.getTableName())) {
+        Database db=null;
+        try {
+          db=new Database(transMeta,logTable.getDatabaseMeta());
+          db.shareVariablesWith(transMeta);
+          db.connect();
+          RowMetaInterface fields=logTable.getLogRecord(LogStatus.START,null).getRowMeta();
+          String schemaTable=logTable.getDatabaseMeta().getSchemaTableCombination(logTable.getSchemaName(),logTable.getTableName());
+          String createTable=db.getDDL(schemaTable,fields);
+          if (!Const.isEmpty(createTable)) {
+            String comments="-- " + logTable.getLogTableType() + Const.CR;
+            comments+="--" + Const.CR + Const.CR;
+            SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,logTable.getDatabaseMeta(),transMeta.getDbCache(),comments + createTable);
+            sqledit.open();
+          }
  else {
-          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
-          mb.setText(BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogTitle"));
-          mb.setMessage(BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogMessage"));
-          mb.open();
+            MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+            mb.setText(BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogTitle"));
+            mb.setMessage(logTable.getLogTableType() + Const.CR + Const.CR+ BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogMessage"));
+            mb.open();
+          }
+        }
+  finally {
+          if (db != null) {
+            db.disconnect();
+          }
         }
       }
- catch (      KettleException e) {
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setText(BaseMessages.getString(PKG,"TransDialog.ErrorOccurred.DialogTitle"));
-        mb.setMessage(BaseMessages.getString(PKG,"TransDialog.ErrorOccurred.DialogMessage") + Const.CR + e.getMessage());
-        mb.open();
-      }
- finally {
-        db.disconnect();
-      }
-    }
- else {
-      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-      mb.setText(BaseMessages.getString(PKG,"TransDialog.NeedLogtableName.DialogTitle"));
-      mb.setMessage(BaseMessages.getString(PKG,"TransDialog.NeedLogtableName.DialogMessage"));
-      mb.open();
     }
   }
- else {
-    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setText(BaseMessages.getString(PKG,"TransDialog.NeedValidLogtableConnection.DialogTitle"));
-    mb.setMessage(BaseMessages.getString(PKG,"TransDialog.NeedValidLogtableConnection.DialogMessage"));
-    mb.open();
+ catch (  Exception e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"TransDialog.ErrorOccurred.DialogTitle"),BaseMessages.getString(PKG,"TransDialog.ErrorOccurred.DialogMessage"),e);
   }
 }
