@@ -1,0 +1,42 @@
+{
+  LogStatus status;
+  if (!isActive()) {
+    if (isStopped()) {
+      status=LogStatus.STOP;
+    }
+ else {
+      status=LogStatus.END;
+    }
+  }
+ else {
+    status=LogStatus.RUNNING;
+  }
+  try {
+    if (errors.get() == 0 && result != null && !result.getResult()) {
+      errors.incrementAndGet();
+    }
+    logDate=new Date();
+    JobLogTable jobLogTable=jobMeta.getJobLogTable();
+    if (jobLogTable.isDefined()) {
+      String tableName=jobMeta.getJobLogTable().getTableName();
+      DatabaseMeta logcon=jobMeta.getJobLogTable().getDatabaseMeta();
+      Database ldb=new Database(this,logcon);
+      ldb.shareVariablesWith(this);
+      try {
+        ldb.connect();
+        ldb.writeLogRecord(jobMeta.getJobLogTable(),status,this);
+      }
+ catch (      KettleDatabaseException dbe) {
+        addErrors(1);
+        throw new KettleJobException("Unable to end processing by writing log record to table " + tableName,dbe);
+      }
+ finally {
+        ldb.disconnect();
+      }
+    }
+    return true;
+  }
+ catch (  Exception e) {
+    throw new KettleJobException(e);
+  }
+}

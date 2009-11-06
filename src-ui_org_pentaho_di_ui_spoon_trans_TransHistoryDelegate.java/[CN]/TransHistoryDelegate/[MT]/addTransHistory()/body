@@ -8,6 +8,7 @@
       return;
     }
   }
+  transMeta=transGraph.getManagedObject();
   transHistoryTab=new CTabItem(transGraph.extraViewTabFolder,SWT.NONE);
   transHistoryTab.setImage(GUIResource.getInstance().getImageShowHistory());
   transHistoryTab.setText(BaseMessages.getString(PKG,"Spoon.TransGraph.HistoryTab.Name"));
@@ -16,54 +17,29 @@
   spoon.props.setLook(transHistoryComposite);
   addToolBar();
   addToolBarListeners();
-  SashForm sash=new SashForm(transHistoryComposite,SWT.VERTICAL);
-  sash.setLayout(new FillLayout());
-  final int FieldsRows=1;
-  colinf=new ColumnInfo[]{new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Name"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.BatchID"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Status"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Duration"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Read"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Written"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Updated"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Input"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Output"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.Errors"),ColumnInfo.COLUMN_TYPE_TEXT,true,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.StartDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.EndDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.LogDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.DependencyDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"TransHistory.Column.ReplayDate"),ColumnInfo.COLUMN_TYPE_TEXT,false,true)};
-  for (int i=3; i < 10; i++)   colinf[i].setAllignement(SWT.RIGHT);
-  durationMeta=new ValueMeta("DURATION",ValueMetaInterface.TYPE_NUMBER);
-  durationMeta.setConversionMask("0");
-  colinf[2].setValueMeta(durationMeta);
-  wFields=new TableView(transGraph.getManagedObject(),sash,SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE,colinf,FieldsRows,true,null,spoon.props);
-  wText=new Text(sash,SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL| SWT.READ_ONLY);
-  spoon.props.setLook(wText);
-  wText.setVisible(true);
-  fdText=new FormData();
-  fdText.left=new FormAttachment(0,0);
-  fdText.top=new FormAttachment(0,0);
-  fdText.right=new FormAttachment(100,0);
-  fdText.bottom=new FormAttachment(100,0);
-  wText.setLayoutData(fdText);
-  fdSash=new FormData();
-  fdSash.left=new FormAttachment(0,0);
-  fdSash.top=new FormAttachment((Control)toolbar.getNativeObject(),0);
-  fdSash.right=new FormAttachment(100,0);
-  fdSash.bottom=new FormAttachment(100,0);
-  sash.setLayoutData(fdSash);
-  sash.setWeights(new int[]{60,40});
+  addLogTableTabs();
+  tabFolder.setSelection(0);
   transHistoryComposite.pack();
-  wFields.table.addSelectionListener(new SelectionAdapter(){
-    public void widgetSelected(    SelectionEvent e){
-      showLogEntry();
-    }
-  }
-);
-  wFields.table.addKeyListener(new KeyListener(){
-    public void keyReleased(    KeyEvent e){
-      showLogEntry();
-    }
-    public void keyPressed(    KeyEvent e){
-    }
-  }
-);
   transHistoryTab.setControl(transHistoryComposite);
   transGraph.extraViewTabFolder.setSelection(transHistoryTab);
-  transGraph.getDisplay().asyncExec(new Runnable(){
+  refreshHistory();
+  Timer timer=new Timer();
+  TimerTask timerTask=new TimerTask(){
     public void run(){
-      refreshHistory();
-      if (!transHistoryComposite.isDisposed())       transHistoryComposite.layout(true,true);
-      showLogEntry();
+      if (displayRefreshNeeded) {
+        displayRefreshNeeded=false;
+        for (int i=0; i < logTables.size(); i++) {
+          final int index=i;
+          spoon.getDisplay().syncExec(new Runnable(){
+            public void run(){
+              displayHistoryData(logTables.get(index),index,rowList.get(index));
+            }
+          }
+);
+        }
+      }
     }
   }
-);
+;
+  timer.schedule(timerTask,1000,1000);
 }

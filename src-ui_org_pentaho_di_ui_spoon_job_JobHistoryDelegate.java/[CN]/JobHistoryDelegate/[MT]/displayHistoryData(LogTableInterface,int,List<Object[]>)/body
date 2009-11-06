@@ -1,0 +1,67 @@
+{
+  ColumnInfo[] colinf=columns.get(tabIndex);
+  if (wFields.get(tabIndex).isDisposed())   return;
+  int selectionIndex=wFields.get(tabIndex).getSelectionIndex();
+  wFields.get(tabIndex).table.clearAll();
+  if (rows != null && rows.size() > 0) {
+    for (int i=0; i < rows.size(); i++) {
+      Object[] rowData=rows.get(i);
+      TableItem item=new TableItem(wFields.get(tabIndex).table,SWT.NONE);
+      for (int c=0; c < colinf.length; c++) {
+        ColumnInfo column=colinf[c];
+        ValueMetaInterface valueMeta=column.getValueMeta();
+        String string=null;
+        try {
+          string=valueMeta.getString(rowData[c]);
+        }
+ catch (        KettleValueException e) {
+          log.logError("history data conversion issue",e);
+        }
+        item.setText(c + 1,Const.NVL(string,""));
+      }
+      Long errors=null;
+      LogStatus status=null;
+      LogTableField errorsField=logTable.getErrorsField();
+      if (errorsField != null) {
+        ;
+        int index=logTableFields.get(tabIndex).indexOf(errorsField);
+        try {
+          errors=colinf[index].getValueMeta().getInteger(rowData[index]);
+        }
+ catch (        KettleValueException e) {
+          log.logError("history data conversion issue",e);
+        }
+      }
+      LogTableField statusField=logTable.getStatusField();
+      if (statusField != null) {
+        int index=logTableFields.get(tabIndex).indexOf(statusField);
+        String statusString=null;
+        try {
+          statusString=colinf[index].getValueMeta().getString(rowData[index]);
+        }
+ catch (        KettleValueException e) {
+          log.logError("history data conversion issue",e);
+        }
+        if (statusString != null) {
+          status=LogStatus.findStatus(statusString);
+        }
+      }
+      if (errors != null && errors.longValue() > 0L) {
+        item.setBackground(GUIResource.getInstance().getColorRed());
+      }
+ else       if (status != null && LogStatus.STOP.equals(status)) {
+        item.setBackground(GUIResource.getInstance().getColorYellow());
+      }
+    }
+    wFields.get(tabIndex).removeEmptyRows();
+    wFields.get(tabIndex).setRowNums();
+    wFields.get(tabIndex).optWidth(true);
+  }
+ else {
+    new TableItem(wFields.get(tabIndex).table,SWT.NONE);
+  }
+  if (selectionIndex >= 0 && selectionIndex < wFields.get(tabIndex).getItemCount()) {
+    wFields.get(tabIndex).table.select(selectionIndex);
+    showLogEntry();
+  }
+}

@@ -1,54 +1,38 @@
 {
-  DatabaseMeta ci=jobMeta.findDatabase(wLogconnection.getText());
-  if (ci != null) {
-    RowMetaInterface r=jobMeta.getJobLogTable().getLogRecord(LogStatus.START,null).getRowMeta();
-    if (r != null && r.size() > 0) {
-      String tablename=wLogtable.getText();
-      if (tablename != null && tablename.length() > 0) {
-        Database db=new Database(jobMeta,ci);
-        db.shareVariablesWith(jobMeta);
+  getLogInfo();
+  try {
+    for (    LogTableInterface logTable : new LogTableInterface[]{jobLogTable,jobEntryLogTable,channelLogTable}) {
+      if (logTable.getDatabaseMeta() != null && !Const.isEmpty(logTable.getTableName())) {
+        Database db=null;
         try {
+          db=new Database(jobMeta,logTable.getDatabaseMeta());
+          db.shareVariablesWith(jobMeta);
           db.connect();
-          String createTable=db.getDDL(tablename,r);
+          RowMetaInterface fields=logTable.getLogRecord(LogStatus.START,null).getRowMeta();
+          String schemaTable=logTable.getDatabaseMeta().getSchemaTableCombination(logTable.getSchemaName(),logTable.getTableName());
+          String createTable=db.getDDL(schemaTable,fields);
           if (!Const.isEmpty(createTable)) {
-            SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,ci,null,createTable);
+            String comments="-- " + logTable.getLogTableType() + Const.CR;
+            comments+="--" + Const.CR + Const.CR;
+            SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,logTable.getDatabaseMeta(),DBCache.getInstance(),comments + createTable);
             sqledit.open();
           }
  else {
             MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
             mb.setText(BaseMessages.getString(PKG,"JobDialog.NoSqlNedds.DialogTitle"));
-            mb.setMessage(BaseMessages.getString(PKG,"JobDialog.NoSqlNedds.DialogMessage"));
+            mb.setMessage(logTable.getLogTableType() + Const.CR + Const.CR+ BaseMessages.getString(PKG,"JobDialog.NoSqlNedds.DialogMessage"));
             mb.open();
           }
         }
- catch (        KettleDatabaseException dbe) {
-          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-          mb.setMessage(BaseMessages.getString(PKG,"JobDialog.Dialog.ErrorCreatingSQL.Message") + Const.CR + dbe.getMessage());
-          mb.setText(BaseMessages.getString(PKG,"JobDialog.Dialog.ErrorCreatingSQL.Title"));
-          mb.open();
-        }
- finally {
-          db.disconnect();
+  finally {
+          if (db != null) {
+            db.disconnect();
+          }
         }
       }
- else {
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage(BaseMessages.getString(PKG,"JobDialog.Dialog.PleaseEnterALogTable.Message"));
-        mb.setText(BaseMessages.getString(PKG,"JobDialog.Dialog.PleaseEnterALogTable.Title"));
-        mb.open();
-      }
-    }
- else {
-      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-      mb.setMessage(BaseMessages.getString(PKG,"JobDialog.Dialog.CouldNotFindFieldsToCreateLogTable.Message"));
-      mb.setText(BaseMessages.getString(PKG,"JobDialog.Dialog.CouldNotFindFieldsToCreateLogTable.Title"));
-      mb.open();
     }
   }
- else {
-    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage(BaseMessages.getString(PKG,"JobDialog.Dialog.SelectCreateValidLogConnection.Message"));
-    mb.setText(BaseMessages.getString(PKG,"JobDialog.Dialog.SelectCreateValidLogConnection.Title"));
-    mb.open();
+ catch (  Exception e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"JobDialog.Dialog.ErrorCreatingSQL.Title"),BaseMessages.getString(PKG,"JobDialog.Dialog.ErrorCreatingSQL.Message"),e);
   }
 }

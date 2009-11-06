@@ -1,0 +1,57 @@
+{
+  if (transMeta != null && !Const.isEmpty(transMeta.getName()) && logTable.isDefined()) {
+    DatabaseMeta logConnection=logTable.getDatabaseMeta();
+    Database database=null;
+    try {
+      database=new Database(loggingObject,logConnection);
+      database.shareVariablesWith(transMeta);
+      database.connect();
+      String schemaTable=logTable.getQuotedSchemaTableCombination();
+      String sql="SELECT ";
+      boolean first=true;
+      for (      LogTableField field : logTable.getFields()) {
+        if (field.isEnabled() && field.isVisible()) {
+          if (!first)           sql+=", ";
+          first=false;
+          sql+=logConnection.quoteField(field.getFieldName());
+        }
+      }
+      sql+=" FROM " + schemaTable;
+      RowMetaAndData params=new RowMetaAndData();
+      LogTableField nameField=logTable.getNameField();
+      if (nameField != null) {
+        sql+=" WHERE " + logConnection.quoteField(nameField.getFieldName()) + " LIKE ?";
+        params.addValue(new ValueMeta("transname_literal",ValueMetaInterface.TYPE_STRING),transMeta.getName());
+        sql+=" OR    " + logConnection.quoteField(nameField.getFieldName()) + " LIKE ?";
+        params.addValue(new ValueMeta("transname_cluster",ValueMetaInterface.TYPE_STRING),transMeta.getName() + " (%");
+      }
+      LogTableField keyField=logTable.getKeyField();
+      if (keyField != null) {
+        sql+=" ORDER BY " + logConnection.quoteField(keyField.getFieldName()) + " DESC";
+      }
+      ResultSet resultSet=database.openQuery(sql,params.getRowMeta(),params.getData());
+      List<Object[]> rows=new ArrayList<Object[]>();
+      Object[] rowData=database.getRow(resultSet);
+      while (rowData != null) {
+        rows.add(rowData);
+        if (rowList.size() < Props.getInstance().getMaxNrLinesInHistory() || Props.getInstance().getMaxNrLinesInHistory() <= 0) {
+          rowData=database.getRow(resultSet);
+        }
+ else {
+          break;
+        }
+      }
+      database.closeQuery(resultSet);
+      return rows;
+    }
+ catch (    Exception e) {
+      throw new KettleException("Error retrieveing log records for log table '" + logTable.getLogTableType(),e);
+    }
+ finally {
+      if (database != null)       database.disconnect();
+    }
+  }
+ else {
+    return new ArrayList<Object[]>();
+  }
+}

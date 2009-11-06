@@ -1,0 +1,57 @@
+{
+  LogStatus status;
+  if (isFinished()) {
+    if (isStopped()) {
+      status=LogStatus.STOP;
+    }
+ else {
+      status=LogStatus.END;
+    }
+  }
+ else   if (isPaused()) {
+    status=LogStatus.PAUSED;
+  }
+ else {
+    status=LogStatus.RUNNING;
+  }
+  TransLogTable transLogTable=transMeta.getTransLogTable();
+  int intervalInSeconds=Const.toInt(environmentSubstitute(transLogTable.getLogInterval()),-1);
+  Result result=getResult();
+  if (transMeta.isUsingUniqueConnections() && (status.equals(LogStatus.END) || status.equals(LogStatus.STOP))) {
+    closeUniqueDatabaseConnections(result);
+  }
+  logDate=new Date();
+  DatabaseMeta logcon=transMeta.getTransLogTable().getDatabaseMeta();
+  String logTable=transMeta.getTransLogTable().getTableName();
+  if (logcon != null) {
+    Database ldb=null;
+    if (transLogTableDatabaseConnection == null) {
+      ldb=new Database(this,logcon);
+      ldb.shareVariablesWith(this);
+    }
+ else {
+      ldb=transLogTableDatabaseConnection;
+    }
+    try {
+      if (transLogTableDatabaseConnection == null) {
+        ldb.connect();
+      }
+      if (!Const.isEmpty(logTable)) {
+        transLogTableDatabaseConnection.writeLogRecord(transLogTable,status,this);
+      }
+      if (status.equals(LogStatus.END) || status.equals(LogStatus.STOP)) {
+        ldb.cleanupLogRecords(transLogTable);
+      }
+    }
+ catch (    Exception e) {
+      throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.ErrorWritingLogRecordToTable") + transMeta.getTransLogTable().getTableName() + "]",e);
+    }
+ finally {
+      if (intervalInSeconds <= 0 || (status.equals(LogStatus.END) || status.equals(LogStatus.STOP))) {
+        ldb.disconnect();
+        transLogTableDatabaseConnection=null;
+      }
+    }
+  }
+  return true;
+}

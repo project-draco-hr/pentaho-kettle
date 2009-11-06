@@ -1,0 +1,23 @@
+{
+  try {
+    double timeout=Const.toDouble(Const.trim(environmentSubstitute(logTable.getTimeoutInDays())),0.0);
+    if (timeout > 0.000001) {
+      String schemaTable=databaseMeta.getSchemaTableCombination(logTable.getSchemaName(),logTable.getTableName());
+      LogTableField logField=logTable.getLogDateField();
+      if (logField != null) {
+        String sql="DELETE FROM " + schemaTable + " WHERE "+ databaseMeta.quoteField(logField.getFieldName())+ " < ?";
+        long now=System.currentTimeMillis();
+        long limit=now - Math.round(timeout * 24 * 60* 60* 1000);
+        RowMetaAndData row=new RowMetaAndData();
+        row.addValue(logField.getFieldName(),ValueMetaInterface.TYPE_DATE,new Date(limit));
+        execStatement(sql,row.getRowMeta(),row.getData());
+      }
+ else {
+        throw new KettleException(BaseMessages.getString(PKG,"Database.Exception.LogTimeoutDefinedOnTableWithoutLogField",logTable.getTableName()));
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException(BaseMessages.getString(PKG,"Database.Exception.UnableToCleanUpOlderRecordsFromLogTable",logTable.getTableName()),e);
+  }
+}

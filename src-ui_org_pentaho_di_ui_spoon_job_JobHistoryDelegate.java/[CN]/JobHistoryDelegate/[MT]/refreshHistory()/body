@@ -1,126 +1,23 @@
 {
-  JobMeta jobMeta=jobGraph.getManagedObject();
-  if (jobMeta != null && !Const.isEmpty(jobMeta.getName())) {
-    JobLogTable jobLogTable=jobMeta.getJobLogTable();
-    DatabaseMeta logCon=jobLogTable.getDatabaseMeta();
-    String tableName=jobLogTable.getTableName();
-    if (logCon != null) {
-      if (!Const.isEmpty(tableName)) {
-        Database database=null;
-        try {
-          database=new Database(loggingObject,logCon);
-          database.shareVariablesWith(jobMeta);
-          database.connect();
-          RowMetaInterface jobLogMeta=jobLogTable.getLogRecord(LogStatus.START,null).getRowMeta();
-          String sql="SELECT ";
-          for (int i=0; i < jobLogMeta.size(); i++) {
-            if (i > 0)             sql+=", ";
-            sql+=jobLogMeta.getValueMeta(i).getName();
+  new Thread(new Runnable(){
+    public void run(){
+      if (!gettingHistoryData) {
+        gettingHistoryData=true;
+        rowList.clear();
+        for (int i=0; i < logTables.size(); i++) {
+          List<Object[]> rows;
+          try {
+            rows=getHistoryData(logTables.get(i));
           }
-          sql+=" FROM " + tableName;
-          sql+=" WHERE jobName= ?";
-          sql+=" ORDER BY ID_JOB DESC";
-          RowMetaAndData params=new RowMetaAndData();
-          params.addValue(new ValueMeta("transname",ValueMetaInterface.TYPE_STRING),jobMeta.getName());
-          ResultSet resultSet=database.openQuery(sql,params.getRowMeta(),params.getData());
-          rowList=new ArrayList<RowMetaAndData>();
-          Object[] rowData=database.getRow(resultSet);
-          while (rowData != null) {
-            RowMetaInterface rowMeta=database.getReturnRowMeta();
-            rowList.add(new RowMetaAndData(rowMeta,rowData));
-            if (rowList.size() < Props.getInstance().getMaxNrLinesInHistory() || Props.getInstance().getMaxNrLinesInHistory() <= 0) {
-              rowData=database.getRow(resultSet);
-            }
- else {
-              break;
-            }
+ catch (          KettleException e) {
+            rows=new ArrayList<Object[]>();
           }
-          database.closeQuery(resultSet);
-          if (rowList.size() > 0) {
-            RowMetaInterface displayMeta=null;
-            if (wFields.table.isDisposed())             return;
-            wFields.table.clearAll();
-            for (int i=0; i < rowList.size(); i++) {
-              RowMetaAndData row=rowList.get(i);
-              if (displayMeta == null) {
-                displayMeta=row.getRowMeta();
-                for (int v=0; v < displayMeta.size(); v++) {
-                  ValueMetaInterface valueMeta=displayMeta.getValueMeta(v);
-                  if (valueMeta.isNumeric()) {
-                    valueMeta.setLength(-1,-1);
-                  }
-                  if (valueMeta.isDate()) {
-                    valueMeta.setConversionMask("yyyy/MM/dd HH:mm:ss");
-                  }
-                }
-                int idx=0;
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("JOBNAME"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("ID_JOB"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("STATUS"));
-                colinf[idx++].setValueMeta(durationMeta);
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("LINES_READ"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("LINES_WRITTEN"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("LINES_UPDATED"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("LINES_INPUT"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("LINES_OUTPUT"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("ERRORS"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("STARTDATE"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("ENDDATE"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("LOGDATE"));
-                colinf[idx++].setValueMeta(displayMeta.searchValueMeta("DEPDATE"));
-                replayDateMeta=displayMeta.searchValueMeta("REPLAYDATE");
-                colinf[idx++].setValueMeta(replayDateMeta);
-              }
-              TableItem item=new TableItem(wFields.table,SWT.NONE);
-              int idJobIndex=row.getRowMeta().indexOfValue("ID_JOB");
-              String batchID=idJobIndex < 0 ? "" : row.getString(idJobIndex,"");
-              int colnr=1;
-              Long duration=null;
-              Date endDate=row.getDate("ENDDATE",null);
-              Date depDate=row.getDate("DEPDATE",null);
-              if (endDate != null && depDate != null) {
-                duration=(endDate.getTime() - depDate.getTime()) / 1000;
-              }
-              item.setText(colnr++,Const.NVL(row.getString("JOBNAME",""),""));
-              item.setText(colnr++,Const.NVL(batchID,""));
-              item.setText(colnr++,Const.NVL(row.getString("STATUS",""),""));
-              item.setText(colnr++,duration == null ? "" : duration.toString());
-              item.setText(colnr++,Const.NVL(row.getString("LINES_READ",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("LINES_WRITTEN",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("LINES_UPDATED",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("LINES_INPUT",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("LINES_OUTPUT",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("ERRORS",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("STARTDATE",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("ENDDATE",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("LOGDATE",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("DEPDATE",""),""));
-              item.setText(colnr++,Const.NVL(row.getString("REPLAYDATE",""),""));
-            }
-            wFields.removeEmptyRows();
-            wFields.setRowNums();
-            wFields.optWidth(true);
-            wFields.table.setSelection(0);
-            showLogEntry();
-          }
+          rowList.add(rows);
         }
- catch (        KettleException e) {
-          new ErrorDialog(jobGraph.getShell(),BaseMessages.getString(PKG,"JobHistory.Error.GettingLoggingInfo"),BaseMessages.getString(PKG,"JobHistory.Error.GettingInfoFromLoggingTable"),e);
-          wFields.clearAll(false);
-        }
- finally {
-          if (database != null)           database.disconnect();
-        }
-      }
- else {
-        if (!wFields.isDisposed())         wFields.clearAll(false);
+        displayRefreshNeeded=true;
+        gettingHistoryData=false;
       }
     }
- else {
-      if (!wFields.isDisposed())       wFields.clearAll(false);
-    }
   }
- else {
-    if (!wFields.isDisposed())     wFields.clearAll(false);
-  }
+).start();
 }

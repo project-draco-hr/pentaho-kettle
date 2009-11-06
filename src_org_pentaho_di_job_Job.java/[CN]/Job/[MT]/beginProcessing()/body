@@ -4,9 +4,11 @@
   startDate=Const.MIN_DATE;
   endDate=currentDate;
   resetErrors();
-  DatabaseMeta logcon=jobMeta.getJobLogTable().getDatabaseMeta();
-  String tableName=jobMeta.getJobLogTable().getTableName();
-  if (logcon != null && !Const.isEmpty(tableName)) {
+  final JobLogTable jobLogTable=jobMeta.getJobLogTable();
+  int intervalInSeconds=Const.toInt(environmentSubstitute(jobLogTable.getLogInterval()),-1);
+  if (jobLogTable.isDefined()) {
+    DatabaseMeta logcon=jobMeta.getJobLogTable().getDatabaseMeta();
+    String tableName=jobMeta.getJobLogTable().getTableName();
     Database ldb=new Database(this,logcon);
     ldb.shareVariablesWith(this);
     try {
@@ -46,6 +48,40 @@
         ldb.unlockTables(new String[]{tableName});
       }
       ldb.disconnect();
+      if (intervalInSeconds > 0) {
+        final Timer timer=new Timer(getName() + " - interval logging timer");
+        TimerTask timerTask=new TimerTask(){
+          public void run(){
+            try {
+              endProcessing();
+            }
+ catch (            Exception e) {
+              log.logError(BaseMessages.getString(PKG,"Job.Exception.UnableToPerformIntervalLogging"),e);
+              errors.incrementAndGet();
+              stopAll();
+            }
+          }
+        }
+;
+        timer.schedule(timerTask,intervalInSeconds * 1000,intervalInSeconds * 1000);
+        addJobListener(new JobListener(){
+          public void jobFinished(          Job job){
+            timer.cancel();
+          }
+        }
+);
+      }
+      addJobListener(new JobListener(){
+        public void jobFinished(        Job job){
+          try {
+            endProcessing();
+          }
+ catch (          Exception e) {
+            log.logError(BaseMessages.getString(PKG,"Job.Exception.UnableToWriteToLoggingTable",jobLogTable.toString()),e);
+          }
+        }
+      }
+);
     }
  catch (    KettleDatabaseException dbe) {
       addErrors(1);

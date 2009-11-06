@@ -1,0 +1,91 @@
+{
+  logTables=transMeta.getLogTables();
+  columns=new ArrayList<ColumnInfo[]>();
+  rowList=new ArrayList<List<Object[]>>();
+  logTableFields=new ArrayList<List<LogTableField>>();
+  wFields=new ArrayList<TableView>();
+  wText=new ArrayList<Text>();
+  tabFolder=new CTabFolder(transHistoryComposite,SWT.MULTI);
+  spoon.props.setLook(tabFolder,Props.WIDGET_STYLE_TAB);
+  for (  LogTableInterface logTable : logTables) {
+    CTabItem tabItem=new CTabItem(tabFolder,SWT.NONE);
+    tabItem.setText(logTable.getLogTableType());
+    Composite logTableComposite=new Composite(tabFolder,SWT.NONE);
+    logTableComposite.setLayout(new FormLayout());
+    spoon.props.setLook(logTableComposite);
+    tabItem.setControl(logTableComposite);
+    SashForm sash=new SashForm(logTableComposite,SWT.VERTICAL);
+    sash.setLayout(new FillLayout());
+    FormData fdSash=new FormData();
+    fdSash.left=new FormAttachment(0,0);
+    fdSash.top=new FormAttachment(0,0);
+    fdSash.right=new FormAttachment(100,0);
+    fdSash.bottom=new FormAttachment(100,0);
+    sash.setLayoutData(fdSash);
+    List<ColumnInfo> columnList=new ArrayList<ColumnInfo>();
+    List<LogTableField> fields=new ArrayList<LogTableField>();
+    for (    LogTableField field : logTable.getFields()) {
+      if (field.isEnabled() && field.isVisible()) {
+        fields.add(field);
+        if (!field.isLogField()) {
+          ColumnInfo column=new ColumnInfo(field.getName(),ColumnInfo.COLUMN_TYPE_TEXT,false,true);
+          ValueMetaInterface valueMeta=new ValueMeta(field.getFieldName(),field.getDataType(),field.getLength(),-1);
+switch (field.getDataType()) {
+case ValueMetaInterface.TYPE_INTEGER:
+            valueMeta.setConversionMask("###,###,##0");
+          column.setAllignement(SWT.RIGHT);
+        break;
+case ValueMetaInterface.TYPE_DATE:
+      valueMeta.setConversionMask("yyyy/MM/dd HH:mm:ss");
+    column.setAllignement(SWT.CENTER);
+  break;
+case ValueMetaInterface.TYPE_NUMBER:
+valueMeta.setConversionMask(" ###,###,##0.00;-###,###,##0.00");
+column.setAllignement(SWT.RIGHT);
+break;
+case ValueMetaInterface.TYPE_STRING:
+column.setAllignement(SWT.LEFT);
+break;
+}
+column.setValueMeta(valueMeta);
+columnList.add(column);
+}
+}
+}
+logTableFields.add(fields);
+final int FieldsRows=1;
+ColumnInfo[] colinf=columnList.toArray(new ColumnInfo[columnList.size()]);
+columns.add(colinf);
+TableView tableView=new TableView(transGraph.getManagedObject(),sash,SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE,colinf,FieldsRows,true,null,spoon.props);
+wFields.add(tableView);
+tableView.table.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent arg0){
+showLogEntry();
+}
+}
+);
+if (logTable.getLogField() != null) {
+Text text=new Text(sash,SWT.MULTI | SWT.V_SCROLL | SWT.H_SCROLL| SWT.READ_ONLY);
+spoon.props.setLook(text);
+text.setVisible(true);
+wText.add(text);
+FormData fdText=new FormData();
+fdText.left=new FormAttachment(0,0);
+fdText.top=new FormAttachment(0,0);
+fdText.right=new FormAttachment(100,0);
+fdText.bottom=new FormAttachment(100,0);
+text.setLayoutData(fdText);
+sash.setWeights(new int[]{70,30});
+}
+ else {
+wText.add(null);
+sash.setWeights(new int[]{100});
+}
+}
+FormData fdTabFolder=new FormData();
+fdTabFolder.left=new FormAttachment(0,0);
+fdTabFolder.top=new FormAttachment((Control)toolbar.getNativeObject(),0);
+fdTabFolder.right=new FormAttachment(100,0);
+fdTabFolder.bottom=new FormAttachment(100,0);
+tabFolder.setLayoutData(fdTabFolder);
+}
