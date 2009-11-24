@@ -1,0 +1,69 @@
+{
+  folderTree=(XulTree)document.getElementById("folder-tree");
+  fileTable=(XulTree)document.getElementById("file-table");
+  versionTable=(XulTree)document.getElementById("version-table");
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  Binding directoryBinding=bf.createBinding(repositoryDirectory,"children",folderTree,"elements");
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  bf.createBinding(folderTree,"selectedItems",fileTable,"elements",new BindingConvertor<List<UIRepositoryDirectory>,List<UIRepositoryObject>>(){
+    @Override public List<UIRepositoryObject> sourceToTarget(    List<UIRepositoryDirectory> rd){
+      List<UIRepositoryObject> listOfObjects=new ArrayList<UIRepositoryObject>();
+      if (rd == null) {
+        return null;
+      }
+      if (rd.size() <= 0) {
+        return null;
+      }
+      try {
+        listOfObjects=rd.get(0).getRepositoryObjects();
+      }
+ catch (      Exception e) {
+      }
+      return listOfObjects;
+    }
+    @Override public List<UIRepositoryDirectory> targetToSource(    List<UIRepositoryObject> elements){
+      return null;
+    }
+  }
+);
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  Binding revisionTreeBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","version-table","!disabled");
+  Binding historyLabelBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","history-label","!disabled");
+  if (repositoryDirectory.isRevisionsSupported()) {
+    bf.setBindingType(Binding.Type.ONE_WAY);
+    bf.createBinding(fileTable,"selectedItems",versionTable,"elements",new BindingConvertor<List<UIRepositoryObject>,List<UIRepositoryObjectRevision>>(){
+      @Override public List<UIRepositoryObjectRevision> sourceToTarget(      List<UIRepositoryObject> ro){
+        List<UIRepositoryObjectRevision> listOfObjects=new ArrayList<UIRepositoryObjectRevision>();
+        if (ro == null) {
+          return null;
+        }
+        if (ro.size() <= 0) {
+          return null;
+        }
+        if (ro.get(0) instanceof UIRepositoryDirectory) {
+          return null;
+        }
+        try {
+          UIRepositoryContent rc=(UIRepositoryContent)ro.get(0);
+          listOfObjects=rc.getRevisions();
+        }
+ catch (        Exception e) {
+        }
+        return listOfObjects;
+      }
+      @Override public List<UIRepositoryObject> targetToSource(      List<UIRepositoryObjectRevision> elements){
+        return null;
+      }
+    }
+);
+  }
+  try {
+    directoryBinding.fireSourceChanged();
+    revisionTreeBinding.fireSourceChanged();
+    historyLabelBinding.fireSourceChanged();
+  }
+ catch (  Exception e) {
+    System.out.println(e.getMessage());
+    e.printStackTrace();
+  }
+}
