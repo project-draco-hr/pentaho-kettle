@@ -1,0 +1,28 @@
+{
+  IKettleFileSystemConfigBuilder result=null;
+  String parserClass=varSpace.getVariable("vfs." + scheme + ".config.parser");
+  if (parserClass != null) {
+    try {
+      Class<?> configBuilderClass=KettleFileSystemConfigBuilderFactory.class.getClassLoader().loadClass(parserClass);
+      Method mGetInstance=configBuilderClass.getMethod("getInstance");
+      if ((mGetInstance != null) && (IKettleFileSystemConfigBuilder.class.isAssignableFrom(mGetInstance.getReturnType()))) {
+        result=(IKettleFileSystemConfigBuilder)mGetInstance.invoke(null);
+      }
+ else {
+        result=(IKettleFileSystemConfigBuilder)configBuilderClass.newInstance();
+      }
+    }
+ catch (    Exception e) {
+      throw new IOException(BaseMessages.getString(PKG,"CustomVfsSettingsParser.Log.FailedToLoad"));
+    }
+  }
+ else {
+    if (scheme.equalsIgnoreCase("sftp")) {
+      result=KettleSftpFileSystemConfigBuilder.getInstance();
+    }
+ else {
+      result=KettleGenericFileSystemConfigBuilder.getInstance();
+    }
+  }
+  return result;
+}
