@@ -1,7 +1,7 @@
 {
   folderTree=(XulTree)document.getElementById("folder-tree");
   fileTable=(XulTree)document.getElementById("file-table");
-  versionTable=(XulTree)document.getElementById("version-table");
+  revisionTable=(XulTree)document.getElementById("revision-table");
   bf.setBindingType(Binding.Type.ONE_WAY);
   directoryBinding=bf.createBinding(repositoryDirectory,"children",folderTree,"elements");
   bf.setBindingType(Binding.Type.ONE_WAY);
@@ -27,13 +27,25 @@
   }
 );
   bf.setBindingType(Binding.Type.ONE_WAY);
-  Binding revisionTreeBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","version-table","!disabled");
-  Binding historyLabelBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","history-label","!disabled");
+  Binding revisionTreeBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","revision-table","!disabled");
+  Binding revisionLabelBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","revision-label","!disabled");
+  BindingConvertor<int[],Boolean> forButtons=new BindingConvertor<int[],Boolean>(){
+    @Override public Boolean sourceToTarget(    int[] value){
+      return value != null && !(value.length <= 0);
+    }
+    @Override public int[] targetToSource(    Boolean value){
+      return null;
+    }
+  }
+;
+  bf.createBinding(revisionTable,"selectedRows","revision-open","!disabled",forButtons);
+  bf.createBinding(revisionTable,"selectedRows","revision-remove","!disabled",forButtons);
+  Binding revisionBinding=null;
   if (repositoryDirectory.isRevisionsSupported()) {
     bf.setBindingType(Binding.Type.ONE_WAY);
-    bf.createBinding(fileTable,"selectedItems",versionTable,"elements",new BindingConvertor<List<UIRepositoryObject>,List<UIRepositoryObjectRevision>>(){
-      @Override public List<UIRepositoryObjectRevision> sourceToTarget(      List<UIRepositoryObject> ro){
-        List<UIRepositoryObjectRevision> listOfObjects=new ArrayList<UIRepositoryObjectRevision>();
+    revisionBinding=bf.createBinding(fileTable,"selectedItems",revisionTable,"elements",new BindingConvertor<List<UIRepositoryObject>,UIRepositoryObjectRevisions>(){
+      @Override public UIRepositoryObjectRevisions sourceToTarget(      List<UIRepositoryObject> ro){
+        UIRepositoryObjectRevisions revisions=new UIRepositoryObjectRevisions();
         if (ro == null) {
           return null;
         }
@@ -45,13 +57,15 @@
         }
         try {
           UIRepositoryContent rc=(UIRepositoryContent)ro.get(0);
-          listOfObjects=rc.getRevisions();
+          revisions=rc.getRevisions();
+          bf.setBindingType(Binding.Type.ONE_WAY);
+          bf.createBinding(revisions,"children",revisionTable,"elements");
         }
  catch (        Exception e) {
         }
-        return listOfObjects;
+        return revisions;
       }
-      @Override public List<UIRepositoryObject> targetToSource(      List<UIRepositoryObjectRevision> elements){
+      @Override public List<UIRepositoryObject> targetToSource(      UIRepositoryObjectRevisions elements){
         return null;
       }
     }
@@ -60,7 +74,10 @@
   try {
     directoryBinding.fireSourceChanged();
     revisionTreeBinding.fireSourceChanged();
-    historyLabelBinding.fireSourceChanged();
+    revisionLabelBinding.fireSourceChanged();
+    if (revisionBinding != null) {
+      revisionBinding.fireSourceChanged();
+    }
   }
  catch (  Exception e) {
     System.out.println(e.getMessage());
