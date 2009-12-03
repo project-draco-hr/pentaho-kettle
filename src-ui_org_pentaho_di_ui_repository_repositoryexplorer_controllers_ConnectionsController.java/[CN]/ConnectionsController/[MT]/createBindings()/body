@@ -1,13 +1,39 @@
 {
   connectionsTable=(XulTree)document.getElementById("connections-table");
+  revisionTable=(XulTree)document.getElementById("connection-revision-table");
   bf.setBindingType(Binding.Type.ONE_WAY);
   try {
     bf.createBinding(dbConns,"children",connectionsTable,"elements").fireSourceChanged();
     (bindButtonNew=bf.createBinding(this,"repReadOnly","connections-new","disabled")).fireSourceChanged();
     (bindButtonEdit=bf.createBinding(this,"repReadOnly","connections-edit","disabled")).fireSourceChanged();
     (bindButtonRemove=bf.createBinding(this,"repReadOnly","connections-remove","disabled")).fireSourceChanged();
-    (bindRevisionTable=bf.createBinding(this,"revSupported","connections-revision-table","!disabled")).fireSourceChanged();
-    (bindRevisionLabel=bf.createBinding(this,"revSupported","connections-revision-label","!disabled")).fireSourceChanged();
+    (bindRevisionTableDisable=bf.createBinding(this,"revSupported","connection-revision-table","!disabled")).fireSourceChanged();
+    (bindRevisionLabelDisable=bf.createBinding(this,"revSupported","connection-revision-label","!disabled")).fireSourceChanged();
+    if (repository != null && repository.getRepositoryMeta().getRepositoryCapabilities().supportsRevisions()) {
+      bf.createBinding(connectionsTable,"selectedItems",revisionTable,"elements",new BindingConvertor<List<UIDatabaseConnection>,UIRepositoryObjectRevisions>(){
+        @Override public UIRepositoryObjectRevisions sourceToTarget(        List<UIDatabaseConnection> dbConnList){
+          UIRepositoryObjectRevisions revisions=new UIRepositoryObjectRevisions();
+          if (dbConnList == null) {
+            return null;
+          }
+          if (dbConnList.size() <= 0) {
+            return null;
+          }
+          try {
+            UIDatabaseConnection dbConn=(UIDatabaseConnection)dbConnList.get(0);
+            revisions=dbConn.getRevisions();
+            bf.createBinding(revisions,"children",revisionTable,"elements").fireSourceChanged();
+          }
+ catch (          Exception e) {
+          }
+          return revisions;
+        }
+        @Override public List<UIDatabaseConnection> targetToSource(        UIRepositoryObjectRevisions elements){
+          return null;
+        }
+      }
+);
+    }
   }
  catch (  Exception ex) {
     System.err.println(ex.getMessage());
