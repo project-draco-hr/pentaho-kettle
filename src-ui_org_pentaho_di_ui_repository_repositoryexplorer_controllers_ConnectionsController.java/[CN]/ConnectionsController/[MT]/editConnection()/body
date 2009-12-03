@@ -1,0 +1,50 @@
+{
+  try {
+    Collection<UIDatabaseConnection> connections=connectionsTable.getSelectedItems();
+    if (connections != null && !connections.isEmpty()) {
+      DatabaseMeta databaseMeta=((UIDatabaseConnection)connections.toArray()[0]).getDatabaseMeta();
+      ObjectId idDatabase=repository.getDatabaseID(databaseMeta.getName());
+      String originalDbName=databaseMeta.getName();
+      if (idDatabase == null) {
+        MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+        mb.setMessage(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Edit.DoesNotExists.Message"));
+        mb.setText(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Edit.DoesNotExists.Title"));
+        mb.open();
+      }
+ else {
+        boolean save=true;
+        DatabaseDialog dd=new DatabaseDialog(shell,databaseMeta);
+        String dbName=dd.open();
+        if (dbName != null) {
+          if (!dbName.equals(originalDbName)) {
+            if (repository.getDatabaseID(dbName) != null) {
+              MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+              mb.setMessage(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Edit.AlreadyExists.Message",dbName));
+              mb.setText(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Edit.AlreadyExists.Title"));
+              mb.open();
+              save=false;
+            }
+ else {
+              repository.insertLogEntry("Updating database connection name from '" + originalDbName + "' to '"+ databaseMeta.getName()+ "'");
+              repository.renameDatabase(idDatabase,dbName);
+            }
+          }
+          if (save) {
+            repository.insertLogEntry("Updating database connection '" + databaseMeta.getName() + "'");
+            repository.save(databaseMeta,Const.VERSION_COMMENT_EDIT_VERSION,null);
+            refreshConnectionList();
+          }
+        }
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+      mb.setMessage(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Edit.NoItemSelected.Message"));
+      mb.setText(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Edit.NoItemSelected.Title"));
+      mb.open();
+    }
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Create.UnexpectedError.Title"),BaseMessages.getString(PKG,"RepositoryExplorerDialog.Connection.Create.UnexpectedError.Message"),e);
+  }
+}
