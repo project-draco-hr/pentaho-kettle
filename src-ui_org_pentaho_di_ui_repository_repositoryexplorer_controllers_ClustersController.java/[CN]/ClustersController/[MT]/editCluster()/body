@@ -1,0 +1,34 @@
+{
+  String clusterSchemaName="";
+  try {
+    Collection<UICluster> clusters=clustersTable.getSelectedItems();
+    if (clusters != null && !clusters.isEmpty()) {
+      ClusterSchema clusterSchema=((UICluster)clusters.toArray()[0]).getClusterSchema();
+      clusterSchemaName=clusterSchema.getName();
+      ObjectId clusterId=repository.getClusterID(clusterSchema.getName());
+      if (clusterId == null) {
+        MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+        mb.setMessage(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Cluster.DoesNotExists.Message"));
+        mb.setText(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Cluster.Edit.Title"));
+        mb.open();
+      }
+ else {
+        ClusterSchemaDialog csd=new ClusterSchemaDialog(shell,clusterSchema,repository.getSlaveServers());
+        if (csd.open()) {
+          repository.insertLogEntry("Updating cluster schema '" + clusterSchema.getName() + "'");
+          repository.save(clusterSchema,Const.VERSION_COMMENT_EDIT_VERSION,null);
+          refreshClusters();
+        }
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+      mb.setMessage(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Cluster.NoItemSelected.Message"));
+      mb.setText(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Cluster.Edit.Title"));
+      mb.open();
+    }
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryExplorerDialog.Cluster.Edit.Title"),BaseMessages.getString(PKG,"RepositoryExplorerDialog.Cluster.Edit.UnexpectedError.Message") + clusterSchemaName + "]",e);
+  }
+}
