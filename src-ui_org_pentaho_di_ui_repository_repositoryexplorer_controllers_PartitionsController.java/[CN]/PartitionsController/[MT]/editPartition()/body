@@ -1,0 +1,34 @@
+{
+  String partitionSchemaName="";
+  try {
+    Collection<UIPartition> partitions=partitionsTable.getSelectedItems();
+    if (partitions != null && !partitions.isEmpty()) {
+      PartitionSchema partitionSchema=((UIPartition)partitions.toArray()[0]).getPartitionSchema();
+      partitionSchemaName=partitionSchema.getName();
+      ObjectId partitionId=repository.getPartitionSchemaID(partitionSchema.getName());
+      if (partitionId == null) {
+        MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+        mb.setMessage(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Partition.DoesNotExists.Message"));
+        mb.setText(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Partition.Edit.Title"));
+        mb.open();
+      }
+ else {
+        PartitionSchemaDialog partitionDialog=new PartitionSchemaDialog(shell,partitionSchema,repository.readDatabases(),variableSpace);
+        if (partitionDialog.open()) {
+          repository.insertLogEntry("Updating partition schema '" + partitionSchema.getName() + "'");
+          repository.save(partitionSchema,Const.VERSION_COMMENT_EDIT_VERSION,null);
+          refreshPartitions();
+        }
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
+      mb.setMessage(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Partition.NoItemSelected.Message"));
+      mb.setText(BaseMessages.getString(PKG,"RepositoryExplorerDialog.Partition.Edit.Title"));
+      mb.open();
+    }
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryExplorerDialog.Partition.Edit.Title"),BaseMessages.getString(PKG,"RepositoryExplorerDialog.Partition.Edit.UnexpectedError.Message") + partitionSchemaName + "]",e);
+  }
+}
