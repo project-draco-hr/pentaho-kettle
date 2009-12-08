@@ -9,22 +9,36 @@
     (bindButtonRemove=bf.createBinding(this,"repReadOnly","connections-remove","disabled")).fireSourceChanged();
     (bindRevisionTableDisable=bf.createBinding(this,"revSupported","connection-revision-table","!disabled")).fireSourceChanged();
     (bindRevisionLabelDisable=bf.createBinding(this,"revSupported","connection-revision-label","!disabled")).fireSourceChanged();
-    if (repository != null && repository.getRepositoryMeta().getRepositoryCapabilities().supportsRevisions()) {
+    if (repository != null) {
+      bf.createBinding(connectionsTable,"selectedItems",this,"enableButtons",new BindingConvertor<List<UIDatabaseConnection>,Boolean>(){
+        @Override public Boolean sourceToTarget(        List<UIDatabaseConnection> dbConnList){
+          if (dbConnList != null && dbConnList.size() > 0) {
+            return true;
+          }
+          return false;
+        }
+        @Override public List<UIDatabaseConnection> targetToSource(        Boolean enable){
+          return null;
+        }
+      }
+);
       bf.createBinding(connectionsTable,"selectedItems",revisionTable,"elements",new BindingConvertor<List<UIDatabaseConnection>,UIRepositoryObjectRevisions>(){
         @Override public UIRepositoryObjectRevisions sourceToTarget(        List<UIDatabaseConnection> dbConnList){
           UIRepositoryObjectRevisions revisions=new UIRepositoryObjectRevisions();
-          if (dbConnList == null) {
-            return null;
-          }
-          if (dbConnList.size() <= 0) {
-            return null;
-          }
-          try {
-            UIDatabaseConnection dbConn=(UIDatabaseConnection)dbConnList.get(0);
-            revisions=dbConn.getRevisions();
-            bf.createBinding(revisions,"children",revisionTable,"elements").fireSourceChanged();
-          }
- catch (          Exception e) {
+          if (repository.getRepositoryMeta().getRepositoryCapabilities().supportsRevisions()) {
+            if (dbConnList == null) {
+              return null;
+            }
+            if (dbConnList.size() <= 0) {
+              return null;
+            }
+            try {
+              UIDatabaseConnection dbConn=(UIDatabaseConnection)dbConnList.get(0);
+              revisions=dbConn.getRevisions();
+              bf.createBinding(revisions,"children",revisionTable,"elements").fireSourceChanged();
+            }
+ catch (            Exception e) {
+            }
           }
           return revisions;
         }
