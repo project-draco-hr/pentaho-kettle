@@ -16,15 +16,18 @@
     }
     data.inputValueMeta=getInputRowMeta().getValueMeta(data.fieldIndex);
     try {
-      for (int i=0; i < meta.getCaseTargetSteps().length; i++) {
-        if (meta.getCaseTargetSteps()[i] == null) {
-          throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.NoTargetStepSpecifiedForValue",meta.getCaseValues()[i]));
+      StepIOMetaInterface ioMeta=meta.getStepIOMeta();
+      List<StreamInterface> targetStreams=ioMeta.getTargetStreams();
+      for (int i=0; i < targetStreams.size(); i++) {
+        SwitchCaseTarget target=(SwitchCaseTarget)targetStreams.get(i).getSubject();
+        if (target.caseTargetStep == null) {
+          throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.NoTargetStepSpecifiedForValue",target.caseValue));
         }
  else {
-          RowSet rowSet=findOutputRowSet(meta.getCaseTargetSteps()[i].getName());
+          RowSet rowSet=findOutputRowSet(target.caseTargetStep.getName());
           if (rowSet != null) {
             try {
-              Object value=data.valueMeta.convertDataFromString(meta.getCaseValues()[i],data.stringValueMeta,null,null,ValueMeta.TRIM_TYPE_NONE);
+              Object value=data.valueMeta.convertDataFromString(target.caseValue,data.stringValueMeta,null,null,ValueMeta.TRIM_TYPE_NONE);
               if (data.valueMeta.isNull(value)) {
                 data.nullRowSet=rowSet;
               }
@@ -33,11 +36,11 @@
               }
             }
  catch (            Exception e) {
-              throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.UnableToConvertValue",meta.getCaseValues()[i]),e);
+              throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.UnableToConvertValue",target.caseValue),e);
             }
           }
  else {
-            throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.UnableToFindTargetRowSetForStep",meta.getCaseTargetSteps()[i].getName()));
+            throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.UnableToFindTargetRowSetForStep",target.caseTargetStep));
           }
         }
       }

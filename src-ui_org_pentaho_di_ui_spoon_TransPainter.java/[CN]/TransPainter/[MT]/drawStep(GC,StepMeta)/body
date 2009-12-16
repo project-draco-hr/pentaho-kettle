@@ -145,58 +145,104 @@
   if (fade) {
     gc.setAlpha(alpha);
   }
-  if (ioMeta.isInputAcceptor() && !stepMeta.equals(startHopStep) && ((mouseOverSteps.contains(stepMeta)) || showingHopInputIcons)) {
-    Image hopInput=GUIResource.getInstance().getImageHopInput();
-    Rectangle inputBounds=hopInput.getBounds();
-    int xIcon=x - inputBounds.width - 3;
-    int yIcon=y;
-    gc.drawImage(hopInput,xIcon,yIcon);
-    areaOwners.add(new AreaOwner(AreaType.STEP_INPUT_HOP_ICON,xIcon,yIcon,inputBounds.width,inputBounds.height,stepMeta,ioMeta));
-  }
-  int rightIconIndex=0;
-  if (ioMeta.isOutputProducer() && candidate == null && mouseOverSteps.contains(stepMeta) && !showingHopInputIcons) {
-    Image hopOutput=GUIResource.getInstance().getImageHopOutput();
-    Rectangle outputBounds=hopOutput.getBounds();
-    int xIcon=x + iconsize + 3;
-    int yIcon=y;
-    gc.drawImage(hopOutput,xIcon,yIcon);
-    areaOwners.add(new AreaOwner(AreaType.STEP_OUTPUT_HOP_ICON,xIcon,yIcon,outputBounds.width,outputBounds.height,stepMeta,ioMeta));
-    rightIconIndex++;
-  }
-  int topIconIndex=0;
-  if ((mouseOverSteps.contains(stepMeta) || showingHopInputIcons) && !stepMeta.equals(startHopStep)) {
-    StreamInterface[] infoStreams=ioMeta.getInfoStreams();
-    for (int i=0; i < infoStreams.length; i++) {
-      StreamInterface stream=infoStreams[i];
-      Image infoImage=GUIResource.getInstance().getImageInfoHop();
-      Rectangle bounds=infoImage.getBounds();
-      int xIcon=x + i * (bounds.width + 5);
-      int yIcon=y - bounds.height - 3;
-      gc.drawImage(infoImage,xIcon,yIcon);
-      areaOwners.add(new AreaOwner(AreaType.STEP_INFO_HOP_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,stream));
-      topIconIndex++;
+  if (mouseOverSteps.contains(stepMeta)) {
+    Image[] miniIcons=new Image[]{GUIResource.getInstance().getImageHopInput(),GUIResource.getInstance().getImageEdit(),GUIResource.getInstance().getImageContextMenu(),GUIResource.getInstance().getImageHopOutput()};
+    int totalHeight=0;
+    int totalIconsWidth=0;
+    int totalWidth=2 * MINI_ICON_MARGIN;
+    for (    Image miniIcon : miniIcons) {
+      Rectangle bounds=miniIcon.getBounds();
+      totalWidth+=bounds.width + MINI_ICON_MARGIN;
+      totalIconsWidth+=bounds.width + MINI_ICON_MARGIN;
+      if (bounds.height > totalHeight)       totalHeight=bounds.height;
     }
-    StreamInterface[] targetStreams=ioMeta.getTargetStreams();
-    for (int i=0; i < targetStreams.length; i++) {
-      StreamInterface stream=targetStreams[i];
-      Image targetImage=GUIResource.getInstance().getImageHopTarget();
-      Rectangle bounds=targetImage.getBounds();
-      int xIcon=x + iconsize + 3;
-      int yIcon=y + (i + rightIconIndex) * (bounds.height + 3);
-      gc.drawImage(targetImage,xIcon,yIcon);
-      Font oldFont=gc.getFont();
-      gc.setFont(GUIResource.getInstance().getFontSmall());
-      gc.drawText(stream.getDescription(),xIcon + bounds.width + 5,yIcon,true);
-      gc.setFont(oldFont);
-      areaOwners.add(new AreaOwner(AreaType.STEP_TARGET_HOP_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,stream));
-    }
-  }
-  if (stepMeta.supportsErrorHandling() && candidate == null && mouseOverSteps.contains(stepMeta) && !showingHopInputIcons) {
-    Image hopError=GUIResource.getInstance().getImageErrorHop();
-    Rectangle bounds=hopError.getBounds();
-    int xIcon=x + topIconIndex * (bounds.width + 5);
-    int yIcon=y - bounds.height - 3;
-    gc.drawImage(hopError,xIcon,yIcon);
-    areaOwners.add(new AreaOwner(AreaType.STEP_ERROR_HOP_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,ioMeta));
-  }
+    totalHeight+=2 * MINI_ICON_MARGIN;
+    gc.setFont(GUIResource.getInstance().getFontSmall());
+    String trimmedName=stepMeta.getName().length() < 30 ? stepMeta.getName() : stepMeta.getName().substring(0,30);
+    org.eclipse.swt.graphics.Point nameExtent=gc.textExtent(trimmedName);
+    nameExtent.y+=2 * MINI_ICON_MARGIN;
+    nameExtent.x+=3 * MINI_ICON_MARGIN;
+    totalHeight+=nameExtent.y;
+    if (nameExtent.x > totalWidth)     totalWidth=nameExtent.x;
+    int areaX=screen.x + iconsize / 2 - totalWidth / 2 + MINI_ICON_SKEW;
+    int areaY=screen.y + iconsize + MINI_ICON_DISTANCE;
+    gc.setForeground(darkGray);
+    gc.setBackground(lightGray);
+    gc.setLineWidth(1);
+    gc.fillRoundRectangle(areaX,areaY,totalWidth,totalHeight,7,7);
+    gc.drawRoundRectangle(areaX,areaY,totalWidth,totalHeight,7,7);
+    gc.setBackground(background);
+    gc.fillRoundRectangle(areaX + 2,areaY + 2,totalWidth - MINI_ICON_MARGIN + 1,nameExtent.y - MINI_ICON_MARGIN,7,7);
+    gc.setForeground(black);
+    gc.drawText(trimmedName,areaX + (totalWidth - nameExtent.x) / 2 + MINI_ICON_MARGIN,areaY + MINI_ICON_MARGIN,true);
+    gc.setForeground(darkGray);
+    gc.setBackground(lightGray);
+    gc.setFont(GUIResource.getInstance().getFontGraph());
+    areaOwners.add(new AreaOwner(AreaType.STEP_MINI_ICONS_BALLOON,areaX,areaY,totalWidth,totalHeight,stepMeta,ioMeta));
+    gc.fillPolygon(new int[]{areaX + totalWidth / 2 - MINI_ICON_TRIANGLE_BASE / 2 + 1,areaY + 2,areaX + totalWidth / 2 + MINI_ICON_TRIANGLE_BASE / 2,areaY + 2,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5});
+    gc.drawPolyline(new int[]{areaX + totalWidth / 2 - MINI_ICON_TRIANGLE_BASE / 2 + 1,areaY,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5,areaX + totalWidth / 2 + MINI_ICON_TRIANGLE_BASE / 2,areaY,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5});
+    gc.setBackground(background);
+    int xIcon=areaX + (totalWidth - totalIconsWidth) / 2 + MINI_ICON_MARGIN;
+    int yIcon=areaY + 5 + nameExtent.y;
+    for (int i=0; i < miniIcons.length; i++) {
+      Image miniIcon=miniIcons[i];
+      Rectangle bounds=miniIcon.getBounds();
+      boolean enabled=false;
+switch (i) {
+case 0:
+        enabled=ioMeta.isInputAcceptor() || ioMeta.isInputDynamic();
+      areaOwners.add(new AreaOwner(AreaType.STEP_INPUT_HOP_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,ioMeta));
+    break;
+case 1:
+  enabled=true;
+areaOwners.add(new AreaOwner(AreaType.STEP_EDIT_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,ioMeta));
+break;
+case 2:
+enabled=true;
+areaOwners.add(new AreaOwner(AreaType.STEP_MENU_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,ioMeta));
+break;
+case 3:
+enabled=ioMeta.isOutputProducer() || ioMeta.isOutputDynamic();
+areaOwners.add(new AreaOwner(AreaType.STEP_OUTPUT_HOP_ICON,xIcon,yIcon,bounds.width,bounds.height,stepMeta,ioMeta));
+break;
+}
+if (enabled) {
+gc.setAlpha(255);
+}
+ else {
+gc.setAlpha(100);
+}
+gc.drawImage(miniIcon,xIcon,yIcon);
+xIcon+=miniIcon.getBounds().width + 5;
+}
+if (showTargetStreamsStep != null) {
+ioMeta=showTargetStreamsStep.getStepMetaInterface().getStepIOMeta();
+List<StreamInterface> targetStreams=ioMeta.getTargetStreams();
+int targetsWidth=0;
+int targetsHeight=0;
+;
+for (int i=0; i < targetStreams.size(); i++) {
+String description=targetStreams.get(i).getDescription();
+org.eclipse.swt.graphics.Point extent=gc.textExtent(description);
+if (extent.x > targetsWidth) targetsWidth=extent.x;
+targetsHeight+=extent.y + MINI_ICON_MARGIN;
+}
+targetsWidth+=MINI_ICON_MARGIN;
+gc.setBackground(lightGray);
+gc.fillRoundRectangle(areaX,areaY + totalHeight + 2,targetsWidth,targetsHeight,7,7);
+gc.drawRoundRectangle(areaX,areaY + totalHeight + 2,targetsWidth,targetsHeight,7,7);
+int targetY=areaY + totalHeight + MINI_ICON_MARGIN;
+for (int i=0; i < targetStreams.size(); i++) {
+String description=targetStreams.get(i).getDescription();
+org.eclipse.swt.graphics.Point extent=gc.textExtent(description);
+gc.drawText(description,areaX + MINI_ICON_MARGIN,targetY,true);
+if (i < targetStreams.size() - 1) {
+gc.drawLine(areaX + MINI_ICON_MARGIN / 2,targetY + extent.y + 3,areaX + targetsWidth - MINI_ICON_MARGIN / 2,targetY + extent.y + 2);
+}
+areaOwners.add(new AreaOwner(AreaType.STEP_TARGET_HOP_ICON_OPTION,areaX,targetY,targetsWidth,extent.y + MINI_ICON_MARGIN,stepMeta,targetStreams.get(i)));
+targetY+=extent.y + MINI_ICON_MARGIN;
+}
+gc.setBackground(background);
+}
+}
 }

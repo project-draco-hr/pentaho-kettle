@@ -12,36 +12,20 @@
     noteoffset=new Point(0,0);
   }
   Point note=new Point(real.x - noteoffset.x,real.y - noteoffset.y);
-  if (!helpTip.isVisible()) {
-    setToolTip(real.x,real.y,e.x,e.y);
-  }
-  endHopStep=null;
   AreaOwner areaOwner=getVisibleAreaOwner(real.x,real.y);
   if (areaOwner != null) {
-    endHopStep=null;
 switch (areaOwner.getAreaType()) {
 case STEP_ICON:
-      final StepMeta stepMeta=(StepMeta)areaOwner.getOwner();
-    if (!mouseOverSteps.contains(stepMeta)) {
-      addStepMouseOverDelayTimer(stepMeta);
-      redraw();
-    }
-  break;
-case STEP_INFO_HOP_ICON:
-if (startHopStep != null) {
-  candidateHopType=StreamType.INFO;
-  endHopStep=(StepMeta)areaOwner.getParent();
-  redraw();
-}
-break;
-case STEP_INPUT_HOP_ICON:
-if (startHopStep != null) {
-endHopStep=(StepMeta)areaOwner.getParent();
-redraw();
-candidateHopType=null;
-}
-break;
-case STEP_OUTPUT_HOP_ICON:
+{
+        StepMeta stepMeta=(StepMeta)areaOwner.getOwner();
+        resetDelayTimer(stepMeta);
+      }
+    break;
+case STEP_MINI_ICONS_BALLOON:
+{
+    StepMeta stepMeta=(StepMeta)areaOwner.getParent();
+    resetDelayTimer(stepMeta);
+  }
 break;
 default :
 break;
@@ -90,6 +74,7 @@ if (selectedSteps != null) {
 for (int i=0; i < selectedSteps.length; i++) {
 StepMeta stepMeta=selectedSteps[i];
 PropsUI.setLocation(stepMeta,stepMeta.getLocation().x + dx,stepMeta.getLocation().y + dy);
+stopStepMouseOverDelayTimer(stepMeta);
 }
 }
 if (selectedNotes != null) {
@@ -100,21 +85,35 @@ PropsUI.setLocation(ni,ni.getLocation().x + dx,ni.getLocation().y + dy);
 }
 redraw();
 }
- else if (startHopStep != null) {
+ else if ((startHopStep != null && endHopStep == null) || (endHopStep != null && startHopStep == null)) {
 StepMeta stepMeta=transMeta.getStep(real.x,real.y,iconsize);
 endHopLocation=new Point(real.x,real.y);
-if (stepMeta != null && !startHopStep.equals(stepMeta)) {
+if (stepMeta != null && ((startHopStep != null && !startHopStep.equals(stepMeta)) || (endHopStep != null && !endHopStep.equals(stepMeta)))) {
 StepIOMetaInterface ioMeta=stepMeta.getStepMetaInterface().getStepIOMeta();
 if (candidate == null) {
+if (startHopStep != null) {
 if (ioMeta.isInputAcceptor()) {
-candidate=new TransHopMeta(startHopStep,stepMeta);
-endHopLocation=null;
+  candidate=new TransHopMeta(startHopStep,stepMeta);
+  endHopLocation=null;
 }
  else {
-noInputStep=stepMeta;
-toolTip.setImage(null);
-toolTip.setText("This step does not accept any input from other steps");
-toolTip.show(new org.eclipse.swt.graphics.Point(real.x,real.y));
+  noInputStep=stepMeta;
+  toolTip.setImage(null);
+  toolTip.setText("This step does not accept any input from other steps");
+  toolTip.show(new org.eclipse.swt.graphics.Point(real.x,real.y));
+}
+}
+ else if (endHopStep != null) {
+if (ioMeta.isOutputProducer()) {
+  candidate=new TransHopMeta(stepMeta,endHopStep);
+  endHopLocation=null;
+}
+ else {
+  noInputStep=stepMeta;
+  toolTip.setImage(null);
+  toolTip.setText("This step doesn't pass any output to other steps. (except perhaps for targetted output)");
+  toolTip.show(new org.eclipse.swt.graphics.Point(real.x,real.y));
+}
 }
 }
 }
@@ -123,16 +122,7 @@ if (candidate != null) {
 candidate=null;
 redraw();
 }
- else {
-if (!showHopInputIcons) {
-showHopInputIcons=true;
 }
-}
-}
-redraw();
-}
- else {
-showHopInputIcons=false;
 redraw();
 }
 if (selectedNote != null) {

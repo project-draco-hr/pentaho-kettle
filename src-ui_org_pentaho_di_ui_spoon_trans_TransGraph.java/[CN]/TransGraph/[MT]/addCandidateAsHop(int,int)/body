@@ -1,0 +1,66 @@
+{
+  boolean forward=startHopStep != null;
+  StepMeta fromStep=candidate.getFromStep();
+  StepMeta toStep=candidate.getToStep();
+  List<StreamInterface> streams=new ArrayList<StreamInterface>();
+  StepIOMetaInterface fromIoMeta=fromStep.getStepMetaInterface().getStepIOMeta();
+  List<StreamInterface> targetStreams=fromIoMeta.getTargetStreams();
+  if (forward) {
+    streams.addAll(targetStreams);
+  }
+  StepIOMetaInterface toIoMeta=toStep.getStepMetaInterface().getStepIOMeta();
+  List<StreamInterface> infoStreams=toIoMeta.getInfoStreams();
+  if (!forward) {
+    streams.addAll(infoStreams);
+  }
+  if (forward) {
+    if (fromIoMeta.isOutputProducer() && toStep.equals(currentStep)) {
+      streams.add(new Stream(StreamType.OUTPUT,fromStep,"Main output of step",StreamIcon.OUTPUT,null));
+    }
+    if (fromStep.supportsErrorHandling() && toStep.equals(currentStep)) {
+      streams.add(new Stream(StreamType.ERROR,fromStep,"Error handling of step",StreamIcon.ERROR,null));
+    }
+  }
+ else {
+    if (toIoMeta.isInputAcceptor() && fromStep.equals(currentStep)) {
+      streams.add(new Stream(StreamType.INPUT,toStep,"Main input of step",StreamIcon.INPUT,null));
+    }
+    if (fromStep.supportsErrorHandling() && fromStep.equals(currentStep)) {
+      streams.add(new Stream(StreamType.ERROR,fromStep,"Error handling of step",StreamIcon.ERROR,null));
+    }
+  }
+  if (forward) {
+    streams.addAll(fromStep.getStepMetaInterface().getOptionalStreams());
+  }
+ else {
+    streams.addAll(toStep.getStepMetaInterface().getOptionalStreams());
+  }
+  if (streams.size() > 1) {
+    Menu menu=new Menu(canvas);
+    for (    final StreamInterface stream : streams) {
+      MenuItem item=new MenuItem(menu,SWT.NONE);
+      item.setText(Const.NVL(stream.getDescription(),""));
+      item.setImage(getStreamIconImage(stream.getStreamIcon()));
+      item.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          addHop(stream);
+        }
+      }
+);
+    }
+    menu.setLocation(canvas.toDisplay(mouseX,mouseY));
+    menu.setVisible(true);
+    return;
+  }
+  if (streams.size() == 1) {
+    addHop(streams.get(0));
+  }
+ else {
+    return;
+  }
+  candidate=null;
+  selectedSteps=null;
+  startHopStep=null;
+  endHopLocation=null;
+  startErrorHopStep=false;
+}
