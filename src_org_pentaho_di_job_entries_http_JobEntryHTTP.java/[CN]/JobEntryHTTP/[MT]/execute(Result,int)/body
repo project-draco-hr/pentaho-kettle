@@ -2,7 +2,7 @@
   LogWriter log=LogWriter.getInstance();
   Result result=previousResult;
   result.setResult(false);
-  logBasic("Start of HTTP job entry.");
+  logBasic(BaseMessages.getString(PKG,"JobHTTP.StartJobEntry"));
   List<RowMetaAndData> resultRows;
   String urlFieldnameToUse;
   if (Const.isEmpty(urlFieldname))   urlFieldnameToUse=URL_FIELDNAME;
@@ -11,7 +11,7 @@
     resultRows=previousResult.getRows();
     if (resultRows == null) {
       result.setNrErrors(1);
-      logError("Unable to get result from previous job entry : can't continue.");
+      logError(BaseMessages.getString(PKG,"JobHTTP.Error.UnableGetResultPrevious"));
       return result;
     }
   }
@@ -20,7 +20,6 @@
     RowMetaAndData row=new RowMetaAndData();
     row.addValue(new ValueMeta(urlFieldnameToUse,ValueMetaInterface.TYPE_STRING),environmentSubstitute(url));
     resultRows.add(row);
-    System.out.println("Added one row to rows: " + row);
   }
   URL server=null;
   String beforeProxyHost=System.getProperty("http.proxyHost");
@@ -34,7 +33,7 @@
     InputStream input=null;
     try {
       String urlToUse=environmentSubstitute(row.getString(urlFieldnameToUse,""));
-      logBasic("Connecting to URL: " + urlToUse);
+      logBasic(BaseMessages.getString(PKG,"JobHTTP.Log.ConnectingURL",urlToUse));
       if (!Const.isEmpty(proxyHostname)) {
         System.setProperty("http.proxyHost",environmentSubstitute(proxyHostname));
         System.setProperty("http.proxyPort",environmentSubstitute(proxyPort));
@@ -66,7 +65,7 @@
       URLConnection connection=server.openConnection();
       String realUploadFilename=environmentSubstitute(uploadFilename);
       if (!Const.isEmpty(realUploadFilename)) {
-        if (log.isDetailed())         logDetailed("Start sending content of file [" + realUploadFilename + "] to server.");
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobHTTP.Log.SendingFile",realUploadFilename));
         connection.setDoOutput(true);
         uploadStream=connection.getOutputStream();
         fileStream=new BufferedInputStream(new FileInputStream(new File(realUploadFilename)));
@@ -78,36 +77,38 @@
         uploadStream=null;
         fileStream.close();
         fileStream=null;
-        if (log.isDetailed())         logDetailed("Finished sending content to server.");
+        if (log.isDetailed())         logDetailed(BaseMessages.getString("JobHTTP.Log.FinishedSendingFile"));
       }
-      if (log.isDetailed())       logDetailed("Start reading reply from webserver.");
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobHTTP.Log.StartReadingReply"));
       input=server.openStream();
       Date date=new Date(connection.getLastModified());
-      logBasic("Resource type: \"" + connection.getContentType() + "\", last modified on: \""+ date+ "\".");
+      logBasic(BaseMessages.getString(PKG,"JobHTTP.Log.ReplayInfo",connection.getContentType(),date));
       int oneChar;
       long bytesRead=0L;
       while ((oneChar=input.read()) != -1) {
         outputFile.write(oneChar);
         bytesRead++;
       }
-      logBasic("Finished writing " + bytesRead + " bytes to result file ["+ realTargetFile+ "]");
-      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(realTargetFile,this),parentJob.getJobname(),toString());
-      result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+      logBasic(BaseMessages.getString(PKG,"JobHTTP.Log.FinisedWritingReply",bytesRead,realTargetFile));
+      if (addfilenameresult) {
+        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(realTargetFile,this),parentJob.getJobname(),toString());
+        result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+      }
       result.setResult(true);
     }
  catch (    MalformedURLException e) {
       result.setNrErrors(1);
-      logError("The specified URL is not valid [" + url + "] : "+ e.getMessage());
+      logError(BaseMessages.getString(PKG,"JobHTTP.Error.NotValidURL",url,e.getMessage()));
       logError(Const.getStackTracker(e));
     }
 catch (    IOException e) {
       result.setNrErrors(1);
-      logError("I was unable to save the HTTP result to file because of a I/O error: " + e.getMessage());
+      logError(BaseMessages.getString(PKG,"JobHTTP.Error.CanNotSaveHTTPResult",e.getMessage()));
       logError(Const.getStackTracker(e));
     }
 catch (    Exception e) {
       result.setNrErrors(1);
-      logError("Error getting file from HTTP : " + e.getMessage());
+      logError(BaseMessages.getString(PKG,"JobHTTP.Error.ErrorGettingFromHTTP",e.getMessage()));
       logError(Const.getStackTracker(e));
     }
  finally {
@@ -118,7 +119,7 @@ catch (    Exception e) {
         if (outputFile != null)         outputFile.close();
       }
  catch (      Exception e) {
-        logError("Unable to close streams : " + e.getMessage());
+        logError(BaseMessages.getString(PKG,"JobHTTP.Error.CanNotCloseStream",e.getMessage()));
         result.setNrErrors(1);
       }
       System.setProperty("http.proxyHost",Const.NVL(beforeProxyHost,""));
