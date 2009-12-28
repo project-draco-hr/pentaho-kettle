@@ -1,0 +1,95 @@
+{
+  RowMetaInterface sourceFields;
+  RowMetaInterface targetFields=new RowMeta();
+  try {
+    sourceFields=transMeta.getPrevStepFields(stepMeta);
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.UnableToFindSourceFields.Title"),BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.UnableToFindSourceFields.Message"),e);
+    return;
+  }
+  SalesforceConnection connection=null;
+  try {
+    SalesforceUpsertMeta meta=new SalesforceUpsertMeta();
+    getInfo(meta);
+    String selectedModule=transMeta.environmentSubstitute(wModule.getText());
+    checkInput();
+    connection=new SalesforceConnection(log,transMeta.environmentSubstitute(meta.getTargetURL()),transMeta.environmentSubstitute(meta.getUserName()),transMeta.environmentSubstitute(meta.getPassword()));
+    connection.connect();
+    Field[] fields=connection.getModuleFields(selectedModule);
+    for (int i=0; i < fields.length; i++) {
+      targetFields.addValueMeta(new ValueMeta(fields[i].getName()));
+    }
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.UnableToFindTargetFields.Title"),BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.UnableToFindTargetFields.Message"),e);
+    return;
+  }
+ finally {
+    if (connection != null) {
+      try {
+        connection.close();
+      }
+ catch (      Exception e) {
+      }
+      ;
+    }
+  }
+  String[] inputNames=new String[sourceFields.size()];
+  for (int i=0; i < sourceFields.size(); i++) {
+    ValueMetaInterface value=sourceFields.getValueMeta(i);
+    inputNames[i]=value.getName() + EnterMappingDialog.STRING_ORIGIN_SEPARATOR + value.getOrigin()+ ")";
+  }
+  List<SourceToTargetMapping> mappings=new ArrayList<SourceToTargetMapping>();
+  StringBuffer missingSourceFields=new StringBuffer();
+  StringBuffer missingTargetFields=new StringBuffer();
+  int nrFields=wReturn.nrNonEmpty();
+  for (int i=0; i < nrFields; i++) {
+    TableItem item=wReturn.getNonEmpty(i);
+    String source=item.getText(2);
+    String target=item.getText(1);
+    int sourceIndex=sourceFields.indexOfValue(source);
+    if (sourceIndex < 0) {
+      missingSourceFields.append(Const.CR + "   " + source+ " --> "+ target);
+    }
+    int targetIndex=targetFields.indexOfValue(target);
+    if (targetIndex < 0) {
+      missingTargetFields.append(Const.CR + "   " + source+ " --> "+ target);
+    }
+    if (sourceIndex < 0 || targetIndex < 0) {
+      continue;
+    }
+    SourceToTargetMapping mapping=new SourceToTargetMapping(sourceIndex,targetIndex);
+    mappings.add(mapping);
+  }
+  if (missingSourceFields.length() > 0 || missingTargetFields.length() > 0) {
+    String message="";
+    if (missingSourceFields.length() > 0) {
+      message+=BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.SomeSourceFieldsNotFound",missingSourceFields.toString()) + Const.CR;
+    }
+    if (missingTargetFields.length() > 0) {
+      message+=BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.SomeTargetFieldsNotFound",missingSourceFields.toString()) + Const.CR;
+    }
+    message+=Const.CR;
+    message+=BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.SomeFieldsNotFoundContinue") + Const.CR;
+    MessageDialog.setDefaultImage(GUIResource.getInstance().getImageSpoon());
+    boolean goOn=MessageDialog.openConfirm(shell,BaseMessages.getString(PKG,"SalesforceUpsertDialog.DoMapping.SomeFieldsNotFoundTitle"),message);
+    if (!goOn) {
+      return;
+    }
+  }
+  EnterMappingDialog d=new EnterMappingDialog(SalesforceUpsertDialog.this.shell,sourceFields.getFieldNames(),targetFields.getFieldNames(),mappings);
+  mappings=d.open();
+  if (mappings != null) {
+    wReturn.table.removeAll();
+    wReturn.table.setItemCount(mappings.size());
+    for (int i=0; i < mappings.size(); i++) {
+      SourceToTargetMapping mapping=(SourceToTargetMapping)mappings.get(i);
+      TableItem item=wReturn.table.getItem(i);
+      item.setText(2,sourceFields.getValueMeta(mapping.getSourcePosition()).getName());
+      item.setText(1,targetFields.getValueMeta(mapping.getTargetPosition()).getName());
+    }
+    wReturn.setRowNums();
+    wReturn.optWidth(true);
+  }
+}
