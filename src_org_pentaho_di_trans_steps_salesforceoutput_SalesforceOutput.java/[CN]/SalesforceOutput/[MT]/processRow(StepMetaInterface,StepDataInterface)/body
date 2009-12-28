@@ -1,0 +1,36 @@
+{
+  Object[] outputRowData=getRow();
+  if (outputRowData == null) {
+    if (data.iBufferPos > 0) {
+      flushBuffers();
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.sfBuffer=new SObject[meta.getBatchSizeInt()];
+    data.outputBuffer=new Object[meta.getBatchSizeInt()][];
+    data.nrfields=meta.getUpdateLookup().length;
+    if (data.nrfields == 0) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceOutputDialog.FieldsMissing.DialogMessage"));
+    }
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.formatRowMeta=getInputRowMeta().clone();
+    data.fieldnrs=new int[meta.getUpdateStream().length];
+    for (int i=0; i < meta.getUpdateStream().length; i++) {
+      data.fieldnrs[i]=data.formatRowMeta.indexOfValue(meta.getUpdateStream()[i]);
+      if (data.fieldnrs[i] < 0) {
+        throw new KettleException("Field [" + meta.getUpdateStream()[i] + "] couldn't be found in the input stream!");
+      }
+    }
+  }
+  try {
+    writeToSalesForce(outputRowData);
+  }
+ catch (  Exception e) {
+    throw new KettleStepException(BaseMessages.getString(PKG,"SalesforceOutput.log.Exception"),e);
+  }
+  return true;
+}
