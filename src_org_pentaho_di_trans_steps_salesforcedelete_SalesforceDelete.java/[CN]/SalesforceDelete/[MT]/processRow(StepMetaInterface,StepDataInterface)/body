@@ -1,0 +1,32 @@
+{
+  Object[] outputRowData=getRow();
+  if (outputRowData == null) {
+    if (data.iBufferPos > 0) {
+      flushBuffers();
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.deleteId=new String[meta.getBatchSizeInt()];
+    data.outputBuffer=new Object[meta.getBatchSizeInt()][];
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    String realFieldName=environmentSubstitute(meta.getDeleteField());
+    if (Const.isEmpty(realFieldName)) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceDelete.Error.DeleteKeyFieldMissing"));
+    }
+    data.indexOfKeyField=getInputRowMeta().indexOfValue(realFieldName);
+    if (data.indexOfKeyField < 0) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceDelete.Error.CanNotFindFDeleteKeyField",realFieldName));
+    }
+  }
+  try {
+    writeToSalesForce(outputRowData);
+  }
+ catch (  Exception e) {
+    throw new KettleStepException(BaseMessages.getString(PKG,"SalesforceDelete.log.Exception"),e);
+  }
+  return true;
+}
