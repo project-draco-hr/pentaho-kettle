@@ -1,0 +1,59 @@
+{
+  try {
+    data.upsertResult=data.connection.upsert(meta.getUpsertField(),data.sfBuffer);
+    for (int j=0; j < data.upsertResult.length; j++) {
+      if (data.upsertResult[j].isSuccess()) {
+        String id=data.upsertResult[j].getId();
+        if (data.upsertResult[j].isCreated()) {
+          if (log.isDetailed())           logDetailed("An account was create with an id of: " + id);
+        }
+ else {
+          if (log.isDetailed())           logDetailed("Account with id of: " + id + " was updated");
+        }
+        Object[] newRow=RowDataUtil.resizeArray(data.outputBuffer[j],data.outputRowMeta.size());
+        if (data.realSalesforceFieldName != null) {
+          int newIndex=getInputRowMeta().size();
+          newRow[newIndex++]=id;
+        }
+        if (log.isDetailed())         logDetailed("The new row has an id value of : " + newRow[0]);
+        putRow(data.outputRowMeta,newRow);
+        incrementLinesOutput();
+        if (checkFeedback(getLinesInput())) {
+          if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"SalesforceUpsert.log.LineRow","" + getLinesInput()));
+        }
+      }
+ else {
+        boolean sendToErrorRow=false;
+        String errorMessage=null;
+        if (getStepMeta().isDoingErrorHandling()) {
+          sendToErrorRow=true;
+          errorMessage=null;
+          for (int i=0; i < data.upsertResult[j].getErrors().length; i++) {
+            com.sforce.soap.partner.Error err=data.upsertResult[j].getErrors()[i];
+            errorMessage=errorMessage + ": Errors were found on item " + new Integer(j).toString()+ " Error code is: "+ err.getStatusCode().toString()+ " Error message: "+ err.getMessage();
+          }
+        }
+ else {
+          if (log.isDetailed())           logDetailed("Found error from SalesForce and raising the exception");
+          for (int i=0; i < data.upsertResult[j].getErrors().length; i++) {
+            com.sforce.soap.partner.Error err=data.upsertResult[j].getErrors()[i];
+            throw new KettleException("Errors were found on item " + new Integer(j).toString() + " Error code is: "+ err.getStatusCode().toString()+ " Error message: "+ err.getMessage());
+          }
+        }
+        if (sendToErrorRow) {
+          if (log.isDetailed())           logDetailed("Passing row to error step");
+          putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceUpsert001");
+        }
+      }
+    }
+    data.sfBuffer=new SObject[meta.getBatchSizeInt()];
+    data.outputBuffer=new Object[meta.getBatchSizeInt()][];
+    data.iBufferPos=0;
+  }
+ catch (  Exception e) {
+    throw new KettleException("\nFailed to upsert object, error message was: \n" + e.getMessage());
+  }
+ finally {
+    if (data.upsertResult != null)     data.upsertResult=null;
+  }
+}
