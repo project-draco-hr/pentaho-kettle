@@ -137,6 +137,41 @@
       data.realSourceFileFoldername=environmentSubstitute(meta.getSourceFileFoldername());
       data.realSourceWildcard=environmentSubstitute(meta.getSourceWildcard());
     }
+    if (meta.getEmbeddedImages() != null && meta.getEmbeddedImages().length > 0) {
+      FileObject image=null;
+      data.embeddedMimePart=new HashSet<MimeBodyPart>();
+      try {
+        for (int i=0; i < meta.getEmbeddedImages().length; i++) {
+          String imageFile=environmentSubstitute(meta.getEmbeddedImages()[i]);
+          String contentID=environmentSubstitute(meta.getContentIds()[i]);
+          image=KettleVFS.getFileObject(imageFile);
+          if (image.exists() && image.getType() == FileType.FILE) {
+            MimeBodyPart imagePart=new MimeBodyPart();
+            URLDataSource fds=new URLDataSource(image.getURL());
+            imagePart.setDataHandler(new DataHandler(fds));
+            imagePart.setHeader("Content-ID","<" + contentID + ">");
+            data.embeddedMimePart.add(imagePart);
+            log.logBasic(toString(),BaseMessages.getString(PKG,"Mail.Log.ImageAdded",imageFile));
+          }
+ else {
+            log.logError(toString(),BaseMessages.getString(PKG,"Mail.Log.WrongImage",imageFile));
+          }
+        }
+      }
+ catch (      Exception e) {
+        log.logError(toString(),BaseMessages.getString(PKG,"Mail.Error.AddingImage",e.getMessage()));
+      }
+ finally {
+        if (image != null) {
+          try {
+            image.close();
+          }
+ catch (          Exception e) {
+          }
+          ;
+        }
+      }
+    }
   }
   boolean sendToErrorRow=false;
   String errorMessage=null;
