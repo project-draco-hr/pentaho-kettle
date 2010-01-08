@@ -2,29 +2,93 @@
   if (!spoon.getProperties().showToolTips())   return;
   canvas.setToolTipText("-");
   canvas.setToolTipText(null);
-  String newTip=null;
-  final JobEntryCopy je=jobMeta.getJobEntryCopy(x,y,iconsize);
-  if (je != null && je.isDrawn()) {
-    String desc=je.getDescription();
-    if (desc != null) {
-      int le=desc.length() >= 200 ? 200 : desc.length();
-      newTip=desc.substring(0,le);
+  Image tipImage=null;
+  JobHopMeta hi=findJobHop(x,y);
+  StringBuffer tip=new StringBuffer();
+  AreaOwner areaOwner=getVisibleAreaOwner(x,y);
+  if (areaOwner != null) {
+switch (areaOwner.getAreaType()) {
+case JOB_HOP_ICON:
+      hi=(JobHopMeta)areaOwner.getOwner();
+    if (hi.isUnconditional()) {
+      tipImage=GUIResource.getInstance().getImageUnconditionalHop();
+      tip.append(BaseMessages.getString(PKG,"JobGraph.Hop.Tooltip.Unconditional",hi.getFromEntry().getName(),Const.CR));
     }
  else {
-      newTip=je.toString();
-    }
-  }
+      if (hi.getEvaluation()) {
+        tip.append(BaseMessages.getString(PKG,"JobGraph.Hop.Tooltip.EvaluatingTrue",hi.getFromEntry().getName(),Const.CR));
+        tipImage=GUIResource.getInstance().getImageTrue();
+      }
  else {
-    offset=getOffset();
-    JobHopMeta hi=findJobHop(x + offset.x,y + offset.x);
-    if (hi != null) {
-      newTip=hi.toString();
+        tip.append(BaseMessages.getString(PKG,"JobGraph.Hop.Tooltip.EvaluatingFalse",hi.getFromEntry().getName(),Const.CR));
+        tipImage=GUIResource.getInstance().getImageFalse();
+      }
     }
+  break;
+case JOB_HOP_PARALLEL_ICON:
+hi=(JobHopMeta)areaOwner.getOwner();
+tip.append(BaseMessages.getString(PKG,"JobGraph.Hop.Tooltip.Parallel",hi.getFromEntry().getName(),Const.CR));
+tipImage=GUIResource.getInstance().getImageParallelHop();
+break;
+case REPOSITORY_LOCK_IMAGE:
+RepositoryLock lock=(RepositoryLock)areaOwner.getOwner();
+tip.append(BaseMessages.getString(PKG,"JobGraph.Locked.Tooltip",Const.CR,lock.getLogin(),lock.getUsername(),lock.getMessage(),XMLHandler.date2string(lock.getLockDate())));
+tipImage=GUIResource.getInstance().getImageLocked();
+break;
+case JOB_ENTRY_MINI_ICON_INPUT:
+tip.append(BaseMessages.getString(PKG,"JobGraph.EntryInputConnector.Tooltip"));
+tipImage=GUIResource.getInstance().getImageHopInput();
+resetDelayTimer((JobEntryCopy)areaOwner.getOwner());
+break;
+case JOB_ENTRY_MINI_ICON_OUTPUT:
+tip.append(BaseMessages.getString(PKG,"JobGraph.EntryOutputConnector.Tooltip"));
+tipImage=GUIResource.getInstance().getImageHopOutput();
+resetDelayTimer((JobEntryCopy)areaOwner.getOwner());
+break;
+case JOB_ENTRY_MINI_ICON_EDIT:
+tip.append(BaseMessages.getString(PKG,"JobGraph.EditStep.Tooltip"));
+tipImage=GUIResource.getInstance().getImageEdit();
+resetDelayTimer((JobEntryCopy)areaOwner.getOwner());
+break;
+case JOB_ENTRY_MINI_ICON_CONTEXT:
+tip.append(BaseMessages.getString(PKG,"JobGraph.ShowMenu.Tooltip"));
+tipImage=GUIResource.getInstance().getImageEdit();
+resetDelayTimer((JobEntryCopy)areaOwner.getOwner());
+break;
+}
+}
+if (hi != null && tip.length() == 0) {
+tip.append(BaseMessages.getString(PKG,"JobGraph.Dialog.HopInfo")).append(Const.CR);
+tip.append(BaseMessages.getString(PKG,"JobGraph.Dialog.HopInfo.SourceEntry")).append(" ").append(hi.getFromEntry().getName()).append(Const.CR);
+tip.append(BaseMessages.getString(PKG,"JobGraph.Dialog.HopInfo.TargetEntry")).append(" ").append(hi.getToEntry().getName()).append(Const.CR);
+tip.append(BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo.Status")).append(" ");
+tip.append((hi.isEnabled() ? BaseMessages.getString(PKG,"JobGraph.Dialog.HopInfo.Enable") : BaseMessages.getString(PKG,"JobGraph.Dialog.HopInfo.Disable")));
+if (hi.isUnconditional()) {
+tipImage=GUIResource.getInstance().getImageUnconditionalHop();
+}
  else {
-      newTip=null;
-    }
-  }
-  if (newTip == null || !newTip.equalsIgnoreCase(getToolTipText())) {
-    canvas.setToolTipText(newTip);
-  }
+if (hi.getEvaluation()) {
+tipImage=GUIResource.getInstance().getImageTrue();
+}
+ else {
+tipImage=GUIResource.getInstance().getImageFalse();
+}
+}
+}
+if (tip == null || tip.length() == 0) {
+toolTip.hide();
+}
+ else {
+if (!tip.toString().equalsIgnoreCase(getToolTipText())) {
+if (tipImage != null) {
+toolTip.setImage(tipImage);
+}
+ else {
+toolTip.setImage(GUIResource.getInstance().getImageSpoon());
+}
+toolTip.setText(tip.toString());
+toolTip.hide();
+toolTip.show(new org.eclipse.swt.graphics.Point(x,y));
+}
+}
 }

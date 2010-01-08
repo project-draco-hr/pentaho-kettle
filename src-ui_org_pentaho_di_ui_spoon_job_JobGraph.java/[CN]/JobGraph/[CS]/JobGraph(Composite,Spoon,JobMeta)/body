@@ -5,6 +5,9 @@
   this.spoon=spoon;
   this.jobMeta=jobMeta;
   this.props=PropsUI.getInstance();
+  this.areaOwners=new ArrayList<AreaOwner>();
+  this.mouseOverEntries=new ArrayList<JobEntryCopy>();
+  this.delayTimers=new HashMap<JobEntryCopy,DelayTimer>();
   jobLogDelegate=new JobLogDelegate(spoon,this);
   jobHistoryDelegate=new JobHistoryDelegate(spoon,this);
   jobGridDelegate=new JobGridDelegate(spoon,this);
@@ -29,6 +32,11 @@
     log.logError(Const.getStackTracker(t));
     new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Exception.ErrorReadingXULFile.Title"),BaseMessages.getString(PKG,"JobGraph.Exception.ErrorReadingXULFile.Message",Spoon.XUL_FILE_MENUS),new Exception(t));
   }
+  toolTip=new DefaultToolTip(canvas,ToolTip.NO_RECREATE,true);
+  toolTip.setRespectMonitorBounds(true);
+  toolTip.setRespectDisplayBounds(true);
+  toolTip.setPopupDelay(350);
+  toolTip.setShift(new org.eclipse.swt.graphics.Point(ConstUI.TOOLTIP_OFFSET,ConstUI.TOOLTIP_OFFSET));
   helpTip=new CheckBoxToolTip(canvas);
   helpTip.addCheckBoxToolTipListener(new CheckBoxToolTipListener(){
     public void checkBoxSelected(    boolean enabled){
@@ -37,11 +45,11 @@
   }
 );
   newProps();
-  selrect=null;
+  selectionRegion=null;
   hop_candidate=null;
   last_hop_split=null;
-  selected_entries=null;
-  selected_note=null;
+  selectedEntries=null;
+  selectedNote=null;
   hori=canvas.getHorizontalBar();
   vert=canvas.getVerticalBar();
   hori.addSelectionListener(new SelectionAdapter(){
@@ -78,232 +86,11 @@
     }
   }
 );
-  selected_entries=null;
+  selectedEntries=null;
   lastclick=null;
-  canvas.addMouseListener(new MouseAdapter(){
-    public void mouseDoubleClick(    MouseEvent e){
-      clearSettings();
-      Point real=screen2real(e.x,e.y);
-      JobEntryCopy jobentry=jobMeta.getJobEntryCopy(real.x,real.y,iconsize);
-      if (jobentry != null) {
-        if (e.button == 1) {
-          editEntry(jobentry);
-        }
- else {
-          launchStuff(jobentry);
-        }
-      }
- else {
-        JobHopMeta online=findJobHop(real.x,real.y);
-        if (online != null) {
-        }
- else {
-          NotePadMeta ni=jobMeta.getNote(real.x,real.y);
-          if (ni != null) {
-            editNote(ni);
-          }
-        }
-      }
-    }
-    public void mouseDown(    MouseEvent e){
-      clearSettings();
-      last_button=e.button;
-      Point real=screen2real(e.x,e.y);
-      lastclick=new Point(real.x,real.y);
-      if (spoon.getProperties().showToolTips())       setToolTipText(null);
-      if (e.button == 3) {
-        setMenu(real.x,real.y);
-        return;
-      }
-      JobEntryCopy je=jobMeta.getJobEntryCopy(real.x,real.y,iconsize);
-      if (je != null) {
-        selected_entries=jobMeta.getSelectedEntries();
-        selected_icon=je;
-        prev_locations=jobMeta.getSelectedLocations();
-        Point p=je.getLocation();
-        iconoffset=new Point(real.x - p.x,real.y - p.y);
-      }
- else {
-        NotePadMeta ni=jobMeta.getNote(real.x,real.y);
-        if (ni != null && last_button == 1) {
-          selected_note=ni;
-          Point loc=ni.getLocation();
-          previous_note_location=new Point(loc.x,loc.y);
-          noteoffset=new Point(real.x - loc.x,real.y - loc.y);
-        }
- else {
-          selrect=new Rectangle(real.x,real.y,0,0);
-        }
-      }
-      redraw();
-    }
-    public void mouseUp(    MouseEvent e){
-      boolean control=(e.stateMask & SWT.CONTROL) != 0;
-      if (iconoffset == null)       iconoffset=new Point(0,0);
-      Point real=screen2real(e.x,e.y);
-      Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
-      if (hop_candidate != null) {
-        if (jobMeta.findJobHop(hop_candidate.getFromEntry(),hop_candidate.getToEntry()) == null) {
-          if (!hop_candidate.getFromEntry().evaluates() && hop_candidate.getFromEntry().isUnconditional()) {
-            hop_candidate.setUnconditional();
-          }
- else {
-            hop_candidate.setConditional();
-            int nr=jobMeta.findNrNextJobEntries(hop_candidate.getFromEntry());
-            if (nr == 1) {
-              JobEntryCopy jge=jobMeta.findNextJobEntry(hop_candidate.getFromEntry(),0);
-              JobHopMeta other=jobMeta.findJobHop(hop_candidate.getFromEntry(),jge);
-              if (other != null) {
-                hop_candidate.setEvaluation(!other.getEvaluation());
-              }
-            }
-          }
-          jobMeta.addJobHop(hop_candidate);
-          spoon.addUndoNew(jobMeta,new JobHopMeta[]{hop_candidate},new int[]{jobMeta.indexOfJobHop(hop_candidate)});
-          spoon.refreshTree();
-        }
-        hop_candidate=null;
-        selected_entries=null;
-        last_button=0;
-        redraw();
-      }
- else       if (selrect != null) {
-        selrect.width=real.x - selrect.x;
-        selrect.height=real.y - selrect.y;
-        jobMeta.unselectAll();
-        selectInRect(jobMeta,selrect);
-        selrect=null;
-        redraw();
-      }
- else       if (selected_icon != null) {
-        if (e.button == 1) {
-          if (lastclick.x == real.x && lastclick.y == real.y) {
-            if (control) {
-              selected_icon.flipSelected();
-            }
- else {
-              jobMeta.unselectAll();
-              selected_icon.setSelected(true);
-            }
-          }
- else           if (selected_entries != null && prev_locations != null) {
-            int indexes[]=jobMeta.getEntryIndexes(selected_entries);
-            spoon.addUndoPosition(jobMeta,selected_entries,indexes,prev_locations,jobMeta.getSelectedLocations());
-          }
-        }
-        if (split_hop) {
-          JobHopMeta hi=findJobHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
-          if (hi != null) {
-            int id=0;
-            if (!spoon.props.getAutoSplit()) {
-              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.SplitHop.Title"),null,BaseMessages.getString(PKG,"JobGraph.Dialog.SplitHop.Message") + Const.CR + hi.getFromEntry().getName()+ " --> "+ hi.getToEntry().getName(),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"System.Button.Yes"),BaseMessages.getString(PKG,"System.Button.No")},0,BaseMessages.getString(PKG,"JobGraph.Dialog.SplitHop.Toggle"),spoon.props.getAutoSplit());
-              MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
-              id=md.open();
-              spoon.props.setAutoSplit(md.getToggleState());
-            }
-            if ((id & 0xFF) == 0) {
-              JobHopMeta newhop1=new JobHopMeta(hi.getFromEntry(),selected_icon);
-              jobMeta.addJobHop(newhop1);
-              JobHopMeta newhop2=new JobHopMeta(selected_icon,hi.getToEntry());
-              jobMeta.addJobHop(newhop2);
-              if (!selected_icon.evaluates())               newhop2.setUnconditional();
-              spoon.addUndoNew(jobMeta,new JobHopMeta[]{(JobHopMeta)newhop1.clone(),(JobHopMeta)newhop2.clone()},new int[]{jobMeta.indexOfJobHop(newhop1),jobMeta.indexOfJobHop(newhop2)});
-              int idx=jobMeta.indexOfJobHop(hi);
-              spoon.addUndoDelete(jobMeta,new JobHopMeta[]{(JobHopMeta)hi.clone()},new int[]{idx});
-              jobMeta.removeJobHop(idx);
-              spoon.refreshTree();
-            }
-          }
-          split_hop=false;
-        }
-        selected_entries=null;
-        redraw();
-      }
- else       if (selected_note != null) {
-        Point note=new Point(real.x - noteoffset.x,real.y - noteoffset.y);
-        if (last_button == 1) {
-          if (lastclick.x != real.x || lastclick.y != real.y) {
-            int indexes[]=new int[]{jobMeta.indexOfNote(selected_note)};
-            spoon.addUndoPosition(jobMeta,new NotePadMeta[]{selected_note},indexes,new Point[]{previous_note_location},new Point[]{note});
-          }
-        }
-        selected_note=null;
-      }
-    }
-  }
-);
-  canvas.addMouseMoveListener(new MouseMoveListener(){
-    public void mouseMove(    MouseEvent e){
-      boolean shift=(e.stateMask & SWT.SHIFT) != 0;
-      lastMove=new Point(e.x,e.y);
-      if (iconoffset == null)       iconoffset=new Point(0,0);
-      Point real=screen2real(e.x,e.y);
-      Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
-      setToolTip(real.x,real.y,e.x,e.y);
-      if (selected_icon != null && !selected_icon.isSelected()) {
-        jobMeta.unselectAll();
-        selected_icon.setSelected(true);
-        selected_entries=new JobEntryCopy[]{selected_icon};
-        prev_locations=new Point[]{selected_icon.getLocation()};
-      }
-      if (selrect != null) {
-        selrect.width=real.x - selrect.x;
-        selrect.height=real.y - selrect.y;
-        redraw();
-      }
- else       if (selected_entries != null) {
-        if (last_button == 1 && !shift) {
-          int dx=icon.x - selected_icon.getLocation().x;
-          int dy=icon.y - selected_icon.getLocation().y;
-          JobHopMeta hi=findJobHop(icon.x + iconsize / 2,icon.y + iconsize / 2);
-          if (hi != null) {
-            if (!jobMeta.isEntryUsedInHops(selected_icon)) {
-              split_hop=true;
-              last_hop_split=hi;
-              hi.setSplit(true);
-            }
-          }
- else {
-            if (last_hop_split != null) {
-              last_hop_split.setSplit(false);
-              last_hop_split=null;
-              split_hop=false;
-            }
-          }
-          for (int i=0; i < jobMeta.nrJobEntries(); i++) {
-            JobEntryCopy je=jobMeta.getJobEntry(i);
-            if (je.isSelected()) {
-              PropsUI.setLocation(je,je.getLocation().x + dx,je.getLocation().y + dy);
-            }
-          }
-          redraw();
-        }
- else         if (last_button == 2 || (last_button == 1 && shift)) {
-          JobEntryCopy si=jobMeta.getJobEntryCopy(real.x,real.y,iconsize);
-          if (si != null && !selected_icon.equals(si)) {
-            if (hop_candidate == null) {
-              hop_candidate=new JobHopMeta(selected_icon,si);
-              redraw();
-            }
-          }
- else {
-            if (hop_candidate != null) {
-              hop_candidate=null;
-              redraw();
-            }
-          }
-        }
-      }
- else       if (selected_note != null) {
-        if (last_button == 1) {
-          Point note=new Point(real.x - noteoffset.x,real.y - noteoffset.y);
-          PropsUI.setLocation(selected_note,note.x,note.y);
-          redraw();
-        }
-      }
-    }
-  }
-);
+  canvas.addMouseListener(this);
+  canvas.addMouseMoveListener(this);
+  canvas.addMouseTrackListener(this);
   Transfer[] ttypes=new Transfer[]{XMLTransfer.getInstance()};
   DropTarget ddTarget=new DropTarget(canvas,DND.DROP_MOVE);
   ddTarget.setTransfer(ttypes);

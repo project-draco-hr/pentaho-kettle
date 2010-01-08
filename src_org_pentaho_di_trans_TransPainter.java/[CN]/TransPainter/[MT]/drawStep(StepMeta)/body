@@ -1,0 +1,242 @@
+{
+  if (stepMeta == null)   return;
+  int alpha=gc.getAlpha();
+  StepIOMetaInterface ioMeta=stepMeta.getStepMetaInterface().getStepIOMeta();
+  boolean fade=startHopStep != null && (!ioMeta.isInputAcceptor() || startHopStep.equals(stepMeta));
+  fade=fade || mouseOverSteps.contains(stepMeta);
+  if (fade) {
+    gc.setAlpha(150);
+  }
+  Point pt=stepMeta.getLocation();
+  int x, y;
+  if (pt != null) {
+    x=pt.x;
+    y=pt.y;
+  }
+ else {
+    x=50;
+    y=50;
+  }
+  Point screen=real2screen(x,y,offset);
+  boolean stepError=false;
+  if (stepLogMap != null && !stepLogMap.isEmpty()) {
+    String log=stepLogMap.get(stepMeta);
+    if (!Const.isEmpty(log)) {
+      stepError=true;
+    }
+  }
+  if (!stepMeta.getRemoteInputSteps().isEmpty()) {
+    gc.setLineWidth(1);
+    gc.setForeground(EColor.GRAY);
+    gc.setBackground(EColor.BACKGROUND);
+    gc.setFont(EFont.GRAPH);
+    String nrInput=Integer.toString(stepMeta.getRemoteInputSteps().size());
+    Point textExtent=gc.textExtent(nrInput);
+    textExtent.x+=2;
+    textExtent.y+=2;
+    Point point=new Point(screen.x - iconsize - iconsize / 2,screen.y - iconsize);
+    gc.drawRectangle(point.x,point.y,textExtent.x,textExtent.y);
+    gc.drawText(nrInput,point.x + 1,point.y + 1);
+    gc.drawLine(point.x + textExtent.x,point.y + textExtent.y / 2,screen.x - iconsize / 2,point.y + textExtent.y / 2);
+    drawArrow(screen.x - iconsize / 2,point.y + textExtent.y / 2,screen.x + iconsize / 3,screen.y,Math.toRadians(15),15,1.8,null,null);
+    if (!shadow) {
+      areaOwners.add(new AreaOwner(AreaType.REMOTE_INPUT_STEP,point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_REMOTE_INPUT_STEPS));
+    }
+  }
+  if (!stepMeta.getRemoteOutputSteps().isEmpty()) {
+    gc.setLineWidth(1);
+    gc.setForeground(EColor.GRAY);
+    gc.setBackground(EColor.BACKGROUND);
+    gc.setFont(EFont.GRAPH);
+    String nrOutput=Integer.toString(stepMeta.getRemoteOutputSteps().size());
+    Point textExtent=gc.textExtent(nrOutput);
+    textExtent.x+=2;
+    textExtent.y+=2;
+    Point point=new Point(screen.x + 2 * iconsize + iconsize / 2 - textExtent.x,screen.y - iconsize);
+    gc.drawRectangle(point.x,point.y,textExtent.x,textExtent.y);
+    gc.drawText(nrOutput,point.x + 1,point.y + 1);
+    gc.drawLine(point.x,point.y + textExtent.y / 2,screen.x + iconsize + iconsize / 2,point.y + textExtent.y / 2);
+    drawArrow(screen.x + 2 * iconsize / 3,screen.y,screen.x + iconsize + iconsize / 2,point.y + textExtent.y / 2,Math.toRadians(15),15,1.8,null,null);
+    if (!shadow) {
+      areaOwners.add(new AreaOwner(AreaType.REMOTE_OUTPUT_STEP,point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_REMOTE_OUTPUT_STEPS));
+    }
+  }
+  if (stepMeta.isPartitioned()) {
+    gc.setLineWidth(1);
+    gc.setForeground(EColor.RED);
+    gc.setBackground(EColor.BACKGROUND);
+    gc.setFont(EFont.GRAPH);
+    PartitionSchema partitionSchema=stepMeta.getStepPartitioningMeta().getPartitionSchema();
+    if (partitionSchema != null) {
+      String nrInput;
+      if (partitionSchema.isDynamicallyDefined()) {
+        nrInput="Dx" + partitionSchema.getNumberOfPartitionsPerSlave();
+      }
+ else {
+        nrInput="Px" + Integer.toString(partitionSchema.getPartitionIDs().size());
+      }
+      Point textExtent=gc.textExtent(nrInput);
+      textExtent.x+=2;
+      textExtent.y+=2;
+      Point point=new Point(screen.x - iconsize - iconsize / 2,screen.y - iconsize - iconsize);
+      gc.drawRectangle(point.x,point.y,textExtent.x,textExtent.y);
+      gc.drawText(nrInput,point.x + 1,point.y + 1);
+      gc.drawLine(point.x + textExtent.x,point.y + textExtent.y / 2,screen.x - iconsize / 2,point.y + textExtent.y / 2);
+      gc.drawLine(screen.x - iconsize / 2,point.y + textExtent.y / 2,screen.x + iconsize / 3,screen.y);
+      gc.setForeground(EColor.GRAY);
+      gc.drawText(Const.NVL(partitionSchema.getName(),"<no partition name>"),point.x,point.y + textExtent.y + 3,true);
+      if (!shadow) {
+        areaOwners.add(new AreaOwner(AreaType.STEP_PARTITIONING,point.x,point.y,textExtent.x,textExtent.y,stepMeta,STRING_PARTITIONING_CURRENT_STEP));
+      }
+    }
+  }
+  String name=stepMeta.getName();
+  if (stepMeta.isSelected())   gc.setLineWidth(linewidth + 2);
+ else   gc.setLineWidth(linewidth);
+  if (!shadow) {
+    areaOwners.add(new AreaOwner(AreaType.STEP_ICON,screen.x,screen.y,iconsize,iconsize,transMeta,stepMeta));
+  }
+  gc.drawStepIcon(x,y,stepMeta);
+  gc.setBackground(EColor.BACKGROUND);
+  if (stepError) {
+    gc.setForeground(EColor.RED);
+  }
+ else {
+    gc.setForeground(EColor.BLACK);
+  }
+  gc.drawRectangle(screen.x - 1,screen.y - 1,iconsize + 1,iconsize + 1);
+  Point namePosition=getNamePosition(name,screen,iconsize);
+  gc.setForeground(EColor.BLACK);
+  gc.setFont(EFont.GRAPH);
+  gc.drawText(name,namePosition.x,namePosition.y,true);
+  boolean partitioned=false;
+  StepPartitioningMeta meta=stepMeta.getStepPartitioningMeta();
+  if (stepMeta.isPartitioned() && meta != null) {
+    partitioned=true;
+  }
+  if (stepMeta.getClusterSchema() != null) {
+    String message="C";
+    message+="x" + stepMeta.getClusterSchema().findNrSlaves();
+    gc.setBackground(EColor.BACKGROUND);
+    gc.setForeground(EColor.BLACK);
+    gc.drawText(message,screen.x + 3 + iconsize,screen.y - 8);
+  }
+  if (stepMeta.getCopies() > 1 && !partitioned) {
+    gc.setBackground(EColor.BACKGROUND);
+    gc.setForeground(EColor.BLACK);
+    gc.drawText("x" + stepMeta.getCopies(),screen.x - 5,screen.y - 5);
+  }
+  if (stepError) {
+    String log=stepLogMap.get(stepMeta);
+    int xError=screen.x + iconsize - 5;
+    int yError=screen.y + iconsize - 5;
+    Point ib=gc.getImageBounds(EImage.STEP_ERROR);
+    gc.drawImage(EImage.STEP_ERROR,xError,yError);
+    if (!shadow) {
+      areaOwners.add(new AreaOwner(AreaType.STEP_ERROR_ICON,pt.x + iconsize - 5,pt.y + iconsize - 5,ib.x,ib.y,log,STRING_STEP_ERROR_LOG));
+    }
+  }
+  if (fade) {
+    gc.setAlpha(alpha);
+  }
+  if (mouseOverSteps.contains(stepMeta)) {
+    EImage[] miniIcons=new EImage[]{EImage.INPUT,EImage.EDIT,EImage.CONTEXT_MENU,EImage.OUTPUT};
+    int totalHeight=0;
+    int totalIconsWidth=0;
+    int totalWidth=2 * MINI_ICON_MARGIN;
+    for (    EImage miniIcon : miniIcons) {
+      Point bounds=gc.getImageBounds(miniIcon);
+      totalWidth+=bounds.x + MINI_ICON_MARGIN;
+      totalIconsWidth+=bounds.x + MINI_ICON_MARGIN;
+      if (bounds.y > totalHeight)       totalHeight=bounds.y;
+    }
+    totalHeight+=2 * MINI_ICON_MARGIN;
+    gc.setFont(EFont.SMALL);
+    String trimmedName=stepMeta.getName().length() < 30 ? stepMeta.getName() : stepMeta.getName().substring(0,30);
+    Point nameExtent=gc.textExtent(trimmedName);
+    nameExtent.y+=2 * MINI_ICON_MARGIN;
+    nameExtent.x+=3 * MINI_ICON_MARGIN;
+    totalHeight+=nameExtent.y;
+    if (nameExtent.x > totalWidth)     totalWidth=nameExtent.x;
+    int areaX=screen.x + iconsize / 2 - totalWidth / 2 + MINI_ICON_SKEW;
+    int areaY=screen.y + iconsize + MINI_ICON_DISTANCE;
+    gc.setForeground(EColor.DARKGRAY);
+    gc.setBackground(EColor.LIGHTGRAY);
+    gc.setLineWidth(1);
+    gc.fillRoundRectangle(areaX,areaY,totalWidth,totalHeight,7,7);
+    gc.drawRoundRectangle(areaX,areaY,totalWidth,totalHeight,7,7);
+    gc.setBackground(EColor.BACKGROUND);
+    gc.fillRoundRectangle(areaX + 2,areaY + 2,totalWidth - MINI_ICON_MARGIN + 1,nameExtent.y - MINI_ICON_MARGIN,7,7);
+    gc.setForeground(EColor.BLACK);
+    gc.drawText(trimmedName,areaX + (totalWidth - nameExtent.x) / 2 + MINI_ICON_MARGIN,areaY + MINI_ICON_MARGIN,true);
+    gc.setForeground(EColor.DARKGRAY);
+    gc.setBackground(EColor.LIGHTGRAY);
+    gc.setFont(EFont.GRAPH);
+    areaOwners.add(new AreaOwner(AreaType.MINI_ICONS_BALLOON,areaX,areaY,totalWidth,totalHeight,stepMeta,ioMeta));
+    gc.fillPolygon(new int[]{areaX + totalWidth / 2 - MINI_ICON_TRIANGLE_BASE / 2 + 1,areaY + 2,areaX + totalWidth / 2 + MINI_ICON_TRIANGLE_BASE / 2,areaY + 2,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5});
+    gc.drawPolyline(new int[]{areaX + totalWidth / 2 - MINI_ICON_TRIANGLE_BASE / 2 + 1,areaY,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5,areaX + totalWidth / 2 + MINI_ICON_TRIANGLE_BASE / 2,areaY,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5});
+    gc.setBackground(EColor.BACKGROUND);
+    int xIcon=areaX + (totalWidth - totalIconsWidth) / 2 + MINI_ICON_MARGIN;
+    int yIcon=areaY + 5 + nameExtent.y;
+    for (int i=0; i < miniIcons.length; i++) {
+      EImage miniIcon=miniIcons[i];
+      Point bounds=gc.getImageBounds(miniIcon);
+      boolean enabled=false;
+switch (i) {
+case 0:
+        enabled=ioMeta.isInputAcceptor() || ioMeta.isInputDynamic();
+      areaOwners.add(new AreaOwner(AreaType.STEP_INPUT_HOP_ICON,xIcon,yIcon,bounds.x,bounds.y,stepMeta,ioMeta));
+    break;
+case 1:
+  enabled=true;
+areaOwners.add(new AreaOwner(AreaType.STEP_EDIT_ICON,xIcon,yIcon,bounds.x,bounds.y,stepMeta,ioMeta));
+break;
+case 2:
+enabled=true;
+areaOwners.add(new AreaOwner(AreaType.STEP_MENU_ICON,xIcon,yIcon,bounds.x,bounds.y,stepMeta,ioMeta));
+break;
+case 3:
+enabled=ioMeta.isOutputProducer() || ioMeta.isOutputDynamic();
+areaOwners.add(new AreaOwner(AreaType.STEP_OUTPUT_HOP_ICON,xIcon,yIcon,bounds.x,bounds.y,stepMeta,ioMeta));
+break;
+}
+if (enabled) {
+gc.setAlpha(255);
+}
+ else {
+gc.setAlpha(100);
+}
+gc.drawImage(miniIcon,xIcon,yIcon);
+xIcon+=bounds.x + 5;
+}
+if (showTargetStreamsStep != null) {
+ioMeta=showTargetStreamsStep.getStepMetaInterface().getStepIOMeta();
+List<StreamInterface> targetStreams=ioMeta.getTargetStreams();
+int targetsWidth=0;
+int targetsHeight=0;
+;
+for (int i=0; i < targetStreams.size(); i++) {
+String description=targetStreams.get(i).getDescription();
+Point extent=gc.textExtent(description);
+if (extent.x > targetsWidth) targetsWidth=extent.x;
+targetsHeight+=extent.y + MINI_ICON_MARGIN;
+}
+targetsWidth+=MINI_ICON_MARGIN;
+gc.setBackground(EColor.LIGHTGRAY);
+gc.fillRoundRectangle(areaX,areaY + totalHeight + 2,targetsWidth,targetsHeight,7,7);
+gc.drawRoundRectangle(areaX,areaY + totalHeight + 2,targetsWidth,targetsHeight,7,7);
+int targetY=areaY + totalHeight + MINI_ICON_MARGIN;
+for (int i=0; i < targetStreams.size(); i++) {
+String description=targetStreams.get(i).getDescription();
+Point extent=gc.textExtent(description);
+gc.drawText(description,areaX + MINI_ICON_MARGIN,targetY,true);
+if (i < targetStreams.size() - 1) {
+gc.drawLine(areaX + MINI_ICON_MARGIN / 2,targetY + extent.y + 3,areaX + targetsWidth - MINI_ICON_MARGIN / 2,targetY + extent.y + 2);
+}
+areaOwners.add(new AreaOwner(AreaType.STEP_TARGET_HOP_ICON_OPTION,areaX,targetY,targetsWidth,extent.y + MINI_ICON_MARGIN,stepMeta,targetStreams.get(i)));
+targetY+=extent.y + MINI_ICON_MARGIN;
+}
+gc.setBackground(EColor.BACKGROUND);
+}
+}
+}

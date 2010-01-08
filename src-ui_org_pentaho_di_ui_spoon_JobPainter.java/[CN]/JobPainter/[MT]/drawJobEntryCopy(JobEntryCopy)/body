@@ -1,0 +1,100 @@
+{
+  if (!jobEntryCopy.isDrawn())   return;
+  Point pt=jobEntryCopy.getLocation();
+  int x, y;
+  if (pt != null) {
+    x=pt.x;
+    y=pt.y;
+  }
+ else {
+    x=50;
+    y=50;
+  }
+  String name=jobEntryCopy.getName();
+  if (jobEntryCopy.isSelected())   gc.setLineWidth(3);
+ else   gc.setLineWidth(1);
+  gc.drawJobEntryIcon(x,y,jobEntryCopy);
+  gc.setBackground(EColor.BACKGROUND);
+  gc.drawRectangle(offset.x + x - 1,offset.y + y - 1,iconsize + 1,iconsize + 1);
+  Point textsize=new Point(gc.textExtent("" + name).x,gc.textExtent("" + name).y);
+  if (!shadow) {
+    areaOwners.add(new AreaOwner(AreaType.JOB_ENTRY_ICON,x,y,iconsize,iconsize,subject,jobEntryCopy));
+  }
+  gc.setBackground(EColor.BACKGROUND);
+  gc.setLineWidth(1);
+  int xpos=offset.x + x + (iconsize / 2) - (textsize.x / 2);
+  int ypos=offset.y + y + iconsize+ 5;
+  gc.setForeground(EColor.BLACK);
+  gc.drawText(name,xpos,ypos,true);
+  if (mouseOverEntries.contains(jobEntryCopy)) {
+    EImage[] miniIcons=new EImage[]{EImage.INPUT,EImage.EDIT,EImage.CONTEXT_MENU,EImage.OUTPUT};
+    int totalHeight=0;
+    int totalIconsWidth=0;
+    int totalWidth=2 * MINI_ICON_MARGIN;
+    for (    EImage miniIcon : miniIcons) {
+      Point bounds=gc.getImageBounds(miniIcon);
+      totalWidth+=bounds.x + MINI_ICON_MARGIN;
+      totalIconsWidth+=bounds.x + MINI_ICON_MARGIN;
+      if (bounds.y > totalHeight)       totalHeight=bounds.y;
+    }
+    totalHeight+=2 * MINI_ICON_MARGIN;
+    gc.setFont(EFont.SMALL);
+    String trimmedName=jobEntryCopy.getName().length() < 30 ? jobEntryCopy.getName() : jobEntryCopy.getName().substring(0,30);
+    Point nameExtent=gc.textExtent(trimmedName);
+    nameExtent.y+=2 * MINI_ICON_MARGIN;
+    nameExtent.x+=3 * MINI_ICON_MARGIN;
+    totalHeight+=nameExtent.y;
+    if (nameExtent.x > totalWidth)     totalWidth=nameExtent.x;
+    int areaX=x + iconsize / 2 - totalWidth / 2 + MINI_ICON_SKEW;
+    int areaY=y + iconsize + MINI_ICON_DISTANCE;
+    gc.setForeground(EColor.DARKGRAY);
+    gc.setBackground(EColor.LIGHTGRAY);
+    gc.setLineWidth(1);
+    gc.fillRoundRectangle(areaX,areaY,totalWidth,totalHeight,7,7);
+    gc.drawRoundRectangle(areaX,areaY,totalWidth,totalHeight,7,7);
+    gc.setBackground(EColor.BACKGROUND);
+    gc.fillRoundRectangle(areaX + 2,areaY + 2,totalWidth - MINI_ICON_MARGIN + 1,nameExtent.y - MINI_ICON_MARGIN,7,7);
+    gc.setForeground(EColor.BLACK);
+    gc.drawText(trimmedName,areaX + (totalWidth - nameExtent.x) / 2 + MINI_ICON_MARGIN,areaY + MINI_ICON_MARGIN,true);
+    gc.setForeground(EColor.DARKGRAY);
+    gc.setBackground(EColor.LIGHTGRAY);
+    gc.setFont(EFont.GRAPH);
+    areaOwners.add(new AreaOwner(AreaType.MINI_ICONS_BALLOON,areaX,areaY,totalWidth,totalHeight,jobMeta,jobEntryCopy));
+    gc.fillPolygon(new int[]{areaX + totalWidth / 2 - MINI_ICON_TRIANGLE_BASE / 2 + 1,areaY + 2,areaX + totalWidth / 2 + MINI_ICON_TRIANGLE_BASE / 2,areaY + 2,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5});
+    gc.drawPolyline(new int[]{areaX + totalWidth / 2 - MINI_ICON_TRIANGLE_BASE / 2 + 1,areaY,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5,areaX + totalWidth / 2 + MINI_ICON_TRIANGLE_BASE / 2,areaY,areaX + totalWidth / 2 - MINI_ICON_SKEW,areaY - MINI_ICON_DISTANCE - 5});
+    gc.setBackground(EColor.BACKGROUND);
+    int xIcon=areaX + (totalWidth - totalIconsWidth) / 2 + MINI_ICON_MARGIN;
+    int yIcon=areaY + 5 + nameExtent.y;
+    for (int i=0; i < miniIcons.length; i++) {
+      EImage miniIcon=miniIcons[i];
+      Point bounds=gc.getImageBounds(miniIcon);
+      boolean enabled=false;
+switch (i) {
+case 0:
+        enabled=!jobEntryCopy.isStart();
+      areaOwners.add(new AreaOwner(AreaType.JOB_ENTRY_MINI_ICON_INPUT,xIcon,yIcon,bounds.x,bounds.y,jobMeta,jobEntryCopy));
+    break;
+case 1:
+  enabled=true;
+areaOwners.add(new AreaOwner(AreaType.JOB_ENTRY_MINI_ICON_EDIT,xIcon,yIcon,bounds.x,bounds.y,jobMeta,jobEntryCopy));
+break;
+case 2:
+enabled=true;
+areaOwners.add(new AreaOwner(AreaType.JOB_ENTRY_MINI_ICON_CONTEXT,xIcon,yIcon,bounds.x,bounds.y,jobMeta,jobEntryCopy));
+break;
+case 3:
+enabled=true;
+areaOwners.add(new AreaOwner(AreaType.JOB_ENTRY_MINI_ICON_OUTPUT,xIcon,yIcon,bounds.x,bounds.y,jobMeta,jobEntryCopy));
+break;
+}
+if (enabled) {
+gc.setAlpha(255);
+}
+ else {
+gc.setAlpha(100);
+}
+gc.drawImage(miniIcon,xIcon,yIcon);
+xIcon+=bounds.x + 5;
+}
+}
+}

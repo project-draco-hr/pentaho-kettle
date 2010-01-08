@@ -1,0 +1,129 @@
+{
+  boolean control=(e.stateMask & SWT.CONTROL) != 0;
+  if (iconoffset == null)   iconoffset=new Point(0,0);
+  Point real=screen2real(e.x,e.y);
+  Point icon=new Point(real.x - iconoffset.x,real.y - iconoffset.y);
+  if (hop_candidate != null) {
+    addCandidateAsHop();
+    redraw();
+  }
+ else {
+    if (selectionRegion != null) {
+      selectionRegion.width=real.x - selectionRegion.x;
+      selectionRegion.height=real.y - selectionRegion.y;
+      jobMeta.unselectAll();
+      selectInRect(jobMeta,selectionRegion);
+      selectionRegion=null;
+      stopEntryMouseOverDelayTimers();
+      redraw();
+    }
+ else {
+      if (selectedEntry != null && startHopEntry == null) {
+        if (e.button == 1) {
+          Point realclick=screen2real(e.x,e.y);
+          if (lastclick.x == realclick.x && lastclick.y == realclick.y) {
+            if (control) {
+              selectedEntry.flipSelected();
+            }
+ else {
+              jobMeta.unselectAll();
+              selectedEntry.setSelected(true);
+            }
+          }
+ else {
+            selectedEntries=jobMeta.getSelectedEntries();
+            selectedNotes=jobMeta.getSelectedNotes();
+            boolean also=false;
+            if (selectedNotes != null && previous_note_locations != null) {
+              int indexes[]=jobMeta.getNoteIndexes(selectedNotes);
+              addUndoPosition(selectedNotes.toArray(new NotePadMeta[selectedNotes.size()]),indexes,previous_note_locations,jobMeta.getSelectedNoteLocations(),also);
+              also=selectedEntries != null && selectedEntries.size() > 0;
+            }
+            if (selectedEntries != null && previous_step_locations != null) {
+              int indexes[]=jobMeta.getEntryIndexes(selectedEntries);
+              addUndoPosition(selectedEntries.toArray(new JobEntryCopy[selectedEntries.size()]),indexes,previous_step_locations,jobMeta.getSelectedLocations(),also);
+            }
+          }
+        }
+        if (split_hop) {
+          JobHopMeta hi=findHop(icon.x + iconsize / 2,icon.y + iconsize / 2,selectedEntry);
+          if (hi != null) {
+            int id=0;
+            if (!spoon.props.getAutoSplit()) {
+              MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"TransGraph.Dialog.SplitHop.Title"),null,BaseMessages.getString(PKG,"TransGraph.Dialog.SplitHop.Message") + Const.CR + hi.toString(),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"System.Button.Yes"),BaseMessages.getString(PKG,"System.Button.No")},0,BaseMessages.getString(PKG,"TransGraph.Dialog.Option.SplitHop.DoNotAskAgain"),spoon.props.getAutoSplit());
+              MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
+              id=md.open();
+              spoon.props.setAutoSplit(md.getToggleState());
+            }
+            if ((id & 0xFF) == 0) {
+              if (jobMeta.findJobHop(selectedEntry,hi.getFromEntry()) == null && jobMeta.findJobHop(hi.getToEntry(),selectedEntry) == null) {
+                JobHopMeta newhop1=new JobHopMeta(hi.getFromEntry(),selectedEntry);
+                jobMeta.addJobHop(newhop1);
+                spoon.addUndoNew(jobMeta,new JobHopMeta[]{newhop1},new int[]{jobMeta.indexOfJobHop(newhop1)},true);
+                JobHopMeta newhop2=new JobHopMeta(selectedEntry,hi.getToEntry());
+                jobMeta.addJobHop(newhop2);
+                spoon.addUndoNew(jobMeta,new JobHopMeta[]{newhop2},new int[]{jobMeta.indexOfJobHop(newhop2)},true);
+                int idx=jobMeta.indexOfJobHop(hi);
+                spoon.addUndoDelete(jobMeta,new JobHopMeta[]{hi},new int[]{idx},true);
+                jobMeta.removeJobHop(idx);
+                spoon.refreshTree();
+              }
+ else {
+              }
+            }
+          }
+          split_hop=false;
+        }
+        selectedEntries=null;
+        selectedNotes=null;
+        selectedEntry=null;
+        selectedNote=null;
+        startHopEntry=null;
+        endHopLocation=null;
+        redraw();
+      }
+ else {
+        if (selectedNote != null) {
+          if (e.button == 1) {
+            if (lastclick.x == e.x && lastclick.y == e.y) {
+              if (control) {
+                selectedNote.flipSelected();
+              }
+ else {
+                jobMeta.unselectAll();
+                selectedNote.setSelected(true);
+              }
+            }
+ else {
+              selectedEntries=jobMeta.getSelectedEntries();
+              selectedNotes=jobMeta.getSelectedNotes();
+              boolean also=false;
+              if (selectedNotes != null && previous_note_locations != null) {
+                int indexes[]=jobMeta.getNoteIndexes(selectedNotes);
+                addUndoPosition(selectedNotes.toArray(new NotePadMeta[selectedNotes.size()]),indexes,previous_note_locations,jobMeta.getSelectedNoteLocations(),also);
+                also=selectedEntries != null && selectedEntries.size() > 0;
+              }
+              if (selectedEntries != null && previous_step_locations != null) {
+                int indexes[]=jobMeta.getEntryIndexes(selectedEntries);
+                addUndoPosition(selectedEntries.toArray(new JobEntryCopy[selectedEntries.size()]),indexes,previous_step_locations,jobMeta.getSelectedLocations(),also);
+              }
+            }
+          }
+          selectedNotes=null;
+          selectedEntries=null;
+          selectedEntry=null;
+          selectedNote=null;
+          startHopEntry=null;
+          endHopLocation=null;
+        }
+ else {
+          AreaOwner areaOwner=getVisibleAreaOwner(real.x,real.y);
+          if (areaOwner == null && selectionRegion == null) {
+            clearSettings();
+          }
+        }
+      }
+    }
+  }
+  lastButton=0;
+}

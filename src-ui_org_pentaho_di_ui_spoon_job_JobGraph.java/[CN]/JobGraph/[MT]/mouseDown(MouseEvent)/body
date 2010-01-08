@@ -1,0 +1,97 @@
+{
+  boolean control=(e.stateMask & SWT.CONTROL) != 0;
+  boolean shift=(e.stateMask & SWT.SHIFT) != 0;
+  lastButton=e.button;
+  Point real=screen2real(e.x,e.y);
+  lastclick=new Point(real.x,real.y);
+  hideToolTips();
+  if (e.button == 3) {
+    setMenu(real.x,real.y);
+    return;
+  }
+  if (e.button == 1) {
+    AreaOwner areaOwner=getVisibleAreaOwner(real.x,real.y);
+    if (areaOwner != null) {
+switch (areaOwner.getAreaType()) {
+case JOB_ENTRY_MINI_ICON_OUTPUT:
+{
+          selectedEntry=null;
+          startHopEntry=(JobEntryCopy)areaOwner.getOwner();
+        }
+      break;
+case JOB_ENTRY_MINI_ICON_INPUT:
+{
+      selectedEntry=null;
+      startHopEntry=null;
+      endHopEntry=(JobEntryCopy)areaOwner.getOwner();
+    }
+  break;
+case JOB_ENTRY_MINI_ICON_EDIT:
+{
+  clearSettings();
+  currentEntry=(JobEntryCopy)areaOwner.getOwner();
+  stopEntryMouseOverDelayTimer(currentEntry);
+  editEntry(currentEntry);
+}
+break;
+case JOB_ENTRY_MINI_ICON_CONTEXT:
+clearSettings();
+JobEntryCopy jobEntryCopy=(JobEntryCopy)areaOwner.getOwner();
+setMenu(jobEntryCopy.getLocation().x,jobEntryCopy.getLocation().y);
+break;
+case JOB_ENTRY_ICON:
+jobEntryCopy=(JobEntryCopy)areaOwner.getOwner();
+currentEntry=jobEntryCopy;
+if (hop_candidate != null) {
+addCandidateAsHop();
+}
+ else if (e.button == 2 || (e.button == 1 && shift)) {
+startHopEntry=jobEntryCopy;
+}
+ else {
+selectedEntries=jobMeta.getSelectedEntries();
+selectedEntry=jobEntryCopy;
+previous_step_locations=jobMeta.getSelectedLocations();
+Point p=jobEntryCopy.getLocation();
+iconoffset=new Point(real.x - p.x,real.y - p.y);
+}
+redraw();
+break;
+case NOTE:
+ni=(NotePadMeta)areaOwner.getOwner();
+selectedNotes=jobMeta.getSelectedNotes();
+selectedNote=ni;
+Point loc=ni.getLocation();
+previous_note_locations=jobMeta.getSelectedNoteLocations();
+noteoffset=new Point(real.x - loc.x,real.y - loc.y);
+redraw();
+break;
+case JOB_HOP_ICON:
+JobHopMeta hop=(JobHopMeta)areaOwner.getOwner();
+if (hop.getFromEntry().evaluates()) {
+if (hop.isUnconditional()) {
+hop.setUnconditional(false);
+hop.setEvaluation(true);
+}
+ else {
+if (hop.getEvaluation()) {
+hop.setEvaluation(false);
+}
+ else {
+hop.setUnconditional(true);
+}
+}
+redraw();
+}
+break;
+}
+}
+ else {
+startHopEntry=null;
+if (!control) {
+selectionRegion=new org.pentaho.di.core.gui.Rectangle(real.x,real.y,0,0);
+}
+redraw();
+}
+}
+}
