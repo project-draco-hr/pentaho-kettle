@@ -1,0 +1,32 @@
+{
+  if (id_directory.equals(id_directory_parent)) {
+    throw new KettleException("Failed to copy directory into itself");
+  }
+ else {
+    RepositoryDirectory rd=new RepositoryDirectory();
+    loadRepositoryDirectory(rd,id_directory);
+    if (rd.findDirectory(id_directory_parent) != null) {
+      throw new KettleException("Directory cannot become a child to itself");
+    }
+  }
+  if (id_directory_parent != null || newName != null) {
+    RowMetaAndData r=new RowMetaAndData();
+    String sql="UPDATE " + quoteTable(KettleDatabaseRepository.TABLE_R_DIRECTORY) + " SET ";
+    boolean additionalParameter=false;
+    if (newName != null) {
+      sql+=quote(KettleDatabaseRepository.FIELD_DIRECTORY_DIRECTORY_NAME) + " = ?";
+      r.addValue(new ValueMeta(KettleDatabaseRepository.FIELD_DIRECTORY_DIRECTORY_NAME,ValueMetaInterface.TYPE_STRING),newName);
+    }
+    if (id_directory_parent != null) {
+      if (additionalParameter) {
+        sql+=", ";
+      }
+      sql+=quote(KettleDatabaseRepository.FIELD_DIRECTORY_ID_DIRECTORY_PARENT) + " = ?";
+      r.addValue(new ValueMeta(KettleDatabaseRepository.FIELD_DIRECTORY_ID_DIRECTORY_PARENT,ValueMetaInterface.TYPE_INTEGER),id_directory_parent);
+    }
+    sql+=" WHERE " + quote(KettleDatabaseRepository.FIELD_DIRECTORY_ID_DIRECTORY) + " = "+ id_directory;
+    log.logBasic("sql = [" + sql + "]");
+    log.logBasic("row = [" + r + "]");
+    repository.connectionDelegate.getDatabase().execStatement(sql,r.getRowMeta(),r.getData());
+  }
+}
