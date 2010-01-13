@@ -1,0 +1,61 @@
+{
+  meta=(FarragoStreamingLoaderMeta)smi;
+  data=(FarragoStreamingLoaderData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      logBasic("Connecting to LucidDB...");
+      data.db=new Database(this,meta.getDatabaseMeta());
+      data.db.shareVariablesWith(this);
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getThreadName(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      logBasic("Connected to LucidDB");
+      logBasic("Preparing sql statements: " + Const.CR + meta.getSql_statement());
+      String sql=meta.getSql_statement();
+      PreparedStatement ps=data.db.prepareSQL(sql);
+      logBasic("Executing sql statements...");
+      data.sqlRunner=new SqlRunner(data,ps);
+      data.sqlRunner.start();
+      logBasic("Romote rows is up now...");
+      logDebug("Sleeping for 1second");
+      Thread.sleep(1000);
+      logBasic("Initialize local socket connection...");
+      logDebug("Parameters for socket: Host: " + meta.getHost() + " Port: "+ meta.getPort());
+      data.client=new Socket(meta.getHost(),Integer.valueOf(meta.getPort()));
+      data.objOut=new ObjectOutputStream(data.client.getOutputStream());
+      logBasic("Local socket connection is ready");
+    }
+ catch (    NumberFormatException e) {
+      e.printStackTrace();
+      logError(e.getMessage());
+      return false;
+    }
+catch (    UnknownHostException e) {
+      e.printStackTrace();
+      logError(e.getMessage());
+      return false;
+    }
+catch (    IOException e) {
+      e.printStackTrace();
+      logError(e.getMessage());
+      return false;
+    }
+catch (    KettleDatabaseException e) {
+      e.printStackTrace();
+      logError(e.getMessage());
+      return false;
+    }
+catch (    Exception e) {
+      e.printStackTrace();
+      logError(e.getMessage());
+      return false;
+    }
+    return true;
+  }
+  return false;
+}

@@ -1,0 +1,70 @@
+{
+  String ret="";
+  try {
+    StringBuffer myString=new StringBuffer(300);
+    StringBuffer myMatchCondtion=new StringBuffer(300);
+    if (fieldStreamForKeys != null) {
+      for (int i=0; i < fieldStreamForKeys.length; i++) {
+        ValueMetaInterface fieldStream=prev.searchValueMeta(fieldStreamForKeys[i]);
+        System.out.println(fieldStreamForKeys[i] + ":" + fieldStream.getTypeDesc()+ ":"+ fieldStream.getLength());
+        myString.append("cast(null as " + getSQLDataType(fieldStream) + ") as \""+ fieldStreamForKeys[i]+ "\","+ Const.CR);
+        if ((fieldStreamForKeys.length - 1) != i) {
+          myMatchCondtion.append("src." + fieldStreamForKeys[i] + " = tgt."+ fieldTableForKeys[i]+ " AND"+ Const.CR);
+        }
+ else {
+          myMatchCondtion.append("src." + fieldStreamForKeys[i] + " = tgt."+ fieldTableForKeys[i]+ Const.CR);
+        }
+      }
+    }
+    StringBuffer myUpdateStatement=new StringBuffer(300);
+    StringBuffer tgtColumns=new StringBuffer(300);
+    StringBuffer srcColumns=new StringBuffer(300);
+    if (fieldStreamForFields != null) {
+      for (int i=0; i < fieldStreamForFields.length; i++) {
+        ValueMetaInterface fieldStream=prev.searchValueMeta(fieldStreamForFields[i]);
+        System.out.println(fieldStreamForFields[i] + ":" + fieldStream.getTypeDesc()+ ":"+ fieldStream.getLength()+ ":"+ getSQLDataType(fieldStream));
+        if ((fieldStreamForFields.length - 1) != i) {
+          myString.append("cast(null as " + getSQLDataType(fieldStream) + ") as \""+ fieldStreamForFields[i]+ "\","+ Const.CR);
+          tgtColumns.append(fieldTableForFields[i] + ",");
+          srcColumns.append("src." + fieldStreamForFields[i] + ",");
+          if (insOrUptFlag[i]) {
+            myUpdateStatement.append(fieldTableForFields[i] + " = src." + fieldStreamForFields[i]+ ","+ Const.CR);
+          }
+        }
+ else {
+          myString.append("cast(null as " + getSQLDataType(fieldStream) + ") as \""+ fieldStreamForFields[i]+ "\""+ Const.CR);
+          tgtColumns.append(fieldTableForFields[i]);
+          srcColumns.append("src." + fieldStreamForFields[i]);
+          if (insOrUptFlag[i] && !(BaseMessages.getString(PKG,"FarragoStreamingLoaderDialog.Operation.CCombo.Item2").equals(operation))) {
+            myUpdateStatement.append(fieldTableForFields[i] + " = src." + fieldStreamForFields[i]+ Const.CR);
+          }
+        }
+      }
+    }
+    StringBuffer cursor=new StringBuffer(300);
+    cursor.append("select * from table ( applib.remote_rows (" + Const.CR).append("cursor (" + Const.CR).append("select" + Const.CR).append(myString.toString()).append("from" + Const.CR).append("(values(0))" + Const.CR).append(")," + Const.CR).append(port + "," + Const.CR).append("false" + Const.CR).append(")" + Const.CR).append(")" + Const.CR);
+    StringBuffer mysql=new StringBuffer(300);
+    if (BaseMessages.getString(PKG,"FarragoStreamingLoaderDialog.Operation.CCombo.Item1").equals(operation)) {
+      mysql.append("MERGE INTO" + Const.CR).append(schemaName + "." + tableName+ Const.CR).append("as tgt" + Const.CR).append("USING (" + Const.CR).append(cursor.toString()).append(") as src ON" + Const.CR).append(myMatchCondtion.toString() + Const.CR).append("WHEN MATCHED THEN" + Const.CR);
+      if (myUpdateStatement.length() != 0) {
+        mysql.append("UPDATE SET ");
+      }
+      mysql.append(myUpdateStatement.toString() + Const.CR).append("WHEN NOT MATCHED THEN" + Const.CR).append("INSERT" + "(" + tgtColumns.toString() + ") values("+ srcColumns+ ")");
+    }
+ else     if (BaseMessages.getString(PKG,"FarragoStreamingLoaderDialog.Operation.CCombo.Item2").equals(operation)) {
+      mysql.append("INSERT INTO" + Const.CR).append(schemaName + "." + tableName+ Const.CR).append("(" + tgtColumns.toString() + ")"+ Const.CR).append(cursor.toString());
+    }
+ else     if (BaseMessages.getString(PKG,"FarragoStreamingLoaderDialog.Operation.CCombo.Item3").equals(operation)) {
+      mysql.append("MERGE INTO" + Const.CR).append(schemaName + "." + tableName+ Const.CR).append("as tgt" + Const.CR).append("USING (" + Const.CR).append(cursor.toString()).append(") as src ON" + Const.CR).append(myMatchCondtion.toString() + Const.CR).append("WHEN MATCHED THEN" + Const.CR);
+      if (myUpdateStatement.length() != 0) {
+        mysql.append("UPDATE SET ");
+      }
+      mysql.append(myUpdateStatement.toString() + Const.CR);
+    }
+    ret=mysql.toString();
+    return ret;
+  }
+ catch (  Exception ex) {
+    throw new KettleStepException(ex);
+  }
+}
