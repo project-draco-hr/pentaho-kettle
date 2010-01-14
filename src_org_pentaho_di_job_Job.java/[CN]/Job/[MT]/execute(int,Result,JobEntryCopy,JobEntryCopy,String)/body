@@ -5,9 +5,9 @@
     res.stopped=true;
     return res;
   }
-  if (log.isDetailed())   log.logDetailed("exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (startpoint != null ? startpoint.toString() : "null")+ ")");
-  JobEntryInterface jei=startpoint.getEntry();
-  JobEntryResult jerBefore=new JobEntryResult(null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),reason,startpoint);
+  if (log.isDetailed())   log.logDetailed("exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (jobEntryCopy != null ? jobEntryCopy.toString() : "null")+ ")");
+  JobEntryInterface jobEntryInterface=jobEntryCopy.getEntry();
+  JobEntryResult jerBefore=new JobEntryResult(null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),reason,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
   jobTracker.addJobTracker(new JobTracker(jobMeta,jerBefore));
   Result prevResult=null;
   if (prev_result != null) {
@@ -17,25 +17,47 @@
     prevResult=new Result();
   }
   ClassLoader cl=Thread.currentThread().getContextClassLoader();
-  Thread.currentThread().setContextClassLoader(jei.getClass().getClassLoader());
-  JobEntryInterface cloneJei=(JobEntryInterface)jei.clone();
+  Thread.currentThread().setContextClassLoader(jobEntryInterface.getClass().getClassLoader());
+  JobEntryInterface cloneJei=(JobEntryInterface)jobEntryInterface.clone();
   ((VariableSpace)cloneJei).copyVariablesFrom(this);
   cloneJei.setRepository(rep);
   cloneJei.setParentJob(this);
   cloneJei.getLogChannel().logDetailed("Starting job entry");
+  for (  JobEntryListener jobEntryListener : jobEntryListeners) {
+    jobEntryListener.beforeExecution(this,jobEntryCopy,cloneJei);
+  }
+  if (interactive) {
+    if (jobEntryCopy.isTransformation()) {
+      getActiveJobEntryTransformations().put(jobEntryCopy,(JobEntryTrans)cloneJei);
+    }
+    if (jobEntryCopy.isJob()) {
+      getActiveJobEntryJobs().put(jobEntryCopy,(JobEntryJob)cloneJei);
+    }
+  }
   final Result result=cloneJei.execute(prevResult,nr);
+  if (interactive) {
+    if (jobEntryCopy.isTransformation()) {
+      getActiveJobEntryTransformations().remove(jobEntryCopy);
+    }
+    if (jobEntryCopy.isJob()) {
+      getActiveJobEntryJobs().remove(jobEntryCopy);
+    }
+  }
+  for (  JobEntryListener jobEntryListener : jobEntryListeners) {
+    jobEntryListener.afterExecution(this,jobEntryCopy,cloneJei,result);
+  }
   Thread.currentThread().setContextClassLoader(cl);
   addErrors((int)result.getNrErrors());
-  JobEntryResult jerAfter=new JobEntryResult(result,BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,startpoint);
+  JobEntryResult jerAfter=new JobEntryResult(result,BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
   jobTracker.addJobTracker(new JobTracker(jobMeta,jerAfter));
   final List<Thread> threads=new ArrayList<Thread>();
   final List<Result> threadResults=new ArrayList<Result>();
   final List<KettleException> threadExceptions=new ArrayList<KettleException>();
   final List<JobEntryCopy> threadEntries=new ArrayList<JobEntryCopy>();
-  int nrNext=jobMeta.findNrNextJobEntries(startpoint);
+  int nrNext=jobMeta.findNrNextJobEntries(jobEntryCopy);
   for (int i=0; i < nrNext && !isStopped(); i++) {
-    final JobEntryCopy nextEntry=jobMeta.findNextJobEntry(startpoint,i);
-    final JobHopMeta hi=jobMeta.findJobHop(startpoint,nextEntry);
+    final JobEntryCopy nextEntry=jobMeta.findNextJobEntry(jobEntryCopy,i);
+    final JobHopMeta hi=jobMeta.findJobHop(jobEntryCopy,nextEntry);
     final String nextComment;
     if (hi.isUnconditional()) {
       nextComment=BaseMessages.getString(PKG,"Job.Comment.FollowedUnconditional");
@@ -48,17 +70,17 @@
         nextComment=BaseMessages.getString(PKG,"Job.Comment.FollowedFailure");
       }
     }
-    if (hi.isUnconditional() || (startpoint.evaluates() && (!(hi.getEvaluation() ^ result.getResult())))) {
+    if (hi.isUnconditional() || (jobEntryCopy.evaluates() && (!(hi.getEvaluation() ^ result.getResult())))) {
       if (log.isBasic())       log.logBasic(jobMeta.toString(),BaseMessages.getString(PKG,"Job.Log.StartingEntry",nextEntry.getName()));
       if (nextEntry.resetErrorsBeforeExecution()) {
         result.setNrErrors(0);
       }
-      if (startpoint.isLaunchingInParallel()) {
+      if (jobEntryCopy.isLaunchingInParallel()) {
         threadEntries.add(nextEntry);
         Runnable runnable=new Runnable(){
           public void run(){
             try {
-              Result threadResult=execute(nr + 1,result,nextEntry,startpoint,nextComment);
+              Result threadResult=execute(nr + 1,result,nextEntry,jobEntryCopy,nextComment);
               threadResults.add(threadResult);
             }
  catch (            Throwable e) {
@@ -79,7 +101,7 @@
       }
  else {
         try {
-          res=execute(nr + 1,result,nextEntry,startpoint,nextComment);
+          res=execute(nr + 1,result,nextEntry,jobEntryCopy,nextComment);
         }
  catch (        Throwable e) {
           log.logError(Const.getStackTracker(e));
@@ -89,7 +111,7 @@
       }
     }
   }
-  if (startpoint.isLaunchingInParallel()) {
+  if (jobEntryCopy.isLaunchingInParallel()) {
     for (int i=0; i < threads.size(); i++) {
       Thread thread=threads.get(i);
       JobEntryCopy nextEntry=threadEntries.get(i);

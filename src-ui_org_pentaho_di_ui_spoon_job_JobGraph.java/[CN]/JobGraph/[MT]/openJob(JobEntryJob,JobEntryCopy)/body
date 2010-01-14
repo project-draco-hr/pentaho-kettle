@@ -1,0 +1,41 @@
+{
+  String exactFilename=jobMeta.environmentSubstitute(entry.getFilename());
+  String exactJobname=jobMeta.environmentSubstitute(entry.getJobName());
+  if (Const.isEmpty(exactFilename) && !Const.isEmpty(exactJobname)) {
+    try {
+      JobMeta newJobMeta=spoon.rep.loadJob(exactJobname,spoon.rep.loadRepositoryDirectoryTree().findDirectory(entry.getDirectory()),null,null);
+      newJobMeta.clearChanged();
+      spoon.setParametersAsVariablesInUI(newJobMeta,newJobMeta);
+      spoon.delegates.jobs.addJobGraph(newJobMeta);
+      JobGraph jobGraph=spoon.getActiveJobGraph();
+      attachActiveJob(jobGraph,newJobMeta,jobEntryCopy);
+    }
+ catch (    Throwable e) {
+      new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJob.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJob.Message"),e);
+    }
+  }
+ else {
+    try {
+      if (Const.isEmpty(exactFilename)) {
+        throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoFilenameSpecified"));
+      }
+      JobMeta newJobMeta;
+      if (KettleVFS.fileExists(exactFilename)) {
+        newJobMeta=new JobMeta(exactFilename,spoon.rep,spoon);
+      }
+ else {
+        newJobMeta=new JobMeta();
+      }
+      spoon.setParametersAsVariablesInUI(newJobMeta,newJobMeta);
+      newJobMeta.setFilename(exactFilename);
+      newJobMeta.clearChanged();
+      spoon.delegates.jobs.addJobGraph(newJobMeta);
+      JobGraph jobGraph=spoon.getActiveJobGraph();
+      attachActiveJob(jobGraph,newJobMeta,jobEntryCopy);
+    }
+ catch (    Throwable e) {
+      new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJobFromXML.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJobFromXML.Message"),e);
+    }
+  }
+  spoon.applyVariables();
+}
