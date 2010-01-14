@@ -1,13 +1,11 @@
 {
-  System.out.println("Running: " + getPath(transFile));
-  LogWriter log;
-  log=LogWriter.getInstance(LogWriter.LOG_LEVEL_ERROR);
+  LogWriter logWriter=LogWriter.getInstance(LogWriter.LOG_LEVEL_ERROR);
   Log4jBufferAppender bufferAppender=CentralLogStore.getAppender();
-  log.addAppender(bufferAppender);
-  LogChannelInterface logChannel=new LogChannel("BlackBoxTest [" + transFile.toString() + "]");
+  logWriter.addAppender(bufferAppender);
+  LogChannelInterface log=new LogChannel("BlackBoxTest [" + transFile.toString() + "]");
   Result result=new Result();
   if (!transFile.exists()) {
-    logChannel.logError("Transformation does not exist: " + getPath(transFile));
+    log.logError("Transformation does not exist: " + getPath(transFile));
     addFailure("Transformation does not exist: " + getPath(transFile));
     fail("Transformation does not exist: " + getPath(transFile));
   }
@@ -15,7 +13,7 @@
     addFailure("No expected output files found: " + getPath(transFile));
     fail("No expected output files found: " + getPath(transFile));
   }
-  result=runTrans(transFile.getAbsolutePath(),logChannel);
+  result=runTrans(transFile.getAbsolutePath(),log);
   for (int i=0; i < expectedFiles.size(); i++) {
     File expected=expectedFiles.get(i);
     if (expected.getAbsoluteFile().toString().contains(".expected")) {
@@ -24,27 +22,13 @@
       actualFile=actualFile.replaceFirst(".expected.",".actual.");
       File actual=new File(actualFile);
       if (!result.getResult()) {
-        fileCompare(expected,actual,logChannel);
+        fileCompare(expected,actual,log);
       }
     }
   }
-  log.removeAppender(bufferAppender);
   if (!result.getResult()) {
-    File expected=expectedFiles.get(0);
     String logStr=CentralLogStore.getAppender().getBuffer(result.getLogChannelId(),true).toString();
-    if (expectedFiles.size() == 1 && expectedFiles.get(0).toString().contains(".fail.txt")) {
-      String actualFailFileName=transFile.getAbsolutePath().substring(0,transFile.getAbsolutePath().length() - 4) + ".fail.actual.txt";
-      File logFile=new File(actualFailFileName);
-      writeLog(logFile,logStr);
-      try {
-        fileCompare(expected,logFile,logChannel);
-      }
- catch (      IOException e) {
-        addFailure("Could not compare log files: " + getPath(logFile) + ""+ e.getMessage());
-        fail("Could not compare failure log files " + getPath(logFile) + " and "+ getPath(expected)+ ":"+ e.getMessage());
-      }
-    }
- else {
+    if (expectedFiles.size() == 0) {
       fail("Error running " + getPath(transFile) + ":"+ logStr);
     }
   }
