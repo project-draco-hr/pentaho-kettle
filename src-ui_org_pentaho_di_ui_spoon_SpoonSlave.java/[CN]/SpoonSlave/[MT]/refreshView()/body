@@ -13,19 +13,30 @@
     slaveServerStatus.setErrorDescription(Const.getStackTracker(e));
     wText.setText(slaveServerStatus.getErrorDescription());
   }
-  for (int i=0; i < slaveServerStatus.getTransStatusList().size(); i++) {
-    SlaveServerTransStatus transStatus=slaveServerStatus.getTransStatusList().get(i);
+  List<SlaveServerTransStatus> transStatusList=slaveServerStatus.getTransStatusList();
+  for (int i=0; i < transStatusList.size(); i++) {
+    SlaveServerTransStatus transStatus=transStatusList.get(i);
     TreeItem transItem=new TreeItem(transParentItem,SWT.NONE);
     transItem.setText(0,transStatus.getTransName());
     transItem.setText(9,transStatus.getStatusDescription());
     transItem.setImage(GUIResource.getInstance().getImageTransGraph());
     try {
       log.logDetailed("Getting transformation status for [{0}] on server [{1}]",transStatus.getTransName(),slaveServer);
-      SlaveServerTransStatus ts=slaveServer.getTransStatus(transStatus.getTransName());
+      Integer lastLine=lastLineTransMap.get(transStatus.getTransName());
+      int lastLineNr=lastLine == null ? 0 : lastLine.intValue();
+      SlaveServerTransStatus ts=slaveServer.getTransStatus(transStatus.getTransName(),lastLineNr);
       log.logDetailed("Finished receiving transformation status for [{0}] from server [{1}]",transStatus.getTransName(),slaveServer);
       List<StepStatus> stepStatusList=ts.getStepStatusList();
       transStatus.setStepStatusList(stepStatusList);
-      transStatus.setLoggingString(ts.getLoggingString());
+      lastLineTransMap.put(transStatus.getTransName(),transStatus.getLastLoggingLineNr());
+      String logging=transLoggingMap.get(transStatus.getTransName());
+      if (logging == null) {
+        logging=ts.getLoggingString();
+      }
+ else {
+        logging=new StringBuffer(logging).append(ts.getLoggingString()).toString();
+      }
+      transLoggingMap.put(transStatus.getTransName(),logging);
       for (int s=0; s < stepStatusList.size(); s++) {
         StepStatus stepStatus=stepStatusList.get(s);
         TreeItem stepItem=new TreeItem(transItem,SWT.NONE);
@@ -44,9 +55,19 @@
     jobItem.setImage(GUIResource.getInstance().getImageJobGraph());
     try {
       log.logDetailed("Getting job status for [{0}] on server [{1}]",jobStatus.getJobName(),slaveServer);
-      SlaveServerJobStatus ts=slaveServer.getJobStatus(jobStatus.getJobName());
+      Integer lastLine=lastLineJobMap.get(jobStatus.getJobName());
+      int lastLineNr=lastLine == null ? 0 : lastLine.intValue();
+      SlaveServerJobStatus ts=slaveServer.getJobStatus(jobStatus.getJobName(),lastLineNr);
       log.logDetailed("Finished receiving job status for [{0}] from server [{1}]",jobStatus.getJobName(),slaveServer);
-      jobStatus.setLoggingString(ts.getLoggingString());
+      lastLineJobMap.put(jobStatus.getJobName(),jobStatus.getLastLoggingLineNr());
+      String logging=jobLoggingMap.get(jobStatus.getJobName());
+      if (logging == null) {
+        logging=ts.getLoggingString();
+      }
+ else {
+        logging=new StringBuffer(logging).append(ts.getLoggingString()).toString();
+      }
+      jobLoggingMap.put(jobStatus.getJobName(),logging);
       Result result=ts.getResult();
       if (result != null) {
         jobItem.setText(2,"" + result.getNrLinesRead());
