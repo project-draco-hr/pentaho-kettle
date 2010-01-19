@@ -1,0 +1,108 @@
+{
+  StepLoader stepLoader=StepLoader.getInstance();
+  String scriptStepName=wStepname.getText();
+  UserDefinedJavaClassMeta scriptMeta=new UserDefinedJavaClassMeta();
+  getInfo(scriptMeta);
+  try {
+    scriptMeta.cookClasses();
+    if (scriptMeta.cookErrors.size() == 1) {
+      Exception e=scriptMeta.cookErrors.get(0);
+      new ErrorDialog(shell,"Error during class compilation",e.toString(),e);
+      return false;
+    }
+ else     if (scriptMeta.cookErrors.size() > 1) {
+      Exception e=scriptMeta.cookErrors.get(0);
+      new ErrorDialog(shell,"Errors during class compilation",String.format("Multiple errors during class compilation. First error:\n%s",e.toString()),e);
+      return false;
+    }
+    RowMetaInterface rowMeta=transMeta.getPrevStepFields(stepname).clone();
+    if (rowMeta != null) {
+      if (genMeta == null) {
+        genMeta=new RowGeneratorMeta();
+        genMeta.setRowLimit("10");
+        genMeta.allocate(rowMeta.size());
+        for (int i=0; i < rowMeta.size(); i++) {
+          ValueMetaInterface valueMeta=rowMeta.getValueMeta(i);
+          if (valueMeta.isStorageBinaryString()) {
+            valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+          }
+          genMeta.getFieldName()[i]=valueMeta.getName();
+          genMeta.getFieldType()[i]=valueMeta.getTypeDesc();
+          genMeta.getFieldLength()[i]=valueMeta.getLength();
+          genMeta.getFieldPrecision()[i]=valueMeta.getPrecision();
+          genMeta.getCurrency()[i]=valueMeta.getCurrencySymbol();
+          genMeta.getDecimal()[i]=valueMeta.getDecimalSymbol();
+          genMeta.getGroup()[i]=valueMeta.getGroupingSymbol();
+          String string=null;
+switch (valueMeta.getType()) {
+case ValueMetaInterface.TYPE_DATE:
+            genMeta.getFieldFormat()[i]="yyyy/MM/dd HH:mm:ss";
+          valueMeta.setConversionMask(genMeta.getFieldFormat()[i]);
+        string=valueMeta.getString(new Date());
+      break;
+case ValueMetaInterface.TYPE_STRING:
+    string="test value test value";
+  break;
+case ValueMetaInterface.TYPE_INTEGER:
+genMeta.getFieldFormat()[i]=" #;-#";
+valueMeta.setConversionMask(genMeta.getFieldFormat()[i]);
+string=valueMeta.getString(Long.valueOf(0L));
+break;
+case ValueMetaInterface.TYPE_NUMBER:
+genMeta.getFieldFormat()[i]=" #.#;-#.#";
+valueMeta.setConversionMask(genMeta.getFieldFormat()[i]);
+string=valueMeta.getString(Double.valueOf(0.0D));
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+genMeta.getFieldFormat()[i]=" #.#;-#.#";
+valueMeta.setConversionMask(genMeta.getFieldFormat()[i]);
+string=valueMeta.getString(BigDecimal.ZERO);
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+string=valueMeta.getString(Boolean.TRUE);
+break;
+case ValueMetaInterface.TYPE_BINARY:
+string=valueMeta.getString(new byte[]{65,66,67,68,69,70,71,72,73,74});
+break;
+default :
+break;
+}
+genMeta.getValue()[i]=string;
+}
+}
+StepMeta genStep=new StepMeta(stepLoader.getStepPluginID(genMeta),"## TEST DATA ##",genMeta);
+genStep.setLocation(50,50);
+StepMeta scriptStep=new StepMeta(stepLoader.getStepPluginID(scriptMeta),Const.NVL(scriptStepName,"## SCRIPT ##"),scriptMeta);
+scriptStepName=scriptStep.getName();
+scriptStep.setLocation(150,50);
+TransHopMeta hop=new TransHopMeta(genStep,scriptStep);
+TransMeta transMeta=new TransMeta();
+transMeta.addStep(genStep);
+transMeta.addStep(scriptStep);
+transMeta.addTransHop(hop);
+if (Spoon.getInstance().editStep(transMeta,genStep) != null) {
+TransPreviewProgressDialog progressDialog=new TransPreviewProgressDialog(shell,transMeta,new String[]{scriptStepName},new int[]{Const.toInt(genMeta.getRowLimit(),10)});
+progressDialog.open();
+Trans trans=progressDialog.getTrans();
+String loggingText=progressDialog.getLoggingText();
+if (!progressDialog.isCancelled()) {
+if (trans.getResult() != null && trans.getResult().getNrErrors() > 0) {
+EnterTextDialog etd=new EnterTextDialog(shell,Messages.getString("System.Dialog.PreviewError.Title"),Messages.getString("System.Dialog.PreviewError.Message"),loggingText,true);
+etd.setReadOnly();
+etd.open();
+}
+}
+PreviewRowsDialog prd=new PreviewRowsDialog(shell,transMeta,SWT.NONE,wStepname.getText(),progressDialog.getPreviewRowsMeta(wStepname.getText()),progressDialog.getPreviewRows(wStepname.getText()),loggingText);
+prd.open();
+}
+return true;
+}
+ else {
+throw new KettleException(Messages.getString("UserDefinedJavaClassDialog.Exception.CouldNotGetFields"));
+}
+}
+ catch (Exception e) {
+new ErrorDialog(shell,Messages.getString("UserDefinedJavaClassDialog.TestFailed.DialogTitle"),Messages.getString("UserDefinedJavaClassDialog.TestFailed.DialogMessage"),e);
+return false;
+}
+}
