@@ -1,0 +1,31 @@
+{
+  if (getLinesWritten() >= meta.getDataLines().size()) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertMeta=data.outputRowMeta.clone();
+    for (    ValueMetaInterface valueMeta : data.convertMeta.getValueMetaList()) {
+      valueMeta.setType(ValueMetaInterface.TYPE_STRING);
+    }
+  }
+  Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+  List<String> outputLine=meta.getDataLines().get((int)getLinesWritten());
+  for (int i=0; i < data.outputRowMeta.size(); i++) {
+    ValueMetaInterface valueMeta=data.outputRowMeta.getValueMeta(i);
+    ValueMetaInterface convertMeta=data.convertMeta.getValueMeta(i);
+    String valueData=outputLine.get(i);
+    outputRowData[i]=valueMeta.convertDataFromString(valueData,convertMeta,null,null,0);
+  }
+  putRow(data.outputRowMeta,outputRowData);
+  if (log.isRowLevel()) {
+    log.logRowlevel(toString(),BaseMessages.getString(PKG,"DataGrid.Log.Wrote.Row",Long.toString(getLinesWritten()),data.outputRowMeta.getString(outputRowData)));
+  }
+  if (checkFeedback(getLinesWritten())) {
+    if (log.isBasic())     logBasic(BaseMessages.getString(PKG,"DataGrid.Log.LineNr",Long.toString(getLinesWritten())));
+  }
+  return true;
+}
