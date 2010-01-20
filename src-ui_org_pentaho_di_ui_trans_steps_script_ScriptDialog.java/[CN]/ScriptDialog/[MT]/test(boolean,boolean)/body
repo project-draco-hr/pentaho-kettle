@@ -1,0 +1,194 @@
+{
+  boolean retval=true;
+  StyledTextComp wScript=getStyledTextComp();
+  String scr=wScript.getText();
+  KettleException testException=null;
+  Context jscx;
+  Scriptable jsscope;
+  refreshScripts();
+  jscx=ContextFactory.getGlobal().enterContext();
+  jscx.setOptimizationLevel(-1);
+  jsscope=jscx.initStandardObjects(null,false);
+  for (int i=0; i < folder.getItemCount(); i++) {
+    StyledTextComp sItem=getStyledTextComp(folder.getItem(i));
+    Scriptable jsR=Context.toObject(sItem.getText(),jsscope);
+    jsscope.put(folder.getItem(i).getText(),jsscope,jsR);
+  }
+  jsscope.put("_TransformationName_",jsscope,this.stepname);
+  try {
+    RowMetaInterface rowMeta=transMeta.getPrevStepFields(stepname);
+    if (rowMeta != null) {
+      ScriptDummy dummyStep=new ScriptDummy(rowMeta,transMeta.getStepFields(stepname));
+      Scriptable jsvalue=Context.toObject(dummyStep,jsscope);
+      jsscope.put("_step_",jsscope,jsvalue);
+      try {
+        if (input.getAddClasses() != null) {
+          for (int i=0; i < input.getAddClasses().length; i++) {
+            Object jsOut=Context.javaToJS(input.getAddClasses()[i].getAddObject(),jsscope);
+            ScriptableObject.putProperty(jsscope,input.getAddClasses()[i].getJSName(),jsOut);
+          }
+        }
+      }
+ catch (      Exception e) {
+        testException=new KettleException(BaseMessages.getString(PKG,"ScriptDialog.CouldNotAddToContext",e.toString()));
+        retval=false;
+      }
+      try {
+        Context.javaToJS(ScriptAddedFunctions.class,jsscope);
+        ((ScriptableObject)jsscope).defineFunctionProperties(jsFunctionList,ScriptAddedFunctions.class,ScriptableObject.DONTENUM);
+      }
+ catch (      Exception ex) {
+        testException=new KettleException(BaseMessages.getString(PKG,"ScriptDialog.CouldNotAddDefaultFunctions",ex.toString()));
+        retval=false;
+      }
+      ;
+      try {
+        jsscope.put("SKIP_TRANSFORMATION",jsscope,Integer.valueOf(SKIP_TRANSFORMATION));
+        jsscope.put("ABORT_TRANSFORMATION",jsscope,Integer.valueOf(ABORT_TRANSFORMATION));
+        jsscope.put("ERROR_TRANSFORMATION",jsscope,Integer.valueOf(ERROR_TRANSFORMATION));
+        jsscope.put("CONTINUE_TRANSFORMATION",jsscope,Integer.valueOf(CONTINUE_TRANSFORMATION));
+      }
+ catch (      Exception ex) {
+        testException=new KettleException(BaseMessages.getString(PKG,"ScriptDialog.CouldNotAddTransformationConstants",ex.toString()));
+        retval=false;
+      }
+      ;
+      try {
+        Object[] row=new Object[rowMeta.size()];
+        Scriptable jsRowMeta=Context.toObject(rowMeta,jsscope);
+        jsscope.put("rowMeta",jsscope,jsRowMeta);
+        for (int i=0; i < rowMeta.size(); i++) {
+          ValueMetaInterface valueMeta=rowMeta.getValueMeta(i);
+          Object valueData=null;
+          if (valueMeta.isDate())           valueData=new Date();
+          if (valueMeta.isString())           valueData="test value test value test value test value test value test value test value test value test value test value";
+          if (valueMeta.isInteger())           valueData=Long.valueOf(0L);
+          if (valueMeta.isNumber())           valueData=new Double(0.0);
+          if (valueMeta.isBigNumber())           valueData=BigDecimal.ZERO;
+          if (valueMeta.isBoolean())           valueData=Boolean.TRUE;
+          if (valueMeta.isBinary())           valueData=new byte[]{0,1,2,3,4,5,6,7,8,9};
+          if (valueMeta.isStorageBinaryString()) {
+            valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+          }
+          row[i]=valueData;
+          Scriptable jsarg=Context.toObject(valueData,jsscope);
+          jsscope.put(valueMeta.getName(),jsscope,jsarg);
+        }
+        Scriptable jsval=Context.toObject(Value.class,jsscope);
+        jsscope.put("Value",jsscope,jsval);
+        Scriptable jsRow=Context.toObject(row,jsscope);
+        jsscope.put("row",jsscope,jsRow);
+      }
+ catch (      Exception ev) {
+        testException=new KettleException(BaseMessages.getString(PKG,"ScriptDialog.CouldNotAddInputFields",ev.toString()));
+        retval=false;
+      }
+      try {
+        if (strActiveStartScript != null && !folder.getSelection().getText().equals(strActiveStartScript) && strActiveStartScript.length() > 0) {
+          String strStartScript=getStyledTextComp(folder.getItem(getCTabPosition(strActiveStartScript))).getText();
+          jscx.evaluateString(jsscope,strStartScript,"trans_Start",1,null);
+        }
+      }
+ catch (      Exception e) {
+        testException=new KettleException(BaseMessages.getString(PKG,"ScriptDialog.CouldProcessStartScript",e.toString()));
+        retval=false;
+      }
+      ;
+      try {
+        Script evalScript=jscx.compileString(scr,"script",1,null);
+        evalScript.exec(jscx,jsscope);
+        if (getvars) {
+          ScriptOrFnNode tree=parseVariables(jscx,jsscope,scr,"script",1,null);
+          for (int i=0; i < tree.getParamAndVarCount(); i++) {
+            String varname=tree.getParamOrVarName(i);
+            if (!varname.equalsIgnoreCase("row") && !varname.equalsIgnoreCase("trans_Status")) {
+              int type=ValueMetaInterface.TYPE_STRING;
+              int length=-1, precision=-1;
+              Object result=jsscope.get(varname,jsscope);
+              if (result != null) {
+                String classname=result.getClass().getName();
+                if (classname.equalsIgnoreCase("java.lang.Byte")) {
+                  type=ValueMetaInterface.TYPE_INTEGER;
+                  length=3;
+                  precision=0;
+                }
+ else                 if (classname.equalsIgnoreCase("java.lang.Integer")) {
+                  type=ValueMetaInterface.TYPE_INTEGER;
+                  length=9;
+                  precision=0;
+                }
+ else                 if (classname.equalsIgnoreCase("java.lang.Long")) {
+                  type=ValueMetaInterface.TYPE_INTEGER;
+                  length=18;
+                  precision=0;
+                }
+ else                 if (classname.equalsIgnoreCase("java.lang.Double")) {
+                  type=ValueMetaInterface.TYPE_NUMBER;
+                  length=16;
+                  precision=2;
+                }
+ else                 if (classname.equalsIgnoreCase("org.mozilla.javascript.NativeDate") || classname.equalsIgnoreCase("java.util.Date")) {
+                  type=ValueMetaInterface.TYPE_DATE;
+                }
+ else                 if (classname.equalsIgnoreCase("java.lang.Boolean")) {
+                  type=ValueMetaInterface.TYPE_BOOLEAN;
+                }
+              }
+              TableItem ti=new TableItem(wFields.table,SWT.NONE);
+              ti.setText(1,varname);
+              ti.setText(2,"");
+              ti.setText(3,ValueMeta.getTypeDesc(type));
+              ti.setText(4,length >= 0 ? ("" + length) : "");
+              ti.setText(5,precision >= 0 ? ("" + precision) : "");
+              ti.setText(6,(rowMeta.indexOfValue(varname) >= 0) ? YES_NO_COMBO[1] : YES_NO_COMBO[0]);
+            }
+          }
+          wFields.removeEmptyRows();
+          wFields.setRowNums();
+          wFields.optWidth(true);
+        }
+      }
+ catch (      EvaluatorException e) {
+        String position="(" + e.lineNumber() + ":"+ e.columnNumber()+ ")";
+        String message=BaseMessages.getString(PKG,"ScriptDialog.Exception.CouldNotExecuteScript",position);
+        testException=new KettleException(message,e);
+        retval=false;
+      }
+catch (      JavaScriptException e) {
+        String position="(" + e.lineNumber() + ":"+ e.columnNumber()+ ")";
+        String message=BaseMessages.getString(PKG,"ScriptDialog.Exception.CouldNotExecuteScript",position);
+        testException=new KettleException(message,e);
+        retval=false;
+      }
+catch (      Exception e) {
+        testException=new KettleException(BaseMessages.getString(PKG,"ScriptDialog.Exception.CouldNotExecuteScript2"),e);
+        retval=false;
+      }
+    }
+ else {
+      testException=new KettleException(BaseMessages.getString(PKG,"ScriptDialog.Exception.CouldNotGetFields"));
+      retval=false;
+    }
+    if (popup) {
+      if (retval) {
+        if (!getvars) {
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+          mb.setMessage(BaseMessages.getString(PKG,"ScriptDialog.ScriptCompilationOK") + Const.CR);
+          mb.setText("OK");
+          mb.open();
+        }
+      }
+ else {
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"ScriptDialog.TestFailed.DialogTitle"),BaseMessages.getString(PKG,"ScriptDialog.TestFailed.DialogMessage"),testException);
+      }
+    }
+  }
+ catch (  KettleException ke) {
+    retval=false;
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"ScriptDialog.TestFailed.DialogTitle"),BaseMessages.getString(PKG,"ScriptDialog.TestFailed.DialogMessage"),ke);
+  }
+ finally {
+    if (jscx != null)     Context.exit();
+  }
+  return retval;
+}
