@@ -1,0 +1,55 @@
+{
+  revisionTable=(XulTree)document.getElementById("revision-table");
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  Binding revisionTreeBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","revision-table","!disabled");
+  Binding revisionLabelBinding=bf.createBinding(repositoryDirectory,"revisionsSupported","revision-label","!disabled");
+  BindingConvertor<int[],Boolean> forButtons=new BindingConvertor<int[],Boolean>(){
+    @Override public Boolean sourceToTarget(    int[] value){
+      return value != null && !(value.length <= 0);
+    }
+    @Override public int[] targetToSource(    Boolean value){
+      return null;
+    }
+  }
+;
+  Binding buttonBinding=bf.createBinding(revisionTable,"selectedRows","revision-open","!disabled",forButtons);
+  Binding revisionBinding=null;
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  revisionBinding=bf.createBinding(fileTable,"selectedItems",revisionTable,"elements",new BindingConvertor<List<UIRepositoryObject>,UIRepositoryObjectRevisions>(){
+    @Override public UIRepositoryObjectRevisions sourceToTarget(    List<UIRepositoryObject> ro){
+      UIRepositoryObjectRevisions revisions=new UIRepositoryObjectRevisions();
+      if (ro == null) {
+        return null;
+      }
+      if (ro.size() <= 0) {
+        return null;
+      }
+      if (ro.get(0) instanceof UIRepositoryDirectory) {
+        return null;
+      }
+      try {
+        UIRepositoryContent rc=(UIRepositoryContent)ro.get(0);
+        revisions=rc.getRevisions();
+        bf.setBindingType(Binding.Type.ONE_WAY);
+        bf.createBinding(revisions,"children",revisionTable,"elements");
+      }
+ catch (      Exception e) {
+      }
+      return revisions;
+    }
+    @Override public List<UIRepositoryObject> targetToSource(    UIRepositoryObjectRevisions elements){
+      return null;
+    }
+  }
+);
+  try {
+    revisionTreeBinding.fireSourceChanged();
+    revisionLabelBinding.fireSourceChanged();
+    buttonBinding.fireSourceChanged();
+    revisionBinding.fireSourceChanged();
+  }
+ catch (  Exception e) {
+    System.out.println(e.getMessage());
+    e.printStackTrace();
+  }
+}
