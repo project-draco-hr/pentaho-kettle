@@ -1,0 +1,44 @@
+{
+  try {
+    step.setRunning(true);
+    if (log.isDetailed())     log.logDetailed(BaseMessages.getString(PKG,"System.Log.StartingToRun"));
+    while (step.processRow(meta,data) && !step.isStopped())     ;
+  }
+ catch (  Throwable t) {
+    try {
+      if (t instanceof OutOfMemoryError) {
+        log.logError("UnexpectedError: ",t);
+      }
+ else {
+        log.logError(BaseMessages.getString(PKG,"System.Log.UnexpectedError") + " : ",t);
+      }
+    }
+ catch (    OutOfMemoryError e) {
+      e.printStackTrace();
+    }
+ finally {
+      step.setErrors(1);
+      step.stopAll();
+    }
+  }
+ finally {
+    step.dispose(meta,data);
+    try {
+      long li=step.getLinesInput();
+      long lo=step.getLinesOutput();
+      long lr=step.getLinesRead();
+      long lw=step.getLinesWritten();
+      long lu=step.getLinesUpdated();
+      long lj=step.getLinesRejected();
+      long e=step.getErrors();
+      if (li > 0 || lo > 0 || lr > 0 || lw > 0 || lu > 0 || lj > 0 || e > 0)       log.logBasic(BaseMessages.getString(PKG,"BaseStep.Log.SummaryInfo",String.valueOf(li),String.valueOf(lo),String.valueOf(lr),String.valueOf(lw),String.valueOf(lu),String.valueOf(e + lj)));
+ else       log.logDetailed(BaseMessages.getString(PKG,"BaseStep.Log.SummaryInfo",String.valueOf(li),String.valueOf(lo),String.valueOf(lr),String.valueOf(lw),String.valueOf(lu),String.valueOf(e + lj)));
+    }
+ catch (    Throwable t) {
+      log.logError("UnexpectedError: " + t.toString());
+    }
+ finally {
+      step.markStop();
+    }
+  }
+}

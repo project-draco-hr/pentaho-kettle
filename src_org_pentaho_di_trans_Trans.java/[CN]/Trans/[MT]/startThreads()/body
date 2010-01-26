@@ -57,8 +57,55 @@ synchronized (Trans.this) {
 ;
   addTransListener(transListener);
   running=true;
-  for (int i=0; i < steps.size(); i++) {
-    steps.get(i).step.start();
+switch (transMeta.getTransformationType()) {
+case Normal:
+    for (int i=0; i < steps.size(); i++) {
+      StepMetaDataCombi combi=steps.get(i);
+      RunThread runThread=new RunThread(combi);
+      Thread thread=new Thread(runThread);
+      thread.setName(getName() + " - " + combi.stepname);
+      thread.start();
+    }
+  break;
+case SerialSingleThreaded:
+new Thread(new Runnable(){
+  public void run(){
+    try {
+      for (      StepMetaDataCombi combi : steps) {
+        combi.step.setUsingThreadPriorityManagment(false);
+      }
+      boolean[] stepDone=new boolean[steps.size()];
+      int nrDone=0;
+      while (nrDone < steps.size() && !isStopped()) {
+        for (int i=0; i < steps.size() && !isStopped(); i++) {
+          StepMetaDataCombi combi=steps.get(i);
+          if (!stepDone[i]) {
+            if (combi.step.canProcessOneRow()) {
+              boolean cont=combi.step.processRow(combi.meta,combi.data);
+              if (!cont) {
+                stepDone[i]=true;
+                nrDone++;
+              }
+            }
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      errors.addAndGet(1);
+      log.logError("Error executing single threaded",e);
+    }
+ finally {
+      for (int i=0; i < steps.size(); i++) {
+        StepMetaDataCombi combi=steps.get(i);
+        combi.step.dispose(combi.meta,combi.data);
+        combi.step.markStop();
+      }
+    }
   }
-  if (log.isDetailed())   log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.TransformationHasAllocated",String.valueOf(steps.size()),String.valueOf(rowsets.size())));
+}
+).start();
+break;
+}
+if (log.isDetailed()) log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.TransformationHasAllocated",String.valueOf(steps.size()),String.valueOf(rowsets.size())));
 }

@@ -73,7 +73,13 @@
       }
       if (dispatchType != TYPE_DISP_N_M) {
         for (int c=0; c < nrCopies; c++) {
-          RowSet rowSet=new RowSet(transMeta.getSizeRowset());
+          RowSet rowSet;
+          if (transMeta.getTransformationType() == TransformationType.Normal) {
+            rowSet=new BlockingRowSet(transMeta.getSizeRowset());
+          }
+ else {
+            rowSet=new SingleRowRowSet();
+          }
 switch (dispatchType) {
 case TYPE_DISP_1_1:
             rowSet.setThreadNameFromToCopy(thisStep.getName(),0,nextStep.getName(),0);
@@ -95,7 +101,7 @@ if (log.isDetailed()) log.logDetailed(BaseMessages.getString(PKG,"Trans.Transfor
  else {
 for (int s=0; s < thisCopies; s++) {
 for (int t=0; t < nextCopies; t++) {
-RowSet rowSet=new RowSet(transMeta.getSizeRowset());
+BlockingRowSet rowSet=new BlockingRowSet(transMeta.getSizeRowset());
 rowSet.setThreadNameFromToCopy(thisStep.getName(),s,nextStep.getName(),t);
 rowsets.add(rowSet);
 if (log.isDetailed()) log.logDetailed(BaseMessages.getString(PKG,"Trans.TransformationAllocatedNewRowset",rowSet.toString()));
@@ -122,15 +128,14 @@ combi.meta=stepMeta.getStepMetaInterface();
 StepDataInterface data=combi.meta.getStepData();
 combi.data=data;
 StepInterface step=combi.meta.getStep(stepMeta,data,c,transMeta,this);
-((BaseStep)step).initializeVariablesFrom(this);
-((BaseStep)step).setUsingThreadPriorityManagment(transMeta.isUsingThreadPriorityManagment());
+step.initializeVariablesFrom(this);
+step.setUsingThreadPriorityManagment(transMeta.isUsingThreadPriorityManagment());
 if (stepMeta.isPartitioned()) {
 List<String> partitionIDs=stepMeta.getStepPartitioningMeta().getPartitionSchema().getPartitionIDs();
 if (partitionIDs != null && partitionIDs.size() > 0) {
 step.setPartitionID(partitionIDs.get(c));
 }
 }
-((BaseStep)step).setSafeModeEnabled(safeModeEnabled);
 combi.step=step;
 steps.add(combi);
 if (log.isDetailed()) log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.TransformationHasAllocatedANewStep",stepMeta.getName(),String.valueOf(c)));
@@ -140,17 +145,7 @@ if (log.isDetailed()) log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.Tran
 for (int s=0; s < steps.size(); s++) {
 StepMetaDataCombi combi=steps.get(s);
 if (combi.stepMeta.isDoingErrorHandling()) {
-StepErrorMeta stepErrorMeta=combi.stepMeta.getStepErrorMeta();
-BaseStep baseStep=(BaseStep)combi.step;
-boolean stop=false;
-for (int rowsetNr=0; rowsetNr < baseStep.outputRowSets.size() && !stop; rowsetNr++) {
-RowSet outputRowSet=baseStep.outputRowSets.get(rowsetNr);
-if (outputRowSet.getDestinationStepName().equalsIgnoreCase(stepErrorMeta.getTargetStep().getName())) {
-baseStep.errorRowSet=outputRowSet;
-baseStep.outputRowSets.remove(rowsetNr);
-stop=true;
-}
-}
+combi.step.identifyErrorOutput();
 }
 }
 calculateBatchIdAndDateRange();
@@ -158,7 +153,7 @@ beginProcessing();
 for (int i=0; i < steps.size(); i++) {
 StepMetaDataCombi sid=steps.get(i);
 StepMeta stepMeta=sid.stepMeta;
-BaseStep baseStep=(BaseStep)sid.step;
+StepInterface baseStep=sid.step;
 baseStep.setPartitioned(stepMeta.isPartitioned());
 boolean isThisPartitioned=stepMeta.isPartitioned();
 PartitionSchema thisPartitionSchema=null;
@@ -208,11 +203,11 @@ for (int i=0; i < initThreads.length; i++) {
 StepMetaDataCombi combi=initThreads[i].getCombi();
 if (!initThreads[i].isOk()) {
 log.logError(BaseMessages.getString(PKG,"Trans.Log.StepFailedToInit",combi.stepname + "." + combi.copy));
-combi.data.setStatus(StepDataInterface.STATUS_STOPPED);
+combi.data.setStatus(StepExecutionStatus.STATUS_STOPPED);
 ok=false;
 }
  else {
-combi.data.setStatus(StepDataInterface.STATUS_IDLE);
+combi.data.setStatus(StepExecutionStatus.STATUS_IDLE);
 if (log.isDetailed()) log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.StepInitialized",combi.stepname + "." + combi.copy));
 }
 }
@@ -221,10 +216,10 @@ for (int i=0; i < initThreads.length; i++) {
 StepMetaDataCombi combi=initThreads[i].getCombi();
 combi.step.dispose(combi.meta,combi.data);
 if (initThreads[i].isOk()) {
-combi.data.setStatus(StepDataInterface.STATUS_HALTED);
+combi.data.setStatus(StepExecutionStatus.STATUS_HALTED);
 }
  else {
-combi.data.setStatus(StepDataInterface.STATUS_STOPPED);
+combi.data.setStatus(StepExecutionStatus.STATUS_STOPPED);
 }
 }
 fireTransFinishedListeners();
