@@ -15,6 +15,9 @@
     container.addEventHandler(browseController);
     browseController.setRepositoryDirectory(new UIRepositoryDirectory(repositoryDirectory,rep));
     browseController.setCallback(callback);
+    permissionsController.setBindingFactory(bf);
+    container.addEventHandler(permissionsController);
+    permissionsController.setRepositoryDirectory(new UIRepositoryDirectory(repositoryDirectory,rep));
     connectionsController.setRepository(rep);
     connectionsController.setBindingFactory(bf);
     container.addEventHandler(connectionsController);
@@ -30,10 +33,18 @@
     container.addEventHandler(clustersController);
     boolean securityEnabled=rep.getRepositoryMeta().getRepositoryCapabilities().managesUsers();
     loadSecurityOverlay(securityEnabled);
+    boolean aclEnabled=rep.getRepositoryMeta().getRepositoryCapabilities().supportsAcls();
+    loadAclOverlay(aclEnabled);
     container.addEventHandler(securityController);
     if (securityEnabled) {
       securityController.setBindingFactory(bf);
       securityController.setRepositoryUserInterface(rep.getSecurityProvider());
+    }
+    boolean aclsEnabled=rep.getRepositoryMeta().getRepositoryCapabilities().supportsAcls();
+    container.addEventHandler(permissionsController);
+    if (aclsEnabled && securityEnabled) {
+      permissionsController.setBindingFactory(bf);
+      permissionsController.setRepositoryUserInterface(rep.getSecurityProvider());
     }
     try {
       runner.initialize();
