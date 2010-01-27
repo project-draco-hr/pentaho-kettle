@@ -1,0 +1,50 @@
+{
+  StepMeta stepMeta=getCurrentStep();
+  final StepInterface runThread=trans.findRunThread(stepMeta.getName());
+  if (runThread != null) {
+    List<Object[]> rows=new ArrayList<Object[]>();
+    final PreviewRowsDialog dialog=new PreviewRowsDialog(shell,trans,SWT.NONE,stepMeta.getName(),null,rows);
+    dialog.setDynamic(true);
+    final RowListener rowListener=new RowListener(){
+      public void rowReadEvent(      RowMetaInterface rowMeta,      Object[] row) throws KettleStepException {
+        if (input) {
+          try {
+            dialog.addDataRow(rowMeta,rowMeta.cloneRow(row));
+          }
+ catch (          KettleValueException e) {
+            throw new KettleStepException(e);
+          }
+        }
+      }
+      public void rowWrittenEvent(      RowMetaInterface rowMeta,      Object[] row) throws KettleStepException {
+        if (output) {
+          try {
+            dialog.addDataRow(rowMeta,rowMeta.cloneRow(row));
+          }
+ catch (          KettleValueException e) {
+            throw new KettleStepException(e);
+          }
+        }
+      }
+      public void errorRowWrittenEvent(      RowMetaInterface rowMeta,      Object[] row) throws KettleStepException {
+        if (error) {
+          try {
+            dialog.addDataRow(rowMeta,rowMeta.cloneRow(row));
+          }
+ catch (          KettleValueException e) {
+            throw new KettleStepException(e);
+          }
+        }
+      }
+    }
+;
+    getDisplay().asyncExec(new Runnable(){
+      public void run(){
+        dialog.open();
+        runThread.removeRowListener(rowListener);
+      }
+    }
+);
+    runThread.addRowListener(rowListener);
+  }
+}
