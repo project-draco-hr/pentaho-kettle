@@ -3,8 +3,8 @@
   layout.marginWidth=0;
   layout.marginHeight=0;
   shell.setLayout(layout);
-  addFileListener(new TransFileListener(),Const.STRING_TRANS_DEFAULT_EXT,TransMeta.XML_TAG);
-  addFileListener(new JobFileListener(),Const.STRING_JOB_DEFAULT_EXT,JobMeta.XML_TAG);
+  addFileListener(new TransFileListener());
+  addFileListener(new JobFileListener());
   if (ti != null)   delegates.trans.addTransformation(ti);
   loadSettings();
   transExecutionConfiguration=new TransExecutionConfiguration();
@@ -15,167 +15,161 @@
   shell.setImage(GUIResource.getInstance().getImageSpoon());
   cursor_hourglass=new Cursor(display,SWT.CURSOR_WAIT);
   cursor_hand=new Cursor(display,SWT.CURSOR_HAND);
-  defKeys=new KeyAdapter(){
-    public void keyPressed(    KeyEvent e){
-      boolean shift=((e.stateMask & SWT.SHIFT) != 0);
-      boolean ctrl=((e.stateMask & SWT.CONTROL) != 0);
-      boolean alt=((e.stateMask & SWT.ALT) != 0);
-      String key=null;
-switch (e.keyCode) {
-case SWT.ESC:
-        key="esc";
-      break;
-case SWT.F1:
-    key="f1";
-  break;
-case SWT.F2:
-key="f2";
-break;
-case SWT.F3:
-key="f3";
-break;
-case SWT.F4:
-key="f4";
-break;
-case SWT.F5:
-key="f5";
-break;
-case SWT.F6:
-key="f6";
-break;
-case SWT.F7:
-key="f7";
-break;
-case SWT.F8:
-key="f8";
-break;
-case SWT.F9:
-key="f9";
-break;
-case SWT.F10:
-key="f10";
-break;
-case SWT.F11:
-key="f11";
-break;
-case SWT.F12:
-key="f12";
-break;
-case SWT.ARROW_UP:
-key="up";
-break;
-case SWT.ARROW_DOWN:
-key="down";
-break;
-case SWT.ARROW_LEFT:
-key="left";
-break;
-case SWT.ARROW_RIGHT:
-key="right";
-break;
-case SWT.HOME:
-key="home";
-break;
-case SWT.PAGE_UP:
-key="pageup";
-break;
-case SWT.PAGE_DOWN:
-key="pagedown";
-break;
-default :
-;
-}
-if (key == null && ctrl) {
-if (e.character >= '0' && e.character <= '9') {
-char c=e.character;
-key=new String(new char[]{c});
-}
- else {
-char c=(char)('a' + (e.character - 1));
-key=new String(new char[]{c});
-}
-}
- else if (key == null) {
-char c=e.character;
-key=new String(new char[]{c});
-}
-menuBar.handleAccessKey(key,alt,ctrl,shift);
-}
-}
-;
-initFileMenu();
-sashform=new SashForm(shell,SWT.HORIZONTAL);
-FormData fdSash=new FormData();
-fdSash.left=new FormAttachment(0,0);
-fdSash.top=new FormAttachment(0,0);
-fdSash.bottom=new FormAttachment(100,0);
-fdSash.right=new FormAttachment(100,0);
-sashform.setLayoutData(fdSash);
-WindowProperty winprop=props.getScreen(APPL_TITLE);
-if (winprop != null) winprop.setShell(shell);
- else {
-shell.pack();
-shell.setMaximized(true);
-}
-addMenu();
-addTree();
-addTabs();
-shell.addShellListener(new ShellAdapter(){
-public void shellClosed(ShellEvent e){
-try {
-e.doit=quitFile();
-}
- catch (Exception ex) {
-new ErrorDialog(shell,"Error","Unexpected error quiting (probably cause by saving)!",ex);
-}
-}
-}
+  Composite sashComposite=null;
+  MainSpoonPerspective mainPerspective=null;
+  try {
+    xulLoader=new SwtXulLoader();
+    xulLoader.setOuterContext(shell);
+    mainSpoonContainer=xulLoader.loadXul(XUL_FILE_MAIN,new XulSpoonResourceBundle());
+    bf=new DefaultBindingFactory();
+    bf.setDocument(mainSpoonContainer.getDocumentRoot());
+    mainSpoonContainer.addEventHandler(this);
+    menuBar=(XulMenubar)mainSpoonContainer.getDocumentRoot().getElementById("spoon-menubar");
+    mainToolbar=(XulToolbar)mainSpoonContainer.getDocumentRoot().getElementById("main-toolbar");
+    canvas=(XulVbox)mainSpoonContainer.getDocumentRoot().getElementById("trans-job-canvas");
+    deck=(SwtDeck)mainSpoonContainer.getDocumentRoot().getElementById("canvas-deck");
+    final Composite tempSashComposite=new Composite(shell,SWT.None);
+    sashComposite=tempSashComposite;
+    mainPerspective=new MainSpoonPerspective(tempSashComposite,tabfolder);
+    SpoonPerspectiveManager.getInstance().addPerspective(mainPerspective);
+    for (    XulOverlay over : SpoonPluginManager.getInstance().getOverlaysforContainer("spoon")) {
+      mainSpoonContainer.loadOverlay(over.getOverlayUri());
+    }
+    for (    XulEventHandler handler : SpoonPluginManager.getInstance().getEventHandlersforContainer("spoon")) {
+      mainSpoonContainer.addEventHandler(handler);
+    }
+    SpoonPerspectiveManager.getInstance().setDeck(deck);
+    SpoonPerspectiveManager.getInstance().setXulDoc(mainSpoonContainer);
+    boolean firstBtn=true;
+    for (    SpoonPerspective per : SpoonPerspectiveManager.getInstance().getPerspectives()) {
+      String name=per.getDisplayName(Locale.getDefault());
+      InputStream in=per.getPerspectiveIcon();
+      final SwtToolbarbutton btn=(SwtToolbarbutton)mainSpoonContainer.getDocumentRoot().createElement("toolbarbutton");
+      btn.setType("toggle");
+      btn.setTooltiptext(name);
+      btn.setOnclick("spoon.loadPerspective('" + per.getClass().getName() + "')");
+      mainToolbar.addChild(btn);
+      if (firstBtn) {
+        btn.setSelected(true);
+        firstBtn=false;
+      }
+      if (in != null) {
+        btn.setImageFromStream(in);
+        try {
+          in.close();
+        }
+ catch (        IOException e1) {
+        }
+      }
+      XulVbox box=deck.createVBoxCard();
+      box.setId("perspective-" + per.getId());
+      box.setFlex(1);
+      deck.addChild(box);
+      per.getUI().setParent((Composite)box.getManagedObject());
+      per.getUI().layout();
+      per.addPerspectiveListener(new SpoonPerspectiveListener(){
+        public void onActivation(){
+          btn.setSelected(true);
+        }
+        public void onDeactication(){
+          btn.setSelected(false);
+        }
+      }
 );
-shell.addKeyListener(defKeys);
-if (props.showWelcomePageOnStartup()) {
-showWelcomePage();
-}
-int operations=DND.DROP_COPY | DND.DROP_DEFAULT;
-DropTarget target=new DropTarget(shell,operations);
-final FileTransfer fileTransfer=FileTransfer.getInstance();
-Transfer[] types=new Transfer[]{fileTransfer};
-target.setTransfer(types);
-target.addDropListener(new DropTargetListener(){
-public void dragEnter(DropTargetEvent event){
-if (event.detail == DND.DROP_DEFAULT) {
-if ((event.operations & DND.DROP_COPY) != 0) {
-event.detail=DND.DROP_COPY;
-}
+    }
+    deck.setSelectedIndex(0);
+  }
+ catch (  IllegalArgumentException e1) {
+    e1.printStackTrace();
+  }
+catch (  XulException e1) {
+    e1.printStackTrace();
+  }
+  WindowProperty winprop=props.getScreen(APPL_TITLE);
+  if (winprop != null)   winprop.setShell(shell);
  else {
-event.detail=DND.DROP_NONE;
-}
-}
-}
-public void dragOver(DropTargetEvent event){
-event.feedback=DND.FEEDBACK_SELECT | DND.FEEDBACK_SCROLL;
-}
-public void dragOperationChanged(DropTargetEvent event){
-if (event.detail == DND.DROP_DEFAULT) {
-if ((event.operations & DND.DROP_COPY) != 0) {
-event.detail=DND.DROP_COPY;
-}
+    shell.pack();
+    shell.setMaximized(true);
+  }
+  shell.addShellListener(new ShellAdapter(){
+    public void shellClosed(    ShellEvent e){
+      try {
+        e.doit=quitFile();
+      }
+ catch (      KettleException e1) {
+        e1.printStackTrace();
+      }
+      SpoonPluginManager.getInstance().notifyLifecycleListeners(LifeCycleEvent.SHUTDOWN);
+    }
+  }
+);
+  layout=new FormLayout();
+  layout.marginWidth=0;
+  layout.marginHeight=0;
+  GridData data=new GridData();
+  data.grabExcessHorizontalSpace=true;
+  data.grabExcessVerticalSpace=true;
+  data.verticalAlignment=SWT.FILL;
+  data.horizontalAlignment=SWT.FILL;
+  sashComposite.setLayoutData(data);
+  sashComposite.setLayout(layout);
+  sashform=new SashForm(sashComposite,SWT.HORIZONTAL);
+  FormData fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(0,0);
+  fdSash.bottom=new FormAttachment(100,0);
+  fdSash.right=new FormAttachment(100,0);
+  sashform.setLayoutData(fdSash);
+  createPopupMenus();
+  addTree();
+  addTabs();
+  mainPerspective.setTabset(this.tabfolder);
+  ((Composite)deck.getManagedObject()).layout(true,true);
+  SpoonPluginManager.getInstance().notifyLifecycleListeners(LifeCycleEvent.STARTUP);
+  if (props.showWelcomePageOnStartup()) {
+    showWelcomePage();
+  }
+  int operations=DND.DROP_COPY | DND.DROP_DEFAULT;
+  DropTarget target=new DropTarget(shell,operations);
+  final FileTransfer fileTransfer=FileTransfer.getInstance();
+  Transfer[] types=new Transfer[]{fileTransfer};
+  target.setTransfer(types);
+  target.addDropListener(new DropTargetListener(){
+    public void dragEnter(    DropTargetEvent event){
+      if (event.detail == DND.DROP_DEFAULT) {
+        if ((event.operations & DND.DROP_COPY) != 0) {
+          event.detail=DND.DROP_COPY;
+        }
  else {
-event.detail=DND.DROP_NONE;
-}
-}
-}
-public void dragLeave(DropTargetEvent event){
-}
-public void dropAccept(DropTargetEvent event){
-}
-public void drop(DropTargetEvent event){
-if (fileTransfer.isSupportedType(event.currentDataType)) {
-String[] files=(String[])event.data;
-for (int i=0; i < files.length; i++) {
-openFile(files[i],false);
-}
-}
-}
-}
+          event.detail=DND.DROP_NONE;
+        }
+      }
+    }
+    public void dragOver(    DropTargetEvent event){
+      event.feedback=DND.FEEDBACK_SELECT | DND.FEEDBACK_SCROLL;
+    }
+    public void dragOperationChanged(    DropTargetEvent event){
+      if (event.detail == DND.DROP_DEFAULT) {
+        if ((event.operations & DND.DROP_COPY) != 0) {
+          event.detail=DND.DROP_COPY;
+        }
+ else {
+          event.detail=DND.DROP_NONE;
+        }
+      }
+    }
+    public void dragLeave(    DropTargetEvent event){
+    }
+    public void dropAccept(    DropTargetEvent event){
+    }
+    public void drop(    DropTargetEvent event){
+      if (fileTransfer.isSupportedType(event.currentDataType)) {
+        String[] files=(String[])event.data;
+        for (int i=0; i < files.length; i++) {
+          openFile(files[i],false);
+        }
+      }
+    }
+  }
 );
 }

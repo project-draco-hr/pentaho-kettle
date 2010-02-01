@@ -1,0 +1,53 @@
+{
+  if (this.isJustLook) {
+    SwtButton theAcceptButton=(SwtButton)this.document.getElementById("databaseExplorerDialog_accept");
+    theAcceptButton.setVisible(false);
+  }
+  createDatabaseNodes();
+  this.dbExplorerDialog=(SwtDialog)this.document.getElementById("databaseExplorerDialog");
+  this.actionLabel=(XulLabel)document.getElementById("action_label");
+  this.bf.setDocument(super.document);
+  this.bf.setBindingType(Type.ONE_WAY);
+  this.expandCollapseButton=(XulButton)document.getElementById("expandCollapseButton");
+  this.databaseTree=(XulTree)document.getElementById("databaseTree");
+  this.databaseTreeBinding=bf.createBinding(this.model,"database",this.databaseTree,"elements");
+  BindingConvertor<DatabaseExplorerNode,String> theTableNameConvertor=new BindingConvertor<DatabaseExplorerNode,String>(){
+    public String sourceToTarget(    DatabaseExplorerNode aValue){
+      String theTable=null;
+      if (aValue != null && aValue.isTable()) {
+        theTable=aValue.getName();
+      }
+      return theTable;
+    }
+    public DatabaseExplorerNode targetToSource(    String aValue){
+      return null;
+    }
+  }
+;
+  this.bf.createBinding(this.databaseTree,"selectedItem",this.model,"table",theTableNameConvertor);
+  BindingConvertor<String,List<DatabaseExplorerNode>> theSelectedItemsConvertor=new BindingConvertor<String,List<DatabaseExplorerNode>>(){
+    public String targetToSource(    List<DatabaseExplorerNode> aValue){
+      return null;
+    }
+    public List<DatabaseExplorerNode> sourceToTarget(    String aValue){
+      DatabaseExplorerNode theNode=XulDatabaseExplorerController.this.model.findBy(aValue);
+      List<DatabaseExplorerNode> theResult=new ArrayList<DatabaseExplorerNode>();
+      theResult.add(theNode);
+      return theResult;
+    }
+  }
+;
+  this.selectedTableBinding=this.bf.createBinding(this.model,"table",this.databaseTree,"selectedItems",theSelectedItemsConvertor);
+  BindingConvertor<DatabaseExplorerNode,Boolean> isDisabledConvertor=new BindingConvertor<DatabaseExplorerNode,Boolean>(){
+    public Boolean sourceToTarget(    DatabaseExplorerNode value){
+      return !(value != null && value.isTable());
+    }
+    public DatabaseExplorerNode targetToSource(    Boolean value){
+      return null;
+    }
+  }
+;
+  this.bf.createBinding(this.databaseTree,"selectedItem","buttonMenuPopUp","disabled",isDisabledConvertor);
+  this.bf.createBinding(this.databaseTree,"selectedItem",actionLabel,"disabled",isDisabledConvertor);
+  fireBindings();
+}

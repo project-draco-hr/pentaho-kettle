@@ -1,18 +1,15 @@
 {
-  XulMenuItem sep=menuBar.getSeparatorById("file-last-separator");
-  XulMenu msFile=null;
-  if (sep != null) {
-    msFile=sep.getMenu();
-  }
+  org.pentaho.ui.xul.dom.Document doc=(org.pentaho.ui.xul.dom.Document)mainSpoonContainer.getDocumentRoot();
+  XulMenuseparator sep=(XulMenuseparator)doc.getElementById("file-last-separator");
+  XulMenupopup msFile=(XulMenupopup)sep.getParent();
   if (msFile == null || sep == null) {
     return;
   }
-  int idx=msFile.indexOf(sep);
-  int max=msFile.getItemCount();
+  int idx=msFile.getChildNodes().indexOf(sep);
+  int max=msFile.getChildNodes().size();
   for (int i=max - 1; i > idx; i--) {
-    XulMenuItem mi=msFile.getItem(i);
-    msFile.remove(mi);
-    mi.dispose();
+    XulComponent mi=msFile.getChildNodes().get(i);
+    mi.getParent().removeChild(mi);
   }
   List<LastUsedFile> lastUsedFiles=props.getLastUsedFiles();
   for (int i=0; i < lastUsedFiles.size(); i++) {
@@ -26,13 +23,33 @@
       accessKey=null;
       accessText=null;
     }
-    MenuChoice miFileLast=new MenuChoice(msFile,text,id,accessText,accessKey,MenuChoice.TYPE_PLAIN,null);
+    XulMenuitem miFileLast=((SwtMenupopup)msFile).createNewMenuitem();
+    int targetLength=40;
+    if (text.length() > targetLength) {
+      int lastSep=text.replace('\\','/').lastIndexOf('/');
+      if (lastSep != -1) {
+        String fileName="..." + text.substring(lastSep);
+        if (fileName.length() < targetLength) {
+          int leadSize=targetLength - fileName.length();
+          text=text.substring(0,leadSize) + fileName;
+        }
+ else {
+          text=fileName;
+        }
+      }
+    }
+    miFileLast.setLabel(text);
+    miFileLast.setId(id);
+    miFileLast.setAcceltext(accessText);
+    miFileLast.setAccesskey(accessKey);
     if (lastUsedFile.isTransformation()) {
-      miFileLast.setImage(GUIResource.getInstance().getImageTransGraph());
+      MenuItem item=(MenuItem)miFileLast.getManagedObject();
+      item.setImage(GUIResource.getInstance().getImageTransGraph());
     }
  else     if (lastUsedFile.isJob()) {
-      miFileLast.setImage(GUIResource.getInstance().getImageJobGraph());
+      MenuItem item=(MenuItem)miFileLast.getManagedObject();
+      item.setImage(GUIResource.getInstance().getImageJobGraph());
     }
-    menuBar.addMenuListener(id,this,"lastFileSelect");
+    miFileLast.setCommand("spoon.lastFileSelect('" + i + "')");
   }
 }
