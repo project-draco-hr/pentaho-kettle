@@ -1,0 +1,62 @@
+{
+  FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+  dialog.setFilterExtensions(Const.STRING_TRANS_FILTER_EXT);
+  dialog.setFilterNames(Const.getJobFilterNames());
+  String prevName=jobMeta.environmentSubstitute(wFilename.getText());
+  String parentFolder=null;
+  try {
+    parentFolder=KettleVFS.getFilename(KettleVFS.getFileObject(jobMeta.environmentSubstitute(jobMeta.getFilename())).getParent());
+  }
+ catch (  Exception e) {
+  }
+  if (!Const.isEmpty(prevName)) {
+    try {
+      if (KettleVFS.fileExists(prevName)) {
+        dialog.setFilterPath(KettleVFS.getFilename(KettleVFS.getFileObject(prevName).getParent()));
+      }
+ else {
+        if (!prevName.endsWith(".kjb")) {
+          prevName="${" + Const.INTERNAL_VARIABLE_JOB_FILENAME_DIRECTORY + "}/"+ Const.trim(wFilename.getText())+ ".kjb";
+        }
+        if (KettleVFS.fileExists(prevName)) {
+          wFilename.setText(prevName);
+          return;
+        }
+ else {
+          MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.ICON_QUESTION);
+          mb.setMessage(BaseMessages.getString(PKG,"JobJob.Dialog.CreateJobQuestion.Message"));
+          mb.setText(BaseMessages.getString(PKG,"JobJob.Dialog.CreateJobQuestion.Title"));
+          int answer=mb.open();
+          if (answer == SWT.YES) {
+            Spoon spoon=Spoon.getInstance();
+            spoon.newJobFile();
+            JobMeta newJobMeta=spoon.getActiveJob();
+            newJobMeta.initializeVariablesFrom(jobEntry);
+            newJobMeta.setFilename(jobMeta.environmentSubstitute(prevName));
+            wFilename.setText(prevName);
+            spoon.saveFile();
+            return;
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      dialog.setFilterPath(parentFolder);
+    }
+  }
+ else   if (!Const.isEmpty(parentFolder)) {
+    dialog.setFilterPath(parentFolder);
+  }
+  String fname=dialog.open();
+  if (fname != null) {
+    File file=new File(fname);
+    String name=file.getName();
+    String parentFolderSelection=file.getParentFile().toString();
+    if (!Const.isEmpty(parentFolder) && parentFolder.equals(parentFolderSelection)) {
+      wFilename.setText("${" + Const.INTERNAL_VARIABLE_JOB_FILENAME_DIRECTORY + "}/"+ name);
+    }
+ else {
+      wFilename.setText(fname);
+    }
+  }
+}
