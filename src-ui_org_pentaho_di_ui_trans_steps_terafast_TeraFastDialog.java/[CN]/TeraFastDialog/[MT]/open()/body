@@ -1,0 +1,47 @@
+{
+  this.changed=this.meta.hasChanged();
+  final Shell parent=getParent();
+  final Display display=parent.getDisplay();
+  this.shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN| SWT.MAX);
+  this.props.setLook(this.shell);
+  setShellImage(this.shell,this.meta);
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  this.shell.setLayout(formLayout);
+  this.shell.setText(BaseMessages.getString(PKG,"TeraFastDialog.Shell.Title"));
+  buildUi();
+  assignChangeListener();
+  listeners();
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      final StepMeta stepMetaSearchFields=TeraFastDialog.this.transMeta.findStep(TeraFastDialog.this.stepname);
+      if (stepMetaSearchFields == null) {
+        return;
+      }
+      try {
+        final RowMetaInterface row=TeraFastDialog.this.transMeta.getPrevStepFields(stepMetaSearchFields);
+        for (int i=0; i < row.size(); i++) {
+          TeraFastDialog.this.inputFields.put(row.getValueMeta(i).getName(),Integer.valueOf(i));
+        }
+        setComboBoxes();
+      }
+ catch (      KettleException e) {
+        TeraFastDialog.this.log.logError(toString(),BaseMessages.getString(PKG,"System.Dialog.GetFieldsFailed.Message"));
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
+  setSize();
+  getData();
+  this.meta.setChanged(this.changed);
+  disableInputs();
+  this.shell.open();
+  while (!this.shell.isDisposed()) {
+    if (!display.readAndDispatch()) {
+      display.sleep();
+    }
+  }
+  return this.stepname;
+}

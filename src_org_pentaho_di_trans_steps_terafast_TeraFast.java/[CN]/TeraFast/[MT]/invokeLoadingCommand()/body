@@ -1,0 +1,29 @@
+{
+  final FastloadControlBuilder builder=new FastloadControlBuilder();
+  builder.setSessions(this.meta.getSessions().getValue());
+  builder.setErrorLimit(this.meta.getErrorLimit().getValue());
+  builder.logon(this.meta.getDbMeta().getHostname(),this.meta.getDbMeta().getUsername(),this.meta.getDbMeta().getPassword());
+  builder.setRecordFormat(FastloadControlBuilder.RECORD_VARTEXT);
+  try {
+    builder.define(this.meta.getRequiredFields(this.getTransMeta()),resolveFileName(this.meta.getDataFile().getValue()));
+  }
+ catch (  Exception ex) {
+    throw new KettleException("Error defining data file!",ex);
+  }
+  builder.show();
+  builder.beginLoading(this.meta.getTargetTable().getValue());
+  builder.insert(this.meta.getRequiredFields(this.getTransMeta()),this.meta.getTargetTable().getValue());
+  builder.endLoading();
+  builder.logoff();
+  final String control=builder.toString();
+  try {
+    IOUtils.write(control,this.fastload);
+    this.fastload.flush();
+  }
+ catch (  IOException e) {
+    throw new KettleException("Error while execution control command [controlCommand=" + control + "]",e);
+  }
+ finally {
+    IOUtils.closeQuietly(this.fastload);
+  }
+}

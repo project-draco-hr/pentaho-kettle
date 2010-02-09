@@ -1,0 +1,30 @@
+{
+  try {
+    int tableCol=0;
+    for (    Integer index : this.columnSortOrder) {
+      int length=0;
+      if (this.tableRowMeta.getValueMeta(tableCol).getType() == ValueMetaInterface.TYPE_DATE) {
+        length=FastloadControlBuilder.DEFAULT_DATE_FORMAT.length();
+      }
+ else {
+        length=this.tableRowMeta.getValueMeta(tableCol).getLength();
+      }
+      byte[] rowData=new byte[length];
+      System.arraycopy(row[index],0,rowData,0,length);
+      if (((byte[])row[index]).length < rowData.length) {
+        Arrays.fill(rowData,((byte[])row[index]).length,rowData.length,(byte)' ');
+      }
+      String nullString=new String(rowData).trim();
+      if (FastloadControlBuilder.DEFAULT_NULL_VALUE.equals(nullString)) {
+        rowData=String.format("%1$#" + rowData.length + "s",FastloadControlBuilder.DEFAULT_NULL_VALUE).getBytes();
+      }
+      this.dataFile.write(rowData);
+      this.dataFile.write(FastloadControlBuilder.DATAFILE_COLUMN_SEPERATOR.getBytes());
+      tableCol++;
+    }
+    this.dataFile.write(SystemUtils.LINE_SEPARATOR.getBytes());
+  }
+ catch (  IOException e) {
+    throw new KettleException("Cannot write data file [path=" + this.dataFile + "]",e);
+  }
+}
