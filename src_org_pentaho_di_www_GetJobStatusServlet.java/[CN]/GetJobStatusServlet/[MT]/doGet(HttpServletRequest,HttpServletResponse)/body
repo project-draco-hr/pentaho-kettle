@@ -1,5 +1,7 @@
 {
-  if (!request.getContextPath().equals(CONTEXT_PATH))   return;
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"GetJobStatusServlet.Log.JobStatusRequested"));
   String jobName=request.getParameter("name");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
@@ -13,7 +15,7 @@
     response.setContentType("text/html");
   }
   PrintWriter out=response.getWriter();
-  Job job=jobMap.getJob(jobName);
+  Job job=getJobMap().getJob(jobName);
   if (job != null) {
     String status=job.getStatus();
     int lastLineNr=CentralLogStore.getLastBufferLineNr();
@@ -44,7 +46,7 @@
       out.println("<HTML>");
       out.println("<HEAD>");
       out.println("<TITLE>" + BaseMessages.getString(PKG,"GetJobStatusServlet.KettleJobStatus") + "</TITLE>");
-      out.println("<META http-equiv=\"Refresh\" content=\"10;url=/kettle/jobStatus?name=" + URLEncoder.encode(jobName,"UTF-8") + "\">");
+      out.println("<META http-equiv=\"Refresh\" content=\"10;url=" + convertContextPath(GetJobStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "\">");
       out.println("</HEAD>");
       out.println("<BODY>");
       out.println("<H1>" + BaseMessages.getString(PKG,"GetJobStatusServlet.JobStatus") + "</H1>");
@@ -58,17 +60,17 @@
         out.print("</table>");
         out.print("<p>");
         if (job.isFinished()) {
-          out.print("<a href=\"/kettle/startJob?name=" + URLEncoder.encode(jobName,"UTF-8") + "\">"+ BaseMessages.getString(PKG,"GetJobStatusServlet.StartJob")+ "</a>");
+          out.print("<a href=\"" + convertContextPath(StartJobServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"GetJobStatusServlet.StartJob")+ "</a>");
           out.print("<p>");
         }
  else {
-          out.print("<a href=\"/kettle/stopJob?name=" + URLEncoder.encode(jobName,"UTF-8") + "\">"+ BaseMessages.getString(PKG,"GetJobStatusServlet.StopJob")+ "</a>");
+          out.print("<a href=\"" + convertContextPath(StopJobServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"GetJobStatusServlet.StopJob")+ "</a>");
           out.print("<p>");
         }
         out.println("<p>");
-        out.print("<a href=\"/kettle/jobStatus/?name=" + URLEncoder.encode(jobName,"UTF-8") + "&xml=y\">"+ BaseMessages.getString(PKG,"TransStatusServlet.ShowAsXml")+ "</a><br>");
-        out.print("<a href=\"/kettle/status\">" + BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage") + "</a><br>");
-        out.print("<p><a href=\"/kettle/jobStatus?name=" + URLEncoder.encode(jobName,"UTF-8") + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.Refresh")+ "</a>");
+        out.print("<a href=\"" + convertContextPath(GetJobStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "&xml=y\">"+ BaseMessages.getString(PKG,"TransStatusServlet.ShowAsXml")+ "</a><br>");
+        out.print("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><br>");
+        out.print("<p><a href=\"" + convertContextPath(GetJobStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.Refresh")+ "</a>");
         out.println("<p>");
         out.println("<textarea id=\"joblog\" cols=\"120\" rows=\"20\" wrap=\"off\" name=\"Job log\" readonly=\"readonly\">" + logText + "</textarea>");
         out.println("<script type=\"text/javascript\"> ");
@@ -93,7 +95,7 @@
     }
  else {
       out.println("<H1>Job '" + jobName + "' could not be found.</H1>");
-      out.println("<a href=\"/kettle/status\">" + BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage") + "</a><p>");
+      out.println("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
     }
   }
 }

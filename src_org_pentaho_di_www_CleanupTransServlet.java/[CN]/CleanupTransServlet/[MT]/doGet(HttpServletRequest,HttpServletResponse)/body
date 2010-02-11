@@ -1,5 +1,7 @@
 {
-  if (!request.getContextPath().equals(CONTEXT_PATH))   return;
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"TransStatusServlet.Log.TransCleanupRequested"));
   String transName=request.getParameter("name");
   String sockets=request.getParameter("sockets");
@@ -16,18 +18,18 @@
     out.println("<HTML>");
     out.println("<HEAD>");
     out.println("<TITLE>Transformation cleanup</TITLE>");
-    out.println("<META http-equiv=\"Refresh\" content=\"2;url=/kettle/transStatus?name=" + URLEncoder.encode(transName,"UTF-8") + "\">");
+    out.println("<META http-equiv=\"Refresh\" content=\"2;url=" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "\">");
     out.println("</HEAD>");
     out.println("<BODY>");
   }
   try {
     String message;
     if ("Y".equalsIgnoreCase(sockets)) {
-      transformationMap.deallocateServerSocketPorts(transName);
+      getTransformationMap().deallocateServerSocketPorts(transName);
       message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransServerSocketPortsReleased",transName);
     }
  else {
-      Trans trans=transformationMap.getTransformation(transName);
+      Trans trans=getTransformationMap().getTransformation(transName);
       if (trans != null) {
         trans.cleanup();
         message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransCleanednup",transName);
@@ -39,7 +41,7 @@
         }
  else {
           out.println("<H1>" + message + "</H1>");
-          out.println("<a href=\"/kettle/status\">" + BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage") + "</a><p>");
+          out.println("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
         }
       }
     }
@@ -48,7 +50,7 @@
     }
  else {
       out.println("<H1>" + message + "</H1>");
-      out.println("<a href=\"/kettle/transStatus?name=" + URLEncoder.encode(transName,"UTF-8") + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
+      out.println("<a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
     }
   }
  catch (  Exception ex) {

@@ -1,5 +1,7 @@
 {
-  if (!request.getContextPath().equals(CONTEXT_PATH))   return;
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"StartJobServlet.Log.StartJobRequested"));
   String jobName=request.getParameter("name");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
@@ -15,22 +17,22 @@
     out.println("<HTML>");
     out.println("<HEAD>");
     out.println("<TITLE>Start job</TITLE>");
-    out.println("<META http-equiv=\"Refresh\" content=\"2;url=/kettle/jobStatus?name=" + URLEncoder.encode(jobName,"UTF-8") + "\">");
+    out.println("<META http-equiv=\"Refresh\" content=\"2;url=" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "\">");
     out.println("</HEAD>");
     out.println("<BODY>");
   }
   try {
-    Job job=jobMap.getJob(jobName);
+    Job job=getJobMap().getJob(jobName);
     if (job != null) {
       if (job.isInitialized() && !job.isActive()) {
         if (job.getRep() != null && !job.getRep().isConnected()) {
           job.getRep().connect();
         }
-synchronized (jobMap) {
-          JobConfiguration jobConfiguration=jobMap.getConfiguration(jobName);
+synchronized (getJobMap()) {
+          JobConfiguration jobConfiguration=getJobMap().getConfiguration(jobName);
           Job newJob=new Job(job.getRep(),job.getJobMeta());
-          jobMap.removeJob(jobName);
-          jobMap.addJob(jobName,newJob,jobConfiguration);
+          getJobMap().removeJob(jobName);
+          getJobMap().addJob(jobName,newJob,jobConfiguration);
           job=newJob;
         }
       }
@@ -41,7 +43,7 @@ synchronized (jobMap) {
       }
  else {
         out.println("<H1>" + message + "</H1>");
-        out.println("<a href=\"/kettle/jobStatus?name=" + URLEncoder.encode(jobName,"UTF-8") + "\">"+ BaseMessages.getString(PKG,"JobStatusServlet.BackToJobStatusPage")+ "</a><p>");
+        out.println("<a href=\"" + convertContextPath(GetJobStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"JobStatusServlet.BackToJobStatusPage")+ "</a><p>");
       }
     }
  else {
@@ -51,7 +53,7 @@ synchronized (jobMap) {
       }
  else {
         out.println("<H1>" + message + "</H1>");
-        out.println("<a href=\"/kettle/status\">" + BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage") + "</a><p>");
+        out.println("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
       }
     }
   }

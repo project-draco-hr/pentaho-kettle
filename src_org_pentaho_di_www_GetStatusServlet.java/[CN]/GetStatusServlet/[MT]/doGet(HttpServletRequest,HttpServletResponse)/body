@@ -1,5 +1,7 @@
 {
-  if (!request.getContextPath().equals(CONTEXT_PATH))   return;
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"GetStatusServlet.StatusRequested"));
   response.setStatus(HttpServletResponse.SC_OK);
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
@@ -11,15 +13,15 @@
     response.setContentType("text/html");
   }
   PrintStream out=new PrintStream(response.getOutputStream());
-  String[] transNames=transformationMap.getTransformationNames();
-  String[] jobNames=jobMap.getJobNames();
+  String[] transNames=getTransformationMap().getTransformationNames();
+  String[] jobNames=getJobMap().getJobNames();
   if (useXML) {
     out.print(XMLHandler.getXMLHeader(Const.XML_ENCODING));
     SlaveServerStatus serverStatus=new SlaveServerStatus();
     serverStatus.setStatusDescription("Online");
     for (int i=0; i < transNames.length; i++) {
       String name=transNames[i];
-      Trans trans=transformationMap.getTransformation(name);
+      Trans trans=getTransformationMap().getTransformation(name);
       String status=trans.getStatus();
       SlaveServerTransStatus sstatus=new SlaveServerTransStatus(name,status);
       sstatus.setPaused(trans.isPaused());
@@ -27,7 +29,7 @@
     }
     for (int i=0; i < jobNames.length; i++) {
       String name=jobNames[i];
-      Job job=jobMap.getJob(name);
+      Job job=getJobMap().getJob(name);
       String status=job.getStatus();
       serverStatus.getJobStatusList().add(new SlaveServerJobStatus(name,status));
     }
@@ -48,10 +50,10 @@
       out.print("<tr> <th>" + BaseMessages.getString(PKG,"GetStatusServlet.TransName") + "</th> <th>"+ BaseMessages.getString(PKG,"GetStatusServlet.Status")+ "</th> </tr>");
       for (int i=0; i < transNames.length; i++) {
         String name=transNames[i];
-        Trans trans=transformationMap.getTransformation(name);
+        Trans trans=getTransformationMap().getTransformation(name);
         String status=trans.getStatus();
         out.print("<tr>");
-        out.print("<td><a href=\"/kettle/transStatus?name=" + URLEncoder.encode(name,"UTF-8") + "\">"+ name+ "</a></td>");
+        out.print("<td><a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(name,"UTF-8")+ "\">"+ name+ "</a></td>");
         out.print("<td>" + status + "</td>");
         out.print("</tr>");
       }
@@ -60,10 +62,10 @@
       out.print("<tr> <th>" + BaseMessages.getString(PKG,"GetStatusServlet.JobName") + "</th> <th>"+ BaseMessages.getString(PKG,"GetStatusServlet.Status")+ "</th> </tr>");
       for (int i=0; i < jobNames.length; i++) {
         String name=jobNames[i];
-        Job job=jobMap.getJob(name);
+        Job job=getJobMap().getJob(name);
         String status=job.getStatus();
         out.print("<tr>");
-        out.print("<td><a href=\"/kettle/jobStatus?name=" + URLEncoder.encode(name,"UTF-8") + "\">"+ name+ "</a></td>");
+        out.print("<td><a href=\"" + convertContextPath(GetJobStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(name,"UTF-8")+ "\">"+ name+ "</a></td>");
         out.print("<td>" + status + "</td>");
         out.print("</tr>");
       }

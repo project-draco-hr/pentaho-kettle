@@ -1,5 +1,5 @@
 {
-  if (!request.getRequestURI().equals(CONTEXT_PATH + "/"))   return;
+  if (isJettyMode() && !request.getRequestURI().startsWith(CONTEXT_PATH))   return;
   if (log.isDebug())   logDebug("Addition of transformation requested");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
   PrintWriter out=response.getWriter();
@@ -36,14 +36,14 @@
       transMeta.setParameterValue(param,value);
     }
     final Repository repository=transConfiguration.getTransExecutionConfiguration().getRepository();
-    Trans oldTrans=transformationMap.getTransformation(transMeta.getName());
+    Trans oldTrans=getTransformationMap().getTransformation(transMeta.getName());
     if (oldTrans != null) {
       CentralLogStore.discardLines(oldTrans.getLogChannelId(),true);
     }
     final Trans trans=new Trans(transMeta);
     trans.setRepository(repository);
-    trans.setSocketRepository(socketRepository);
-    Trans oldOne=transformationMap.getTransformation(trans.getName());
+    trans.setSocketRepository(getSocketRepository());
+    Trans oldOne=getTransformationMap().getTransformation(trans.getName());
     if (oldOne != null) {
       if (!oldOne.isStopped() && !oldOne.isFinished()) {
         if (oldOne.isRunning() || oldOne.isPreparing() || oldOne.isInitializing()) {
@@ -51,7 +51,7 @@
         }
       }
     }
-    transformationMap.addTransformation(transMeta.getName(),trans,transConfiguration);
+    getTransformationMap().addTransformation(transMeta.getName(),trans,transConfiguration);
     if (repository != null) {
       trans.addTransListener(new TransListener(){
         public void transFinished(        Trans trans){
@@ -72,7 +72,7 @@
     }
  else {
       out.println("<H1>" + message + "</H1>");
-      out.println("<p><a href=\"/kettle/transStatus?name=" + trans.getName() + "\">Go to the transformation status page</a><p>");
+      out.println("<p><a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "?name="+ trans.getName()+ "\">Go to the transformation status page</a><p>");
     }
   }
  catch (  Exception ex) {

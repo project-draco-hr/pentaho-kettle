@@ -1,5 +1,7 @@
 {
-  if (!request.getRequestURI().equals(CONTEXT_PATH + "/"))   return;
+  if (isJettyMode() && !request.getRequestURI().startsWith(CONTEXT_PATH)) {
+    return;
+  }
   if (log.isDebug())   logDebug("Addition of job requested");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
   PrintWriter out=response.getWriter();
@@ -34,13 +36,13 @@
       jobMeta.setParameterValue(param,value);
     }
     final Repository repository=jobConfiguration.getJobExecutionConfiguration().getRepository();
-    Job oldJob=jobMap.getJob(jobMeta.getName());
+    Job oldJob=getJobMap().getJob(jobMeta.getName());
     if (oldJob != null) {
       CentralLogStore.discardLines(oldJob.getLogChannelId(),true);
     }
     final Job job=new Job(repository,jobMeta);
-    job.setSocketRepository(socketRepository);
-    Job oldOne=jobMap.getJob(job.getJobname());
+    job.setSocketRepository(getSocketRepository());
+    Job oldOne=getJobMap().getJob(job.getJobname());
     if (oldOne != null) {
       if (oldOne.isActive() || (oldOne.isInitialized() && !oldOne.isFinished())) {
         throw new Exception("A job with the same name exists and is not idle." + Const.CR + "Please stop this job first.");
@@ -49,7 +51,7 @@
     job.initializeVariablesFrom(null);
     job.getJobMeta().setInternalKettleVariables(job);
     job.injectVariables(jobConfiguration.getJobExecutionConfiguration().getVariables());
-    jobMap.addJob(jobMeta.getName(),job,jobConfiguration);
+    getJobMap().addJob(jobMeta.getName(),job,jobConfiguration);
     if (repository != null) {
       job.addJobListener(new JobListener(){
         public void jobFinished(        Job job){
@@ -70,7 +72,7 @@
     }
  else {
       out.println("<H1>" + message + "</H1>");
-      out.println("<p><a href=\"/kettle/jobStatus?name=" + job.getJobname() + "\">Go to the job status page</a><p>");
+      out.println("<p><a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "?name="+ job.getJobname()+ "\">Go to the job status page</a><p>");
     }
   }
  catch (  Exception ex) {
