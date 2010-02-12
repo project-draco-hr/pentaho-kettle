@@ -1,0 +1,45 @@
+{
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.parameterIndexes=new ArrayList<Integer>();
+    for (    SapParameter parameter : meta.getParameters()) {
+      int index=getInputRowMeta().indexOfValue(parameter.getFieldName());
+      if (index < 0) {
+        throw new KettleException("Unable to find field '" + parameter.getFieldName() + "'");
+      }
+      data.parameterIndexes.add(index);
+    }
+    data.output=new ArrayList<SAPField>();
+    for (    SapOutputField outputField : meta.getOutputFields()) {
+      SAPField field=new SAPField(outputField.getSapFieldName(),outputField.getTableName(),"output_" + outputField.getSapType().getDescription());
+      data.output.add(field);
+    }
+  }
+  ArrayList<SAPField> input=new ArrayList<SAPField>();
+  for (int i=0; i < meta.getParameters().size(); i++) {
+    SapParameter parameter=meta.getParameters().get(i);
+    int fieldIndex=data.parameterIndexes.get(i);
+    ValueMetaInterface valueMeta=getInputRowMeta().getValueMeta(fieldIndex);
+    Object value=valueMeta.convertToNormalStorageType(r[fieldIndex]);
+    SAPField field=new SAPField(parameter.getParameterName(),parameter.getTableName(),"input_" + parameter.getSapType().getDescription(),value);
+    input.add(field);
+  }
+  SAPResultSet resultSet=data.sapConnection.executeFunction(meta.getFunction(),input,data.output);
+  for (  SAPRow sapRow : resultSet.getRows()) {
+    Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    int outputIndex=0;
+    for (    SAPField field : sapRow.getFields()) {
+      outputRowData[outputIndex++]=field.getValue();
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (getTrans().isStopped())     break;
+  }
+  return true;
+}

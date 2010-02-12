@@ -1,0 +1,40 @@
+{
+  try {
+    databaseMeta=DatabaseMeta.findDatabase(databases,XMLHandler.getTagValue(stepnode,"connection"));
+    String functionName=XMLHandler.getTagValue(stepnode,XML_TAG_FUNCTION,"name");
+    String functionDescription=XMLHandler.getTagValue(stepnode,XML_TAG_FUNCTION,"description");
+    String functionGroup=XMLHandler.getTagValue(stepnode,XML_TAG_FUNCTION,"group");
+    String functionApplication=XMLHandler.getTagValue(stepnode,XML_TAG_FUNCTION,"application");
+    String functionHost=XMLHandler.getTagValue(stepnode,XML_TAG_FUNCTION,"host");
+    if (!Const.isEmpty(functionName)) {
+      function=new SAPFunction(functionName,functionDescription,functionGroup,functionApplication,functionHost);
+    }
+ else {
+      function=null;
+    }
+    Node paramsNode=XMLHandler.getSubNode(stepnode,XML_TAG_PARAMETERS);
+    int nrParameters=XMLHandler.countNodes(paramsNode,XML_TAG_PARAMETER);
+    for (int i=0; i < nrParameters; i++) {
+      Node paramNode=XMLHandler.getSubNodeByNr(paramsNode,XML_TAG_PARAMETER,i);
+      String fieldName=XMLHandler.getTagValue(paramNode,"field_name");
+      SapType sapType=SapType.findTypeForCode(XMLHandler.getTagValue(paramNode,"sap_type"));
+      String tableName=XMLHandler.getTagValue(paramNode,"table_name");
+      String parameterName=XMLHandler.getTagValue(paramNode,"parameter_name");
+      parameters.add(new SapParameter(fieldName,sapType,tableName,parameterName));
+    }
+    Node fieldsNode=XMLHandler.getSubNode(stepnode,XML_TAG_FIELDS);
+    int nrFields=XMLHandler.countNodes(fieldsNode,XML_TAG_FIELD);
+    for (int i=0; i < nrFields; i++) {
+      Node fieldNode=XMLHandler.getSubNodeByNr(fieldsNode,XML_TAG_FIELD,i);
+      String sapFieldName=XMLHandler.getTagValue(fieldNode,"field_name");
+      SapType sapType=SapType.findTypeForCode(XMLHandler.getTagValue(fieldNode,"sap_type"));
+      String tableName=XMLHandler.getTagValue(fieldNode,"table_name");
+      int targetType=ValueMeta.getType(XMLHandler.getTagValue(fieldNode,"target_type"));
+      String newName=XMLHandler.getTagValue(fieldNode,"new_name");
+      outputFields.add(new SapOutputField(sapFieldName,sapType,tableName,newName,targetType));
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleXMLException("Unable to load step info from XML",e);
+  }
+}
