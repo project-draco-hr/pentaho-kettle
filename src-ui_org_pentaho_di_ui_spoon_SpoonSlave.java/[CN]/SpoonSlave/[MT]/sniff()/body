@@ -1,0 +1,42 @@
+{
+  TreeItem ti[]=wTree.getSelection();
+  if (ti.length == 1) {
+    TreeItem treeItem=ti[0];
+    String[] path=ConstUI.getTreeStrings(treeItem);
+    if (path.length <= 2) {
+      return;
+    }
+    String name=path[1];
+    String step=path[2];
+    String copy=treeItem.getText(1);
+    EnterNumberDialog numberDialog=new EnterNumberDialog(shell,PropsUI.getInstance().getDefaultPreviewSize(),BaseMessages.getString(PKG,"SpoonSlave.SniffSizeQuestion.Title"),BaseMessages.getString(PKG,"SpoonSlave.SniffSizeQuestion.Message"));
+    int lines=numberDialog.open();
+    if (lines <= 0) {
+      return;
+    }
+    EnterSelectionDialog selectionDialog=new EnterSelectionDialog(shell,new String[]{SniffStepServlet.TYPE_INPUT,SniffStepServlet.TYPE_OUTPUT},BaseMessages.getString(PKG,"SpoonSlave.SniffTypeQuestion.Title"),BaseMessages.getString(PKG,"SpoonSlave.SniffTypeQuestion.Message"));
+    String type=selectionDialog.open(1);
+    if (type == null) {
+      return;
+    }
+    try {
+      String xml=slaveServer.sniffStep(name,step,copy,lines,type);
+      Document doc=XMLHandler.loadXMLString(xml);
+      Node node=XMLHandler.getSubNode(doc,SniffStepServlet.XML_TAG);
+      Node metaNode=XMLHandler.getSubNode(node,RowMeta.XML_META_TAG);
+      RowMetaInterface rowMeta=new RowMeta(metaNode);
+      int nrRows=Const.toInt(XMLHandler.getTagValue(node,"nr_rows"),0);
+      List<Object[]> rowBuffer=new ArrayList<Object[]>();
+      for (int i=0; i < nrRows; i++) {
+        Node dataNode=XMLHandler.getSubNodeByNr(node,RowMeta.XML_DATA_TAG,i);
+        Object[] row=rowMeta.getRow(dataNode);
+        rowBuffer.add(row);
+      }
+      PreviewRowsDialog prd=new PreviewRowsDialog(shell,new Variables(),SWT.NONE,step,rowMeta,rowBuffer);
+      prd.open();
+    }
+ catch (    Exception e) {
+      new ErrorDialog(shell,BaseMessages.getString(PKG,"SpoonSlave.ErrorSniffingStep.Title"),BaseMessages.getString(PKG,"SpoonSlave.ErrorSniffingStep.Message"),e);
+    }
+  }
+}
