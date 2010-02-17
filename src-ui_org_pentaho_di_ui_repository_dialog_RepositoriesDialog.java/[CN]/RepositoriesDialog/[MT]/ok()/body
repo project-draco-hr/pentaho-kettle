@@ -2,41 +2,18 @@
   if (wRepository.getItemCount() != 0) {
     int idx=wRepository.getSelectionIndex();
     if (idx >= 0) {
-      repinfo=input.getRepository(idx);
-      Repository rep=null;
+      RepositoryMeta repinfo=input.getRepository(idx);
       try {
-        rep=RepositoryLoader.getInstance().createRepositoryObject(repinfo.getId());
-        userinfo=new UserInfo(wUsername.getText());
-        userinfo.setPassword(wPassword.getText());
-        if (!repinfo.getRepositoryCapabilities().managesUsers()) {
-          ProfileMeta adminProfile=new ProfileMeta("Administrator","Administrator");
-          adminProfile.addPermission(Permission.ADMIN);
-          userinfo.setProfile(adminProfile);
-        }
-        rep.init(repinfo,userinfo);
-        rep.connect();
+        repository=RepositoryLoader.getInstance().createRepositoryObject(repinfo.getId());
+        repository.init(repinfo);
+        repository.connect(wUsername.getText(),wPassword.getText());
       }
  catch (      KettleException ke) {
         new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.RepositoryUnableToConnect.Title"),BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.RepositoryUnableToConnect.Message1") + Const.CR + ke.getSuperMessage(),ke);
         return;
       }
-      try {
-        if (repinfo.getRepositoryCapabilities().managesUsers()) {
-          userinfo=rep.getSecurityProvider().loadUserInfo(wUsername.getText(),wPassword.getText());
-        }
-        props.setLastRepository(repinfo.getName());
-        props.setLastRepositoryLogin(wUsername.getText());
-      }
- catch (      KettleException e) {
-        userinfo=null;
-        repinfo=null;
-        if (!(e instanceof KettleDatabaseException)) {
-          new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.UnexpectedError.Title"),BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.UnexpectedError.Message"),e);
-        }
-      }
- finally {
-        rep.disconnect();
-      }
+      props.setLastRepository(repinfo.getName());
+      props.setLastRepositoryLogin(wUsername.getText());
     }
  else {
       MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
@@ -52,18 +29,13 @@
  catch (  Exception e) {
     new ErrorDialog(shell,"Error","Unexpected error writing repository definitions to file",e);
   }
-  RepositoryCapabilities capabilities=repinfo == null ? null : repinfo.getRepositoryCapabilities();
+  RepositoryCapabilities capabilities=repository == null ? null : repository.getRepositoryMeta().getRepositoryCapabilities();
   if (capabilities != null && !capabilities.supportsUsers()) {
     dispose();
     return;
   }
-  if (userinfo == null) {
-    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage(BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.IncorrectUserPassword.Message"));
-    mb.setText(BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.IncorrectUserPassword.Title"));
-    mb.open();
-  }
- else   if (userinfo.getProfile() != null) {
+  UserInfo userinfo=repository.getUserInfo();
+  if (userinfo.getProfile() != null) {
     boolean ok=true;
     String mess="";
     for (int i=0; i < toolsPermissions.length; i++) {
@@ -94,17 +66,8 @@ MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
 mb.setMessage(BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.NoPermissions.Message") + mess);
 mb.setText(BaseMessages.getString(PKG,"RepositoriesDialog.Dialog.NoPermissions.Title"));
 mb.open();
-userinfo=null;
-repinfo=null;
+return;
 }
- else {
+}
 dispose();
-}
-}
- else {
-ProfileMeta adminProfile=new ProfileMeta("Administrator","Administrator");
-adminProfile.addPermission(Permission.ADMIN);
-userinfo.setProfile(adminProfile);
-dispose();
-}
 }
