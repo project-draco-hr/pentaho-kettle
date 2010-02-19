@@ -150,7 +150,7 @@
   bf.createBinding(manageAclsModel,"roleUnassignmentPossible",unassignRoleButton,"!disabled");
   bf.createBinding(manageAclsModel,"roleAssignmentPossible",assignRoleButton,"!disabled");
   bf.setBindingType(Binding.Type.ONE_WAY);
-  securityBinding=bf.createBinding(getBrowseController(),"repositoryObjects",userRoleList,"elements",new BindingConvertor<List<UIRepositoryObject>,List<UIRepositoryObjectAcl>>(){
+  BindingConvertor securityBindingConverter=new BindingConvertor<List<UIRepositoryObject>,List<UIRepositoryObjectAcl>>(){
     @Override public List<UIRepositoryObjectAcl> sourceToTarget(    List<UIRepositoryObject> ro){
       if (ro == null) {
         return null;
@@ -161,47 +161,24 @@
       setSelectedRepositoryObject(ro);
       viewAclsModel.setRemoveEnabled(false);
       uncheckAllPermissionBox();
-      if (ro.get(0) instanceof UIRepositoryDirectory) {
-        UIRepositoryDirectory rd=(UIRepositoryDirectory)ro.get(0);
-        try {
-          rd.readAcls(viewAclsModel);
-          fileFolderLabel.setValue(rd.getName());
-          bf.setBindingType(Binding.Type.ONE_WAY);
-          bf.createBinding(viewAclsModel,"acls",userRoleList,"elements");
-        }
- catch (        AccessDeniedException ade) {
-          messageBox.setTitle(messages.getString("Dialog.Error"));
-          messageBox.setAcceptLabel(messages.getString("Dialog.Ok"));
-          messageBox.setMessage(BaseMessages.getString(RepositoryExplorer.class,"PermissionsController.UnableToGetAcls",rd.getName(),ade.getLocalizedMessage()));
-          messageBox.open();
-        }
-catch (        Exception e) {
-          messageBox.setTitle(messages.getString("Dialog.Error"));
-          messageBox.setAcceptLabel(messages.getString("Dialog.Ok"));
-          messageBox.setMessage(BaseMessages.getString(RepositoryExplorer.class,"PermissionsController.UnableToGetAcls",rd.getName(),e.getLocalizedMessage()));
-          messageBox.open();
-        }
+      UIRepositoryObject repoObject=(UIRepositoryObject)ro.get(0);
+      try {
+        repoObject.readAcls(viewAclsModel);
+        fileFolderLabel.setValue(repoObject.getName());
+        bf.setBindingType(Binding.Type.ONE_WAY);
+        bf.createBinding(viewAclsModel,"acls",userRoleList,"elements");
       }
- else       if (ro.get(0) instanceof UIRepositoryContent) {
-        UIRepositoryContent rc=(UIRepositoryContent)ro.get(0);
-        try {
-          fileFolderLabel.setValue(rc.getName());
-          rc.readAcls(viewAclsModel);
-          bf.setBindingType(Binding.Type.ONE_WAY);
-          bf.createBinding(viewAclsModel,"acls",userRoleList,"elements");
-        }
- catch (        AccessDeniedException ade) {
-          messageBox.setTitle("Error");
-          messageBox.setAcceptLabel("Ok");
-          messageBox.setMessage(BaseMessages.getString(RepositoryExplorer.class,"PermissionsController.UnableToGetAcls",rc.getName(),ade.getLocalizedMessage()));
-          messageBox.open();
-        }
-catch (        Exception e) {
-          messageBox.setTitle("Error");
-          messageBox.setAcceptLabel("Ok");
-          messageBox.setMessage(BaseMessages.getString(RepositoryExplorer.class,"PermissionsController.UnableToGetAcls",rc.getName(),e.getLocalizedMessage()));
-          messageBox.open();
-        }
+ catch (      AccessDeniedException ade) {
+        messageBox.setTitle(messages.getString("Dialog.Error"));
+        messageBox.setAcceptLabel(messages.getString("Dialog.Ok"));
+        messageBox.setMessage(BaseMessages.getString(RepositoryExplorer.class,"PermissionsController.UnableToGetAcls",repoObject.getName(),ade.getLocalizedMessage()));
+        messageBox.open();
+      }
+catch (      Exception e) {
+        messageBox.setTitle(messages.getString("Dialog.Error"));
+        messageBox.setAcceptLabel(messages.getString("Dialog.Ok"));
+        messageBox.setMessage(BaseMessages.getString(RepositoryExplorer.class,"PermissionsController.UnableToGetAcls",repoObject.getName(),e.getLocalizedMessage()));
+        messageBox.open();
       }
       aclDeck.setSelectedIndex(ACL);
       return viewAclsModel.getAcls();
@@ -210,7 +187,9 @@ catch (        Exception e) {
       return null;
     }
   }
-);
+;
+  securityBinding=bf.createBinding(getBrowseController(),"repositoryObjects",userRoleList,"elements",securityBindingConverter);
+  securityBinding=bf.createBinding(getBrowseController(),"repositoryDirectories",userRoleList,"elements",securityBindingConverter);
   bf.setBindingType(Binding.Type.BI_DIRECTIONAL);
   bf.createBinding(viewAclsModel,"entriesInheriting",inheritParentPermissionCheckbox,"checked");
   bf.createBinding(userRoleList,"selectedIndices",viewAclsModel,"selectedAclList",indicesToObjectsConverter);
@@ -224,7 +203,6 @@ catch (        Exception e) {
   bf.createBinding(viewAclsModel,"removeEnabled",modifyCheckbox,"!disabled");
   bf.setBindingType(Binding.Type.ONE_WAY);
   bf.createBinding(userRoleList,"selectedItem",this,"recipientChanged");
-  bf.createBinding(getBrowseController(),"repositoryDirectories",this,"switchAclDeck");
   aclDeck.setSelectedIndex(NO_ACL);
   try {
     if (securityBinding != null) {
