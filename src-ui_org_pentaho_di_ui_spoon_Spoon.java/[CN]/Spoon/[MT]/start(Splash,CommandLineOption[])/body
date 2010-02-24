@@ -1,50 +1,45 @@
 {
-  boolean stop=!selectRep(splash,options);
-  if (stop) {
+  handleStartOptions(options);
+  open();
+  selectRep(splash,options);
+  enableMenus();
+  if (props.showTips()) {
+    TipsDialog tip=new TipsDialog(shell);
+    tip.open();
+  }
+  if (splash != null) {
     splash.dispose();
-    stop=quitFile();
   }
-  if (!stop) {
-    handleStartOptions(options);
-    open();
-    if (props.showTips()) {
-      TipsDialog tip=new TipsDialog(shell);
-      tip.open();
+  if (Const.VERSION.contains("M") || Const.VERSION.contains("RC")) {
+    MessageBox dialog=new MessageBox(shell,SWT.ICON_WARNING);
+    dialog.setText(BaseMessages.getString(PKG,"Spoon.Warning.DevelopmentRelease.Title"));
+    dialog.setMessage(BaseMessages.getString(PKG,"Spoon.Warning.DevelopmentRelease.Message",Const.CR,Const.VERSION));
+    dialog.open();
+  }
+  boolean retryAfterError=false;
+  do {
+    retryAfterError=false;
+    try {
+      while (!isDisposed()) {
+        if (!readAndDispatch())         sleep();
+      }
     }
-    if (splash != null) {
-      splash.dispose();
-    }
-    if (Const.VERSION.contains("M") || Const.VERSION.contains("RC")) {
-      MessageBox dialog=new MessageBox(shell,SWT.ICON_WARNING);
-      dialog.setText(BaseMessages.getString(PKG,"Spoon.Warning.DevelopmentRelease.Title"));
-      dialog.setMessage(BaseMessages.getString(PKG,"Spoon.Warning.DevelopmentRelease.Message",Const.CR,Const.VERSION));
-      dialog.open();
-    }
-    boolean retryAfterError=false;
-    do {
-      retryAfterError=false;
+ catch (    Throwable e) {
+      log.logError(BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorOccurred") + Const.CR + e.getMessage());
+      log.logError(Const.getStackTracker(e));
       try {
-        while (!isDisposed()) {
-          if (!readAndDispatch())           sleep();
-        }
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorOccurred"),BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorOccurred") + Const.CR + e.getMessage(),e);
+        MessageBox mb=new MessageBox(shell,SWT.ICON_QUESTION | SWT.NO | SWT.YES);
+        mb.setText(BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorRetry.Titel"));
+        mb.setMessage(BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorRetry.Message"));
+        if (mb.open() == SWT.YES)         retryAfterError=true;
       }
- catch (      Throwable e) {
-        log.logError(BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorOccurred") + Const.CR + e.getMessage());
-        log.logError(Const.getStackTracker(e));
-        try {
-          new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorOccurred"),BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorOccurred") + Const.CR + e.getMessage(),e);
-          MessageBox mb=new MessageBox(shell,SWT.ICON_QUESTION | SWT.NO | SWT.YES);
-          mb.setText(BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorRetry.Titel"));
-          mb.setMessage(BaseMessages.getString(PKG,"Spoon.Log.UnexpectedErrorRetry.Message"));
-          if (mb.open() == SWT.YES)           retryAfterError=true;
-        }
- catch (        Throwable e1) {
-        }
+ catch (      Throwable e1) {
       }
     }
- while (retryAfterError);
-    dispose();
-    if (log.isBasic())     log.logBasic(APP_NAME + " " + BaseMessages.getString(PKG,"Spoon.Log.AppHasEnded"));
-    LogWriter.getInstance().close();
   }
+ while (retryAfterError);
+  dispose();
+  if (log.isBasic())   log.logBasic(APP_NAME + " " + BaseMessages.getString(PKG,"Spoon.Log.AppHasEnded"));
+  LogWriter.getInstance().close();
 }

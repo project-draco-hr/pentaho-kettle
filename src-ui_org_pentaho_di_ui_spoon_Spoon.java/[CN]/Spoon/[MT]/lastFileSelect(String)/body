@@ -2,28 +2,29 @@
   int idx=Integer.parseInt(id);
   List<LastUsedFile> lastUsedFiles=props.getLastUsedFiles();
   final LastUsedFile lastUsedFile=(LastUsedFile)lastUsedFiles.get(idx);
-  boolean cancelled=false;
   if (lastUsedFile.isSourceRepository() && (rep == null || !rep.getName().equalsIgnoreCase(lastUsedFile.getRepositoryName()))) {
-    RepositoriesDialog rd=new RepositoriesDialog(display,BaseMessages.getString(PKG,"Spoon.Application.Name"));
-    rd.setRepositoryName(lastUsedFile.getRepositoryName());
-    if (rd.open()) {
-      if (rep != null) {
-        rep.disconnect();
+    loginDialog=new RepositoriesDialog(display,lastUsedFile.getRepositoryName(),new ILoginCallback(){
+      public void onSuccess(      Repository repository){
+        if (rep != null) {
+          rep.disconnect();
+        }
+        setRepository(repository);
+        try {
+          loadLastUsedFile(lastUsedFile,rep == null ? null : rep.getName());
+          addMenuLast();
+          refreshHistory();
+        }
+ catch (        KettleException ke) {
+          new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.LoadTransformationError.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.LoadTransformationError.Message"),ke);
+        }
       }
-      setRepository(rd.getConnectedRepository());
+      public void onError(      Throwable t){
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.LoginFailed.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.LoginFailed.Message"),t);
+      }
+      public void onCancel(){
+      }
     }
- else {
-      cancelled=true;
-    }
-  }
-  if (!cancelled) {
-    try {
-      loadLastUsedFile(lastUsedFile,rep == null ? null : rep.getName());
-      addMenuLast();
-      refreshHistory();
-    }
- catch (    KettleException ke) {
-      new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.LoadTransformationError.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.LoadTransformationError.Message"),ke);
-    }
+);
+    loginDialog.show();
   }
 }
