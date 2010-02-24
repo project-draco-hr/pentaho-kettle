@@ -1,7 +1,6 @@
 {
   meta=(FarragoStreamingLoaderMeta)smi;
   data=(FarragoStreamingLoaderData)sdi;
-  List<Object> header=new ArrayList<Object>();
   try {
     Object[] r=getRow();
     if (r == null) {
@@ -13,70 +12,25 @@
       }
       return false;
     }
-    if (rowCount > 50000) {
-      rowCount=0;
-      if (data.objOut != null) {
-        data.objOut.close();
-        if (data.client != null) {
-          data.client.close();
-        }
-      }
-      if (log.isDebug())       logDebug("Preparing sql statements: " + Const.CR + meta.getSql_statement());
-      String sql=meta.getSql_statement();
-      PreparedStatement ps=data.db.prepareSQL(sql);
-      if (log.isDebug())       logDebug("Executing sql statements...");
-      data.sqlRunner=new SqlRunner(data,ps);
-      data.sqlRunner.start();
-      if (log.isDebug())       logDebug("Remote rows is up now...");
-      if (log.isDebug())       logDebug("Sleeping for 1second");
-      Thread.sleep(1000);
-      if (log.isDebug())       logDebug("Initialize local socket connection...");
-      if (log.isDebug())       logDebug("Parameters for socket: Host: " + meta.getHost() + " Port: "+ meta.getPort());
-      data.client=new Socket(meta.getHost(),Integer.valueOf(meta.getPort()));
-      data.objOut=new ObjectOutputStream(data.client.getOutputStream());
-      if (log.isDebug())       logDebug("Local socket connection is ready");
-      data.objOut.writeObject(header);
-    }
     if (first) {
       first=false;
       data.keynrs=new int[meta.getFieldStreamForKeys().length + meta.getFieldStreamForFields().length];
-      data.format=new int[data.keynrs.length];
+      data.format=new String[data.keynrs.length];
       for (int i=0; i < meta.getFieldStreamForKeys().length; i++) {
         data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStreamForKeys()[i]);
-        data.format[i]=getInputRowMeta().getValueMeta(data.keynrs[i]).getLength();
+        data.format[i]=getInputRowMeta().getValueMeta(data.keynrs[i]).getTypeDesc().toUpperCase();
       }
       int tmp_cnt=meta.getFieldStreamForKeys().length;
       for (int i=0; i < meta.getFieldStreamForFields().length; i++) {
         data.keynrs[tmp_cnt + i]=getInputRowMeta().indexOfValue(meta.getFieldStreamForFields()[i]);
-        data.format[tmp_cnt + i]=getInputRowMeta().getValueMeta(data.keynrs[i]).getLength();
+        data.format[tmp_cnt + i]=getInputRowMeta().getValueMeta(data.keynrs[i]).getTypeDesc().toUpperCase();
       }
       if (isDetailed())       logDetailed(data.format.toString());
+      List<Object> header=new ArrayList<Object>();
       header.add("1");
-      List<Integer> format=new ArrayList<Integer>();
+      List<String> format=new ArrayList<String>();
       for (int i=0; i < data.format.length; i++) {
-        format.add((Integer)data.format[i]);
-      }
-      header.add(format);
-      data.objOut.writeObject(header);
-    }
-    if (first) {
-      first=false;
-      data.keynrs=new int[meta.getFieldStreamForKeys().length + meta.getFieldStreamForFields().length];
-      data.format=new int[data.keynrs.length];
-      for (int i=0; i < meta.getFieldStreamForKeys().length; i++) {
-        data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStreamForKeys()[i]);
-        data.format[i]=getInputRowMeta().getValueMeta(data.keynrs[i]).getLength();
-      }
-      int tmp_cnt=meta.getFieldStreamForKeys().length;
-      for (int i=0; i < meta.getFieldStreamForFields().length; i++) {
-        data.keynrs[tmp_cnt + i]=getInputRowMeta().indexOfValue(meta.getFieldStreamForFields()[i]);
-        data.format[tmp_cnt + i]=getInputRowMeta().getValueMeta(data.keynrs[i]).getLength();
-      }
-      if (log.isDebug())       logDebug(data.format.toString());
-      header.add("1");
-      List<Integer> format=new ArrayList<Integer>();
-      for (int i=0; i < data.format.length; i++) {
-        format.add((Integer)data.format[i]);
+        format.add(data.format[i]);
       }
       header.add(format);
       data.objOut.writeObject(header);
@@ -98,8 +52,9 @@ case ValueMetaInterface.TYPE_INTEGER:
 break;
 case ValueMetaInterface.TYPE_DATE:
 Date date=valueMeta.getDate(valueData);
-if (log.isRowLevel()) logRowlevel(date.toString());
-entity.add(date);
+if (log.isRowLevel()) logRowlevel(XMLHandler.date2string(date) + ":" + valueMeta.getLength());
+java.sql.Date sqlDate=new java.sql.Date(date.getTime());
+entity.add(sqlDate);
 break;
 case ValueMetaInterface.TYPE_BOOLEAN:
 if (log.isRowLevel()) logRowlevel(Boolean.toString(valueMeta.getBoolean(valueData)) + ":" + valueMeta.getLength());
@@ -109,9 +64,8 @@ break;
 }
 }
 data.objOut.writeObject(entity);
+data.objOut.reset();
 data.objOut.flush();
-entity=null;
-rowCount++;
 return true;
 }
  catch (Exception e) {
@@ -119,7 +73,6 @@ logError(BaseMessages.getString(PKG,"FarragoStreamingLoader.Log.ErrorInStep"),e)
 setErrors(1);
 stopAll();
 setOutputDone();
-rowCount=0;
 return false;
 }
 }

@@ -26,9 +26,29 @@ synchronized (getTrans()) {
       Thread.sleep(1000);
       if (log.isDebug())       logDebug("Initialize local socket connection...");
       if (log.isDebug())       logDebug("Parameters for socket: Host: " + meta.getHost() + " Port: "+ meta.getPort());
-      data.client=new Socket(meta.getHost(),Integer.valueOf(meta.getPort()));
-      data.objOut=new ObjectOutputStream(data.client.getOutputStream());
-      if (log.isDebug())       logDebug("Local socket connection is ready");
+      int try_cnt=0;
+      while (true) {
+        try {
+          data.client=new Socket(meta.getHost(),Integer.valueOf(meta.getPort()));
+          data.objOut=new ObjectOutputStream(data.client.getOutputStream());
+          if (log.isDebug())           logDebug("Local socket connection is ready");
+          break;
+        }
+ catch (        SocketException se) {
+          if (try_cnt < 5) {
+            logBasic("Local socket connection is not ready, so try to connect in 5 second");
+            Thread.sleep(5000);
+            data.client=null;
+            try_cnt++;
+          }
+ else {
+            throw new KettleException("Fatal Error: Remote_rows UDX can't be connected! Please check...");
+          }
+        }
+catch (        Exception ex) {
+          throw ex;
+        }
+      }
     }
  catch (    NumberFormatException e) {
       e.printStackTrace();
