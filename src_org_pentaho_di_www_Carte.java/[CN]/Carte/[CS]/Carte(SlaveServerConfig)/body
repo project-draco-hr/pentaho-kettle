@@ -2,8 +2,8 @@
   this.config=config;
   this.log=new LogChannel("Carte");
   boolean allOK=true;
-  TransformationMap transformationMap=new TransformationMap();
-  JobMap jobMap=new JobMap();
+  final TransformationMap transformationMap=new TransformationMap();
+  final JobMap jobMap=new JobMap();
   List<SlaveServerDetection> detections=Collections.synchronizedList(new ArrayList<SlaveServerDetection>());
   SocketRepository socketRepository=new SocketRepository(log);
   Trans trans=generateTestTransformation();
@@ -33,6 +33,43 @@
         allOK=false;
       }
     }
+  }
+  if (config.getObjectTimeoutMinutes() > 0) {
+    log.logBasic("Installing timer to purge stale objects after " + config.getObjectTimeoutMinutes() + " minutes.");
+    Timer timer=new Timer();
+    final AtomicBoolean busy=new AtomicBoolean(false);
+    TimerTask timerTask=new TimerTask(){
+      public void run(){
+        if (!busy.get()) {
+          busy.set(true);
+          try {
+            for (            String transformationName : transformationMap.getTransformationNames()) {
+              Trans trans=transformationMap.getTransformation(transformationName);
+              if (trans != null && (trans.isFinished() || trans.isStopped()) && trans.getLogDate() != null) {
+                int diffInMinutes=(int)Math.floor((System.currentTimeMillis() - trans.getLogDate().getTime()) / 60000);
+                if (diffInMinutes >= config.getObjectTimeoutMinutes()) {
+                  transformationMap.removeTransformation(transformationName);
+                }
+              }
+            }
+            for (            String jobName : jobMap.getJobNames()) {
+              Job job=jobMap.getJob(jobName);
+              if (job != null && (job.isFinished() || job.isStopped()) && job.getLogDate() != null) {
+                int diffInMinutes=(int)Math.floor((System.currentTimeMillis() - job.getLogDate().getTime()) / 60000);
+                if (diffInMinutes >= config.getObjectTimeoutMinutes()) {
+                  jobMap.removeJob(jobName);
+                }
+              }
+            }
+          }
+  finally {
+            busy.set(false);
+          }
+        }
+      }
+    }
+;
+    timer.schedule(timerTask,60000,60000);
   }
   if (allOK) {
     this.webServer=new WebServer(log,transformationMap,jobMap,socketRepository,detections,hostname,port,config.isJoining());
