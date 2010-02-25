@@ -1,12 +1,29 @@
 {
   try {
     Collection<UIRepositoryContent> content=fileTable.getSelectedItems();
-    UIRepositoryContent contentToRestore=content.iterator().next();
+    final UIRepositoryContent contentToRestore=content.iterator().next();
     Collection<UIRepositoryObjectRevision> versions=revisionTable.getSelectedItems();
-    UIRepositoryObjectRevision versionToRestore=versions.iterator().next();
-    contentToRestore.restoreVersion(versionToRestore);
+    final UIRepositoryObjectRevision versionToRestore=versions.iterator().next();
+    XulPromptBox commitPrompt=RepositoryExplorer.promptCommitComment(document,messages,null);
+    commitPrompt.addDialogCallback(new XulDialogCallback<String>(){
+      public void onClose(      XulComponent component,      Status status,      String value){
+        if (!status.equals(Status.CANCEL)) {
+          try {
+            contentToRestore.restoreVersion(versionToRestore,value);
+          }
+ catch (          Exception e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+      public void onError(      XulComponent component,      Throwable err){
+        throw new RuntimeException(err);
+      }
+    }
+);
+    commitPrompt.open();
   }
- catch (  KettleException e) {
-    throw new RuntimeException(e);
+ catch (  Exception e) {
+    throw new RuntimeException(new KettleException(e));
   }
 }
