@@ -13,7 +13,7 @@
       TreeSelection treeObject=treeObjects[0];
       Object object=treeObject.getSelection();
       TransMeta transMeta=spoon.getActiveTransformation();
-      if (object instanceof StepMeta || object instanceof PluginInterface || (object instanceof DatabaseMeta && transMeta != null)|| object instanceof TransHopMeta|| object instanceof JobEntryCopy|| object instanceof JobPlugin|| (object instanceof Class<?> && object.equals(JobPlugin.class))) {
+      if (object instanceof StepMeta || object instanceof PluginInterface || (object instanceof DatabaseMeta && transMeta != null)|| object instanceof TransHopMeta|| object instanceof JobEntryCopy) {
         event.doit=true;
       }
  else {
@@ -30,21 +30,27 @@
       String data=null;
       TreeSelection treeObject=treeObjects[0];
       Object object=treeObject.getSelection();
-      JobMeta jobMeta=spoon.getActiveJob();
       if (object instanceof StepMeta) {
         StepMeta stepMeta=(StepMeta)object;
         type=DragAndDropContainer.TYPE_STEP;
         data=stepMeta.getName();
       }
  else       if (object instanceof PluginInterface) {
-        PluginInterface stepPlugin=(PluginInterface)object;
-        if (stepPlugin.getPluginType().equals(StepPluginType.getInstance())) {
+        PluginInterface plugin=(PluginInterface)object;
+        if (plugin.getPluginType().equals(StepPluginType.getInstance())) {
           type=DragAndDropContainer.TYPE_BASE_STEP_TYPE;
+          data=plugin.getName();
         }
  else {
           type=DragAndDropContainer.TYPE_BASE_JOB_ENTRY;
+          data=plugin.getName();
+          if (treeObject.getItemText().equals(JobMeta.createStartEntry().getName())) {
+            data=treeObject.getItemText();
+          }
+ else           if (treeObject.getItemText().equals(JobMeta.createDummyEntry().getName())) {
+            data=treeObject.getItemText();
+          }
         }
-        data=stepPlugin.getName();
       }
  else       if (object instanceof DatabaseMeta) {
         DatabaseMeta databaseMeta=(DatabaseMeta)object;
@@ -60,23 +66,6 @@
         JobEntryCopy jobEntryCopy=(JobEntryCopy)object;
         type=DragAndDropContainer.TYPE_JOB_ENTRY;
         data=jobEntryCopy.getName();
-      }
- else       if (object instanceof JobPlugin) {
-        JobPlugin jobPlugin=(JobPlugin)object;
-        type=DragAndDropContainer.TYPE_BASE_JOB_ENTRY;
-        data=jobPlugin.getDescription();
-      }
- else       if (object instanceof Class<?> && object.equals(JobPlugin.class)) {
-        JobEntryCopy dummy=null;
-        if (jobMeta != null)         dummy=jobMeta.findJobEntry(JobMeta.STRING_SPECIAL_DUMMY,0,true);
-        if (JobMeta.STRING_SPECIAL_DUMMY.equalsIgnoreCase(treeObject.getItemText()) && dummy != null) {
-          type=DragAndDropContainer.TYPE_JOB_ENTRY;
-          data=dummy.getName();
-        }
- else {
-          type=DragAndDropContainer.TYPE_BASE_JOB_ENTRY;
-          data=treeObject.getItemText();
-        }
       }
  else {
         event.doit=false;
