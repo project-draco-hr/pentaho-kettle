@@ -3,7 +3,7 @@
   Display display=parent.getDisplay();
   shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN| SWT.MAX);
   props.setLook(shell);
-  setShellImage(shell,stepMeta);
+  setShellImage(shell,stepMeta.getStepMetaInterface());
   ModifyListener lsMod=new ModifyListener(){
     public void modifyText(    ModifyEvent e){
       partitioningMeta.hasChanged(true);
@@ -26,7 +26,7 @@
   fdlFieldname.right=new FormAttachment(middle,-margin);
   fdlFieldname.top=new FormAttachment(0,margin);
   wlFieldname.setLayoutData(fdlFieldname);
-  wFieldname=new Text(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+  wFieldname=new CCombo(shell,SWT.SINGLE | SWT.LEFT | SWT.BORDER);
   wFieldname.setText(fieldName == null ? "" : fieldName);
   props.setLook(wFieldname);
   wFieldname.addModifyListener(lsMod);
@@ -35,6 +35,17 @@
   fdFieldname.top=new FormAttachment(0,margin);
   fdFieldname.right=new FormAttachment(100,0);
   wFieldname.setLayoutData(fdFieldname);
+  try {
+    RowMetaInterface inputFields=transMeta.getPrevStepFields(stepMeta);
+    if (inputFields != null) {
+      String[] fieldNames=inputFields.getFieldNames();
+      Arrays.sort(fieldNames);
+      wFieldname.setItems(fieldNames);
+    }
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,"Error","Error obtaining list of input fields:",e);
+  }
   wOK=new Button(shell,SWT.PUSH);
   wOK.setText(BaseMessages.getString(PKG,"System.Button.OK"));
   wCancel=new Button(shell,SWT.PUSH);
@@ -70,6 +81,7 @@
   setSize();
   getData();
   partitioningMeta.hasChanged(changed);
+  setSize();
   shell.open();
   while (!shell.isDisposed()) {
     if (!display.readAndDispatch())     display.sleep();

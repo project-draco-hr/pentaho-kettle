@@ -15,35 +15,18 @@
     item.dispose();
   }
   if (showTrans) {
-    final String locale=LanguageChoice.getInstance().getDefaultLocale().toString().toLowerCase();
-    StepLoader steploader=StepLoader.getInstance();
-    StepPlugin basesteps[]=steploader.getStepsWithType(StepPlugin.TYPE_ALL);
-    final String basecat[]=steploader.getCategories(StepPlugin.TYPE_ALL,locale);
-    Arrays.sort(basesteps,new Comparator<StepPlugin>(){
-      public int compare(      StepPlugin one,      StepPlugin two){
-        int idxOne=Const.indexOfString(one.getCategory(locale),basecat);
-        int idxTwo=Const.indexOfString(two.getCategory(locale),basecat);
-        if (idxOne == idxTwo) {
-          String nameOne=one.getDescription(locale);
-          String nameTwo=two.getDescription(locale);
-          return nameOne.compareTo(nameTwo);
-        }
- else {
-          return idxOne - idxTwo;
-        }
-      }
-    }
-);
-    for (int i=0; i < basecat.length; i++) {
+    PluginRegistry registry=PluginRegistry.getInstance();
+    final List<PluginInterface> basesteps=registry.getPlugins(StepPluginType.getInstance());
+    final List<String> basecat=registry.getCategories(StepPluginType.getInstance());
+    for (int i=0; i < basecat.size(); i++) {
       TreeItem item=new TreeItem(coreObjectsTree,SWT.NONE);
-      item.setText(basecat[i]);
+      item.setText(basecat.get(i));
       item.setImage(GUIResource.getInstance().getImageArrow());
-      for (int j=0; j < basesteps.length; j++) {
-        if (basesteps[j].getCategory(locale).equalsIgnoreCase(basecat[i])) {
-          final Image stepimg=(Image)GUIResource.getInstance().getImagesStepsSmall().get(basesteps[j].getID()[0]);
-          String pluginName=basesteps[j].getDescription(locale);
-          String pluginDescription=basesteps[j].getTooltip(locale);
-          boolean isPlugin=basesteps[j].isPlugin();
+      for (int j=0; j < basesteps.size(); j++) {
+        if (basesteps.get(j).getCategory().equalsIgnoreCase(basecat.get(i))) {
+          final Image stepimg=(Image)GUIResource.getInstance().getImagesStepsSmall().get(basesteps.get(j).getIds()[0]);
+          String pluginName=basesteps.get(j).getName();
+          String pluginDescription=basesteps.get(j).getDescription();
           if (!filterMatch(pluginName) && !filterMatch(pluginDescription))           continue;
           TreeItem stepItem=new TreeItem(item,SWT.NONE);
           stepItem.setImage(stepimg);
@@ -54,7 +37,6 @@
             }
           }
 );
-          if (isPlugin)           stepItem.setFont(GUIResource.getInstance().getFontBold());
           coreStepToolTipMap.put(pluginName,pluginDescription);
         }
       }
@@ -65,12 +47,11 @@
     List<ObjectUsageCount> pluginHistory=props.getPluginHistory();
     for (int i=0; i < pluginHistory.size() && i < 10; i++) {
       ObjectUsageCount usage=pluginHistory.get(i);
-      StepPlugin stepPlugin=StepLoader.getInstance().findStepPluginWithID(usage.getObjectName());
+      PluginInterface stepPlugin=PluginRegistry.getInstance().findPluginWithId(StepPluginType.getInstance(),usage.getObjectName());
       if (stepPlugin != null) {
-        final Image stepimg=GUIResource.getInstance().getImagesSteps().get(stepPlugin.getID()[0]);
-        String pluginName=Const.NVL(stepPlugin.getDescription(locale),"");
-        String pluginDescription=Const.NVL(stepPlugin.getTooltip(locale),"");
-        boolean isPlugin=stepPlugin.isPlugin();
+        final Image stepimg=GUIResource.getInstance().getImagesSteps().get(stepPlugin.getIds()[0]);
+        String pluginName=Const.NVL(stepPlugin.getDescription(),"");
+        String pluginDescription=Const.NVL(stepPlugin.getDescription(),"");
         if (!filterMatch(pluginName) && !filterMatch(pluginDescription))         continue;
         TreeItem stepItem=new TreeItem(item,SWT.NONE);
         stepItem.setImage(stepimg);
@@ -81,46 +62,28 @@
           }
         }
 );
-        if (isPlugin)         stepItem.setFont(GUIResource.getInstance().getFontBold());
-        coreStepToolTipMap.put(stepPlugin.getDescription(locale),pluginDescription + " (" + usage.getNrUses()+ ")");
+        coreStepToolTipMap.put(stepPlugin.getDescription(),pluginDescription + " (" + usage.getNrUses()+ ")");
       }
     }
   }
   if (showJob) {
-    final String locale=LanguageChoice.getInstance().getDefaultLocale().toString().toLowerCase();
-    JobEntryLoader jobEntryLoader=JobEntryLoader.getInstance();
-    JobPlugin baseJobEntries[]=jobEntryLoader.getJobEntriesWithType(JobPlugin.TYPE_ALL);
-    final String baseCategories[]=jobEntryLoader.getCategories(JobPlugin.TYPE_ALL,locale);
-    Arrays.sort(baseJobEntries,new Comparator<JobPlugin>(){
-      public int compare(      JobPlugin one,      JobPlugin two){
-        int idxOne=Const.indexOfString(one.getCategory(locale),baseCategories);
-        int idxTwo=Const.indexOfString(two.getCategory(locale),baseCategories);
-        if (idxOne == idxTwo) {
-          String nameOne=one.getDescription(locale);
-          String nameTwo=two.getDescription(locale);
-          return nameOne.compareTo(nameTwo);
-        }
- else {
-          return idxOne - idxTwo;
-        }
-      }
-    }
-);
+    PluginRegistry registry=PluginRegistry.getInstance();
+    List<PluginInterface> baseJobEntries=registry.getPlugins(JobEntryPluginType.getInstance());
+    List<String> baseCategories=registry.getCategories(JobEntryPluginType.getInstance());
     TreeItem generalItem=null;
-    for (int i=0; i < baseCategories.length; i++) {
+    for (int i=0; i < baseCategories.size(); i++) {
       TreeItem item=new TreeItem(coreObjectsTree,SWT.NONE);
-      item.setText(baseCategories[i]);
+      item.setText(baseCategories.get(i));
       item.setImage(GUIResource.getInstance().getImageArrow());
-      if (baseCategories[i].equalsIgnoreCase(JobEntryCategory.STANDARD_CATEGORIES[JobEntryCategory.CATEGORY_GENERAL])) {
+      if (baseCategories.get(i).equalsIgnoreCase(JobEntryPluginType.GENERAL_CATEGORY)) {
         generalItem=item;
       }
-      for (int j=0; j < baseJobEntries.length; j++) {
-        if (!baseJobEntries[j].getID().equals("SPECIAL")) {
-          if (baseJobEntries[j].getCategory(locale).equalsIgnoreCase(baseCategories[i])) {
-            final Image jobEntryImage=(Image)GUIResource.getInstance().getImagesJobentriesSmall().get(baseJobEntries[j].getID());
-            String pluginName=Const.NVL(baseJobEntries[j].getDescription(locale),"");
-            String pluginDescription=Const.NVL(baseJobEntries[j].getTooltip(locale),"");
-            boolean isPlugin=baseJobEntries[j].isPlugin();
+      for (int j=0; j < baseJobEntries.size(); j++) {
+        if (!baseJobEntries.get(j).getIds()[0].equals("SPECIAL")) {
+          if (baseJobEntries.get(j).getCategory().equalsIgnoreCase(baseCategories.get(i))) {
+            final Image jobEntryImage=(Image)GUIResource.getInstance().getImagesJobentriesSmall().get(baseJobEntries.get(j).getIds()[0]);
+            String pluginName=Const.NVL(baseJobEntries.get(j).getName(),"");
+            String pluginDescription=Const.NVL(baseJobEntries.get(j).getDescription(),"");
             if (!filterMatch(pluginName) && !filterMatch(pluginDescription))             continue;
             TreeItem stepItem=new TreeItem(item,SWT.NONE);
             stepItem.setImage(jobEntryImage);
@@ -131,7 +94,6 @@
               }
             }
 );
-            if (isPlugin)             stepItem.setFont(GUIResource.getInstance().getFontBold());
             coreJobToolTipMap.put(pluginName,pluginDescription);
           }
         }

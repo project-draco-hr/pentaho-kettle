@@ -1,40 +1,24 @@
 {
   imagesSteps=new Hashtable<String,Image>();
   imagesStepsSmall=new Hashtable<String,Image>();
-  StepLoader steploader=StepLoader.getInstance();
-  StepPlugin steps[]=steploader.getStepsWithType(StepPlugin.TYPE_ALL);
-  for (int i=0; i < steps.length; i++) {
+  PluginRegistry registry=PluginRegistry.getInstance();
+  List<PluginInterface> steps=registry.getPlugins(StepPluginType.getInstance());
+  for (int i=0; i < steps.size(); i++) {
     Image image=null;
     Image small_image=null;
-    if (steps[i].isNative()) {
-      String filename=steps[i].getIconFilename();
-      try {
-        image=ImageUtil.getImage(display,filename);
-      }
- catch (      Exception e) {
-        log.logError("Kettle","Unable to find required step image file or image format not supported (e.g. interlaced) [" + filename + " : "+ e.toString());
-        image=new Image(display,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
-        GC gc=new GC(image);
-        gc.drawRectangle(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
-        gc.drawLine(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
-        gc.drawLine(ConstUI.ICON_SIZE,0,0,ConstUI.ICON_SIZE);
-        gc.dispose();
-      }
+    String filename=steps.get(i).getImageFile();
+    try {
+      Object object=registry.loadClass(steps.get(i));
+      image=ImageUtil.getImage(display,object.getClass(),filename);
     }
- else {
-      String filename=steps[i].getIconFilename();
-      try {
-        image=new Image(display,filename);
-      }
- catch (      Exception e) {
-        log.logError("Kettle","Unable to find required step image file [" + filename + " : "+ e.toString());
-        image=new Image(display,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
-        GC gc=new GC(image);
-        gc.drawRectangle(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
-        gc.drawLine(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
-        gc.drawLine(ConstUI.ICON_SIZE,0,0,ConstUI.ICON_SIZE);
-        gc.dispose();
-      }
+ catch (    Exception e) {
+      log.logError("Kettle","Unable to find required step image file or image format not supported (e.g. interlaced) [" + filename + " : "+ e.toString());
+      image=new Image(display,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
+      GC gc=new GC(image);
+      gc.drawRectangle(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
+      gc.drawLine(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
+      gc.drawLine(ConstUI.ICON_SIZE,0,0,ConstUI.ICON_SIZE);
+      gc.dispose();
     }
     if (image != null) {
       int xsize=image.getBounds().width;
@@ -44,7 +28,7 @@
       gc.drawImage(image,0,0,xsize,ysize,0,0,16,16);
       gc.dispose();
     }
-    imagesSteps.put(steps[i].getID()[0],image);
-    imagesStepsSmall.put(steps[i].getID()[0],small_image);
+    imagesSteps.put(steps.get(i).getIds()[0],image);
+    imagesStepsSmall.put(steps.get(i).getIds()[0],small_image);
   }
 }

@@ -1,0 +1,33 @@
+{
+  String xmlFile=Const.XML_FILE_KETTLE_REPOSITORIES;
+  try {
+    InputStream inputStream=getClass().getResourceAsStream(xmlFile);
+    if (inputStream == null) {
+      inputStream=getClass().getResourceAsStream("/" + xmlFile);
+    }
+    if (inputStream == null) {
+      throw new KettlePluginException("Unable to find native repository type definition file: " + xmlFile);
+    }
+    Document document=XMLHandler.loadXMLFile(inputStream,null,true,false);
+    Node repsNode=XMLHandler.getSubNode(document,"repositories");
+    List<Node> repsNodes=XMLHandler.getNodes(repsNode,"repository");
+    for (    Node repNode : repsNodes) {
+      PluginInterface plugin=registerPluginFromXmlResource(repNode,null,this);
+      String metaClassName=XMLHandler.getTagValue(repNode,"meta-classname");
+      if (!Const.isEmpty(metaClassName)) {
+        plugin.getClassMap().put(PluginClassType.MetaClassType,metaClassName);
+      }
+      String dialogClassName=XMLHandler.getTagValue(repNode,"dialog-classname");
+      if (!Const.isEmpty(dialogClassName)) {
+        plugin.getClassMap().put(PluginClassType.DialogClassType,dialogClassName);
+      }
+      String versionBrowserClassName=XMLHandler.getTagValue(repNode,"version-browser-classname");
+      if (!Const.isEmpty(versionBrowserClassName)) {
+        plugin.getClassMap().put(PluginClassType.DialogClassType,versionBrowserClassName);
+      }
+    }
+  }
+ catch (  KettleXMLException e) {
+    throw new KettlePluginException("Unable to read the kettle repositories XML config file: " + xmlFile,e);
+  }
+}

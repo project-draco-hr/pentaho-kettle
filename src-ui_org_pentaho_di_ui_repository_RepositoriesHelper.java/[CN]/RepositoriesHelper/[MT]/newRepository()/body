@@ -1,19 +1,21 @@
 {
-  List<RepositoryPluginMeta> pluginMetaList=RepositoryLoader.getInstance().getPluginMetaList();
-  String[] names=new String[pluginMetaList.size()];
+  PluginRegistry registry=PluginRegistry.getInstance();
+  PluginTypeInterface pluginType=RepositoryPluginType.getInstance();
+  List<PluginInterface> plugins=registry.getPlugins(pluginType);
+  String[] names=new String[plugins.size()];
   for (int i=0; i < names.length; i++) {
-    RepositoryPluginMeta meta=pluginMetaList.get(i);
-    names[i]=meta.getName() + " : " + meta.getDescription();
+    PluginInterface plugin=plugins.get(i);
+    names[i]=plugin.getName() + " : " + plugin.getDescription();
   }
   EnterSelectionDialog selectRepositoryType=new EnterSelectionDialog(this.shell,names,"Select the repository type","Select the repository type to create");
   String choice=selectRepositoryType.open();
   if (choice != null) {
     int index=selectRepositoryType.getSelectionNr();
-    RepositoryPluginMeta pluginMeta=pluginMetaList.get(index);
-    String id=pluginMeta.getId();
+    PluginInterface plugin=plugins.get(index);
+    String id=plugin.getIds()[0];
     try {
-      RepositoryMeta repositoryMeta=RepositoryLoader.createRepositoryMeta(id);
-      RepositoryDialogInterface dialog=getRepositoryDialog(pluginMeta,repositoryMeta,input,this.shell);
+      RepositoryMeta repositoryMeta=(RepositoryMeta)PluginRegistry.getInstance().loadClass(RepositoryPluginType.getInstance(),id,PluginClassType.MetaClassType);
+      RepositoryDialogInterface dialog=getRepositoryDialog(plugin,repositoryMeta,input,this.shell);
       RepositoryMeta meta=dialog.open();
       if (meta != null) {
         input.addRepository(meta);
