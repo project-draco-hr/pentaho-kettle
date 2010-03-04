@@ -9,8 +9,17 @@
   String name=getTranslation(step.description(),packageName,altPackageName,clazz);
   String description=getTranslation(step.tooltip(),packageName,altPackageName,clazz);
   String category=getTranslation(step.categoryDescription(),packageName,altPackageName,clazz);
-  Map<PluginClassType,String> classMap=new HashMap<PluginClassType,String>();
-  classMap.put(PluginClassType.MainClassType,clazz.getName());
-  PluginInterface stepPlugin=new Plugin(ids,this,category,name,description,step.image(),step.isSeparateClassLoaderNeeded(),nativeStep,classMap,libraries,null);
-  registry.registerPlugin(this,stepPlugin);
+  Map<Class,String> classMap=new HashMap<Class,String>();
+  classMap.put(StepInterface.class,clazz.getName());
+  PluginClassTypes classTypesAnnotation=clazz.getAnnotation(PluginClassTypes.class);
+  if (classTypesAnnotation != null) {
+    for (int i=0; i < classTypesAnnotation.classTypes().length; i++) {
+      Class classType=classTypesAnnotation.classTypes()[i];
+      Class implementationType=(classTypesAnnotation.implementationClass().length > i) ? classTypesAnnotation.implementationClass()[i] : null;
+      String className=implementationType.getName();
+      classMap.put(classType,className);
+    }
+  }
+  PluginInterface stepPlugin=new Plugin(ids,this.getClass(),StepInterface.class,category,name,description,step.image(),step.isSeparateClassLoaderNeeded(),nativeStep,classMap,libraries,null);
+  registry.registerPlugin(this.getClass(),stepPlugin);
 }

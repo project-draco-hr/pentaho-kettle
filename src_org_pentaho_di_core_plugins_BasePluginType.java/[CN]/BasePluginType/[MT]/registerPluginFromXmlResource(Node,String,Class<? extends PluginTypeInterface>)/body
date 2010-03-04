@@ -1,0 +1,59 @@
+{
+  try {
+    String id=XMLHandler.getTagAttribute(pluginNode,"id");
+    String description=getTagOrAttribute(pluginNode,"description");
+    String iconfile=getTagOrAttribute(pluginNode,"iconfile");
+    String tooltip=getTagOrAttribute(pluginNode,"tooltip");
+    String category=getTagOrAttribute(pluginNode,"category");
+    String classname=getTagOrAttribute(pluginNode,"classname");
+    String errorHelpfile=getTagOrAttribute(pluginNode,"errorhelpfile");
+    Node libsnode=XMLHandler.getSubNode(pluginNode,"libraries");
+    int nrlibs=XMLHandler.countNodes(libsnode,"library");
+    List<String> jarFiles=new ArrayList<String>();
+    if (path != null) {
+      for (int j=0; j < nrlibs; j++) {
+        Node libnode=XMLHandler.getSubNodeByNr(libsnode,"library",j);
+        String jarfile=XMLHandler.getTagAttribute(libnode,"name");
+        jarFiles.add(new File(path + Const.FILE_SEPARATOR + jarfile).getAbsolutePath());
+      }
+    }
+    Map<String,String> localizedCategories=readPluginLocale(pluginNode,"localized_category","category");
+    category=getAlternativeTranslation(category,localizedCategories);
+    Map<String,String> localizedDescriptions=readPluginLocale(pluginNode,"localized_description","description");
+    description=getAlternativeTranslation(description,localizedDescriptions);
+    Map<String,String> localizedTooltips=readPluginLocale(pluginNode,"localized_tooltip","tooltip");
+    tooltip=getAlternativeTranslation(tooltip,localizedTooltips);
+    String iconFilename=(path == null) ? iconfile : path + Const.FILE_SEPARATOR + iconfile;
+    String errorHelpFileFull=errorHelpfile;
+    if (!Const.isEmpty(errorHelpfile))     errorHelpFileFull=(path == null) ? errorHelpfile : path + Const.FILE_SEPARATOR + errorHelpfile;
+    Map<Class,String> classMap=new HashMap<Class,String>();
+    PluginMainClassType mainClassTypesAnnotation=pluginType.getAnnotation(PluginMainClassType.class);
+    classMap.put(mainClassTypesAnnotation.value(),classname);
+    PluginClassTypes classTypesAnnotation=pluginType.getAnnotation(PluginClassTypes.class);
+    if (classTypesAnnotation != null) {
+      for (int i=0; i < classTypesAnnotation.classTypes().length; i++) {
+        Class classType=classTypesAnnotation.classTypes()[i];
+        Class implementationType=(classTypesAnnotation.implementationClass().length > i) ? classTypesAnnotation.implementationClass()[i] : null;
+        String className=null;
+        if (implementationType != null) {
+          className=implementationType.getName();
+        }
+ else {
+          className=getTagOrAttribute(pluginNode,classTypesAnnotation.xmlNodeNames()[i]);
+        }
+        classMap.put(classType,className);
+      }
+    }
+    Map<Class,String> objectMap=getAdditionalRuntimeObjectTypes();
+    for (    Map.Entry<Class,String> entry : objectMap.entrySet()) {
+      String clzName=getTagOrAttribute(pluginNode,entry.getValue());
+      classMap.put(entry.getKey(),clzName);
+    }
+    PluginInterface pluginInterface=new Plugin(id.split(","),pluginType,mainClassTypesAnnotation.value(),category,description,tooltip,iconFilename,false,false,classMap,jarFiles,errorHelpFileFull);
+    registry.registerPlugin(pluginType,pluginInterface);
+    return pluginInterface;
+  }
+ catch (  Throwable e) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"BasePluginType.RuntimeError.UnableToReadPluginXML.PLUGIN0001"),e);
+  }
+}

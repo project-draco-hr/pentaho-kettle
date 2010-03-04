@@ -9,8 +9,17 @@
   String name=getTranslation(jobEntry.name(),packageName,altPackageName,clazz);
   String description=getTranslation(jobEntry.description(),packageName,altPackageName,clazz);
   String category=getTranslation(jobEntry.categoryDescription(),packageName,altPackageName,clazz);
-  Map<PluginClassType,String> classMap=new HashMap<PluginClassType,String>();
-  classMap.put(PluginClassType.MainClassType,clazz.getName());
-  PluginInterface stepPlugin=new Plugin(ids,this,category,name,description,jobEntry.image(),false,nativeJobEntry,classMap,libraries,null);
-  registry.registerPlugin(this,stepPlugin);
+  Map<Class,String> classMap=new HashMap<Class,String>();
+  classMap.put(JobEntry.class,clazz.getName());
+  PluginClassTypes classTypesAnnotation=clazz.getAnnotation(PluginClassTypes.class);
+  if (classTypesAnnotation != null) {
+    for (int i=0; i < classTypesAnnotation.classTypes().length; i++) {
+      Class classType=classTypesAnnotation.classTypes()[i];
+      Class implementationType=(classTypesAnnotation.implementationClass().length > i) ? classTypesAnnotation.implementationClass()[i] : null;
+      String className=implementationType.getName();
+      classMap.put(classType,className);
+    }
+  }
+  PluginInterface stepPlugin=new Plugin(ids,this.getClass(),JobEntry.class,category,name,description,jobEntry.image(),false,nativeJobEntry,classMap,libraries,null);
+  registry.registerPlugin(this.getClass(),stepPlugin);
 }
