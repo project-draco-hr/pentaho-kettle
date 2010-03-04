@@ -1,0 +1,59 @@
+{
+  if (plugin == null) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.NoValidStepOrPlugin.PLUGINREGISTRY001"));
+  }
+  String className=plugin.getClassMap().get(pluginClass);
+  if (className == null) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.NoValidClassRequested.PLUGINREGISTRY002",pluginClass.getName()));
+  }
+  try {
+    Class<?> cl=null;
+    if (plugin.isNativePlugin()) {
+      cl=Class.forName(className);
+    }
+ else {
+      List<String> jarfiles=plugin.getLibraries();
+      URL urls[]=new URL[jarfiles.size()];
+      for (int i=0; i < jarfiles.size(); i++) {
+        File jarfile=new File(jarfiles.get(i));
+        urls[i]=jarfile.toURI().toURL();
+      }
+      ClassLoader classLoader=getClass().getClassLoader();
+      URLClassLoader ucl=null;
+      if (plugin.isSeparateClassLoaderNeeded()) {
+        ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+      }
+ else {
+        Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
+        if (classLoaders == null) {
+          classLoaders=new HashMap<PluginInterface,URLClassLoader>();
+          classLoaderMap.put(plugin.getPluginType(),classLoaders);
+        }
+ else {
+          ucl=classLoaders.get(plugin);
+        }
+        if (ucl == null) {
+          ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+          classLoaders.put(plugin,ucl);
+        }
+      }
+      cl=ucl.loadClass(className);
+    }
+    return (T)cl.newInstance();
+  }
+ catch (  ClassNotFoundException e) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.ClassNotFound.PLUGINREGISTRY003"),e);
+  }
+catch (  InstantiationException e) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.UnableToInstantiateClass.PLUGINREGISTRY004"),e);
+  }
+catch (  IllegalAccessException e) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.IllegalAccessToClass.PLUGINREGISTRY005"),e);
+  }
+catch (  MalformedURLException e) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.MalformedURL.PLUGINREGISTRY006"),e);
+  }
+catch (  Throwable e) {
+    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.UnExpectedErrorLoadingClass.PLUGINREGISTRY007"),e);
+  }
+}

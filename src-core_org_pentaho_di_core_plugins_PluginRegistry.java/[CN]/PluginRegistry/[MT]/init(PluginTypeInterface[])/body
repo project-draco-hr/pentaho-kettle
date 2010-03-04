@@ -1,0 +1,23 @@
+{
+  PluginRegistry registry=getInstance();
+  try {
+    annotationDB=new AnnotationDB();
+    URL[] urls=ClasspathUrlFinder.findClassPaths();
+    LogChannel.GENERAL.logDetailed("Found " + urls.length + " objects in the classpath.");
+    long startScan=System.currentTimeMillis();
+    annotationDB.scanArchives(urls);
+    annotationDB.scanArchives(new File("lib/kettle-core.jar").toURI().toURL());
+    annotationDB.scanArchives(new File("lib/kettle-db.jar").toURI().toURL());
+    annotationDB.scanArchives(new File("lib/kettle-engine.jar").toURI().toURL());
+    LogChannel.GENERAL.logDetailed("Finished annotation scan in " + (System.currentTimeMillis() - startScan) + "ms.");
+  }
+ catch (  IOException e) {
+    throw new KettlePluginException("Unable to scan for annotations in the classpath",e);
+  }
+  for (  PluginTypeInterface pluginType : pluginTypes) {
+    registry.registerPluginType(pluginType.getClass());
+    long startScan=System.currentTimeMillis();
+    pluginType.searchPlugins();
+    LogChannel.GENERAL.logDetailed("Registered " + registry.getPlugins(pluginType.getClass()).size() + " plugins of type '"+ pluginType.getName()+ "' in "+ (System.currentTimeMillis() - startScan)+ "ms.");
+  }
+}

@@ -1,0 +1,44 @@
+{
+  List<JarFileAnnotationPlugin> classFiles=new ArrayList<JarFileAnnotationPlugin>();
+  for (  PluginFolderInterface pluginFolder : getPluginFolders()) {
+    if (pluginFolder.isPluginAnnotationsFolder()) {
+      try {
+        FileObject folderObject=KettleVFS.getFileObject(pluginFolder.getFolder());
+        FileObject[] fileObjects=folderObject.findFiles(new FileSelector(){
+          public boolean traverseDescendents(          FileSelectInfo fileSelectInfo) throws Exception {
+            return true;
+          }
+          public boolean includeFile(          FileSelectInfo fileSelectInfo) throws Exception {
+            return fileSelectInfo.getFile().toString().matches(".*\\.jar$");
+          }
+        }
+);
+        for (        FileObject fileObject : fileObjects) {
+          JarFile jarFile=new JarFile(KettleVFS.getFilename(fileObject));
+          Enumeration<JarEntry> entries=jarFile.entries();
+          while (entries.hasMoreElements()) {
+            JarEntry entry=entries.nextElement();
+            try {
+              ClassFile classFile=new ClassFile(new DataInputStream(new BufferedInputStream(jarFile.getInputStream(entry))));
+              AnnotationsAttribute visible=(AnnotationsAttribute)classFile.getAttribute(AnnotationsAttribute.visibleTag);
+              if (visible != null) {
+                Annotation[] anns=visible.getAnnotations();
+                for (                Annotation ann : anns) {
+                  if (ann.getTypeName().equals(annotationClassName)) {
+                    classFiles.add(new JarFileAnnotationPlugin(fileObject.getURL(),classFile,ann));
+                    break;
+                  }
+                }
+              }
+            }
+ catch (            Exception e) {
+            }
+          }
+        }
+      }
+ catch (      Exception e) {
+      }
+    }
+  }
+  return classFiles;
+}
