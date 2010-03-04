@@ -1,0 +1,27 @@
+{
+  String tablename=database.getDatabaseMeta().getQuotedSchemaTableCombination(schemaName,tableName);
+  boolean exists[]=new boolean[idx_fields.length];
+  for (int i=0; i < exists.length; i++)   exists[i]=false;
+  try {
+    ResultSet indexList=null;
+    try {
+      indexList=database.getDatabaseMetaData().getIndexInfo(null,null,tablename,false,true);
+      while (indexList.next()) {
+        String column=indexList.getString("COLUMN_NAME");
+        int idx=Const.indexOfString(column,idx_fields);
+        if (idx >= 0) {
+          exists[idx]=true;
+        }
+      }
+    }
+  finally {
+      if (indexList != null)       indexList.close();
+    }
+    boolean all=true;
+    for (int i=0; i < exists.length && all; i++)     if (!exists[i])     all=false;
+    return all;
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Unable to determine if indexes exists on table [" + tablename + "]",e);
+  }
+}

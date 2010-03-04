@@ -2,7 +2,7 @@
   if (monitor != null) {
     monitor.beginTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingInfoFromDb"),8);
   }
-  Database db=new Database(parentLoggingObject,dbInfo);
+  Database db=new Database(parentLoggingObject,databaseMeta);
   try {
     if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.ConnectingDb"));
     db.connect();
@@ -13,7 +13,7 @@
     if (monitor != null)     monitor.worked(1);
     if (monitor != null && monitor.isCanceled())     return;
     if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingInfo"));
-    if (dbInfo.supportsCatalogs() && dbmd.supportsCatalogsInTableDefinitions()) {
+    if (databaseMeta.supportsCatalogs() && dbmd.supportsCatalogsInTableDefinitions()) {
       ArrayList<Catalog> catalogList=new ArrayList<Catalog>();
       ResultSet catalogResultSet=dbmd.getCatalogs();
       while (catalogResultSet != null && catalogResultSet.next()) {
@@ -43,12 +43,13 @@
     if (monitor != null)     monitor.worked(1);
     if (monitor != null && monitor.isCanceled())     return;
     if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingSchemaInfo"));
-    if (dbInfo.supportsSchemas() && dbmd.supportsSchemasInTableDefinitions()) {
+    if (databaseMeta.supportsSchemas() && dbmd.supportsSchemasInTableDefinitions()) {
       ArrayList<Schema> schemaList=new ArrayList<Schema>();
       try {
-        if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
+        String sql=databaseMeta.getSQLListOfSchemas();
+        if (!Const.isEmpty(sql)) {
           Statement schemaStatement=db.getConnection().createStatement();
-          ResultSet schemaResultSet=schemaStatement.executeQuery("select name from sys.schemas");
+          ResultSet schemaResultSet=schemaStatement.executeQuery(sql);
           while (schemaResultSet != null && schemaResultSet.next()) {
             String schemaName=schemaResultSet.getString("name");
             schemaList.add(new Schema(schemaName));
@@ -89,33 +90,18 @@
     if (monitor != null)     monitor.worked(1);
     if (monitor != null && monitor.isCanceled())     return;
     if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingTables"));
-    if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
-      setTables(db.getTablenames(true));
-    }
- else {
-      setTables(db.getTablenames());
-    }
+    setTables(db.getTablenames(databaseMeta.supportsSchemas()));
     if (monitor != null)     monitor.worked(1);
     if (monitor != null && monitor.isCanceled())     return;
     if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingViews"));
-    if (dbInfo.supportsViews()) {
-      if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
-        setViews(db.getViews(true));
-      }
- else {
-        setViews(db.getViews());
-      }
+    if (databaseMeta.supportsViews()) {
+      setViews(db.getViews(databaseMeta.supportsSchemas()));
     }
     if (monitor != null)     monitor.worked(1);
     if (monitor != null && monitor.isCanceled())     return;
     if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingSynonyms"));
-    if (dbInfo.supportsSynonyms()) {
-      if (dbInfo.getDatabaseType() == DatabaseMeta.TYPE_DATABASE_MSSQL) {
-        setSynonyms(db.getSynonyms(true));
-      }
- else {
-        setSynonyms(db.getSynonyms());
-      }
+    if (databaseMeta.supportsSynonyms()) {
+      setSynonyms(db.getSynonyms(databaseMeta.supportsSchemas()));
     }
     if (monitor != null)     monitor.worked(1);
     if (monitor != null && monitor.isCanceled())     return;

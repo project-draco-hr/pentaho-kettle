@@ -23,37 +23,35 @@ case ValueMetaInterface.TYPE_BOOLEAN:
 case ValueMetaInterface.TYPE_STRING:
           String string=valueMeta.getString(valueData);
         if (string.contains("'")) {
-switch (databaseMeta.getDatabaseType()) {
-case DatabaseMeta.TYPE_DATABASE_MYSQL:
+          if (databaseMeta.getDatabaseInterface() instanceof MySQLDatabaseMeta) {
             string=string.replace("'","\\'");
-          break;
-default :
-        string=string.replace("'","''");
-      break;
-  }
-}
-ins.append("'" + string + "'");
-break;
+          }
+ else {
+            string=string.replace("'","''");
+            break;
+          }
+        }
+      ins.append("'" + string + "'");
+    break;
 case ValueMetaInterface.TYPE_DATE:
-Date date=fields.getDate(r,i);
-if (Const.isEmpty(dateFormat)) switch (databaseMeta.getDatabaseType()) {
-case DatabaseMeta.TYPE_DATABASE_ORACLE:
-if (fieldDateFormatters[i] == null) {
-fieldDateFormatters[i]=new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-}
-ins.append("TO_DATE('").append(fieldDateFormatters[i].format(date)).append("', 'YYYY/MM/DD HH24:MI:SS')");
-break;
-default :
-ins.append("'" + fields.getString(r,i) + "'");
+  Date date=fields.getDate(r,i);
+if (Const.isEmpty(dateFormat)) if (databaseMeta.getDatabaseInterface() instanceof OracleDatabaseMeta) {
+  if (fieldDateFormatters[i] == null) {
+    fieldDateFormatters[i]=new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+  }
+  ins.append("TO_DATE('").append(fieldDateFormatters[i].format(date)).append("', 'YYYY/MM/DD HH24:MI:SS')");
 }
  else {
-try {
-java.text.SimpleDateFormat formatter=new java.text.SimpleDateFormat(dateFormat);
-ins.append("'" + formatter.format(fields.getDate(r,i)) + "'");
+  ins.append("'" + fields.getString(r,i) + "'");
 }
- catch (Exception e) {
-throw new KettleDatabaseException("Error : ",e);
-}
+ else {
+  try {
+    java.text.SimpleDateFormat formatter=new java.text.SimpleDateFormat(dateFormat);
+    ins.append("'" + formatter.format(fields.getDate(r,i)) + "'");
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Error : ",e);
+  }
 }
 break;
 default :
