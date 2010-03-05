@@ -1,0 +1,71 @@
+{
+  try {
+    Directory root=rep.loadRepositoryDirectoryTree();
+  }
+ catch (  KettleException e) {
+    log.error(resourceBundle.getString("RepositoryExplorer.ErrorStartingXulApplication"),e);
+    new ErrorDialog(((Spoon)SpoonFactory.getInstance()).getShell(),BaseMessages.getString(Spoon.class,"Spoon.Error"),e.getMessage(),e);
+  }
+  container=new SwtXulLoader().loadXul("org/pentaho/di/ui/repository/repositoryexplorer/xul/explorer-layout.xul",resourceBundle);
+  for (  XulOverlay over : SpoonPluginManager.getInstance().getOverlaysforContainer("repository-explorer")) {
+    container.loadOverlay(over.getOverlayUri());
+  }
+  final XulRunner runner=new SwtXulRunner();
+  runner.addContainer(container);
+  mainController.setRepository(rep);
+  container.addEventHandler(mainController);
+  container.addEventHandler(browseController);
+  browseController.setCallback(callback);
+  connectionsController.setRepository(rep);
+  container.addEventHandler(connectionsController);
+  slavesController.setRepository(rep);
+  container.addEventHandler(slavesController);
+  partitionsController.setRepository(rep);
+  partitionsController.setVariableSpace(variableSpace);
+  container.addEventHandler(partitionsController);
+  clustersController.setRepository(rep);
+  container.addEventHandler(clustersController);
+  List<IRepositoryExplorerUISupport> uiSupportList=new ArrayList<IRepositoryExplorerUISupport>();
+  try {
+    for (    Class<? extends IRepositoryService> sevice : rep.getServiceInterfaces()) {
+      IRepositoryExplorerUISupport uiSupport=UISupportRegistery.getInstance().createUISupport(sevice);
+      if (uiSupport != null) {
+        uiSupportList.add(uiSupport);
+        uiSupport.apply(container);
+      }
+    }
+  }
+ catch (  Exception e) {
+    log.error(resourceBundle.getString("RepositoryExplorer.ErrorStartingXulApplication"),e);
+    new ErrorDialog(((Spoon)SpoonFactory.getInstance()).getShell(),BaseMessages.getString(Spoon.class,"Spoon.Error"),e.getMessage(),e);
+  }
+  for (  IRepositoryExplorerUISupport uiSupport : uiSupportList) {
+    try {
+      uiSupport.initControllers(rep);
+    }
+ catch (    ControllerInitializationException e) {
+      log.error(resourceBundle.getString("RepositoryExplorer.ErrorStartingXulApplication"),e);
+      new ErrorDialog(((Spoon)SpoonFactory.getInstance()).getShell(),BaseMessages.getString(Spoon.class,"Spoon.Error"),e.getMessage(),e);
+    }
+  }
+  container.invokeLater(new Runnable(){
+    public void run(){
+      try {
+        repositoryDirectory=rep.loadRepositoryDirectoryTree();
+        browseController.setRepositoryDirectory(new UIRepositoryDirectory(repositoryDirectory,rep));
+        browseController.init();
+      }
+ catch (      Throwable e) {
+        new ErrorDialog(((Spoon)SpoonFactory.getInstance()).getShell(),BaseMessages.getString(Spoon.class,"Spoon.Error"),e.getMessage(),e);
+      }
+    }
+  }
+);
+  try {
+    runner.initialize();
+  }
+ catch (  XulException e) {
+    log.error(resourceBundle.getString("RepositoryExplorer.ErrorStartingXulApplication"),e);
+    new ErrorDialog(((Spoon)SpoonFactory.getInstance()).getShell(),BaseMessages.getString(Spoon.class,"Spoon.Error"),e.getMessage(),e);
+  }
+}
