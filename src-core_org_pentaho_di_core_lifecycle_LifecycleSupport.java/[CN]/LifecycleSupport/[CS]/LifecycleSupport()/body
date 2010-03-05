@@ -1,15 +1,29 @@
 {
-  ResolverUtil<LifecycleListener> listeners=new ResolverUtil<LifecycleListener>();
-  listeners.find(new ResolverUtil.IsA(LifecycleListener.class),"org.pentaho.di.core.lifecycle.pdi");
-  Set<Class<? extends LifecycleListener>> listenerClasses=listeners.getClasses();
-  lifeListeners=new HashSet<LifecycleListener>(listenerClasses.size());
-  for (  Class<? extends LifecycleListener> clazz : listenerClasses) {
-    try {
-      lifeListeners.add(clazz.newInstance());
-    }
- catch (    Throwable e) {
-      log.logError("Unable to init listener:" + e.getMessage(),new Object[]{});
-      continue;
+  lifeListeners=new HashSet<LifecycleListener>();
+  long startTime=System.currentTimeMillis();
+  AnnotationDB db=PluginRegistry.getAnnotationDB();
+  Set<String> classIndex=db.getClassIndex().keySet();
+  ClassPool classPool=ClassPool.getDefault();
+  for (  String key : classIndex) {
+    if (key.startsWith("org.pentaho.di.core.lifecycle.pdi")) {
+      try {
+        CtClass ctClass=classPool.get(key);
+        CtClass[] interfaces=ctClass.getInterfaces();
+        for (        CtClass interf : interfaces) {
+          if (interf.getName().equals(LifecycleListener.class.getName())) {
+            try {
+              Class<LifecycleListener> clazz=(Class<LifecycleListener>)Class.forName(ctClass.getName());
+              lifeListeners.add(clazz.newInstance());
+            }
+ catch (            Exception e) {
+              LogChannel.GENERAL.logDetailed("Unable to reach class " + ctClass.getName() + ": "+ e.getMessage());
+            }
+          }
+        }
+      }
+ catch (      NotFoundException e) {
+      }
     }
   }
+  LogChannel.GENERAL.logBasic("Finished lifecycle listener scan in " + (System.currentTimeMillis() - startTime) + "ms.");
 }
