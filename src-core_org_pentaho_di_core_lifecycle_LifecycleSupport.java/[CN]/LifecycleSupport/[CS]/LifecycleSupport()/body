@@ -1,27 +1,16 @@
 {
   lifeListeners=new HashSet<LifecycleListener>();
-  long startTime=System.currentTimeMillis();
-  AnnotationDB db=PluginRegistry.getAnnotationDB();
-  Set<String> classIndex=db.getClassIndex().keySet();
-  ClassPool classPool=ClassPool.getDefault();
-  for (  String key : classIndex) {
-    if (key.startsWith("org.pentaho.di.core.lifecycle.pdi")) {
-      try {
-        Class<?> clazz=(Class<?>)Class.forName(key);
-        if (LifecycleListener.class.isAssignableFrom(clazz)) {
-          lifeListeners.add((LifecycleListener)clazz.newInstance());
-        }
-      }
- catch (      ClassNotFoundException e) {
-        e.printStackTrace();
-      }
-catch (      InstantiationException e) {
-        e.printStackTrace();
-      }
-catch (      IllegalAccessException e) {
-        e.printStackTrace();
-      }
+  ClassPathFinder classPathFinder=PluginRegistry.getClassPathFinder();
+  List<Class<? extends LifecycleListener>> classList=classPathFinder.findClassesImplementingInterface(LifecycleListener.class,"org.pentaho.di.core.lifecycle.pdi");
+  for (  Class<? extends LifecycleListener> clazz : classList) {
+    try {
+      lifeListeners.add(clazz.newInstance());
+    }
+ catch (    IllegalAccessException e) {
+      LogChannel.GENERAL.logError("Illegal access to class " + clazz + ", ignored.");
+    }
+catch (    InstantiationException e) {
+      LogChannel.GENERAL.logError("Could not instatiate class class " + clazz + ", ignored.");
     }
   }
-  LogChannel.GENERAL.logBasic("Finished lifecycle listener scan in " + (System.currentTimeMillis() - startTime) + "ms.");
 }

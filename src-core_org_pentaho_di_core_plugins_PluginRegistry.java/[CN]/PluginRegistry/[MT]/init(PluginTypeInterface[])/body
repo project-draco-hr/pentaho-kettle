@@ -2,21 +2,13 @@
   PluginRegistry registry=getInstance();
   try {
     annotationDB=new AnnotationDB();
-    URL[] urls=ClasspathUrlFinder.findClassPaths();
-    LogChannel.GENERAL.logDetailed("Found " + urls.length + " objects in the classpath.");
+    URLClassLoader urlClassLoader=((URLClassLoader)pluginTypes.getClass().getClassLoader());
+    URL[] urls=urlClassLoader.getURLs();
+    LogChannel.GENERAL.logBasic("Found " + urls.length + " objects in the classpath.");
     long startScan=System.currentTimeMillis();
     annotationDB.scanArchives(urls);
-    File kettleCore=new File("lib/kettle-core.jar");
-    if (kettleCore.exists()) {
-      annotationDB.scanArchives(kettleCore.toURI().toURL());
-      annotationDB.scanArchives(new File("lib/kettle-db.jar").toURI().toURL());
-      annotationDB.scanArchives(new File("lib/kettle-engine.jar").toURI().toURL());
-    }
-    File agileBI=new File("plugins/spoon/agile-bi/lib/agile-bi-TRUNK-SNAPSHOT.jar");
-    if (agileBI.exists()) {
-      annotationDB.scanArchives(agileBI.toURI().toURL());
-    }
-    LogChannel.GENERAL.logDetailed("Finished annotation scan in " + (System.currentTimeMillis() - startScan) + "ms.");
+    LogChannel.GENERAL.logBasic("Finished annotation scan in " + (System.currentTimeMillis() - startScan) + "ms.");
+    classPathFinder=new ClassPathFinder(urlClassLoader);
   }
  catch (  IOException e) {
     throw new KettlePluginException("Unable to scan for annotations in the classpath",e);

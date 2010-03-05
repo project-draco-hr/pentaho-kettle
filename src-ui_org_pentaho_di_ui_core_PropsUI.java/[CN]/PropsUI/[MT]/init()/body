@@ -9,32 +9,19 @@
   loadScreens();
   loadLastUsedFiles();
   loadOpenTabFiles();
+  ClassPathFinder classPathFinder=PluginRegistry.getClassPathFinder();
+  List<Class<? extends GUIOption>> classList=classPathFinder.findClassesImplementingInterface(GUIOption.class,"org.pentaho.di.core");
   List<GUIOption<Object>> leditables=new ArrayList<GUIOption<Object>>();
-  long startTime=System.currentTimeMillis();
-  AnnotationDB db=PluginRegistry.getAnnotationDB();
-  Set<String> classIndex=db.getClassIndex().keySet();
-  ClassPool classPool=ClassPool.getDefault();
-  for (  String key : classIndex) {
-    if (key.startsWith("org.pentaho.di.core")) {
-      try {
-        CtClass ctClass=classPool.get(key);
-        CtClass[] interfaces=ctClass.getInterfaces();
-        for (        CtClass interf : interfaces) {
-          if (interf.getName().equals(GUIOption.class.getName())) {
-            try {
-              Class<GUIOption<Object>> clazz=(Class<GUIOption<Object>>)Class.forName(ctClass.getName());
-              leditables.add(clazz.newInstance());
-            }
- catch (            Exception e) {
-              LogChannel.GENERAL.logDetailed("Unable to reach class " + ctClass.getName() + ": "+ e.getMessage());
-            }
-          }
-        }
-      }
- catch (      NotFoundException e) {
-      }
+  for (  Class<? extends GUIOption> clazz : classList) {
+    try {
+      leditables.add(clazz.newInstance());
+    }
+ catch (    IllegalAccessException e) {
+      LogChannel.GENERAL.logError("Illegal access to class " + clazz.getName() + ", ignored.");
+    }
+catch (    InstantiationException e) {
+      LogChannel.GENERAL.logError("Could not instatiate class class " + clazz.getName() + ", ignored.");
     }
   }
-  LogChannel.GENERAL.logBasic("Finished GUIOption scan in " + (System.currentTimeMillis() - startTime) + "ms.");
   editables=Collections.unmodifiableList(leditables);
 }
