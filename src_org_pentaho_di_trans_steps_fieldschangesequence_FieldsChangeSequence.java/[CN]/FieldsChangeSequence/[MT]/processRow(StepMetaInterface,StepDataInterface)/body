@@ -1,0 +1,76 @@
+{
+  meta=(FieldsChangeSequenceMeta)smi;
+  data=(FieldsChangeSequenceData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    data.previousMeta=getInputRowMeta().clone();
+    data.nextIndexField=data.previousMeta.size();
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (meta.getFieldName() == null || meta.getFieldName().length > 0) {
+      data.fieldnr=meta.getFieldName().length;
+      data.fieldnrs=new int[data.fieldnr];
+      data.previousValues=new Object[data.fieldnr];
+      for (int i=0; i < data.fieldnr; i++) {
+        data.fieldnrs[i]=data.previousMeta.indexOfValue(meta.getFieldName()[i]);
+        if (data.fieldnrs[i] < 0) {
+          logError(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.CanNotFindField",meta.getFieldName()[i]));
+          throw new KettleException(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.CanNotFindField",meta.getFieldName()[i]));
+        }
+      }
+    }
+ else {
+      data.fieldnr=data.previousMeta.size();
+      data.fieldnrs=new int[data.fieldnr];
+      data.previousValues=new Object[data.fieldnr];
+      for (int i=0; i < data.previousMeta.size(); i++) {
+        data.fieldnrs[i]=i;
+      }
+    }
+    data.startAt=Const.toInt(environmentSubstitute(meta.getStart()),1);
+    data.incrementBy=Const.toInt(environmentSubstitute(meta.getIncrement()),1);
+    data.seq=data.startAt;
+  }
+  try {
+    boolean change=false;
+    for (int i=0; i < data.fieldnr; i++) {
+      if (!first) {
+        if (!data.previousValues[i].equals(r[data.fieldnrs[i]]))         change=true;
+      }
+      data.previousValues[i]=r[data.fieldnrs[i]];
+    }
+    if (first)     first=false;
+    if (change)     data.seq=data.startAt;
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.ReadRow") + getLinesRead() + " : "+ getInputRowMeta().getString(r));
+    r[data.nextIndexField]=data.seq;
+    putRow(data.outputRowMeta,r);
+    data.seq+=data.incrementBy;
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.WriteRow") + getLinesWritten() + " : "+ getInputRowMeta().getString(r));
+    if (checkFeedback(getLinesRead())) {
+      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  Exception e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"FieldsChangeSequence.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"FieldsChangeSequence001");
+    }
+  }
+  return true;
+}
