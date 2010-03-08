@@ -1,19 +1,36 @@
 {
   if (rep != null) {
-    RepositoryExplorerDialog.RepositoryExplorerCallback cb=new RepositoryExplorerDialog.RepositoryExplorerCallback(){
-      public boolean open(      RepositoryObjectReference objectToOpen){
-        String objname=objectToOpen.getName();
+    RepositoryExplorerCallback cb=new RepositoryExplorerCallback(){
+      public boolean open(      RepositoryElementLocationInterface element,      String revision){
+        String objname=element.getName();
         if (objname != null) {
-          RepositoryObjectType objectType=objectToOpen.getType();
-          RepositoryDirectory repdir=objectToOpen.getDirectory();
-          String versionLabel=objectToOpen.getVersionLabel();
-          loadObjectFromRepository(objname,objectType,repdir,versionLabel);
+          RepositoryObjectType objectType=element.getRepositoryElementType();
+          RepositoryDirectory repdir=element.getRepositoryDirectory();
+          loadObjectFromRepository(objname,objectType,repdir,revision);
+        }
+        return false;
+      }
+      public boolean restoreRevision(      RepositoryElementLocationInterface element,      String revision){
+        try {
+          TransMeta transInfo=rep.loadTransformation(element.getName(),element.getRepositoryDirectory(),null,true,revision);
+          rep.save(transInfo,"Restore",null);
+        }
+ catch (        Exception e) {
+          MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+          mb.setMessage(BaseMessages.getString(PKG,"Spoon.Dialog.ErrorOpening.Message") + element.getName() + Const.CR+ e.getMessage());
+          mb.setText(BaseMessages.getString(PKG,"Spoon.Dialog.ErrorOpening.Title"));
+          mb.open();
         }
         return false;
       }
     }
 ;
-    RepositoryExplorerDialog erd=new RepositoryExplorerDialog(shell,SWT.NONE,rep,cb,Variables.getADefaultVariableSpace());
-    erd.open();
+    try {
+      RepositoryExplorer explorer=new RepositoryExplorer(rep,cb,Variables.getADefaultVariableSpace());
+      explorer.show();
+    }
+ catch (    Throwable e) {
+      new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Error"),e.getMessage(),e);
+    }
   }
 }
