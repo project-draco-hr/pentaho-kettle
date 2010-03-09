@@ -1,0 +1,119 @@
+{
+  logBasic(BaseMessages.getString(PKG,"JobEntryFTPS.Started",serverName));
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  NrErrors=0;
+  NrfilesRetrieved=0;
+  successConditionBroken=false;
+  boolean exitjobentry=false;
+  limitFiles=Const.toInt(environmentSubstitute(getLimit()),10);
+  if (movefiles) {
+    if (Const.isEmpty(movetodirectory)) {
+      logError(BaseMessages.getString(PKG,"JobEntryFTPS.MoveToFolderEmpty"));
+      return result;
+    }
+  }
+  localFolder=environmentSubstitute(targetDirectory);
+  if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"JobEntryFTPS.Start"));
+  FTPSConnection connection=null;
+  try {
+    String realServername=environmentSubstitute(serverName);
+    String realUsername=environmentSubstitute(userName);
+    String realPassword=environmentSubstitute(password);
+    int realPort=Const.toInt(environmentSubstitute(this.port),0);
+    connection=new FTPSConnection(realServername,realPort,realUsername,realPassword);
+    if (!Const.isEmpty(proxyHost)) {
+      String realProxy_host=environmentSubstitute(proxyHost);
+      connection.setProxyHost(realProxy_host);
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobEntryFTPS.OpenedProxyConnectionOn",realProxy_host));
+      int proxyport=Const.toInt(environmentSubstitute(proxyPort),21);
+      if (proxyport != 0) {
+        connection.setProxyPort(proxyport);
+      }
+    }
+ else {
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.OpenedConnectionTo",realServername));
+    }
+    if (activeConnection) {
+      connection.setPassiveMode(false);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.SetActive"));
+    }
+ else {
+      connection.setPassiveMode(true);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.SetPassive"));
+    }
+    if (isBinaryMode()) {
+      connection.setBinaryMode(true);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.SetBinary"));
+    }
+    connection.setTimeOut(timeout);
+    if (log.isDetailed())     logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.SetTimeout",String.valueOf(timeout)));
+    connection.connect();
+    if (log.isDetailed()) {
+      logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.LoggedIn",realUsername));
+      logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.WorkingDirectory",connection.getWorkingDirectory()));
+    }
+    if (!Const.isEmpty(FTPSDirectory)) {
+      String realFTPSDirectory=environmentSubstitute(FTPSDirectory);
+      realFTPSDirectory=normalizePath(realFTPSDirectory);
+      connection.changeDirectory(realFTPSDirectory);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.ChangedDir",realFTPSDirectory));
+    }
+    if (movefiles && !Const.isEmpty(movetodirectory)) {
+      realMoveToFolder=environmentSubstitute(movetodirectory);
+      realMoveToFolder=normalizePath(realMoveToFolder);
+      boolean folderExist=true;
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.CheckMoveToFolder",realMoveToFolder));
+      String originalLocation=connection.getWorkingDirectory();
+      try {
+        connection.changeDirectory(realMoveToFolder);
+        if (log.isDetailed())         logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.CheckMoveToFolderSwitchBack",originalLocation));
+        connection.changeDirectory(originalLocation);
+      }
+ catch (      Exception e) {
+        folderExist=false;
+      }
+      if (!folderExist) {
+        if (createmovefolder) {
+          connection.createDirectory(realMoveToFolder);
+          if (log.isDetailed())           logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.MoveToFolderCreated",realMoveToFolder));
+        }
+ else {
+          logError(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.MoveToFolderNotExist"));
+          exitjobentry=true;
+          NrErrors++;
+        }
+      }
+    }
+    if (!exitjobentry) {
+      Pattern pattern=null;
+      if (!Const.isEmpty(wildcard)) {
+        String realWildcard=environmentSubstitute(wildcard);
+        pattern=Pattern.compile(realWildcard);
+      }
+      if (!getSuccessCondition().equals(SUCCESS_IF_NO_ERRORS))       limitFiles=Const.toInt(environmentSubstitute(getLimit()),10);
+      downloadFiles(connection,connection.getWorkingDirectory(),pattern,result);
+    }
+  }
+ catch (  Exception e) {
+    if (!successConditionBroken && !exitjobentry)     updateErrors();
+    logError(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.ErrorGetting",e.getMessage()));
+  }
+ finally {
+    if (connection != null) {
+      try {
+        connection.disconnect();
+      }
+ catch (      Exception e) {
+        logError(toString(),BaseMessages.getString(PKG,"JobEntryFTPS.ErrorQuitting",e.getMessage()));
+      }
+    }
+  }
+  result.setNrErrors(NrErrors);
+  result.setNrFilesRetrieved(NrfilesRetrieved);
+  if (getSuccessStatus())   result.setResult(true);
+  if (exitjobentry)   result.setResult(false);
+  displayResults();
+  return result;
+}
