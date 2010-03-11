@@ -1,0 +1,20 @@
+{
+  List<JarFileAnnotationPlugin> jarFilePlugins=findAnnotatedClassFiles(LifecyclePlugin.class.getName());
+  for (  JarFileAnnotationPlugin jarFilePlugin : jarFilePlugins) {
+    KettleURLClassLoader urlClassLoader=(KettleURLClassLoader)createUrlClassLoader(jarFilePlugin.getJarFile(),getClass().getClassLoader());
+    try {
+      Class<?> clazz=urlClassLoader.loadClass(jarFilePlugin.getClassFile().getName());
+      LifecyclePlugin lifecyclePlugin=clazz.getAnnotation(LifecyclePlugin.class);
+      if (lifecyclePlugin != null) {
+        List<String> libraries=new ArrayList<String>();
+        for (        URL url : urlClassLoader.getURLs()) {
+          libraries.add(URLDecoder.decode(url.getFile(),"UTF-8"));
+        }
+        handleLifecyclePluginAnnotation(clazz,lifecyclePlugin,libraries,false);
+      }
+    }
+ catch (    Exception e) {
+      LogChannel.GENERAL.logError("Error registering plugin for jar file: " + jarFilePlugin.getJarFile(),e);
+    }
+  }
+}
