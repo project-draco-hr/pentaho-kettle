@@ -1,25 +1,52 @@
 {
   List<Class<? extends T>> classes=new ArrayList<Class<? extends T>>();
   long startTime=System.currentTimeMillis();
-  for (  String key : classIndex) {
-    if (packageLimitation == null || key.startsWith(packageLimitation)) {
-      try {
-        CtClass ctClass=classPool.get(key);
-        CtClass[] interfaces=ctClass.getInterfaces();
-        for (        CtClass check : interfaces) {
-          if (check.getName().equals(interf.getName())) {
-            try {
-              Class<? extends T> clazz=Class.forName(ctClass.getName()).asSubclass(interf);
-              classes.add(clazz);
+  for (  URL url : urls) {
+    AnnotationDB db=new AnnotationDB();
+    try {
+      db.scanArchives(url);
+      for (      String key : db.getClassIndex().keySet()) {
+        if (packageLimitation == null || key.startsWith(packageLimitation)) {
+          try {
+            ClassPool classPool=ClassPool.getDefault();
+            String filename=URLDecoder.decode(url.getFile(),"UTF-8");
+            classPool.appendClassPath(filename);
+            CtClass ctClass=classPool.get(key);
+            CtClass[] interfaces=ctClass.getInterfaces();
+            for (            CtClass check : interfaces) {
+              if (check.getName().equals(interf.getName())) {
+                try {
+                  List<URL> urlList=new ArrayList<URL>();
+                  urlList.add(url);
+                  String libFolderName=new File(filename).getParent() + "/lib";
+                  if (new File(libFolderName).exists()) {
+                    PluginFolder pluginFolder=new PluginFolder(libFolderName,false,true);
+                    FileObject[] libFiles=pluginFolder.findJarFiles();
+                    for (                    FileObject libFile : libFiles) {
+                      urlList.add(libFile.getURL());
+                    }
+                  }
+                  KettleURLClassLoader urlClassLoader=new KettleURLClassLoader(urlList.toArray(new URL[urlList.size()]),getClass().getClassLoader());
+                  Class<? extends T> clazz=urlClassLoader.loadClass(ctClass.getName()).asSubclass(interf);
+                  classes.add(clazz);
+                }
+ catch (                Exception e) {
+                  LogChannel.GENERAL.logError("Unable to reach class " + ctClass.getName(),e);
+                }
+              }
             }
- catch (            Exception e) {
-              LogChannel.GENERAL.logDetailed("Unable to reach class " + ctClass.getName() + ": "+ e.getMessage());
-            }
+          }
+ catch (          NotFoundException e) {
+            LogChannel.GENERAL.logDebug("File not found exception");
+          }
+catch (          UnsupportedEncodingException e) {
+            LogChannel.GENERAL.logError("Unsupported encoding encountered",e);
           }
         }
       }
- catch (      NotFoundException e) {
-      }
+    }
+ catch (    Exception e) {
+      LogChannel.GENERAL.logDetailed("Unable to scan for annotations in " + url,e);
     }
   }
   LogChannel.GENERAL.logDetailed("Finished scan for " + interf.getCanonicalName() + " in "+ (System.currentTimeMillis() - startTime)+ "ms.");
