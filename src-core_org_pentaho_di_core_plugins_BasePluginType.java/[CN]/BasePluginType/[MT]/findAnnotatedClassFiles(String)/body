@@ -6,30 +6,17 @@
         FileObject[] fileObjects=pluginFolder.findJarFiles();
         if (fileObjects != null) {
           for (          FileObject fileObject : fileObjects) {
-            JarFile jarFile=new JarFile(KettleVFS.getFilename(fileObject));
-            Enumeration<JarEntry> entries=jarFile.entries();
-            while (entries.hasMoreElements()) {
-              JarEntry entry=entries.nextElement();
-              try {
-                ClassFile classFile=new ClassFile(new DataInputStream(new BufferedInputStream(jarFile.getInputStream(entry))));
-                AnnotationsAttribute visible=(AnnotationsAttribute)classFile.getAttribute(AnnotationsAttribute.visibleTag);
-                if (visible != null) {
-                  Annotation[] anns=visible.getAnnotations();
-                  for (                  Annotation ann : anns) {
-                    if (ann.getTypeName().equals(annotationClassName)) {
-                      classFiles.add(new JarFileAnnotationPlugin(fileObject.getURL(),classFile,ann,fileObject.getParent().getURL()));
-                      break;
-                    }
-                  }
-                }
-              }
- catch (              Exception e) {
-              }
+            AnnotationDB annotationDB=new AnnotationDB();
+            annotationDB.scanArchives(fileObject.getURL());
+            Set<String> impls=annotationDB.getAnnotationIndex().get(annotationClassName);
+            if (impls != null) {
+              for (              String fil : impls)               classFiles.add(new JarFileAnnotationPlugin(fil,fileObject.getURL(),fileObject.getParent().getURL()));
             }
           }
         }
       }
  catch (      Exception e) {
+        e.printStackTrace();
       }
     }
   }
