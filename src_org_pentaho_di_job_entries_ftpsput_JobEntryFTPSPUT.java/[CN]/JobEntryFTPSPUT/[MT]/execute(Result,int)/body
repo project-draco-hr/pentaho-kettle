@@ -1,0 +1,122 @@
+{
+  LogWriter log=LogWriter.getInstance();
+  Result result=previousResult;
+  result.setResult(false);
+  long filesput=0;
+  if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"JobFTPSPUT.Log.Starting"));
+  String realServerName=environmentSubstitute(serverName);
+  String realServerPort=environmentSubstitute(serverPort);
+  String realUsername=environmentSubstitute(userName);
+  String realPassword=environmentSubstitute(password);
+  String realRemoteDirectory=environmentSubstitute(remoteDirectory);
+  String realWildcard=environmentSubstitute(wildcard);
+  String realLocalDirectory=environmentSubstitute(localDirectory);
+  FTPSConnection connection=null;
+  try {
+    int realPort=Const.toInt(environmentSubstitute(realServerPort),0);
+    connection=new FTPSConnection(getConnectionType(),realServerName,realPort,realUsername,realPassword);
+    if (!Const.isEmpty(proxyHost)) {
+      String realProxy_host=environmentSubstitute(proxyHost);
+      String realProxy_username=environmentSubstitute(proxyUsername);
+      String realProxy_password=environmentSubstitute(proxyPassword);
+      connection.setProxyHost(realProxy_host);
+      if (!Const.isEmpty(realProxy_username)) {
+        connection.setProxyUser(realProxy_username);
+      }
+      if (!Const.isEmpty(realProxy_password)) {
+        connection.setProxyPassword(realProxy_password);
+      }
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobEntryFTPSPUT.OpenedProxyConnectionOn",realProxy_host));
+      int proxyport=Const.toInt(environmentSubstitute(proxyPort),21);
+      if (proxyport != 0) {
+        connection.setProxyPort(proxyport);
+      }
+    }
+ else {
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryFTPSPUT.OpenedConnectionTo",realServerName));
+    }
+    if (activeConnection) {
+      connection.setPassiveMode(false);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobFTPSPUT.Log.SetActiveConnection"));
+    }
+ else {
+      connection.setPassiveMode(true);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobFTPSPUT.Log.SetPassiveConnection"));
+    }
+    if (isBinaryMode()) {
+      connection.setBinaryMode(true);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobFTPSPUT.Log.BinaryMod"));
+    }
+    connection.setTimeOut(timeout);
+    if (log.isDetailed())     logDetailed(toString(),BaseMessages.getString(PKG,"JobFTPSPUT.Log.SetTimeout",String.valueOf(timeout)));
+    connection.connect();
+    if (log.isDetailed()) {
+      logDetailed(toString(),BaseMessages.getString(PKG,"JobFTPSPUT.Log.Logged",realUsername));
+      logDetailed(toString(),BaseMessages.getString(PKG,"JobFTPSPUT.WorkingDirectory",connection.getWorkingDirectory()));
+    }
+    if (!Const.isEmpty(realRemoteDirectory)) {
+      connection.changeDirectory(realRemoteDirectory);
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobFTPSPUT.Log.ChangedDirectory",realRemoteDirectory));
+    }
+    int x=0;
+    ArrayList<String> myFileList=new ArrayList<String>();
+    File localFiles=new File(realLocalDirectory);
+    File[] children=localFiles.listFiles();
+    for (int i=0; i < children.length; i++) {
+      if (!children[i].isDirectory()) {
+        myFileList.add(children[i].getName());
+        x=x + 1;
+      }
+    }
+    String[] filelist=new String[myFileList.size()];
+    myFileList.toArray(filelist);
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobFTPSPUT.Log.FoundFileLocalDirectory","" + filelist.length,realLocalDirectory));
+    Pattern pattern=null;
+    if (!Const.isEmpty(realWildcard)) {
+      pattern=Pattern.compile(realWildcard);
+    }
+    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
+      boolean getIt=true;
+      if (pattern != null) {
+        Matcher matcher=pattern.matcher(filelist[i]);
+        getIt=matcher.matches();
+      }
+      if (getIt) {
+        boolean fileExist=false;
+        if (log.isDebug()) {
+          if (fileExist)           logDebug(BaseMessages.getString(PKG,"JobFTPSPUT.Log.FileExists",filelist[i]));
+ else           logDebug(BaseMessages.getString(PKG,"JobFTPSPUT.Log.FileDoesNotExists",filelist[i]));
+        }
+        if (!fileExist || (!onlyPuttingNewFiles && fileExist)) {
+          if (log.isDebug())           logDebug(BaseMessages.getString(PKG,"JobFTPSPUT.Log.PuttingFileToRemoteDirectory",filelist[i],realRemoteDirectory));
+          String localFilename=realLocalDirectory + Const.FILE_SEPARATOR + filelist[i];
+          connection.uploadFile(localFilename,filelist[i]);
+          filesput++;
+          if (remove) {
+            new File(localFilename).delete();
+            if (log.isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobFTPSPUT.Log.DeletedFile",localFilename));
+          }
+        }
+      }
+    }
+    result.setResult(true);
+    result.setNrLinesOutput(filesput);
+    if (log.isDetailed())     logDebug(BaseMessages.getString(PKG,"JobFTPSPUT.Log.WeHavePut","" + filesput));
+  }
+ catch (  Exception e) {
+    result.setNrErrors(1);
+    logError(BaseMessages.getString(PKG,"JobFTPSPUT.Log.ErrorPuttingFiles",e.getMessage()));
+    logError(Const.getStackTracker(e));
+  }
+ finally {
+    if (connection != null) {
+      try {
+        connection.disconnect();
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"JobFTPSPUT.Log.ErrorQuitingFTP",e.getMessage()));
+      }
+    }
+  }
+  return result;
+}
