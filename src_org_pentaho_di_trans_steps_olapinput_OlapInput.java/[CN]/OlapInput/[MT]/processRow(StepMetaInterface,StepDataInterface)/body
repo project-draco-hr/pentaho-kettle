@@ -1,0 +1,33 @@
+{
+  try {
+    if (first) {
+      first=false;
+      String driver=meta.getOlap4jDriver();
+      String url=environmentSubstitute(meta.getOlap4jUrl());
+      String username=environmentSubstitute(meta.getUsername());
+      String password=environmentSubstitute(meta.getPassword());
+      String mdx=meta.getMdx();
+      if (meta.isVariableReplacementActive())       mdx=environmentSubstitute(meta.getMdx());
+      String catalog=environmentSubstitute(meta.getCatalog());
+      data.olapHelper=new OlapHelper(driver,url,username,password,catalog,mdx,this);
+      data.olapHelper.openQuery();
+      data.olapHelper.createRectangularOutput();
+      data.outputRowMeta=data.olapHelper.getOutputRowMeta().clone();
+      data.rowNumber=0;
+    }
+    for (; data.rowNumber < data.olapHelper.getRows().length; data.rowNumber++) {
+      String[] row=data.olapHelper.getRows()[data.rowNumber];
+      Object[] outputRowData=RowDataUtil.allocateRowData(row.length);
+      outputRowData=row;
+      putRow(data.outputRowMeta,outputRowData);
+    }
+    setOutputDone();
+    return false;
+  }
+ catch (  Exception e) {
+    logError("An error occurred, processing will be stopped: " + e.fillInStackTrace());
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+}

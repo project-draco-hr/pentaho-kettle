@@ -1,0 +1,52 @@
+{
+  final int yOffset=columnsAxisInfo.getWidth();
+  final int xOffsset=rowsAxisInfo.getWidth();
+  final Matrix matrix=new Matrix(xOffsset + (columnsAxis == null ? 1 : columnsAxis.getPositions().size()),yOffset + (rowsAxis == null ? 1 : rowsAxis.getPositions().size()));
+  for (int x=0; x < xOffsset; x++) {
+    for (int y=0; y < yOffset; y++) {
+      final MemberCell memberInfo=new MemberCell(false,x > 0);
+      matrix.set(x,y,memberInfo);
+    }
+  }
+  populateAxis(matrix,columnsAxis,columnsAxisInfo,true,xOffsset);
+  populateAxis(matrix,rowsAxis,rowsAxisInfo,false,yOffset);
+  for (  final Cell cell : cellIter(pageCoords,cellSet)) {
+    final List<Integer> coordList=cell.getCoordinateList();
+    int x=xOffsset;
+    if (coordList.size() > 0)     x+=coordList.get(0);
+    int y=yOffset;
+    if (coordList.size() > 1)     y+=coordList.get(1);
+    final DataCell cellInfo=new DataCell(true,false);
+    for (int z=0; z < matrix.getMatrixHeight(); z++) {
+      final AbstractBaseCell headerCell=matrix.get(x,z);
+      if (headerCell instanceof MemberCell && ((MemberCell)headerCell).getUniqueName() != null) {
+      }
+ else {
+        cellInfo.setParentColMember((MemberCell)matrix.get(x,z - 1));
+        break;
+      }
+    }
+    for (int z=0; z < matrix.getMatrixWidth(); z++) {
+      final AbstractBaseCell headerCell=matrix.get(z,y);
+      if (headerCell instanceof MemberCell && ((MemberCell)headerCell).getUniqueName() != null) {
+      }
+ else {
+        cellInfo.setParentRowMember((MemberCell)matrix.get(z - 1,y));
+        break;
+      }
+    }
+    if (cell.getValue() != null)     if (cell.getValue() instanceof Number)     cellInfo.setRawNumber((Number)cell.getValue());
+    String cellValue=cell.getFormattedValue();
+    if (cellValue == null) {
+      cellValue="";
+    }
+    if (cellValue.length() < 1) {
+      final Number value=(Number)cell.getValue();
+      if (value == null || value.doubleValue() < 1.23457E08)       cellValue="";
+ else       cellValue=cell.getValue().toString();
+    }
+    cellInfo.setFormattedValue(getValueString(cellValue));
+    matrix.set(x,y,cellInfo);
+  }
+  return matrix;
+}
