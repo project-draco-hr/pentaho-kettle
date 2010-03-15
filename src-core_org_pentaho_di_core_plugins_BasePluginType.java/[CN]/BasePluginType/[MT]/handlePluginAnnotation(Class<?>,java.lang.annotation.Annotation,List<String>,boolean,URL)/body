@@ -3,9 +3,13 @@
   if (ids.length == 1 && Const.isEmpty(ids[0])) {
     throw new KettlePluginException("No ID specified for plugin with class: " + clazz.getName());
   }
-  String name=extractName(annotation);
-  String description=extractDesc(annotation);
-  String category=extractCategory(annotation);
+  String packageName=extractI18nPackageName(annotation);
+  String altPackageName=clazz.getPackage().getName();
+  String name=getTranslation(extractName(annotation),packageName,altPackageName,clazz);
+  String description=getTranslation(extractDesc(annotation),packageName,altPackageName,clazz);
+  String category=getTranslation(extractCategory(annotation),packageName,altPackageName,clazz);
+  String imageFile=extractImageFile(annotation);
+  boolean separateClassLoader=extractSeparateClassLoader(annotation);
   Map<Class<?>,String> classMap=new HashMap<Class<?>,String>();
   PluginMainClassType mainType=getClass().getAnnotation(PluginMainClassType.class);
   classMap.put(mainType.value(),clazz.getName());
@@ -15,6 +19,9 @@
       classMap.put(extraTypes.classTypes()[i],extraTypes.implementationClass()[i].getName());
     }
   }
-  PluginInterface plugin=new Plugin(ids,this.getClass(),mainType.value(),category,name,description,null,false,nativeRepositoryType,classMap,libraries,null,pluginFolder);
+  PluginInterface plugin=new Plugin(ids,this.getClass(),mainType.value(),category,name,description,imageFile,separateClassLoader,nativeRepositoryType,classMap,libraries,null,pluginFolder);
   registry.registerPlugin(this.getClass(),plugin);
+  if (libraries != null && libraries.size() > 0) {
+    LogChannel.GENERAL.logBasic("Plugin with id [" + ids[0] + "] has "+ libraries.size()+ " libaries in its private class path");
+  }
 }
