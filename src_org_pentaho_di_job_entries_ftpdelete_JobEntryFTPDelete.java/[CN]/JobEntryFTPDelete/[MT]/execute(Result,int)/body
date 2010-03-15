@@ -29,7 +29,7 @@
   }
   try {
     String[] filelist=null;
-    if (protocol.equals("FTP")) {
+    if (protocol.equals(PROTOCOL_FTP)) {
       FTPConnect(log,realservername,realUsername,realPassword,realserverport,realFtpDirectory,realproxyhost,realproxyusername,realproxypassword,realproxyport,timeout);
       filelist=ftpclient.dir();
       if (filelist.length == 1) {
@@ -41,11 +41,15 @@
         }
       }
     }
- else     if (protocol.equals("SFTP")) {
+ else     if (protocol.equals(PROTOCOL_FTPS)) {
+      FTPSConnect(log,realservername,realUsername,realserverport,realPassword,realFtpDirectory,timeout);
+      filelist=ftpsclient.getFileNames();
+    }
+ else     if (protocol.equals(PROTOCOL_SFTP)) {
       SFTPConnect(log,realservername,realUsername,realserverport,realPassword,realFtpDirectory);
       filelist=sftpclient.dir();
     }
- else     if (protocol.equals("SSH")) {
+ else     if (protocol.equals(PROTOCOL_SSH)) {
       SSHConnect(log,realservername,realserverpassword,realserverport,realUsername,realPassword,realproxyhost,realproxyusername,realproxypassword,realproxyport,realkeyFilename,realkeyPass);
       String sourceFolder=".";
       if (realFtpDirectory != null)       sourceFolder=realFtpDirectory + "/";
@@ -63,7 +67,7 @@
         }
       }
     }
-    if (log.isDetailed())     logDetailed("JobEntryFTPDelete.FoundNFiles","" + filelist.length);
+    if (log.isDetailed())     logDetailed("JobEntryFTPDelete.FoundNFiles",String.valueOf(filelist.length));
     int found=filelist == null ? 0 : filelist.length;
     if (found == 0) {
       result.setResult(true);
@@ -101,16 +105,20 @@
           }
         }
         if (getIt) {
-          if (protocol.equals("FTP")) {
+          if (protocol.equals(PROTOCOL_FTP)) {
             ftpclient.delete(filelist[i]);
           }
- else           if (protocol.equals("SFTP")) {
+          if (protocol.equals(PROTOCOL_FTPS)) {
+            System.out.println("---------------" + filelist[i]);
+            ftpsclient.deleteFile(filelist[i]);
+          }
+ else           if (protocol.equals(PROTOCOL_SFTP)) {
             sftpclient.delete(filelist[i]);
           }
- else           if (protocol.equals("SSH")) {
+ else           if (protocol.equals(PROTOCOL_SSH)) {
             sshclient.rm(filelist[i]);
           }
-          if (log.isDetailed())           logDetailed("JobEntryFTPDelete.RemotfileDeleted",filelist[i]);
+          if (log.isDetailed())           logDetailed("JobEntryFTPDelete.RemotefileDeleted",filelist[i]);
           updateDeletedFiles();
         }
       }
@@ -131,6 +139,14 @@
       try {
         ftpclient.quit();
         ftpclient=null;
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"JobEntryFTPDelete.ErrorQuitting",e.getMessage()));
+      }
+    }
+    if (ftpsclient != null) {
+      try {
+        ftpsclient.disconnect();
       }
  catch (      Exception e) {
         logError(BaseMessages.getString(PKG,"JobEntryFTPDelete.ErrorQuitting",e.getMessage()));
