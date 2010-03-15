@@ -4,6 +4,24 @@
     registry.registerPluginType(pluginType.getClass());
     long startScan=System.currentTimeMillis();
     pluginType.searchPlugins();
+    String pluginClasses=EnvUtil.getSystemProperty(Const.KETTLE_PLUGIN_CLASSES);
+    if (!Const.isEmpty(pluginClasses)) {
+      String[] classNames=pluginClasses.split(",");
+      for (      String className : classNames) {
+        try {
+          PluginAnnotationType annotationType=pluginType.getClass().getAnnotation(PluginAnnotationType.class);
+          Class<? extends Annotation> annotationClass=annotationType.value();
+          Class<?> clazz=Class.forName(className);
+          Annotation annotation=clazz.getAnnotation(annotationClass);
+          if (annotation != null) {
+            pluginType.handlePluginAnnotation(clazz,annotation,new ArrayList<String>(),true,null);
+          }
+        }
+ catch (        Exception e) {
+          LogChannel.GENERAL.logError("Error registring plugin class from KETTLE_PLUGIN_CLASSES: " + className,e);
+        }
+      }
+    }
     LogChannel.GENERAL.logDetailed("Registered " + registry.getPlugins(pluginType.getClass()).size() + " plugins of type '"+ pluginType.getName()+ "' in "+ (System.currentTimeMillis() - startScan)+ "ms.");
   }
 }
