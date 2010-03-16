@@ -1,0 +1,94 @@
+{
+  List<StringEvaluationResult> all=new ArrayList<StringEvaluationResult>(evaluationResults);
+  for (  StringEvaluationResult cmm : all) {
+    if (cmm.getConversionMeta().isBoolean()) {
+      String string;
+      if (tryTrimming) {
+        string=Const.trim(value);
+      }
+ else {
+        string=value;
+      }
+      if (!("Y".equalsIgnoreCase(string) || "N".equalsIgnoreCase(string) || "TRUE".equalsIgnoreCase(string)|| "FALSE".equalsIgnoreCase(string))) {
+        evaluationResults.remove(cmm);
+      }
+    }
+ else {
+      try {
+        if (cmm.getConversionMeta().isNumeric()) {
+          boolean stop=false;
+          int nrDots=0;
+          int nrCommas=0;
+          for (          char c : value.toCharArray()) {
+            if (!Character.isDigit(c) && c != '.' && c != ',' && !Character.isSpaceChar(c)) {
+              evaluationResults.remove(cmm);
+              stop=true;
+              break;
+            }
+            if ((c == '.' && cmm.getConversionMeta().isInteger()) || (c == ',' && cmm.getConversionMeta().isInteger())) {
+              evaluationResults.remove(cmm);
+              stop=true;
+              break;
+            }
+            if (c == '.')             nrDots++;
+            if (c == ',')             nrCommas++;
+          }
+          if (nrDots > 1 && nrCommas > 1) {
+            evaluationResults.remove(cmm);
+            stop=true;
+          }
+          if (stop) {
+            continue;
+          }
+        }
+        ValueMetaInterface meta=stringMeta.clone();
+        meta.setConversionMetadata(cmm.getConversionMeta());
+        meta.setTrimType(cmm.getConversionMeta().getTrimType());
+        Object object=meta.convertDataUsingConversionMetaData(value);
+        if (cmm.getConversionMeta().isNumeric() || cmm.getConversionMeta().isDate()) {
+          if (!cmm.getConversionMeta().isNull(object)) {
+            String compare=cmm.getConversionMeta().getString(object);
+switch (cmm.getConversionMeta().getTrimType()) {
+case ValueMetaInterface.TRIM_TYPE_NONE:
+              if (!compare.equalsIgnoreCase(value)) {
+                evaluationResults.remove(cmm);
+                continue;
+              }
+            break;
+case ValueMetaInterface.TRIM_TYPE_LEFT:
+          if (!compare.equalsIgnoreCase(Const.ltrim(value))) {
+            evaluationResults.remove(cmm);
+            continue;
+          }
+        break;
+case ValueMetaInterface.TRIM_TYPE_RIGHT:
+      if (!compare.equalsIgnoreCase(Const.rtrim(value))) {
+        evaluationResults.remove(cmm);
+        continue;
+      }
+    break;
+case ValueMetaInterface.TRIM_TYPE_BOTH:
+  if (!compare.equalsIgnoreCase(Const.trim(value))) {
+    evaluationResults.remove(cmm);
+    continue;
+  }
+break;
+}
+}
+}
+if (cmm.getConversionMeta().isNull(object)) {
+cmm.incrementNrNull();
+}
+if (cmm.getMin() == null || cmm.getConversionMeta().compare(cmm.getMin(),object) > 0) {
+cmm.setMin(object);
+}
+if (cmm.getMax() == null || cmm.getConversionMeta().compare(cmm.getMax(),object) < 0) {
+cmm.setMax(object);
+}
+}
+ catch (KettleValueException e) {
+evaluationResults.remove(cmm);
+}
+}
+}
+}
