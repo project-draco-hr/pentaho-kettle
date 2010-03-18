@@ -5,7 +5,7 @@
   String schemaTable;
   String indexname;
   String keyfield[];
-  String user[], pass[], code[], desc[], prof[];
+  String user[], pass[], code[], desc[];
   int KEY=9;
   log.logBasic("Starting to create or modify the repository tables...");
   String message=(upgrade ? "Upgrading " : "Creating") + " the Kettle repository...";
@@ -116,48 +116,7 @@
     if (log.isDetailed())     log.logDetailed("Table " + schemaTable + " is OK.");
   }
   if (ok_database_type) {
-    PluginRegistry registry=PluginRegistry.getInstance();
-    List<PluginInterface> plugins=registry.getPlugins(DatabasePluginType.class);
-    int y=0;
-    code=desc=new String[]{};
-    for (    PluginInterface plugin : plugins) {
-      code=new String[plugins.size()];
-      desc=new String[plugins.size()];
-      code[y]=plugin.getIds()[0];
-      desc[y]=plugin.getName();
-      y++;
-    }
-    if (!dryrun) {
-      database.prepareInsert(table,null,tablename);
-    }
-    for (int i=1; i < code.length; i++) {
-      RowMetaAndData lookup=null;
-      if (upgrade)       lookup=database.getOneRow("SELECT " + repository.quote(KettleDatabaseRepository.FIELD_DATABASE_TYPE_ID_DATABASE_TYPE) + " FROM "+ schemaTable+ " WHERE "+ repository.quote(KettleDatabaseRepository.FIELD_DATABASE_TYPE_CODE)+ " = '"+ code[i]+ "'");
-      if (lookup == null) {
-        ObjectId nextid=new LongObjectId(i);
-        if (!create) {
-          nextid=repository.connectionDelegate.getNextDatabaseTypeID();
-        }
-        Object[] tableData=new Object[]{new LongObjectId(nextid).longValue(),code[i],desc[i]};
-        if (dryrun) {
-          sql=database.getSQLOutput(null,tablename,table,tableData,null);
-          statements.add(sql);
-        }
- else {
-          database.setValuesInsert(table,tableData);
-          database.insertRow();
-        }
-      }
-    }
-    try {
-      if (!dryrun) {
-        database.closeInsert();
-      }
-      if (log.isDetailed())       log.logDetailed("Populated table " + schemaTable);
-    }
- catch (    KettleException dbe) {
-      throw new KettleException("Unable to close insert after populating table " + schemaTable,dbe);
-    }
+    updateDatabaseTypes(statements,dryrun,create);
   }
   if (monitor != null)   monitor.worked(1);
   boolean ok_database_contype=true;
@@ -180,6 +139,7 @@
  else {
     if (log.isDetailed())     log.logDetailed("Table " + schemaTable + " is OK.");
   }
+  ok_database_contype=sql.toUpperCase().contains("CREATE TABLE");
   if (ok_database_contype) {
     code=DatabaseMeta.dbAccessTypeCode;
     desc=DatabaseMeta.dbAccessTypeDesc;
@@ -789,7 +749,7 @@
  else {
     if (log.isDetailed())     log.logDetailed("Table " + schemaTable + " is OK.");
   }
-  if (ok_step_type && !dryrun) {
+  if (ok_step_type) {
     updateStepTypes(statements,dryrun,create);
     if (log.isDetailed())     log.logDetailed("Populated table " + schemaTable);
   }
@@ -1332,7 +1292,6 @@
     pass=new String[]{"admin","guest"};
     code=new String[]{"Administrator","Guest account"};
     desc=new String[]{"User manager","Read-only guest account"};
-    prof=new String[]{"Administrator","Read-only"};
     if (!dryrun) {
       database.prepareInsert(table,null,tablename);
     }

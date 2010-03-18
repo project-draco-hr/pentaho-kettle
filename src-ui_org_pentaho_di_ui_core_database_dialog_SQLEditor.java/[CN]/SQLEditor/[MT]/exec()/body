@@ -21,22 +21,51 @@
       int nrstats=0;
       while (to < length) {
         char c=all.charAt(to);
+        while (all.substring(from).startsWith("--")) {
+          int nextLineIndex=all.indexOf(Const.CR,from);
+          from=nextLineIndex + Const.CR.length();
+          if (to >= length)           break;
+          c=all.charAt(c);
+        }
+        if (to >= length)         break;
         if (c == '"') {
-          to++;
-          c=' ';
-          while (to < length && c != '"') {
-            c=all.charAt(to);
-            to++;
+          int nextDQuoteIndex=all.indexOf('"',to + 1);
+          if (nextDQuoteIndex >= 0) {
+            to=nextDQuoteIndex + 1;
           }
         }
- else         if (c == '\'') {
-          to++;
-          c=' ';
-          while (to < length && c != '\'') {
-            c=all.charAt(to);
-            to++;
+        c=all.charAt(to);
+        if (c == '\'') {
+          boolean skip=true;
+          if (to > 0) {
+            char prevChar=all.charAt(to - 1);
+            if (prevChar == '\\' || prevChar == '\'') {
+              skip=false;
+            }
+          }
+          while (skip) {
+            int nextQuoteIndex=all.indexOf('\'',to + 1);
+            if (nextQuoteIndex >= 0) {
+              to=nextQuoteIndex + 1;
+              skip=false;
+              if (to < all.length()) {
+                char nextChar=all.charAt(to);
+                if (nextChar == '\'') {
+                  skip=true;
+                  to++;
+                }
+              }
+              if (to > 0) {
+                char prevChar=all.charAt(to - 2);
+                if (prevChar == '\\') {
+                  skip=true;
+                  to++;
+                }
+              }
+            }
           }
         }
+        c=all.charAt(to);
         if (c == ';' || to >= length - 1) {
           if (to >= length - 1)           to++;
           String stat=all.substring(from,to);
@@ -76,7 +105,10 @@
  catch (              Exception dbe) {
                 String error=BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecError",sql,dbe.toString());
                 message.append(error).append(Const.CR);
-                new ErrorDialog(shell,BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Title"),error,dbe);
+                ErrorDialog dialog=new ErrorDialog(shell,BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Title"),error,dbe,true);
+                if (dialog.isCancelled()) {
+                  break;
+                }
               }
             }
           }

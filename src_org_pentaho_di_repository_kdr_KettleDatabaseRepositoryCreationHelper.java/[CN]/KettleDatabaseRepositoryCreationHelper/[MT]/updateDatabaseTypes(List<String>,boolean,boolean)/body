@@ -1,0 +1,29 @@
+{
+synchronized (repository) {
+    List<PluginInterface> plugins=pluginRegistry.getPlugins(DatabasePluginType.class);
+    for (int i=0; i < plugins.size(); i++) {
+      PluginInterface plugin=plugins.get(i);
+      ObjectId id=null;
+      if (!create)       id=repository.databaseDelegate.getDatabaseTypeID(plugin.getIds()[0]);
+      if (id == null) {
+        id=new LongObjectId(i + 1);
+        if (!create)         id=repository.connectionDelegate.getNextDatabaseTypeID();
+        RowMetaAndData table=new RowMetaAndData();
+        table.addValue(new ValueMeta(KettleDatabaseRepository.FIELD_DATABASE_TYPE_ID_DATABASE_TYPE,ValueMetaInterface.TYPE_INTEGER),id);
+        table.addValue(new ValueMeta(KettleDatabaseRepository.FIELD_DATABASE_TYPE_CODE,ValueMetaInterface.TYPE_STRING),plugin.getIds()[0]);
+        table.addValue(new ValueMeta(KettleDatabaseRepository.FIELD_DATABASE_TYPE_DESCRIPTION,ValueMetaInterface.TYPE_STRING),plugin.getName());
+        if (dryrun) {
+          String sql=database.getSQLOutput(null,KettleDatabaseRepository.TABLE_R_DATABASE_TYPE,table.getRowMeta(),table.getData(),null);
+          statements.add(sql);
+        }
+ else {
+          database.prepareInsert(table.getRowMeta(),null,KettleDatabaseRepository.TABLE_R_DATABASE_TYPE);
+          database.setValuesInsert(table);
+          database.insertRow();
+          database.closeInsert();
+        }
+      }
+    }
+  }
+  return statements;
+}

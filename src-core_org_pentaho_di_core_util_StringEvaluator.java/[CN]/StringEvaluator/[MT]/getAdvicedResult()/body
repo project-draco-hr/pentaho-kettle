@@ -1,0 +1,48 @@
+{
+  if (evaluationResults.isEmpty()) {
+    ValueMetaInterface adviced=new ValueMeta("adviced",ValueMetaInterface.TYPE_STRING);
+    adviced.setLength(maxLength);
+    String min=null;
+    String max=null;
+    for (    String string : values) {
+      if (min == null || min.compareTo(string) > 0)       min=string;
+      if (max == null || max.compareTo(string) < 0)       max=string;
+    }
+    StringEvaluationResult result=new StringEvaluationResult(adviced);
+    result.setMin(min);
+    result.setMax(max);
+    return result;
+  }
+ else {
+    if (containsInteger() && containsNumber()) {
+      for (Iterator<StringEvaluationResult> iterator=evaluationResults.iterator(); iterator.hasNext(); ) {
+        StringEvaluationResult result=iterator.next();
+        if (result.getConversionMeta().isNumber()) {
+          iterator.remove();
+        }
+      }
+    }
+    if (containsInteger() && containsDate()) {
+      for (Iterator<StringEvaluationResult> iterator=evaluationResults.iterator(); iterator.hasNext(); ) {
+        StringEvaluationResult result=iterator.next();
+        if (result.getConversionMeta().isInteger()) {
+          iterator.remove();
+        }
+      }
+    }
+    int minIndex=0;
+    int minLength=Integer.MAX_VALUE;
+    for (int i=0; i < evaluationResults.size(); i++) {
+      StringEvaluationResult result=evaluationResults.get(i);
+      ValueMetaInterface conversionMeta=result.getConversionMeta();
+      if (!Const.isEmpty(conversionMeta.getConversionMask()) && !conversionMeta.isBoolean()) {
+        int maskLength=conversionMeta.getConversionMask().length();
+        if (minLength > maskLength) {
+          minLength=maskLength;
+          minIndex=i;
+        }
+      }
+    }
+    return evaluationResults.get(minIndex);
+  }
+}
