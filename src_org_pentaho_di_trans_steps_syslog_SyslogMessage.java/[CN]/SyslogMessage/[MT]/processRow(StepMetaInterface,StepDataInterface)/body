@@ -1,0 +1,49 @@
+{
+  meta=(SyslogMessageMeta)smi;
+  data=(SyslogMessageData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    if (Const.isEmpty(meta.getMessageFieldName())) {
+      throw new KettleException(BaseMessages.getString(PKG,"SyslogMessage.Error.MessageFieldMissing"));
+    }
+    data.indexOfMessageFieldName=getInputRowMeta().indexOfValue(meta.getMessageFieldName());
+    if (data.indexOfMessageFieldName < 0) {
+      throw new KettleException(BaseMessages.getString(PKG,"SyslogMessage.Exception.CouldnotFindField",meta.getMessageFieldName()));
+    }
+  }
+  try {
+    String message=getInputRowMeta().getString(r,data.indexOfMessageFieldName);
+    if (Const.isEmpty(message)) {
+      throw new KettleException(BaseMessages.getString(PKG,"SyslogMessage.Error.MessageEmpty"));
+    }
+    SyslogDefs.sendMessage(data.syslog,SyslogDefs.getPriority(meta.getPriority()),message,meta.isAddTimestamp(),data.datePattern,meta.isAddHostName());
+    putRow(getInputRowMeta(),r);
+    if (checkFeedback(getLinesRead())) {
+      if (isDetailed())       logDetailed(BaseMessages.getString(PKG,"SyslogMessage.LineNumber",getLinesRead()));
+    }
+  }
+ catch (  Exception e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"SyslogMessage.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"SyslogMessage001");
+    }
+  }
+  return true;
+}

@@ -1,0 +1,41 @@
+{
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  String servername=environmentSubstitute(getServerName());
+  if (Const.isEmpty(servername)) {
+    logError(BaseMessages.getString(PKG,"JobEntrySyslog.MissingServerName"));
+  }
+  String messageString=environmentSubstitute(getMessage());
+  if (Const.isEmpty(messageString)) {
+    logError(BaseMessages.getString(PKG,"JobEntrySyslog.MissingMessage"));
+  }
+  int nrPort=Const.toInt(environmentSubstitute(getPort()),SyslogDefs.DEFAULT_PORT);
+  SyslogIF syslog=null;
+  try {
+    String pattern=null;
+    if (isAddTimestamp()) {
+      pattern=environmentSubstitute(getDatePattern());
+      if (Const.isEmpty(pattern)) {
+        logError(BaseMessages.getString(PKG,"JobEntrySyslog.DatePatternEmpty"));
+        throw new KettleException(BaseMessages.getString(PKG,"JobEntrySyslog.DatePatternEmpty"));
+      }
+    }
+    syslog=Syslog.getInstance("udp");
+    syslog.getConfig().setHost(servername);
+    syslog.getConfig().setPort(nrPort);
+    syslog.getConfig().setFacility(getFacility());
+    syslog.getConfig().setSendLocalName(false);
+    syslog.getConfig().setSendLocalTimestamp(false);
+    SyslogDefs.sendMessage(syslog,SyslogDefs.getPriority(getPriority()),messageString,isAddTimestamp(),pattern,isAddHostName());
+    result.setNrErrors(0);
+    result.setResult(true);
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobEntrySyslog.ErrorSendingMessage",e.toString()));
+  }
+ finally {
+    if (syslog != null)     syslog.shutdown();
+  }
+  return result;
+}
