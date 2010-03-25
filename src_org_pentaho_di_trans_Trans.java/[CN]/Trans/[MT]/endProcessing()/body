@@ -25,26 +25,26 @@
   String logTable=transMeta.getTransLogTable().getTableName();
   if (logcon != null) {
     Database ldb=null;
-    if (transLogTableDatabaseConnection == null) {
-      ldb=new Database(this,logcon);
-      ldb.shareVariablesWith(this);
-    }
- else {
-      ldb=transLogTableDatabaseConnection;
-    }
     try {
       if (transLogTableDatabaseConnection == null) {
+        ldb=new Database(this,logcon);
+        ldb.shareVariablesWith(this);
         ldb.connect();
+        ldb.setCommit(1);
+        transLogTableDatabaseConnection=ldb;
+      }
+ else {
+        ldb=transLogTableDatabaseConnection;
       }
       if (!Const.isEmpty(logTable)) {
-        transLogTableDatabaseConnection.writeLogRecord(transLogTable,status,this);
+        ldb.writeLogRecord(transLogTable,status,this);
       }
       if (status.equals(LogStatus.END) || status.equals(LogStatus.STOP)) {
         ldb.cleanupLogRecords(transLogTable);
       }
     }
  catch (    Exception e) {
-      throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.ErrorWritingLogRecordToTable") + transMeta.getTransLogTable().getTableName() + "]",e);
+      throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.ErrorWritingLogRecordToTable",transMeta.getTransLogTable().getTableName()),e);
     }
  finally {
       if (intervalInSeconds <= 0 || (status.equals(LogStatus.END) || status.equals(LogStatus.STOP))) {
