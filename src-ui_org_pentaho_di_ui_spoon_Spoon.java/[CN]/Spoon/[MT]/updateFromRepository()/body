@@ -1,0 +1,129 @@
+{
+  ObjectId[] dbIdList=rep.getDatabaseIDs(false);
+  ObjectId[] partitionIdList=rep.getPartitionSchemaIDs(false);
+  ObjectId[] clusterIdList=rep.getClusterIDs(false);
+  ObjectId[] slaveIdList=rep.getSlaveIDs(false);
+  List<DatabaseMeta> databaseMetas=new ArrayList<DatabaseMeta>();
+  List<SlaveServer> slaveServers=new ArrayList<SlaveServer>();
+  List<PartitionSchema> partitions=new ArrayList<PartitionSchema>();
+  List<ClusterSchema> clusters=new ArrayList<ClusterSchema>();
+  for (  ObjectId dbId : dbIdList) {
+    databaseMetas.add(rep.loadDatabaseMeta(dbId,null));
+  }
+  for (  ObjectId slaveId : slaveIdList) {
+    slaveServers.add(rep.loadSlaveServer(slaveId,null));
+  }
+  for (  ObjectId partitionId : partitionIdList) {
+    partitions.add(rep.loadPartitionSchema(partitionId,null));
+  }
+  for (  ObjectId clusterId : clusterIdList) {
+    clusters.add(rep.loadClusterSchema(clusterId,rep.getSlaveServers(),null));
+  }
+  for (  TabMapEntry entry : delegates.tabs.getTabs()) {
+    Object managedObject=entry.getObject().getManagedObject();
+    if (managedObject instanceof TransMeta) {
+      TransMeta transMeta=(TransMeta)managedObject;
+      for (int i=0; i < transMeta.nrDatabases(); i++) {
+        DatabaseMeta dbMeta=transMeta.getDatabase(i);
+        if (!dbMeta.isShared()) {
+          transMeta.removeDatabase(i);
+        }
+      }
+      List<SlaveServer> slaveList=transMeta.getSlaveServers();
+      if (slaveList != null) {
+        int index=0;
+        SlaveServer[] slavesToRemove=new SlaveServer[slaveList.size()];
+        for (int i=0; i < slaveList.size(); i++) {
+          SlaveServer slave=slaveList.get(i);
+          if (!slave.isShared()) {
+            slavesToRemove[index++]=slave;
+          }
+        }
+        for (        SlaveServer slaveToRemove : slavesToRemove) {
+          slaveList.remove(slaveToRemove);
+        }
+      }
+      List<PartitionSchema> partitionList=transMeta.getPartitionSchemas();
+      if (partitionList != null) {
+        int index=0;
+        PartitionSchema[] partitionsToRemove=new PartitionSchema[partitionList.size()];
+        for (int i=0; i < partitionList.size(); i++) {
+          PartitionSchema partition=partitionList.get(i);
+          if (!partition.isShared()) {
+            partitionsToRemove[index++]=partition;
+          }
+        }
+        for (        PartitionSchema partitionToRemove : partitionsToRemove) {
+          partitionList.remove(partitionToRemove);
+        }
+      }
+      List<ClusterSchema> clusterList=transMeta.getClusterSchemas();
+      if (clusterList != null) {
+        int index=0;
+        ClusterSchema[] clustersToRemove=new ClusterSchema[clusterList.size()];
+        for (int i=0; i < clusterList.size(); i++) {
+          ClusterSchema cluster=clusterList.get(i);
+          if (!cluster.isShared()) {
+            clustersToRemove[index++]=cluster;
+          }
+        }
+        for (        ClusterSchema clusterToRemove : clustersToRemove) {
+          clusterList.remove(clusterToRemove);
+        }
+      }
+      for (      DatabaseMeta databaseMeta : databaseMetas) {
+        if (databaseMeta != null && !contains(databaseMeta.getName(),transMeta.getDatabaseNames())) {
+          transMeta.addDatabase(databaseMeta);
+        }
+      }
+      for (      SlaveServer slaveServer : slaveServers) {
+        if (slaveServer != null && !contains(slaveServer.getName(),transMeta.getSlaveServerNames())) {
+          transMeta.addOrReplaceSlaveServer(slaveServer);
+        }
+      }
+      for (      PartitionSchema partition : partitions) {
+        if (partition != null && !contains(partition.getName(),transMeta.getPartitionSchemasNames())) {
+          transMeta.addOrReplacePartitionSchema(partition);
+        }
+      }
+      for (      ClusterSchema cluster : clusters) {
+        if (cluster != null && !contains(cluster.getName(),transMeta.getClusterSchemaNames())) {
+          transMeta.addOrReplaceClusterSchema(cluster);
+        }
+      }
+    }
+ else     if (managedObject instanceof JobMeta) {
+      JobMeta jobMeta=(JobMeta)managedObject;
+      for (int i=0; i < jobMeta.nrDatabases(); i++) {
+        DatabaseMeta dbMeta=jobMeta.getDatabase(i);
+        if (!dbMeta.isShared()) {
+          jobMeta.removeDatabase(i);
+        }
+      }
+      List<SlaveServer> slaveList=jobMeta.getSlaveServers();
+      if (slaveList != null) {
+        int index=0;
+        SlaveServer[] slavesToRemove=new SlaveServer[slaveList.size()];
+        for (int i=0; i < slaveList.size(); i++) {
+          SlaveServer slave=slaveList.get(i);
+          if (!slave.isShared()) {
+            slavesToRemove[index++]=slave;
+          }
+        }
+        for (        SlaveServer slaveToRemove : slavesToRemove) {
+          slaveList.remove(slaveToRemove);
+        }
+      }
+      for (      DatabaseMeta databaseMeta : databaseMetas) {
+        if (databaseMeta != null && !contains(databaseMeta.getName(),jobMeta.getDatabaseNames())) {
+          jobMeta.addDatabase(databaseMeta);
+        }
+      }
+      for (      SlaveServer slaveServer : slaveServers) {
+        if (slaveServer != null && !contains(slaveServer.getName(),jobMeta.getSlaveServerNames())) {
+          jobMeta.addOrReplaceSlaveServer(slaveServer);
+        }
+      }
+    }
+  }
+}
