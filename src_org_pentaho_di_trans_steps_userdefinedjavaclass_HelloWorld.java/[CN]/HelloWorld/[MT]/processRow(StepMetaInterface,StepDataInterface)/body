@@ -1,0 +1,37 @@
+{
+  Object[] r=getRow();
+  if (r == null && !first) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    if (r == null) {
+      rowsLeftForGenerateMode=100;
+    }
+    outputRowSize=data.outputRowMeta.size();
+    for (int i=0; i < outputRowSize; i++) {
+      ValueMetaInterface valueMeta=data.outputRowMeta.getValueMeta(i);
+      FieldsUpdater mapKey=FieldsUpdater.valueOf(valueMeta.getTypeDesc());
+      List fieldsForType=(List)fieldsToUpdate.get(mapKey);
+      if (fieldsForType == null) {
+        fieldsForType=new ArrayList();
+        fieldsToUpdate.put(mapKey,fieldsForType);
+      }
+      fieldsForType.add(valueMeta.getName());
+    }
+  }
+  r=createOutputRow(r,outputRowSize);
+  Set entrySet=fieldsToUpdate.entrySet();
+  for (Iterator entryIter=entrySet.iterator(); entryIter.hasNext(); ) {
+    Entry entry=(Entry)entryIter.next();
+    FieldsUpdater fieldsUpdater=(FieldsUpdater)entry.getKey();
+    for (Iterator listIter=((List)entry.getValue()).iterator(); listIter.hasNext(); ) {
+      String fieldName=(String)listIter.next();
+      FieldHelper fieldHelper=get(Fields.Out,fieldName);
+      fieldHelper.setValue(r,fieldsUpdater.manipulate(fieldHelper.getObject(r)));
+    }
+  }
+  putRow(data.outputRowMeta,r);
+  return (rowsLeftForGenerateMode == -1 || rowsLeftForGenerateMode-- > 0);
+}
