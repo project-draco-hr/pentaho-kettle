@@ -65,19 +65,27 @@
     if (meta.getXSLFactory().equals("SAXON")) {
       factory=new net.sf.saxon.TransformerFactoryImpl();
     }
-    Templates template=factory.newTemplates(new StreamSource(new FileInputStream(data.xslfilename)));
-    Transformer xformer=template.newTransformer();
-    Source source=new StreamSource(new StringReader(Fieldvalue));
-    StreamResult resultat=new StreamResult(new StringWriter());
-    xformer.transform(source,resultat);
-    xmlString=resultat.getWriter().toString();
-    if (log.isDetailed()) {
-      logDetailed(BaseMessages.getString(PKG,"Xslt.Log.FileResult"));
-      logDetailed(xmlString);
+    FileInputStream xslInputStream=new FileInputStream(data.xslfilename);
+    try {
+      Templates template=factory.newTemplates(new StreamSource(xslInputStream));
+      Transformer xformer=template.newTransformer();
+      Source source=new StreamSource(new StringReader(Fieldvalue));
+      StreamResult resultat=new StreamResult(new StringWriter());
+      xformer.transform(source,resultat);
+      xmlString=resultat.getWriter().toString();
+      if (log.isDetailed()) {
+        logDetailed(BaseMessages.getString(PKG,"Xslt.Log.FileResult"));
+        logDetailed(xmlString);
+      }
+      Object[] outputRowData=RowDataUtil.addValueData(row,getInputRowMeta().size(),xmlString);
+      if (log.isRowLevel()) {
+        logRowlevel(BaseMessages.getString(PKG,"Xslt.Log.ReadRow") + " " + getInputRowMeta().getString(row));
+      }
+      putRow(data.outputRowMeta,outputRowData);
     }
-    Object[] outputRowData=RowDataUtil.addValueData(row,getInputRowMeta().size(),xmlString);
-    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"Xslt.Log.ReadRow") + " " + getInputRowMeta().getString(row));
-    putRow(data.outputRowMeta,outputRowData);
+  finally {
+      BaseStep.closeQuietly(xslInputStream);
+    }
   }
  catch (  Exception e) {
     if (getStepMeta().isDoingErrorHandling()) {

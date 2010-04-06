@@ -36,17 +36,33 @@
           factory=new net.sf.saxon.TransformerFactoryImpl();
         }
         if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactoryInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactory",factory.getClass().getName()));
-        Templates template=factory.newTemplates(new StreamSource(KettleVFS.getInputStream(xslfile)));
-        Transformer xformer=template.newTransformer();
-        if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClassInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClass",xformer.getClass().getName()));
-        Source source=new StreamSource(KettleVFS.getInputStream(xmlfile));
-        StreamResult resultat=new StreamResult(KettleVFS.getOutputStream(outputfile,false));
-        xformer.transform(source,resultat);
-        if (isAddFileToResult()) {
-          ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(outputfilename,this),parentJob.getJobname(),toString());
-          result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+        InputStream xslInputStream=KettleVFS.getInputStream(xslfile);
+        InputStream xmlInputStream=KettleVFS.getInputStream(xmlfile);
+        try {
+          Templates template=factory.newTemplates(new StreamSource(xslInputStream));
+          Transformer xformer=template.newTransformer();
+          if (log.isDetailed())           log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClassInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClass",xformer.getClass().getName()));
+          Source source=new StreamSource(xmlInputStream);
+          StreamResult resultat=new StreamResult(KettleVFS.getOutputStream(outputfile,false));
+          xformer.transform(source,resultat);
+          if (isAddFileToResult()) {
+            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(outputfilename,this),parentJob.getJobname(),toString());
+            result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+          }
+          retval=true;
         }
-        retval=true;
+  finally {
+          try {
+            xslInputStream.close();
+          }
+ catch (          IOException ignored) {
+          }
+          try {
+            xmlInputStream.close();
+          }
+ catch (          IOException ignored) {
+          }
+        }
       }
     }
  else {
