@@ -4,6 +4,7 @@
   }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"StopTransServlet.StopOfTransRequested"));
   String transName=request.getParameter("name");
+  String id=request.getParameter("id");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
   PrintWriter out=response.getWriter();
   try {
@@ -21,22 +22,37 @@
       out.println("</HEAD>");
       out.println("<BODY>");
     }
-    Trans trans=getTransformationMap().getTransformation(transName);
+    Trans trans;
+    CarteObjectEntry entry;
+    if (Const.isEmpty(id)) {
+      entry=getTransformationMap().getFirstCarteObjectEntry(transName);
+      if (entry == null) {
+        trans=null;
+      }
+ else {
+        id=entry.getId();
+        trans=getTransformationMap().getTransformation(entry);
+      }
+    }
+ else {
+      entry=new CarteObjectEntry(transName,id);
+      trans=getTransformationMap().getTransformation(entry);
+    }
     if (trans != null) {
       trans.stopAll();
       String message=BaseMessages.getString(PKG,"StopTransServlet.TransSopRequested",transName);
       if (useXML) {
-        out.println(new WebResult(WebResult.STRING_OK,message).getXML());
+        out.println(new WebResult(WebResult.STRING_OK,message,id).getXML());
       }
  else {
         out.println("<H1>" + message + "</H1>");
-        out.println("<a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToTransStatusPage")+ "</a><p>");
+        out.println("<a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "&id="+ id+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToTransStatusPage")+ "</a><p>");
       }
     }
  else {
       String message=BaseMessages.getString(PKG,"StopTransServlet.CanNotFindTrans",transName);
       if (useXML) {
-        out.println(new WebResult(WebResult.STRING_ERROR,message).getXML());
+        out.println(new WebResult(WebResult.STRING_ERROR,message,id).getXML());
       }
  else {
         out.println("<H1>" + message + "</H1>");

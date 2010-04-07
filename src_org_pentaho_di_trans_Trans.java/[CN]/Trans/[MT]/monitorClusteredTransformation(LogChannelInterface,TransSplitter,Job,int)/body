@@ -2,6 +2,7 @@
   long errors=0L;
   SlaveServer[] slaveServers=transSplitter.getSlaveTargets();
   TransMeta[] slaves=transSplitter.getSlaves();
+  Map<TransMeta,String> carteObjectMap=transSplitter.getCarteObjectMap();
   SlaveServer masterServer;
   try {
     masterServer=transSplitter.getMasterServer();
@@ -12,14 +13,14 @@
     errors++;
   }
   TransMeta masterTransMeta=transSplitter.getMaster();
-  TransMeta transMeta=transSplitter.getOriginalTransformation();
   boolean allFinished=false;
   while (!allFinished && errors == 0 && (parentJob == null || !parentJob.isStopped())) {
     allFinished=true;
     errors=0L;
     for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
       try {
-        SlaveServerTransStatus transStatus=slaveServers[s].getTransStatus(slaves[s].getName(),0);
+        String carteObjectId=carteObjectMap.get(slaves[s]);
+        SlaveServerTransStatus transStatus=slaveServers[s].getTransStatus(slaves[s].getName(),carteObjectId,0);
         if (transStatus.isRunning()) {
           if (log.isDetailed())           log.logDetailed("Slave transformation on '" + slaveServers[s] + "' is still running.");
           allFinished=false;
@@ -36,7 +37,8 @@
     }
     if (allFinished && errors == 0 && masterTransMeta != null && masterTransMeta.nrSteps() > 0) {
       try {
-        SlaveServerTransStatus transStatus=masterServer.getTransStatus(masterTransMeta.getName(),0);
+        String carteObjectId=carteObjectMap.get(masterTransMeta);
+        SlaveServerTransStatus transStatus=masterServer.getTransStatus(masterTransMeta.getName(),carteObjectId,0);
         if (transStatus.isRunning()) {
           if (log.isDetailed())           log.logDetailed("Master transformation is still running.");
           allFinished=false;
@@ -55,7 +57,8 @@
     if ((parentJob != null && parentJob.isStopped()) || errors != 0) {
       for (int s=0; s < slaveServers.length && allFinished && errors == 0; s++) {
         try {
-          WebResult webResult=slaveServers[s].stopTransformation(slaves[s].getName());
+          String carteObjectId=carteObjectMap.get(slaves[s]);
+          WebResult webResult=slaveServers[s].stopTransformation(slaves[s].getName(),carteObjectId);
           if (!WebResult.STRING_OK.equals(webResult.getResult())) {
             log.logError("Unable to stop slave transformation '" + slaves[s].getName() + "' : "+ webResult.getMessage());
           }
@@ -66,7 +69,8 @@
         }
       }
       try {
-        WebResult webResult=masterServer.stopTransformation(masterTransMeta.getName());
+        String carteObjectId=carteObjectMap.get(masterTransMeta);
+        WebResult webResult=masterServer.stopTransformation(masterTransMeta.getName(),carteObjectId);
         if (!WebResult.STRING_OK.equals(webResult.getResult())) {
           log.logError("Unable to stop master transformation '" + masterServer.getName() + "' : "+ webResult.getMessage());
         }
@@ -88,7 +92,8 @@
   log.logBasic("All transformations in the cluster have finished.");
   for (int s=0; s < slaveServers.length; s++) {
     try {
-      WebResult webResult=slaveServers[s].cleanupTransformation(slaves[s].getName());
+      String carteObjectId=carteObjectMap.get(slaves[s]);
+      WebResult webResult=slaveServers[s].cleanupTransformation(slaves[s].getName(),carteObjectId);
       if (!WebResult.STRING_OK.equals(webResult.getResult())) {
         log.logError("Unable to run clean-up on slave transformation '" + slaves[s].getName() + "' : "+ webResult.getMessage());
         errors+=1;
@@ -101,12 +106,8 @@
   }
   if (masterTransMeta != null && masterTransMeta.nrSteps() > 0) {
     try {
-      WebResult webResult=masterServer.cleanupTransformation(masterTransMeta.getName());
-      if (!WebResult.STRING_OK.equals(webResult.getResult())) {
-        log.logError("Unable to run clean-up on master transformation '" + masterTransMeta.getName() + "' : "+ webResult.getMessage());
-        errors+=1;
-      }
-      webResult=masterServer.deallocatePorts(transMeta.getName());
+      String carteObjectId=carteObjectMap.get(masterTransMeta);
+      WebResult webResult=masterServer.cleanupTransformation(masterTransMeta.getName(),carteObjectId);
       if (!WebResult.STRING_OK.equals(webResult.getResult())) {
         log.logError("Unable to run clean-up on master transformation '" + masterTransMeta.getName() + "' : "+ webResult.getMessage());
         errors+=1;

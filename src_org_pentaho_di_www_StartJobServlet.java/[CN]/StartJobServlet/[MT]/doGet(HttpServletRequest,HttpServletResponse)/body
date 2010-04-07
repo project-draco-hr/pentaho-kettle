@@ -4,6 +4,7 @@
   }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"StartJobServlet.Log.StartJobRequested"));
   String jobName=request.getParameter("name");
+  String id=request.getParameter("id");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
   response.setStatus(HttpServletResponse.SC_OK);
   PrintWriter out=response.getWriter();
@@ -22,7 +23,22 @@
     out.println("<BODY>");
   }
   try {
-    Job job=getJobMap().getJob(jobName);
+    Job job;
+    CarteObjectEntry entry;
+    if (Const.isEmpty(id)) {
+      entry=getJobMap().getFirstCarteObjectEntry(jobName);
+      if (entry == null) {
+        job=null;
+      }
+ else {
+        id=entry.getId();
+        job=getJobMap().getJob(entry);
+      }
+    }
+ else {
+      entry=new CarteObjectEntry(jobName,id);
+      job=getJobMap().getJob(entry);
+    }
     if (job != null) {
       if (job.isInitialized() && !job.isActive()) {
         if (job.getRep() != null && !job.getRep().isConnected()) {
@@ -32,19 +48,19 @@ synchronized (getJobMap()) {
           JobConfiguration jobConfiguration=getJobMap().getConfiguration(jobName);
           Job newJob=new Job(job.getRep(),job.getJobMeta());
           newJob.setLogLevel(job.getLogLevel());
-          getJobMap().removeJob(jobName);
-          getJobMap().addJob(jobName,newJob,jobConfiguration);
+          CentralLogStore.discardLines(job.getLogChannelId(),true);
+          getJobMap().replaceJob(entry,newJob,jobConfiguration);
           job=newJob;
         }
       }
       job.start();
       String message=BaseMessages.getString(PKG,"StartJobServlet.Log.JobStarted",jobName);
       if (useXML) {
-        out.println(new WebResult(WebResult.STRING_OK,message).getXML());
+        out.println(new WebResult(WebResult.STRING_OK,message,id).getXML());
       }
  else {
         out.println("<H1>" + message + "</H1>");
-        out.println("<a href=\"" + convertContextPath(GetJobStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"JobStatusServlet.BackToJobStatusPage")+ "</a><p>");
+        out.println("<a href=\"" + convertContextPath(GetJobStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(jobName,"UTF-8")+ "&id="+ id+ "\">"+ BaseMessages.getString(PKG,"JobStatusServlet.BackToJobStatusPage")+ "</a><p>");
       }
     }
  else {

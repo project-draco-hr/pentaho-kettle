@@ -1,45 +1,35 @@
 {
-  boolean stopEnabled=false;
-  TreeItem ti[]=wTree.getSelection();
-  if (ti.length == 1) {
-    TreeItem treeItem=ti[0];
-    String[] path=ConstUI.getTreeStrings(treeItem);
-    if (path.length <= 1) {
-      return;
+  TreeEntry treeEntry=getTreeEntry();
+  if (treeEntry == null)   return;
+  if (treeEntry.length <= 1)   return;
+  if (treeEntry.isTransformation()) {
+    SlaveServerTransStatus transStatus=slaveServerStatus.findTransStatus(treeEntry.name,treeEntry.id);
+    StringBuffer message=new StringBuffer();
+    String errorDescription=transStatus.getErrorDescription();
+    if (!Const.isEmpty(errorDescription)) {
+      message.append(errorDescription).append(Const.CR).append(Const.CR);
     }
-    if (path[0].equals(transParentItem.getText())) {
-      SlaveServerTransStatus transStatus=slaveServerStatus.findTransStatus(path[1]);
-      stopEnabled=transStatus.isRunning();
-      StringBuffer message=new StringBuffer();
-      String errorDescription=transStatus.getErrorDescription();
-      if (!Const.isEmpty(errorDescription)) {
-        message.append(errorDescription).append(Const.CR).append(Const.CR);
-      }
-      String logging=transLoggingMap.get(transStatus.getTransName());
-      if (!Const.isEmpty(logging)) {
-        message.append(logging).append(Const.CR);
-      }
-      wText.setText(message.toString());
-      wText.setSelection(wText.getText().length());
-      wText.showSelection();
+    String logging=loggingMap.get(transStatus.getId());
+    if (!Const.isEmpty(logging)) {
+      message.append(logging).append(Const.CR);
     }
-    if (path[0].equals(jobParentItem.getText())) {
-      SlaveServerJobStatus jobStatus=slaveServerStatus.findJobStatus(path[1]);
-      stopEnabled=jobStatus.isRunning();
-      StringBuffer message=new StringBuffer();
-      String errorDescription=jobStatus.getErrorDescription();
-      if (!Const.isEmpty(errorDescription)) {
-        message.append(errorDescription).append(Const.CR).append(Const.CR);
-      }
-      String logging=jobLoggingMap.get(jobStatus.getJobName());
-      if (!Const.isEmpty(logging)) {
-        message.append(logging).append(Const.CR);
-      }
-      wText.setText(message.toString());
-      wText.setSelection(wText.getText().length());
-      wText.showSelection();
-    }
+    wText.setText(message.toString());
+    wText.setSelection(wText.getText().length());
+    wText.showSelection();
   }
-  wStop.setEnabled(stopEnabled);
-  wStart.setEnabled(!stopEnabled);
+  if (treeEntry.isJob()) {
+    SlaveServerJobStatus jobStatus=slaveServerStatus.findJobStatus(treeEntry.name);
+    StringBuffer message=new StringBuffer();
+    String errorDescription=jobStatus.getErrorDescription();
+    if (!Const.isEmpty(errorDescription)) {
+      message.append(errorDescription).append(Const.CR).append(Const.CR);
+    }
+    String logging=loggingMap.get(jobStatus.getId());
+    if (!Const.isEmpty(logging)) {
+      message.append(logging).append(Const.CR);
+    }
+    wText.setText(message.toString());
+    wText.setSelection(wText.getText().length());
+    wText.showSelection();
+  }
 }

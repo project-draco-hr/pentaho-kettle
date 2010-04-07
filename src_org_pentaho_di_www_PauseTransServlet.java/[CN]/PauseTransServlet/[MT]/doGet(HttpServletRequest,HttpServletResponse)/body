@@ -4,6 +4,7 @@
   }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"PauseTransServlet.PauseOfTransRequested"));
   String transName=request.getParameter("name");
+  String id=request.getParameter("id");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
   PrintWriter out=response.getWriter();
   try {
@@ -17,11 +18,26 @@
       out.println("<HTML>");
       out.println("<HEAD>");
       out.println("<TITLE>" + BaseMessages.getString(PKG,"PauseTransServlet.PauseTrans") + "</TITLE>");
-      out.println("<META http-equiv=\"Refresh\" content=\"2;url=" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "\">");
+      out.println("<META http-equiv=\"Refresh\" content=\"2;url=" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "&id="+ id+ "\">");
       out.println("</HEAD>");
       out.println("<BODY>");
     }
-    Trans trans=getTransformationMap().getTransformation(transName);
+    Trans trans;
+    CarteObjectEntry entry;
+    if (Const.isEmpty(id)) {
+      entry=getTransformationMap().getFirstCarteObjectEntry(transName);
+      if (entry == null) {
+        trans=null;
+      }
+ else {
+        id=entry.getId();
+        trans=getTransformationMap().getTransformation(entry);
+      }
+    }
+ else {
+      entry=new CarteObjectEntry(transName,id);
+      trans=getTransformationMap().getTransformation(entry);
+    }
     if (trans != null) {
       String message;
       if (trans.isPaused()) {
@@ -37,7 +53,7 @@
       }
  else {
         out.println("<H1>" + message + "</H1>");
-        out.println("<a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToTransStatusPage")+ "</a><p>");
+        out.println("<a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "&id="+ id+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToTransStatusPage")+ "</a><p>");
       }
     }
  else {

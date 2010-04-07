@@ -4,7 +4,7 @@
   }
   if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"TransStatusServlet.Log.TransCleanupRequested"));
   String transName=request.getParameter("name");
-  String sockets=request.getParameter("sockets");
+  String id=request.getParameter("id");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
   response.setStatus(HttpServletResponse.SC_OK);
   PrintWriter out=response.getWriter();
@@ -24,25 +24,36 @@
   }
   try {
     String message;
-    if ("Y".equalsIgnoreCase(sockets)) {
-      getTransformationMap().deallocateServerSocketPorts(transName);
-      message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransServerSocketPortsReleased",transName);
-    }
- else {
-      Trans trans=getTransformationMap().getTransformation(transName);
-      if (trans != null) {
-        trans.cleanup();
-        message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransCleanednup",transName);
+    getTransformationMap().deallocateServerSocketPorts(transName,id);
+    message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransServerSocketPortsReleased",transName);
+    Trans trans;
+    CarteObjectEntry entry;
+    if (Const.isEmpty(id)) {
+      entry=getTransformationMap().getFirstCarteObjectEntry(transName);
+      if (entry == null) {
+        trans=null;
       }
  else {
-        message="The specified transformation [" + transName + "] could not be found";
-        if (useXML) {
-          out.println(new WebResult(WebResult.STRING_ERROR,message));
-        }
+        id=entry.getId();
+        trans=getTransformationMap().getTransformation(entry);
+      }
+    }
  else {
-          out.println("<H1>" + message + "</H1>");
-          out.println("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
-        }
+      entry=new CarteObjectEntry(transName,id);
+      trans=getTransformationMap().getTransformation(entry);
+    }
+    if (trans != null) {
+      trans.cleanup();
+      message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransCleanednup",transName);
+    }
+ else {
+      message="The specified transformation [" + transName + "] could not be found";
+      if (useXML) {
+        out.println(new WebResult(WebResult.STRING_ERROR,message));
+      }
+ else {
+        out.println("<H1>" + message + "</H1>");
+        out.println("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
       }
     }
     if (useXML) {

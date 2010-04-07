@@ -195,11 +195,11 @@
         transExecutionConfiguration.setVariables(this);
         transExecutionConfiguration.setRemoteServer(remoteSlaveServer);
         transExecutionConfiguration.setLogLevel(LogWriter.getInstance().getLogLevel());
-        Trans.sendToSlaveServer(transMeta,transExecutionConfiguration,rep);
+        String carteObjectId=Trans.sendToSlaveServer(transMeta,transExecutionConfiguration,rep);
         SlaveServerTransStatus transStatus=null;
         while (!parentJob.isStopped() && waitingToFinish) {
           try {
-            transStatus=remoteSlaveServer.getTransStatus(transMeta.getName(),0);
+            transStatus=remoteSlaveServer.getTransStatus(transMeta.getName(),carteObjectId,0);
             if (!transStatus.isRunning()) {
               Result remoteResult=transStatus.getResult();
               result.clear();
@@ -207,7 +207,7 @@
               if (remoteResult.isStopped()) {
                 result.setNrErrors(result.getNrErrors() + 1);
               }
-              remoteSlaveServer.cleanupTransformation(transMeta.getName());
+              remoteSlaveServer.cleanupTransformation(transMeta.getName(),carteObjectId);
               break;
             }
           }
@@ -225,8 +225,8 @@
         }
         if (parentJob.isStopped()) {
           if (transStatus == null || transStatus.isRunning()) {
-            remoteSlaveServer.stopTransformation(transMeta.getName());
-            remoteSlaveServer.cleanupTransformation(transMeta.getName());
+            remoteSlaveServer.stopTransformation(transMeta.getName(),transStatus.getId());
+            remoteSlaveServer.cleanupTransformation(transMeta.getName(),transStatus.getId());
             result.setNrErrors(result.getNrErrors() + 1L);
           }
         }
