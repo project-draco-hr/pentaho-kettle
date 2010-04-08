@@ -16,8 +16,6 @@
     CommandLineOption.printUsage(options);
     exitJVM(9);
   }
-  LogWriter.getInstance(LogWriter.LOG_LEVEL_BASIC);
-  LogWriter.setConsoleAppenderDebug();
   LogChannelInterface log=new LogChannel(STRING_PAN);
   if (!CommandLineOption.parseArguments(args,options,log)) {
     log.logError(STRING_PAN,BaseMessages.getString(PKG,"Pan.Error.CommandLineError"));
@@ -32,12 +30,14 @@
   if (Const.isEmpty(optionLogfile) && !Const.isEmpty(optionLogfileOld)) {
     optionLogfile=optionLogfileOld;
   }
+  Log4jFileAppender fileAppender=null;
   if (!Const.isEmpty(optionLogfile)) {
-    LogWriter.getInstance(optionLogfile.toString(),true,LogWriter.LOG_LEVEL_BASIC);
+    fileAppender=LogWriter.createFileAppender(optionLogfile.toString(),true);
+    LogWriter.getInstance().addAppender(fileAppender);
   }
   if (!Const.isEmpty(optionLoglevel)) {
-    LogWriter.getInstance().setLogLevel(optionLoglevel.toString());
-    log.logMinimal(STRING_PAN,BaseMessages.getString(PKG,"Pan.Log.Loglevel",LogWriter.getInstance().getLogLevelLongDesc()));
+    log.setLogLevel(LogLevel.getLogLevelForCode(optionLoglevel.toString()));
+    log.logMinimal(STRING_PAN,BaseMessages.getString(PKG,"Pan.Log.Loglevel",log.getLogLevel().getDescription()));
   }
   if (!Const.isEmpty(optionVersion)) {
     BuildVersion buildVersion=BuildVersion.getInstance();

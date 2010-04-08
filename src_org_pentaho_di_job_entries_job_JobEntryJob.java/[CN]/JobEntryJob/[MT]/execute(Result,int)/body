@@ -1,7 +1,7 @@
 {
   result.setEntryNr(nr);
   Log4jFileAppender appender=null;
-  int backupLogLevel=LogWriter.getInstance().getLogLevel();
+  LogLevel jobLogLevel=parentJob.getLogLevel();
   if (setLogfile) {
     String realLogFilename=environmentSubstitute(getLogFilename());
     if (!createParentFolder(realLogFilename)) {
@@ -20,8 +20,7 @@
       return result;
     }
     LogWriter.getInstance().addAppender(appender);
-    LogWriter.getInstance().setLogLevel(loglevel);
-    LogWriter.getInstance(environmentSubstitute(getLogFilename()),true,loglevel);
+    jobLogLevel=logFileLevel;
   }
   SlaveServer remoteSlaveServer=null;
   if (!Const.isEmpty(remoteSlaveServerName)) {
@@ -175,6 +174,7 @@
       }
       if (remoteSlaveServer == null) {
         job=new Job(rep,jobMeta,parentJob);
+        job.setLogLevel(jobLogLevel);
         job.shareVariablesWith(this);
         job.setInternalKettleVariables(this);
         job.copyParametersFrom(jobMeta);
@@ -234,7 +234,7 @@
         jobExecutionConfiguration.setVariables(this);
         jobExecutionConfiguration.setRemoteServer(remoteSlaveServer);
         jobExecutionConfiguration.setRepository(rep);
-        jobExecutionConfiguration.setLogLevel(LogWriter.getInstance().getLogLevel());
+        jobExecutionConfiguration.setLogLevel(jobLogLevel);
         jobExecutionConfiguration.setPassingExport(passingExport);
         String carteObjectId=null;
         try {
@@ -305,7 +305,6 @@
       ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,appender.getFile(),parentJob.getJobname(),getName());
       result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
     }
-    LogWriter.getInstance().setLogLevel(backupLogLevel);
   }
   if (result.getNrErrors() > 0) {
     result.setResult(false);

@@ -1,90 +1,89 @@
 {
-  if (!running) {
-    if (transMeta.hasChanged()) {
-      if (spoon.props.getAutoSave()) {
+  if (transMeta.hasChanged()) {
+    if (spoon.props.getAutoSave()) {
+      spoon.saveToFile(transMeta);
+    }
+ else {
+      MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"TransLog.Dialog.FileHasChanged.Title"),null,BaseMessages.getString(PKG,"TransLog.Dialog.FileHasChanged1.Message") + Const.CR + BaseMessages.getString(PKG,"TransLog.Dialog.FileHasChanged2.Message")+ Const.CR,MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"System.Button.Yes"),BaseMessages.getString(PKG,"System.Button.No")},0,BaseMessages.getString(PKG,"TransLog.Dialog.Option.AutoSaveTransformation"),spoon.props.getAutoSave());
+      int answer=md.open();
+      if ((answer & 0xFF) == 0) {
         spoon.saveToFile(transMeta);
       }
- else {
-        MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"TransLog.Dialog.FileHasChanged.Title"),null,BaseMessages.getString(PKG,"TransLog.Dialog.FileHasChanged1.Message") + Const.CR + BaseMessages.getString(PKG,"TransLog.Dialog.FileHasChanged2.Message")+ Const.CR,MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"System.Button.Yes"),BaseMessages.getString(PKG,"System.Button.No")},0,BaseMessages.getString(PKG,"TransLog.Dialog.Option.AutoSaveTransformation"),spoon.props.getAutoSave());
-        int answer=md.open();
-        if ((answer & 0xFF) == 0) {
-          spoon.saveToFile(transMeta);
-        }
-        spoon.props.setAutoSave(md.getToggleState());
-      }
+      spoon.props.setAutoSave(md.getToggleState());
     }
-    if (((transMeta.getName() != null && spoon.rep != null) || (transMeta.getFilename() != null && spoon.rep == null)) && !transMeta.hasChanged()) {
-      if (trans == null || (trans != null && trans.isFinished())) {
-        try {
-          LogWriter.getInstance().setLogLevel(executionConfiguration.getLogLevel());
-          transMeta.injectVariables(executionConfiguration.getVariables());
-          Map<String,String> paramMap=executionConfiguration.getParams();
-          Set<String> keys=paramMap.keySet();
-          for (          String key : keys) {
-            transMeta.setParameterValue(key,Const.NVL(paramMap.get(key),""));
-          }
-          transMeta.activateParameters();
-          if (executionConfiguration.isClearingLog()) {
-            transLogDelegate.clearLog();
-          }
-          if (trans != null) {
-            CentralLogStore.discardLines(trans.getLogChannelId(),true);
-          }
-          trans=new Trans(transMeta,spoon.rep,transMeta.getName(),transMeta.getRepositoryDirectory().getPath(),transMeta.getFilename());
-          trans.setReplayDate(executionConfiguration.getReplayDate());
-          trans.setRepository(executionConfiguration.getRepository());
-          trans.setMonitored(true);
-          log.logBasic(BaseMessages.getString(PKG,"TransLog.Log.TransformationOpened"));
+  }
+  if (((transMeta.getName() != null && spoon.rep != null) || (transMeta.getFilename() != null && spoon.rep == null)) && !transMeta.hasChanged()) {
+    if (trans == null || (trans != null && !running)) {
+      try {
+        DefaultLogLevel.setLogLevel(executionConfiguration.getLogLevel());
+        transMeta.injectVariables(executionConfiguration.getVariables());
+        Map<String,String> paramMap=executionConfiguration.getParams();
+        Set<String> keys=paramMap.keySet();
+        for (        String key : keys) {
+          transMeta.setParameterValue(key,Const.NVL(paramMap.get(key),""));
         }
- catch (        KettleException e) {
-          trans=null;
-          new ErrorDialog(shell,BaseMessages.getString(PKG,"TransLog.Dialog.ErrorOpeningTransformation.Title"),BaseMessages.getString(PKG,"TransLog.Dialog.ErrorOpeningTransformation.Message"),e);
+        transMeta.activateParameters();
+        if (executionConfiguration.isClearingLog()) {
+          transLogDelegate.clearLog();
         }
         if (trans != null) {
-          Map<String,String> arguments=executionConfiguration.getArguments();
-          final String args[];
-          if (arguments != null)           args=convertArguments(arguments);
- else           args=null;
-          log.logMinimal(BaseMessages.getString(PKG,"TransLog.Log.LaunchingTransformation") + trans.getTransMeta().getName() + "]...");
-          trans.setSafeModeEnabled(executionConfiguration.isSafeModeEnabled());
-          final Thread parentThread=Thread.currentThread();
-          shell.getDisplay().asyncExec(new Runnable(){
-            public void run(){
-              addAllTabs();
-              prepareTrans(parentThread,args);
-            }
-          }
-);
-          log.logMinimal(BaseMessages.getString(PKG,"TransLog.Log.StartedExecutionOfTransformation"));
-          setControlStates();
+          CentralLogStore.discardLines(trans.getLogChannelId(),true);
         }
+        trans=new Trans(transMeta,spoon.rep,transMeta.getName(),transMeta.getRepositoryDirectory().getPath(),transMeta.getFilename());
+        trans.setLogLevel(executionConfiguration.getLogLevel());
+        trans.setReplayDate(executionConfiguration.getReplayDate());
+        trans.setRepository(executionConfiguration.getRepository());
+        trans.setMonitored(true);
+        log.logBasic(BaseMessages.getString(PKG,"TransLog.Log.TransformationOpened"));
       }
- else {
-        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
-        m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.DoNoStartTransformationTwice.Title"));
-        m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.DoNoStartTransformationTwice.Message"));
-        m.open();
+ catch (      KettleException e) {
+        trans=null;
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"TransLog.Dialog.ErrorOpeningTransformation.Title"),BaseMessages.getString(PKG,"TransLog.Dialog.ErrorOpeningTransformation.Message"),e);
+      }
+      if (trans != null) {
+        Map<String,String> arguments=executionConfiguration.getArguments();
+        final String args[];
+        if (arguments != null)         args=convertArguments(arguments);
+ else         args=null;
+        log.logMinimal(BaseMessages.getString(PKG,"TransLog.Log.LaunchingTransformation") + trans.getTransMeta().getName() + "]...");
+        trans.setSafeModeEnabled(executionConfiguration.isSafeModeEnabled());
+        final Thread parentThread=Thread.currentThread();
+        shell.getDisplay().asyncExec(new Runnable(){
+          public void run(){
+            addAllTabs();
+            prepareTrans(parentThread,args);
+          }
+        }
+);
+        log.logMinimal(BaseMessages.getString(PKG,"TransLog.Log.StartedExecutionOfTransformation"));
+        setControlStates();
       }
     }
  else {
-      if (transMeta.hasChanged()) {
-        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
-        m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning.Title"));
-        m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning.Message"));
-        m.open();
-      }
- else       if (spoon.rep != null && transMeta.getName() == null) {
-        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
-        m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.GiveTransformationANameBeforeRunning.Title"));
-        m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.GiveTransformationANameBeforeRunning.Message"));
-        m.open();
-      }
+      MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+      m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.DoNoStartTransformationTwice.Title"));
+      m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.DoNoStartTransformationTwice.Message"));
+      m.open();
+    }
+  }
  else {
-        MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
-        m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning2.Title"));
-        m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning2.Message"));
-        m.open();
-      }
+    if (transMeta.hasChanged()) {
+      MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+      m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning.Title"));
+      m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning.Message"));
+      m.open();
+    }
+ else     if (spoon.rep != null && transMeta.getName() == null) {
+      MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+      m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.GiveTransformationANameBeforeRunning.Title"));
+      m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.GiveTransformationANameBeforeRunning.Message"));
+      m.open();
+    }
+ else {
+      MessageBox m=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+      m.setText(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning2.Title"));
+      m.setMessage(BaseMessages.getString(PKG,"TransLog.Dialog.SaveTransformationBeforeRunning2.Message"));
+      m.open();
     }
   }
 }

@@ -19,13 +19,18 @@
       sql+=" FROM " + schemaTable;
       RowMetaAndData params=new RowMetaAndData();
       LogTableField nameField=logTable.getNameField();
-      if (nameField != null) {
+      LogTableField keyField=logTable.getKeyField();
+      if (keyField != null && (logTable instanceof JobEntryLogTable || logTable instanceof ChannelLogTable)) {
+        String keyFieldName=logConnection.quoteField(keyField.getFieldName());
+        String maxSql="SELECT MAX(" + keyFieldName + ") FROM "+ schemaTable;
+        RowMetaAndData maxRow=database.getOneRow(maxSql);
+        Long lastId=maxRow.getInteger(0);
+        sql+=" WHERE " + keyFieldName + " = "+ (lastId == null ? 0 : lastId.longValue());
+      }
+ else       if (nameField != null) {
         sql+=" WHERE " + logConnection.quoteField(nameField.getFieldName()) + " LIKE ?";
         params.addValue(new ValueMeta("transname_literal",ValueMetaInterface.TYPE_STRING),jobMeta.getName());
-        sql+=" OR    " + logConnection.quoteField(nameField.getFieldName()) + " LIKE ?";
-        params.addValue(new ValueMeta("transname_cluster",ValueMetaInterface.TYPE_STRING),jobMeta.getName() + " (%");
       }
-      LogTableField keyField=logTable.getKeyField();
       if (keyField != null) {
         sql+=" ORDER BY " + logConnection.quoteField(keyField.getFieldName()) + " DESC";
       }

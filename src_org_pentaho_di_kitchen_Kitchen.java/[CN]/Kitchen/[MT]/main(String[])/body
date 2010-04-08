@@ -14,7 +14,6 @@
     CommandLineOption.printUsage(options);
     exitJVM(9);
   }
-  LogWriter.getInstance(LogWriter.LOG_LEVEL_BASIC);
   LogChannelInterface log=new LogChannel(STRING_KITCHEN);
   CommandLineOption.parseArguments(args,options,log);
   String kettleRepname=Const.getEnvironmentVariable("KETTLE_REPOSITORY",null);
@@ -23,19 +22,19 @@
   if (!Const.isEmpty(kettleRepname))   optionRepname=new StringBuffer(kettleRepname);
   if (!Const.isEmpty(kettleUsername))   optionUsername=new StringBuffer(kettleUsername);
   if (!Const.isEmpty(kettlePassword))   optionPassword=new StringBuffer(kettlePassword);
-  LogWriter.setConsoleAppenderDebug();
   if (Const.isEmpty(optionLogfile) && !Const.isEmpty(optionLogfileOld)) {
     optionLogfile=optionLogfileOld;
   }
-  if (Const.isEmpty(optionLogfile)) {
-    LogWriter.getInstance(LogWriter.LOG_LEVEL_BASIC);
+  if (!Const.isEmpty(optionLogfile)) {
+    fileAppender=LogWriter.createFileAppender(optionLogfile.toString(),true);
+    LogWriter.getInstance().addAppender(fileAppender);
   }
  else {
-    LogWriter.getInstance(optionLogfile.toString(),true,LogWriter.LOG_LEVEL_BASIC);
+    fileAppender=null;
   }
   if (!Const.isEmpty(optionLoglevel)) {
-    LogWriter.getInstance().setLogLevel(optionLoglevel.toString());
-    log.logMinimal(STRING_KITCHEN,BaseMessages.getString(PKG,"Kitchen.Log.LogLevel",LogWriter.getInstance().getLogLevelLongDesc()));
+    log.setLogLevel(LogLevel.getLogLevelForCode(optionLoglevel.toString()));
+    log.logMinimal(STRING_KITCHEN,BaseMessages.getString(PKG,"Kitchen.Log.LogLevel",log.getLogLevel().getDescription()));
   }
   if (!Const.isEmpty(optionVersion)) {
     BuildVersion buildVersion=BuildVersion.getInstance();
@@ -188,6 +187,9 @@
   }
   finally {
     if (repository != null)     repository.disconnect();
+    if (fileAppender != null) {
+      LogWriter.getInstance().removeAppender(fileAppender);
+    }
   }
   log.logMinimal(STRING_KITCHEN,BaseMessages.getString(PKG,"Kitchen.Log.Finished"));
   if (result != null && result.getNrErrors() != 0) {

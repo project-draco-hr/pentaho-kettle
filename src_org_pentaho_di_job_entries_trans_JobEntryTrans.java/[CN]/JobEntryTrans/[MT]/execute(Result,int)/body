@@ -1,9 +1,10 @@
 {
   result.setEntryNr(nr);
   Log4jFileAppender appender=null;
-  int backupLogLevel=LogWriter.getInstance().getLogLevel();
+  LogLevel transLogLevel=parentJob.getLogLevel();
   String realLogFilename="";
   if (setLogfile) {
+    transLogLevel=logFileLevel;
     realLogFilename=environmentSubstitute(getLogFilename());
     if (!createParentFolder(realLogFilename)) {
       result.setNrErrors(1);
@@ -12,6 +13,7 @@
     }
     try {
       appender=LogWriter.createFileAppender(realLogFilename,true,setAppendLogfile);
+      LogWriter.getInstance().addAppender(appender);
     }
  catch (    KettleException e) {
       logError(BaseMessages.getString(PKG,"JobTrans.Error.UnableOpenAppender",realLogFilename,e.toString()));
@@ -20,8 +22,6 @@
       result.setResult(false);
       return result;
     }
-    LogWriter.getInstance().addAppender(appender);
-    LogWriter.getInstance().setLogLevel(loglevel);
   }
   SlaveServer remoteSlaveServer=null;
   if (!Const.isEmpty(remoteSlaveServerName)) {
@@ -178,7 +178,7 @@
         executionConfiguration.setClusterShowingTransformation(false);
         executionConfiguration.setSafeModeEnabled(false);
         executionConfiguration.setRepository(rep);
-        executionConfiguration.setLogLevel(LogWriter.getInstance().getLogLevel());
+        executionConfiguration.setLogLevel(transLogLevel);
         executionConfiguration.setVariables(transMeta);
         executionConfiguration.setArgumentStrings(args);
         TransSplitter transSplitter=Trans.executeClustered(transMeta,executionConfiguration);
@@ -194,7 +194,7 @@
         transExecutionConfiguration.setArgumentStrings(args);
         transExecutionConfiguration.setVariables(this);
         transExecutionConfiguration.setRemoteServer(remoteSlaveServer);
-        transExecutionConfiguration.setLogLevel(LogWriter.getInstance().getLogLevel());
+        transExecutionConfiguration.setLogLevel(transLogLevel);
         String carteObjectId=Trans.sendToSlaveServer(transMeta,transExecutionConfiguration,rep);
         SlaveServerTransStatus transStatus=null;
         while (!parentJob.isStopped() && waitingToFinish) {
@@ -233,6 +233,7 @@
       }
  else {
         trans=new Trans(transMeta,parentJob);
+        trans.setLogLevel(transLogLevel);
         trans.setSocketRepository(parentJob.getSocketRepository());
         if (parentJob.getJobMeta().isBatchIdPassed()) {
           trans.setPassedBatchId(parentJob.getPassedBatchId());
@@ -286,7 +287,6 @@
       ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,appender.getFile(),parentJob.getJobname(),getName());
       result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
     }
-    LogWriter.getInstance().setLogLevel(backupLogLevel);
   }
   if (result.getNrErrors() == 0) {
     result.setResult(true);

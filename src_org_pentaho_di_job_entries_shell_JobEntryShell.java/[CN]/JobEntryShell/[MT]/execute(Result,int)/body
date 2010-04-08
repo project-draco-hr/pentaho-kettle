@@ -1,10 +1,10 @@
 {
-  LogWriter log=LogWriter.getInstance();
   Log4jFileAppender appender=null;
-  int backupLogLevel=log.getLogLevel();
+  LogLevel shellLogLevel=parentJob.getLogLevel();
   if (setLogfile) {
     try {
       appender=LogWriter.createFileAppender(environmentSubstitute(getLogFilename()),true,setAppendLogfile);
+      LogWriter.getInstance().addAppender(appender);
     }
  catch (    KettleException e) {
       logError(BaseMessages.getString(PKG,"JobEntryShell.Error.UnableopenAppenderFile",getLogFilename(),e.toString()));
@@ -13,9 +13,9 @@
       result.setResult(false);
       return result;
     }
-    log.addAppender(appender);
-    log.setLogLevel(loglevel);
+    shellLogLevel=logLevel;
   }
+  log.setLogLevel(shellLogLevel);
   result.setEntryNr(nr);
   String substArgs[]=null;
   if (arguments != null) {
@@ -29,7 +29,9 @@
   RowMetaAndData resultRow=null;
   boolean first=true;
   List<RowMetaAndData> rows=result.getRows();
-  if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"JobEntryShell.Log.FoundPreviousRows","" + (rows != null ? rows.size() : 0)));
+  if (log.isDetailed()) {
+    logDetailed(BaseMessages.getString(PKG,"JobEntryShell.Log.FoundPreviousRows","" + (rows != null ? rows.size() : 0)));
+  }
   while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
     first=false;
     if (rows != null && execPerRow) {
@@ -76,10 +78,9 @@
   }
   if (setLogfile) {
     if (appender != null) {
-      log.removeAppender(appender);
+      LogWriter.getInstance().removeAppender(appender);
       appender.close();
     }
-    log.setLogLevel(backupLogLevel);
   }
   return result;
 }

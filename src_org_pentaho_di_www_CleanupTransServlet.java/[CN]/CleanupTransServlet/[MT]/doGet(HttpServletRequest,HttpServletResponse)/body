@@ -6,6 +6,7 @@
   String transName=request.getParameter("name");
   String id=request.getParameter("id");
   boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
+  boolean onlySockets="Y".equalsIgnoreCase(request.getParameter("sockets"));
   response.setStatus(HttpServletResponse.SC_OK);
   PrintWriter out=response.getWriter();
   if (useXML) {
@@ -23,45 +24,51 @@
     out.println("<BODY>");
   }
   try {
-    String message;
+    String message="";
+    boolean error=false;
     getTransformationMap().deallocateServerSocketPorts(transName,id);
     message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransServerSocketPortsReleased",transName);
-    Trans trans;
-    CarteObjectEntry entry;
-    if (Const.isEmpty(id)) {
-      entry=getTransformationMap().getFirstCarteObjectEntry(transName);
-      if (entry == null) {
-        trans=null;
+    if (!onlySockets) {
+      Trans trans;
+      CarteObjectEntry entry;
+      if (Const.isEmpty(id)) {
+        entry=getTransformationMap().getFirstCarteObjectEntry(transName);
+        if (entry == null) {
+          trans=null;
+        }
+ else {
+          id=entry.getId();
+          trans=getTransformationMap().getTransformation(entry);
+        }
       }
  else {
-        id=entry.getId();
+        entry=new CarteObjectEntry(transName,id);
         trans=getTransformationMap().getTransformation(entry);
       }
-    }
+      if (trans != null) {
+        trans.cleanup();
+        message+=Const.CR + BaseMessages.getString(PKG,"TransStatusServlet.Log.TransCleanednup",transName);
+      }
  else {
-      entry=new CarteObjectEntry(transName,id);
-      trans=getTransformationMap().getTransformation(entry);
-    }
-    if (trans != null) {
-      trans.cleanup();
-      message=BaseMessages.getString(PKG,"TransStatusServlet.Log.TransCleanednup",transName);
-    }
+        error=true;
+        message="The specified transformation [" + transName + "] could not be found";
+        if (useXML) {
+          out.println(new WebResult(WebResult.STRING_ERROR,message));
+        }
  else {
-      message="The specified transformation [" + transName + "] could not be found";
+          out.println("<H1>" + message + "</H1>");
+          out.println("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
+        }
+      }
+    }
+    if (!error) {
       if (useXML) {
-        out.println(new WebResult(WebResult.STRING_ERROR,message));
+        out.println(new WebResult(WebResult.STRING_OK,message).getXML());
       }
  else {
         out.println("<H1>" + message + "</H1>");
-        out.println("<a href=\"" + convertContextPath(GetStatusServlet.CONTEXT_PATH) + "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
+        out.println("<a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
       }
-    }
-    if (useXML) {
-      out.println(new WebResult(WebResult.STRING_OK,message).getXML());
-    }
- else {
-      out.println("<H1>" + message + "</H1>");
-      out.println("<a href=\"" + convertContextPath(GetTransStatusServlet.CONTEXT_PATH) + "?name="+ URLEncoder.encode(transName,"UTF-8")+ "\">"+ BaseMessages.getString(PKG,"TransStatusServlet.BackToStatusPage")+ "</a><p>");
     }
   }
  catch (  Exception ex) {
