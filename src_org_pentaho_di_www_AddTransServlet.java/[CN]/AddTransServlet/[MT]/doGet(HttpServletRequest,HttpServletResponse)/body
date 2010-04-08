@@ -35,18 +35,17 @@
       String value=params.get(param);
       transMeta.setParameterValue(param,value);
     }
+    TransExecutionConfiguration executionConfiguration=transConfiguration.getTransExecutionConfiguration();
     final Repository repository=transConfiguration.getTransExecutionConfiguration().getRepository();
-    final Trans trans=new Trans(transMeta);
-    trans.setLogLevel(transExecutionConfiguration.getLogLevel());
+    String carteObjectId=UUID.randomUUID().toString();
+    SimpleLoggingObject servletLoggingObject=new SimpleLoggingObject(CONTEXT_PATH,LoggingObjectType.CARTE,null);
+    servletLoggingObject.setContainerObjectId(carteObjectId);
+    servletLoggingObject.setLogLevel(executionConfiguration.getLogLevel());
+    final Trans trans=new Trans(transMeta,servletLoggingObject);
     trans.setRepository(repository);
     trans.setSocketRepository(getSocketRepository());
-    Trans oldOne=getTransformationMap().getTransformation(trans.getName());
-    if (oldOne != null) {
-      if (oldOne.isStopped() || oldOne.isFinished()) {
-        CentralLogStore.discardLines(oldOne.getLogChannelId(),true);
-      }
-    }
-    String carteObjectId=getTransformationMap().addTransformation(transMeta.getName(),trans,transConfiguration);
+    getTransformationMap().addTransformation(transMeta.getName(),carteObjectId,trans,transConfiguration);
+    trans.setContainerObjectId(carteObjectId);
     if (repository != null) {
       trans.addTransListener(new TransListener(){
         public void transFinished(        Trans trans){
@@ -55,7 +54,7 @@
       }
 );
     }
-    String message="Transformation '" + trans.getName() + "' was added to the list with id "+ carteObjectId;
+    String message="Transformation '" + trans.getName() + "' was added to Carte with id "+ carteObjectId;
     if (useXML) {
       out.println(new WebResult(WebResult.STRING_OK,message,carteObjectId));
     }

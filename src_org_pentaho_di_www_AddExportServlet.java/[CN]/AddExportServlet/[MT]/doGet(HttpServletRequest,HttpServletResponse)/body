@@ -25,16 +25,20 @@
     String archiveUrl=tempFile.getName().toString();
     String fileUrl=null;
     String carteObjectId=null;
+    SimpleLoggingObject servletLoggingObject=new SimpleLoggingObject(CONTEXT_PATH,LoggingObjectType.CARTE,null);
     if (!Const.isEmpty(load)) {
       fileUrl="zip:" + archiveUrl + "!"+ load;
       if (isJob) {
         KettleVFS.getFileObject(fileUrl);
         JobMeta jobMeta=new JobMeta(fileUrl,null);
-        Job job=new Job(null,jobMeta);
         String configUrl="zip:" + archiveUrl + "!"+ Job.CONFIGURATION_IN_EXPORT_FILENAME;
         Document configDoc=XMLHandler.loadXMLFile(configUrl);
         JobExecutionConfiguration jobExecutionConfiguration=new JobExecutionConfiguration(XMLHandler.getSubNode(configDoc,JobExecutionConfiguration.XML_TAG));
-        getJobMap().addJob(job.getJobname(),job,new JobConfiguration(jobMeta,jobExecutionConfiguration));
+        carteObjectId=UUID.randomUUID().toString();
+        servletLoggingObject.setContainerObjectId(carteObjectId);
+        servletLoggingObject.setLogLevel(jobExecutionConfiguration.getLogLevel());
+        Job job=new Job(null,jobMeta,servletLoggingObject);
+        getJobMap().addJob(job.getJobname(),carteObjectId,job,new JobConfiguration(jobMeta,jobExecutionConfiguration));
         log.setLogLevel(jobExecutionConfiguration.getLogLevel());
         jobMeta.setArguments(jobExecutionConfiguration.getArgumentStrings());
         jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
@@ -46,11 +50,14 @@
       }
  else {
         TransMeta transMeta=new TransMeta(fileUrl);
-        Trans trans=new Trans(transMeta);
         String configUrl="zip:" + archiveUrl + "!"+ Trans.CONFIGURATION_IN_EXPORT_FILENAME;
         Document configDoc=XMLHandler.loadXMLFile(configUrl);
         TransExecutionConfiguration executionConfiguration=new TransExecutionConfiguration(XMLHandler.getSubNode(configDoc,TransExecutionConfiguration.XML_TAG));
-        carteObjectId=getTransformationMap().addTransformation(trans.getName(),trans,new TransConfiguration(transMeta,executionConfiguration));
+        carteObjectId=UUID.randomUUID().toString();
+        servletLoggingObject.setContainerObjectId(carteObjectId);
+        servletLoggingObject.setLogLevel(executionConfiguration.getLogLevel());
+        Trans trans=new Trans(transMeta,servletLoggingObject);
+        getTransformationMap().addTransformation(trans.getName(),carteObjectId,trans,new TransConfiguration(transMeta,executionConfiguration));
       }
     }
  else {
