@@ -6,11 +6,16 @@
     hopTransMeta.setEnabled(r.getBoolean("ENABLED",false));
     long id_step_from=r.getInteger("ID_STEP_FROM",0);
     long id_step_to=r.getInteger("ID_STEP_TO",0);
-    hopTransMeta.setFromStep(StepMeta.findStep(steps,new LongObjectId(id_step_from)));
-    if (hopTransMeta.getFromStep() == null && id_step_from > 0) {
+    StepMeta fromStep=StepMeta.findStep(steps,new LongObjectId(id_step_from));
+    if (fromStep == null && id_step_from > 0) {
       StepMeta stepMeta=repository.stepDelegate.loadStepMeta(new LongObjectId(id_step_from),new ArrayList<DatabaseMeta>(),new Hashtable<String,Counter>(),new ArrayList<PartitionSchema>());
-      hopTransMeta.setFromStep(StepMeta.findStep(steps,stepMeta.getName()));
+      fromStep=StepMeta.findStep(steps,stepMeta.getName());
     }
+    if (fromStep == null) {
+      log.logError("Unable to determine source step of transformation hop with ID: " + id_trans_hop);
+      return null;
+    }
+    hopTransMeta.setFromStep(fromStep);
     hopTransMeta.getFromStep().setDraw(true);
     hopTransMeta.setToStep(StepMeta.findStep(steps,new LongObjectId(id_step_to)));
     if (hopTransMeta.getToStep() == null && id_step_to > 0) {
