@@ -1,0 +1,48 @@
+{
+  meta=(PaloDimOutputMeta)smi;
+  data=(PaloDimOutputData)sdi;
+  Object[] r=getRow();
+  if (first) {
+    first=false;
+    this.logBasic("First Row Analysis:");
+    if (meta.getLevels().size() == 0)     throw new KettleException("Number of levels must be greater that 0 to process the rows");
+    this.logBasic("Number of defined levels: " + meta.getLevels().size());
+    data.indexes=new int[meta.getLevels().size()];
+    for (int i=0; i < data.indexes.length; i++) {
+      String fieldName=meta.getLevels().get(i).getFieldName();
+      int numRow=getInputRowMeta().indexOfValue(fieldName);
+      if (numRow < 0)       throw new KettleException("DimOutput: failed to find input row meta for ".concat(meta.getLevels().get(i).getLevelName()));
+      data.indexes[i]=numRow;
+      this.logDebug(meta.getLevels().get(i).getLevelName() + " has index: " + numRow);
+    }
+  }
+  if (r == null) {
+    try {
+      this.logBasic("All rows have been read. Looking for consolidations");
+      this.logDebug("Read rows:" + this.currentTransformationRows.size());
+      DimensionGroupingCollection newDimension=data.helper.getConsolidations(meta.getDimension(),this.currentTransformationRows);
+      this.logBasic("Consolidations got.");
+      this.logBasic(newDimension == null ? "Null Consolidations" : " Consolidations Ok");
+      this.logBasic("Add Dimension " + meta.getDimension());
+      data.helper.addDimension(meta.getDimension(),newDimension,meta.getCreateNewDimension(),meta.getClearDimension(),meta.getElementType());
+      this.logBasic("Dimension Added.");
+      setOutputDone();
+      return false;
+    }
+ catch (    Exception e) {
+      throw new KettleException("Failed to add dimension rows",e);
+    }
+  }
+  try {
+    String[] newRow=new String[meta.getLevels().size()];
+    for (int i=0; i < data.indexes.length; i++) {
+      newRow[i]=r[data.indexes[i]].toString();
+    }
+    incrementLinesOutput();
+    this.currentTransformationRows.add(newRow);
+  }
+ catch (  Exception e) {
+    throw new KettleException("Failed to add row to the row buffer",e);
+  }
+  return true;
+}
