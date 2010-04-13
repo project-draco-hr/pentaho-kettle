@@ -15,7 +15,7 @@ case XMLStreamConstants.START_ELEMENT:
       if (log.isRowLevel())       logRowlevel("vReader.getLocalName = " + vReader.getLocalName());
     if (Const.isEmpty(meta.getOutFieldArgumentName())) {
       if (oneValueRowProcessing) {
-        WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+        WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName(),ignoreNamespacePrefix);
         if (field != null) {
           outputRowData[outputIndex++]=getValue(vReader.getElementText(),field);
           putRow(data.outputRowMeta,outputRowData);
@@ -35,7 +35,7 @@ case XMLStreamConstants.START_ELEMENT:
         if (log.isRowLevel())         logRowlevel("vReader.getLocalName = " + vReader.getLocalName());
         if (log.isRowLevel())         logRowlevel("OutFieldArgumentName = ");
         if (processing) {
-          WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+          WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName(),ignoreNamespacePrefix);
           if (field != null) {
             int index=data.outputRowMeta.indexOfValue(field.getName());
             if (index >= 0) {
@@ -45,9 +45,15 @@ case XMLStreamConstants.START_ELEMENT:
           processing=false;
         }
  else {
-          WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName());
+          WebServiceField field=meta.getFieldOutFromWsName(vReader.getLocalName(),ignoreNamespacePrefix);
           if (meta.getFieldsOut().size() == 1 && field != null) {
             try {
+              if (meta.isPassingInputData()) {
+                for (int i=0; i < rowMeta.getValueMetaList().size(); i++) {
+                  ValueMetaInterface valueMeta=getInputRowMeta().getValueMeta(i);
+                  outputRowData[outputIndex++]=valueMeta.cloneValueData(rowData[i]);
+                }
+              }
               outputRowData[outputIndex++]=getValue(vReader.getElementText(),field);
               putRow(data.outputRowMeta,outputRowData);
             }
