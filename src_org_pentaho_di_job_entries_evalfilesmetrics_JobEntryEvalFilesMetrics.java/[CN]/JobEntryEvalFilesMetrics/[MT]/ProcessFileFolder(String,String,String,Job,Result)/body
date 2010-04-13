@@ -1,0 +1,97 @@
+{
+  FileObject sourcefilefolder=null;
+  FileObject CurrentFile=null;
+  String realSourceFilefoldername=environmentSubstitute(sourcefilefoldername);
+  if (Const.isEmpty(realSourceFilefoldername)) {
+    logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.log.FileFolderEmpty"));
+    incrementErrors();
+    return;
+  }
+  String realWildcard=environmentSubstitute(wildcard);
+  final boolean include_subfolders=YES.equalsIgnoreCase(includeSubfolders);
+  try {
+    sourcefilefolder=KettleVFS.getFileObject(realSourceFilefoldername);
+    if (sourcefilefolder.exists()) {
+      if (isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobEvalFilesMetrics.Log.FileExists",sourcefilefolder.toString()));
+      if (sourcefilefolder.getType() == FileType.FILE) {
+        getFileSize(sourcefilefolder,result,parentJob);
+      }
+ else       if (sourcefilefolder.getType() == FileType.FOLDER) {
+        FileObject[] fileObjects=sourcefilefolder.findFiles(new AllFileSelector(){
+          public boolean traverseDescendents(          FileSelectInfo info){
+            return info.getDepth() == 0 || include_subfolders;
+          }
+          public boolean includeFile(          FileSelectInfo info){
+            FileObject fileObject=info.getFile();
+            try {
+              if (fileObject == null)               return false;
+              if (fileObject.getType() != FileType.FILE)               return false;
+            }
+ catch (            Exception ex) {
+              return false;
+            }
+ finally {
+              if (fileObject != null) {
+                try {
+                  fileObject.close();
+                }
+ catch (                IOException ex) {
+                }
+                ;
+              }
+            }
+            return true;
+          }
+        }
+);
+        if (fileObjects != null) {
+          for (int j=0; j < fileObjects.length && !parentJob.isStopped(); j++) {
+            CurrentFile=fileObjects[j];
+            if (!CurrentFile.getParent().toString().equals(sourcefilefolder.toString())) {
+              if (include_subfolders) {
+                if (GetFileWildcard(CurrentFile.toString(),realWildcard)) {
+                  getFileSize(CurrentFile,result,parentJob);
+                }
+              }
+            }
+ else {
+              if (GetFileWildcard(CurrentFile.toString(),realWildcard)) {
+                getFileSize(CurrentFile,result,parentJob);
+              }
+            }
+          }
+        }
+      }
+ else {
+        incrementErrors();
+        logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.UnknowFileFormat",sourcefilefolder.toString()));
+      }
+    }
+ else {
+      incrementErrors();
+      logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.SourceFileNotExists",realSourceFilefoldername));
+    }
+  }
+ catch (  Exception e) {
+    incrementErrors();
+    logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.Exception.Processing",realSourceFilefoldername.toString(),e.getMessage()));
+  }
+ finally {
+    if (sourcefilefolder != null) {
+      try {
+        sourcefilefolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (CurrentFile != null) {
+      try {
+        CurrentFile.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+}

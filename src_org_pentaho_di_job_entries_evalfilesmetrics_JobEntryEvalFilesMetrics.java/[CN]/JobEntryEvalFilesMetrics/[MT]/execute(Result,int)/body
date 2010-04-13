@@ -1,0 +1,120 @@
+{
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  initMetrics();
+  String vsourcefilefolder[]=source_filefolder;
+  String vwildcard[]=wildcard;
+  String vincludeSubFolders[]=includeSubFolders;
+switch (getSourceFiles()) {
+case SOURCE_FILES_PREVIOUS_RESULT:
+    String realResultFieldFile=environmentSubstitute(getResultFieldFile());
+  String realResultFieldWildcard=environmentSubstitute(getResultFieldWildcard());
+String realResultFieldIncluseSubfolders=environmentSubstitute(getResultFieldIncludeSubfolders());
+int indexOfResultFieldFile=-1;
+if (Const.isEmpty(realResultFieldFile)) {
+logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.ResultFieldsFileMissing"));
+return result;
+}
+int indexOfResultFieldWildcard=-1;
+int indexOfResultFieldIncludeSubfolders=-1;
+if (log.isDetailed()) logDetailed(BaseMessages.getString(PKG,"JobEvalFilesMetrics.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+if (rows != null && rows.size() > 0) {
+RowMetaAndData firstRow=rows.get(0);
+indexOfResultFieldFile=firstRow.getRowMeta().indexOfValue(realResultFieldFile);
+if (indexOfResultFieldFile == -1) {
+logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.CanNotFindField",realResultFieldFile));
+return result;
+}
+if (!Const.isEmpty(realResultFieldWildcard)) {
+indexOfResultFieldWildcard=firstRow.getRowMeta().indexOfValue(realResultFieldWildcard);
+if (indexOfResultFieldWildcard == -1) {
+logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.CanNotFindField",realResultFieldWildcard));
+return result;
+}
+}
+if (!Const.isEmpty(realResultFieldIncluseSubfolders)) {
+indexOfResultFieldIncludeSubfolders=firstRow.getRowMeta().indexOfValue(realResultFieldIncluseSubfolders);
+if (indexOfResultFieldIncludeSubfolders == -1) {
+logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.CanNotFindField",realResultFieldIncluseSubfolders));
+return result;
+}
+}
+for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
+resultRow=rows.get(iteration);
+String vsourcefilefolder_previous=resultRow.getString(indexOfResultFieldFile,null);
+String vwildcard_previous=null;
+if (indexOfResultFieldWildcard > -1) {
+vwildcard_previous=resultRow.getString(indexOfResultFieldWildcard,null);
+}
+String vincludeSubFolders_previous=NO;
+if (indexOfResultFieldIncludeSubfolders > -1) {
+vincludeSubFolders_previous=resultRow.getString(indexOfResultFieldIncludeSubfolders,NO);
+}
+if (isDetailed()) logDetailed(BaseMessages.getString(PKG,"JobEvalFilesMetrics.Log.ProcessingRow",vsourcefilefolder_previous,vwildcard_previous));
+ProcessFileFolder(vsourcefilefolder_previous,vwildcard_previous,vincludeSubFolders_previous,parentJob,result);
+}
+}
+break;
+case SOURCE_FILES_FILENAMES_RESULT:
+List<ResultFile> resultFiles=result.getResultFilesList();
+if (log.isDetailed()) logDetailed(BaseMessages.getString(PKG,"JobEvalFilesMetrics.Log.ResultFilenames.Found",(resultFiles != null ? resultFiles.size() : 0) + ""));
+if (resultFiles != null && resultFiles.size() > 0) {
+Pattern pattern=null;
+String realPattern=environmentSubstitute(getResultFilenamesWildcard());
+if (!Const.isEmpty(realPattern)) {
+pattern=Pattern.compile(realPattern);
+}
+for (Iterator<ResultFile> it=resultFiles.iterator(); it.hasNext() && !parentJob.isStopped(); ) {
+ResultFile resultFile=(ResultFile)it.next();
+FileObject file=resultFile.getFile();
+try {
+if (file != null && file.exists()) {
+boolean getIt=true;
+if (pattern != null) {
+Matcher matcher=pattern.matcher(file.getName().getBaseName());
+getIt=matcher.matches();
+}
+if (getIt) {
+getFileSize(file,result,parentJob);
+}
+}
+}
+ catch (Exception e) {
+incrementErrors();
+logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.GettingFileFromResultFilenames",file.toString(),e.toString()));
+}
+ finally {
+if (file != null) {
+try {
+file.close();
+}
+ catch (Exception e) {
+}
+;
+}
+;
+}
+}
+}
+break;
+default :
+if (vsourcefilefolder != null && vsourcefilefolder.length > 0) {
+for (int i=0; i < vsourcefilefolder.length && !parentJob.isStopped(); i++) {
+if (isDetailed()) logDetailed(BaseMessages.getString(PKG,"JobEvalFilesMetrics.Log.ProcessingRow",vsourcefilefolder[i],vwildcard[i]));
+ProcessFileFolder(vsourcefilefolder[i],vwildcard[i],vincludeSubFolders[i],parentJob,result);
+}
+}
+ else {
+logError(toString(),BaseMessages.getString(PKG,"JobEvalFilesMetrics.Error.FilesGridEmpty"));
+return result;
+}
+break;
+}
+result.setResult(isSuccess());
+result.setNrErrors(getNrError());
+displayResults();
+return result;
+}
