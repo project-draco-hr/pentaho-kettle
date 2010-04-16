@@ -1,13 +1,40 @@
 {
   try {
     for (    Object object : folderTree.getSelectedItems()) {
-      UIRepositoryDirectory repoDir=null;
       if (object instanceof UIRepositoryDirectory) {
         repoDir=(UIRepositoryDirectory)object;
         if (repoDir != null) {
-          repoDir.delete();
-          directoryBinding.fireSourceChanged();
-          selectedItemsBinding.fireSourceChanged();
+          if (repoDir.getChildren().size() > 0 || repoDir.getRepositoryObjects().size() > 0) {
+            confirmBox=(XulConfirmBox)document.createElement("confirmbox");
+            confirmBox.setTitle(messages.getString("BrowseController.DeleteNonEmptyFolderWarningTitle"));
+            confirmBox.setMessage(messages.getString("BrowseController.DeleteNonEmptyFolderWarningMessage"));
+            confirmBox.setAcceptLabel(messages.getString("Dialog.Ok"));
+            confirmBox.setCancelLabel(messages.getString("Dialog.Cancel"));
+            confirmBox.addDialogCallback(new XulDialogCallback(){
+              public void onClose(              XulComponent sender,              Status returnCode,              Object retVal){
+                if (returnCode == Status.ACCEPT) {
+                  try {
+                    deleteFolder(repoDir);
+                  }
+ catch (                  Exception e) {
+                    messageBox.setTitle(messages.getString("Dialog.Error"));
+                    messageBox.setAcceptLabel(messages.getString("Dialog.Ok"));
+                    messageBox.setMessage(messages.getString(e.getLocalizedMessage()));
+                    messageBox.open();
+                  }
+                }
+              }
+              public void onError(              XulComponent sender,              Throwable t){
+                throw new RuntimeException(t);
+              }
+            }
+);
+            confirmBox.open();
+            break;
+          }
+ else {
+            deleteFolder(repoDir);
+          }
         }
       }
     }

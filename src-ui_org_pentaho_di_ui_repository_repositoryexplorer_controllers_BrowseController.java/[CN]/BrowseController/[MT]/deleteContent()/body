@@ -1,15 +1,40 @@
 {
   try {
     for (    Object object : fileTable.getSelectedItems()) {
-      UIRepositoryObject repoObject=null;
       if (object instanceof UIRepositoryObject) {
         repoObject=(UIRepositoryObject)object;
         if (repoObject != null) {
-          repoObject.delete();
-          if (repoObject instanceof UIRepositoryDirectory) {
-            directoryBinding.fireSourceChanged();
+          if (repoObject instanceof UIRepositoryDirectory && (((UIRepositoryDirectory)repoObject).getChildren().size() > 0 || ((UIRepositoryDirectory)repoObject).getRepositoryObjects().size() > 0)) {
+            confirmBox=(XulConfirmBox)document.createElement("confirmbox");
+            confirmBox.setTitle(messages.getString("BrowseController.DeleteNonEmptyFolderWarningTitle"));
+            confirmBox.setMessage(messages.getString("BrowseController.DeleteNonEmptyFolderWarningMessage"));
+            confirmBox.setAcceptLabel(messages.getString("Dialog.Ok"));
+            confirmBox.setCancelLabel(messages.getString("Dialog.Cancel"));
+            confirmBox.addDialogCallback(new XulDialogCallback(){
+              public void onClose(              XulComponent sender,              Status returnCode,              Object retVal){
+                if (returnCode == Status.ACCEPT) {
+                  try {
+                    deleteContent(repoObject);
+                  }
+ catch (                  Exception e) {
+                    messageBox.setTitle(messages.getString("Dialog.Error"));
+                    messageBox.setAcceptLabel(messages.getString("Dialog.Ok"));
+                    messageBox.setMessage(messages.getString(e.getLocalizedMessage()));
+                    messageBox.open();
+                  }
+                }
+              }
+              public void onError(              XulComponent sender,              Throwable t){
+                throw new RuntimeException(t);
+              }
+            }
+);
+            confirmBox.open();
+            break;
           }
-          selectedItemsBinding.fireSourceChanged();
+ else {
+            deleteContent(repoObject);
+          }
         }
       }
     }
