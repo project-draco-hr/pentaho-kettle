@@ -12,26 +12,28 @@
     installPurgeTimer(config,log,transformationMap,jobMap);
   }
   SlaveServer slaveServer=config.getSlaveServer();
-  String hostname=slaveServer.getHostname();
-  int port=WebServer.PORT;
-  if (!Const.isEmpty(slaveServer.getPort())) {
-    try {
-      port=Integer.parseInt(slaveServer.getPort());
-    }
- catch (    Exception e) {
-      log.logError(BaseMessages.getString(PKG,"Carte.Error.CanNotPartPort",slaveServer.getHostname(),"" + port),e);
-    }
-  }
-  if (config.isReportingToMasters()) {
-    final SlaveServer client=new SlaveServer("Dynamic slave [" + hostname + ":"+ port+ "]",hostname,"" + port,slaveServer.getUsername(),slaveServer.getPassword());
-    for (    final SlaveServer master : config.getMasters()) {
+  if (slaveServer != null) {
+    int port=WebServer.PORT;
+    if (!Const.isEmpty(slaveServer.getPort())) {
       try {
-        SlaveServerDetection slaveServerDetection=new SlaveServerDetection(client);
-        master.sendXML(slaveServerDetection.getXML(),RegisterSlaveServlet.CONTEXT_PATH + "/");
-        log.logBasic("Registered this slave server to master slave server [" + master.toString() + "] on address ["+ master.getServerAndPort()+ "]");
+        port=Integer.parseInt(slaveServer.getPort());
       }
  catch (      Exception e) {
-        log.logError("Unable to register to master slave server [" + master.toString() + "] on address ["+ master.getServerAndPort()+ "]");
+        log.logError(BaseMessages.getString(PKG,"Carte.Error.CanNotPartPort",slaveServer.getHostname(),"" + port),e);
+      }
+    }
+    if (config.isReportingToMasters()) {
+      String hostname=slaveServer.getHostname();
+      final SlaveServer client=new SlaveServer("Dynamic slave [" + hostname + ":"+ port+ "]",hostname,"" + port,slaveServer.getUsername(),slaveServer.getPassword());
+      for (      final SlaveServer master : config.getMasters()) {
+        try {
+          SlaveServerDetection slaveServerDetection=new SlaveServerDetection(client);
+          master.sendXML(slaveServerDetection.getXML(),RegisterSlaveServlet.CONTEXT_PATH + "/");
+          log.logBasic("Registered this slave server to master slave server [" + master.toString() + "] on address ["+ master.getServerAndPort()+ "]");
+        }
+ catch (        Exception e) {
+          log.logError("Unable to register to master slave server [" + master.toString() + "] on address ["+ master.getServerAndPort()+ "]");
+        }
       }
     }
   }
