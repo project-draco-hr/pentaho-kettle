@@ -1,0 +1,36 @@
+{
+  try {
+    DirectoryDialog dialog=new DirectoryDialog(shell,SWT.OPEN);
+    if (dialog.open() != null) {
+      String directory=dialog.getFilterPath();
+      ObjectId dirids[]=((root == null) ? directoryTree : root).getDirectoryIDs();
+      for (int d=0; d < dirids.length; d++) {
+        RepositoryDirectoryInterface repdir=directoryTree.findDirectory(dirids[d]);
+        String trans[]=rep.getTransformationNames(dirids[d],false);
+        File dir=new File(directory + repdir.getPath());
+        if (!dir.exists()) {
+          dir.mkdir();
+          log.logBasic("Exporting transformation","Created directory [" + dir.getName() + "]");
+        }
+        for (int i=0; i < trans.length; i++) {
+          TransMeta ti=rep.loadTransformation(trans[i],repdir,null,true,null);
+          if (log.isBasic())           log.logBasic("Exporting transformation","[" + trans[i] + "] in directory ["+ repdir.getPath()+ "]");
+          String xml=XMLHandler.getXMLHeader() + ti.getXML();
+          String filename=directory + repdir.getPath() + Const.FILE_SEPARATOR+ fixFileName(trans[i])+ ".ktr";
+          File f=new File(filename);
+          try {
+            FileOutputStream fos=new FileOutputStream(f);
+            fos.write(xml.getBytes(Const.XML_ENCODING));
+            fos.close();
+          }
+ catch (          IOException e) {
+            throw new RuntimeException("Exporting transformation: Couldn't create file [" + filename + "]",e);
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryExplorerDialog.ExportTrans.UnexpectedError.Title"),BaseMessages.getString(PKG,"RepositoryExplorerDialog.ExportTrans.UnexpectedError.Message"),e);
+  }
+}
