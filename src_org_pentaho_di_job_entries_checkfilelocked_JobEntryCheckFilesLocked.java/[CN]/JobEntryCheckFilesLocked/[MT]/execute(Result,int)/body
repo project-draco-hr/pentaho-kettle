@@ -1,0 +1,35 @@
+{
+  Result result=previousResult;
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  oneFileLocked=false;
+  result.setResult(true);
+  try {
+    if (argFromPrevious) {
+      if (log.isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryCheckFilesLocked.FoundPreviousRows",String.valueOf((rows != null ? rows.size() : 0))));
+    }
+    if (argFromPrevious && rows != null) {
+      for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
+        resultRow=(RowMetaAndData)rows.get(iteration);
+        String filefolder_previous=resultRow.getString(0,"");
+        String fmasks_previous=resultRow.getString(1,"");
+        if (log.isDetailed())         logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryCheckFilesLocked.ProcessingRow",filefolder_previous,fmasks_previous));
+        ProcessFile(filefolder_previous,fmasks_previous);
+      }
+    }
+ else     if (arguments != null) {
+      for (int i=0; i < arguments.length && !parentJob.isStopped(); i++) {
+        if (log.isDetailed())         logDetailed(toString(),BaseMessages.getString(PKG,"JobEntryCheckFilesLocked.ProcessingArg",arguments[i],filemasks[i]));
+        ProcessFile(arguments[i],filemasks[i]);
+      }
+    }
+    if (oneFileLocked) {
+      result.setResult(false);
+      result.setNrErrors(1);
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobEntryCheckFilesLocked.ErrorRunningJobEntry",e));
+  }
+  return result;
+}

@@ -1,0 +1,62 @@
+{
+  meta=(FileLockedMeta)smi;
+  data=(FileLockedData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  boolean FileLocked=false;
+  if (first) {
+    first=false;
+    data.previousRowMeta=getInputRowMeta().clone();
+    data.NrPrevFields=data.previousRowMeta.size();
+    data.outputRowMeta=data.previousRowMeta;
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (Const.isEmpty(meta.getDynamicFilenameField())) {
+      logError(BaseMessages.getString(PKG,"FileLocked.Error.FilenameFieldMissing"));
+      throw new KettleException(BaseMessages.getString(PKG,"FileLocked.Error.FilenameFieldMissing"));
+    }
+    if (data.indexOfFileename < 0) {
+      data.indexOfFileename=data.previousRowMeta.indexOfValue(meta.getDynamicFilenameField());
+      if (data.indexOfFileename < 0) {
+        logError(BaseMessages.getString(PKG,"FileLocked.Exception.CouldnotFindField") + "[" + meta.getDynamicFilenameField()+ "]");
+        throw new KettleException(BaseMessages.getString(PKG,"FileLocked.Exception.CouldnotFindField",meta.getDynamicFilenameField()));
+      }
+    }
+  }
+  try {
+    String filename=data.previousRowMeta.getString(r,data.indexOfFileename);
+    if (!Const.isEmpty(filename)) {
+      LockFile locked=new LockFile(filename);
+      FileLocked=locked.isLocked();
+      if (meta.addResultFilenames()) {
+        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(filename),getTransMeta().getName(),getStepname());
+        resultFile.setComment(BaseMessages.getString(PKG,"FileLocked.Log.FileAddedResult"));
+        addResultFile(resultFile);
+        if (log.isDetailed())         log.logDetailed(toString(),BaseMessages.getString(PKG,"FileLocked.Log.FilenameAddResult",filename));
+      }
+    }
+    putRow(data.outputRowMeta,RowDataUtil.addValueData(r,data.NrPrevFields,FileLocked));
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"FileLocked.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+  }
+ catch (  Exception e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"FileLocked.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"FileLocked001");
+    }
+  }
+  return true;
+}
