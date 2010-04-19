@@ -5,6 +5,17 @@
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"HTTPPOST.Log.ConnectingToURL",data.realUrl));
     HttpClient HTTPPOSTclient=new HttpClient();
     PostMethod post=new PostMethod(data.realUrl);
+    String httpLogin=environmentSubstitute(meta.getHttpLogin());
+    if (!Const.isEmpty(httpLogin)) {
+      HTTPPOSTclient.getParams().setAuthenticationPreemptive(true);
+      Credentials defaultcreds=new UsernamePasswordCredentials(environmentSubstitute(httpLogin),environmentSubstitute(meta.getHttpPassword()));
+      HTTPPOSTclient.getState().setCredentials(AuthScope.ANY,defaultcreds);
+    }
+    String proxyHost=environmentSubstitute(meta.getProxyHost());
+    HostConfiguration hostConfiguration=new HostConfiguration();
+    if (!Const.isEmpty(proxyHost)) {
+      hostConfiguration.setProxy(proxyHost,Const.toInt(environmentSubstitute(meta.getProxyPort()),8080));
+    }
     if (!data.contentTypeHeaderOverwrite) {
       if (Const.isEmpty(data.realEncoding)) {
         post.setRequestHeader(CONTENT_TYPE,CONTENT_TYPE_TEXT_XML);
@@ -49,22 +60,30 @@
     InputStreamReader inputStreamReader=null;
     Object[] newRow=null;
     try {
-      int statusCode=HTTPPOSTclient.executeMethod(post);
+      int statusCode=HTTPPOSTclient.executeMethod(hostConfiguration,post);
       if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseCode","" + statusCode));
       String body=null;
       if (statusCode != -1) {
-        String encoding=post.getResponseHeader("Content-Type").getValue().replaceFirst("^.*;\\s*charset\\s*=\\s*","").trim();
-        if (encoding == null)         encoding="ISO-8859-1";
-        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.Encoding",encoding));
-        inputStreamReader=new InputStreamReader(post.getResponseBodyAsStream(),encoding);
-        StringBuffer bodyBuffer=new StringBuffer();
-        int c;
-        while ((c=inputStreamReader.read()) != -1) {
-          bodyBuffer.append((char)c);
+        if (statusCode != 401) {
+          String encoding=null;
+          if (post.getResponseHeader("Content-Type") != null) {
+            encoding=post.getResponseHeader("Content-Type").getValue().replaceFirst("^.*;\\s*charset\\s*=\\s*","").trim();
+          }
+          if (encoding == null)           encoding="ISO-8859-1";
+          if (log.isDebug())           log.logDebug(toString(),BaseMessages.getString(PKG,"HTTPPOST.Log.Encoding",encoding));
+          inputStreamReader=new InputStreamReader(post.getResponseBodyAsStream(),encoding);
+          StringBuffer bodyBuffer=new StringBuffer();
+          int c;
+          while ((c=inputStreamReader.read()) != -1) {
+            bodyBuffer.append((char)c);
+          }
+          inputStreamReader.close();
+          body=bodyBuffer.toString();
+          if (log.isDebug())           logDebug(BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseBody",body));
         }
-        inputStreamReader.close();
-        body=bodyBuffer.toString();
-        if (log.isDebug())         logDebug(BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseBody",body));
+ else {
+          throw new KettleStepException(BaseMessages.getString(PKG,"HTTPPOST.Exception.Authentication",data.realUrl));
+        }
       }
       int returnFieldsOffset=data.inputRowMeta.size();
       if (!Const.isEmpty(meta.getFieldName())) {
@@ -81,7 +100,10 @@
     }
     return newRow;
   }
- catch (  Exception e) {
+ catch (  UnknownHostException uhe) {
+    throw new KettleException(BaseMessages.getString(PKG,"HTTPPOST.Error.UnknownHostException",uhe.getMessage()));
+  }
+catch (  Exception e) {
     throw new KettleException(BaseMessages.getString(PKG,"HTTPPOST.Error.CanNotReadURL",data.realUrl),e);
   }
  finally {
