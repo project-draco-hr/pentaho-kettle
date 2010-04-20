@@ -1,60 +1,63 @@
 {
-  String exactFilename=jobMeta.environmentSubstitute(entry.getFilename());
-  String exactTransname=jobMeta.environmentSubstitute(entry.getTransname());
-  TabMapEntry tabEntry=spoon.delegates.tabs.findTabMapEntry(exactFilename,ObjectType.TRANSFORMATION_GRAPH);
-  if (tabEntry == null) {
-    tabEntry=spoon.delegates.tabs.findTabMapEntry(Const.filenameOnly(exactFilename),ObjectType.TRANSFORMATION_GRAPH);
-  }
-  if (tabEntry != null) {
-    spoon.tabfolder.setSelected(tabEntry.getTabItem());
-    return;
-  }
-  if (TransMeta.isRepReference(exactFilename,exactTransname)) {
-    try {
-      TransMeta newTrans;
-      boolean exists=spoon.rep.getTransformationID(exactTransname,spoon.rep.loadRepositoryDirectoryTree().findDirectory(entry.getDirectory())) != null;
-      if (!exists) {
-        newTrans=new TransMeta(null,exactTransname,entry.arguments);
-      }
- else {
-        newTrans=spoon.rep.loadTransformation(exactTransname,spoon.rep.loadRepositoryDirectoryTree().findDirectory(entry.getDirectory()),null,true,null);
-      }
-      copyInternalJobVariables(jobMeta,newTrans);
-      spoon.setParametersAsVariablesInUI(newTrans,newTrans);
-      spoon.addTransGraph(newTrans);
-      newTrans.clearChanged();
-      TransGraph transGraph=spoon.getActiveTransGraph();
-      attachActiveTrans(transGraph,newTrans,jobEntryCopy);
-      spoon.refreshTree();
+  try {
+    TransMeta launchTransMeta=null;
+switch (entry.getSpecificationMethod()) {
+case FILENAME:
+      String exactFilename=jobMeta.environmentSubstitute(entry.getFilename());
+    if (Const.isEmpty(exactFilename)) {
+      throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoFilenameSpecified"));
     }
- catch (    Throwable e) {
-      new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Message"),(Exception)e);
-    }
+  if (KettleVFS.fileExists(exactFilename)) {
+    launchTransMeta=new TransMeta(exactFilename);
   }
  else {
-    try {
-      if (Const.isEmpty(exactFilename)) {
-        throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoFilenameSpecified"));
-      }
-      TransMeta launchTransMeta=null;
-      if (KettleVFS.fileExists(exactFilename)) {
-        launchTransMeta=new TransMeta(exactFilename);
-      }
- else {
-        launchTransMeta=new TransMeta();
-      }
-      launchTransMeta.clearChanged();
-      launchTransMeta.setFilename(exactFilename);
-      copyInternalJobVariables(jobMeta,launchTransMeta);
-      spoon.setParametersAsVariablesInUI(launchTransMeta,launchTransMeta);
-      spoon.addTransGraph(launchTransMeta);
-      TransGraph transGraph=spoon.getActiveTransGraph();
-      attachActiveTrans(transGraph,launchTransMeta,jobEntryCopy);
-      spoon.refreshTree();
-    }
- catch (    Throwable e) {
-      new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformationFromXML.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformationFromXML.Message"),(Exception)e);
-    }
+    launchTransMeta=new TransMeta();
   }
-  spoon.applyVariables();
+launchTransMeta.setFilename(exactFilename);
+break;
+case REPOSITORY_BY_NAME:
+String exactTransname=jobMeta.environmentSubstitute(entry.getTransname());
+String exactDirectory=jobMeta.environmentSubstitute(entry.getDirectory());
+if (Const.isEmpty(exactTransname)) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoTransNameSpecified"));
+}
+if (Const.isEmpty(exactDirectory)) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoTransDirectorySpecified"));
+}
+boolean exists=spoon.rep.getTransformationID(exactTransname,spoon.rep.loadRepositoryDirectoryTree().findDirectory(entry.getDirectory())) != null;
+if (!exists) {
+launchTransMeta=new TransMeta(null,exactTransname,entry.arguments);
+}
+ else {
+launchTransMeta=spoon.rep.loadTransformation(exactTransname,spoon.rep.loadRepositoryDirectoryTree().findDirectory(entry.getDirectory()),null,true,null);
+}
+break;
+case REPOSITORY_BY_REFERENCE:
+if (entry.getTransObjectId() == null) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoTransReferenceSpecified"));
+}
+launchTransMeta=spoon.rep.loadTransformation(entry.getTransObjectId(),null);
+break;
+}
+if (launchTransMeta == null) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoValidTransSpecified"));
+}
+String tabName=spoon.delegates.tabs.makeTabName(launchTransMeta,true);
+TabMapEntry tabEntry=spoon.delegates.tabs.findTabMapEntry(tabName,ObjectType.TRANSFORMATION_GRAPH);
+if (tabEntry != null) {
+spoon.tabfolder.setSelected(tabEntry.getTabItem());
+return;
+}
+copyInternalJobVariables(jobMeta,launchTransMeta);
+spoon.setParametersAsVariablesInUI(launchTransMeta,launchTransMeta);
+spoon.addTransGraph(launchTransMeta);
+launchTransMeta.clearChanged();
+TransGraph transGraph=spoon.getActiveTransGraph();
+attachActiveTrans(transGraph,launchTransMeta,jobEntryCopy);
+spoon.refreshTree();
+spoon.applyVariables();
+}
+ catch (Throwable e) {
+new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingSpoonCanNotLoadTransformation.Message"),(Exception)e);
+}
 }

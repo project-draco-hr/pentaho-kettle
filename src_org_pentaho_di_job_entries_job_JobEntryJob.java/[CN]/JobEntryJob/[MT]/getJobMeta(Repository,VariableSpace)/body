@@ -1,13 +1,32 @@
 {
   try {
-    if (rep != null && getDirectory() != null) {
-      return rep.loadJob((space != null ? space.environmentSubstitute(getJobName()) : getJobName()),rep.loadRepositoryDirectoryTree().findDirectory(environmentSubstitute(getDirectory())),null,null);
+switch (specificationMethod) {
+case FILENAME:
+      return new JobMeta((space != null ? space.environmentSubstitute(getFilename()) : getFilename()),rep,null);
+case REPOSITORY_BY_NAME:
+    if (rep != null) {
+      String realDirectory=environmentSubstitute(getDirectory());
+      RepositoryDirectoryInterface repositoryDirectory=rep.loadRepositoryDirectoryTree().findDirectory(realDirectory);
+      if (repositoryDirectory == null) {
+        throw new KettleException("Unable to find repository directory [" + Const.NVL(realDirectory,"") + "]");
+      }
+      return rep.loadJob((space != null ? space.environmentSubstitute(getJobName()) : getJobName()),repositoryDirectory,null,null);
     }
  else {
-      return new JobMeta((space != null ? space.environmentSubstitute(getFilename()) : getFilename()),rep,null);
+      throw new KettleException("Could not execute job specified in a repository since we're not connected to one");
     }
+case REPOSITORY_BY_REFERENCE:
+  if (rep != null) {
+    return rep.loadJob(jobObjectId,null);
   }
- catch (  Exception e) {
-    throw new KettleException("Unexpected error during job metadata load",e);
+ else {
+    throw new KettleException("Could not execute job specified in a repository since we're not connected to one");
   }
+default :
+throw new KettleException("The specified object location specification method '" + specificationMethod + "' is not yet supported in this job entry.");
+}
+}
+ catch (Exception e) {
+throw new KettleException("Unexpected error during job metadata load",e);
+}
 }

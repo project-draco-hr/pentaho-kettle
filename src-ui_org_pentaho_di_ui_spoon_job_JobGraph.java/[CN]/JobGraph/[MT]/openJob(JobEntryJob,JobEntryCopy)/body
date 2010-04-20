@@ -1,42 +1,63 @@
 {
-  String exactFilename=jobMeta.environmentSubstitute(entry.getFilename());
-  String exactJobname=jobMeta.environmentSubstitute(entry.getJobName());
-  if (Const.isEmpty(exactFilename) && !Const.isEmpty(exactJobname)) {
-    try {
-      JobMeta newJobMeta=spoon.rep.loadJob(exactJobname,spoon.rep.loadRepositoryDirectoryTree().findDirectory(entry.getDirectory()),null,null);
-      newJobMeta.clearChanged();
-      spoon.setParametersAsVariablesInUI(newJobMeta,newJobMeta);
-      spoon.delegates.jobs.addJobGraph(newJobMeta);
-      JobGraph jobGraph=spoon.getActiveJobGraph();
-      attachActiveJob(jobGraph,newJobMeta,jobEntryCopy);
+  try {
+    JobMeta launchJobMeta=null;
+switch (entry.getSpecificationMethod()) {
+case FILENAME:
+      String exactFilename=jobMeta.environmentSubstitute(entry.getFilename());
+    if (Const.isEmpty(exactFilename)) {
+      throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoFilenameSpecified"));
     }
- catch (    Throwable e) {
-      new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJob.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJob.Message"),e);
-    }
+  if (KettleVFS.fileExists(exactFilename)) {
+    launchJobMeta=new JobMeta(jobMeta,exactFilename,spoon.rep,null);
   }
  else {
-    try {
-      if (Const.isEmpty(exactFilename)) {
-        throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoFilenameSpecified"));
-      }
-      JobMeta newJobMeta;
-      if (KettleVFS.fileExists(exactFilename)) {
-        newJobMeta=new JobMeta(exactFilename,spoon.rep,spoon);
-      }
- else {
-        newJobMeta=new JobMeta();
-      }
-      spoon.setParametersAsVariablesInUI(newJobMeta,newJobMeta);
-      newJobMeta.setFilename(exactFilename);
-      newJobMeta.clearChanged();
-      spoon.delegates.jobs.addJobGraph(newJobMeta);
-      JobGraph jobGraph=spoon.getActiveJobGraph();
-      attachActiveJob(jobGraph,newJobMeta,jobEntryCopy);
-    }
- catch (    Throwable e) {
-      new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJobFromXML.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJobFromXML.Message"),e);
-    }
+    launchJobMeta=new JobMeta();
   }
-  spoon.applyVariables();
-  spoon.refreshTree();
+launchJobMeta.setFilename(exactFilename);
+break;
+case REPOSITORY_BY_NAME:
+String exactJobname=jobMeta.environmentSubstitute(entry.getJobName());
+String exactDirectory=jobMeta.environmentSubstitute(entry.getDirectory());
+if (Const.isEmpty(exactJobname)) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoJobNameSpecified"));
+}
+if (Const.isEmpty(exactDirectory)) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoJobDirectorySpecified"));
+}
+RepositoryDirectoryInterface repDir=spoon.rep.loadRepositoryDirectoryTree().findDirectory(entry.getDirectory());
+boolean exists=spoon.rep.exists(exactJobname,repDir,RepositoryObjectType.TRANSFORMATION);
+if (!exists) {
+launchJobMeta=new JobMeta();
+}
+ else {
+launchJobMeta=spoon.rep.loadJob(exactJobname,repDir,null,null);
+}
+break;
+case REPOSITORY_BY_REFERENCE:
+if (entry.getJobObjectId() == null) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoJobReferenceSpecified"));
+}
+launchJobMeta=spoon.rep.loadJob(entry.getJobObjectId(),null);
+break;
+}
+if (launchJobMeta == null) {
+throw new Exception(BaseMessages.getString(PKG,"JobGraph.Exception.NoValidJobSpecified"));
+}
+String tabName=spoon.delegates.tabs.makeTabName(launchJobMeta,true);
+TabMapEntry tabEntry=spoon.delegates.tabs.findTabMapEntry(tabName,ObjectType.JOB_GRAPH);
+if (tabEntry != null) {
+spoon.tabfolder.setSelected(tabEntry.getTabItem());
+return;
+}
+spoon.setParametersAsVariablesInUI(launchJobMeta,launchJobMeta);
+spoon.addJobGraph(launchJobMeta);
+launchJobMeta.clearChanged();
+JobGraph jobGraph=spoon.getActiveJobGraph();
+attachActiveJob(jobGraph,launchJobMeta,jobEntryCopy);
+spoon.refreshTree();
+spoon.applyVariables();
+}
+ catch (Throwable e) {
+new ErrorDialog(shell,BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJob.Title"),BaseMessages.getString(PKG,"JobGraph.Dialog.ErrorLaunchingChefCanNotLoadJob.Message"),e);
+}
 }

@@ -1,30 +1,39 @@
 {
   try {
     TransMeta transMeta=null;
-    if (!Const.isEmpty(getFilename())) {
+switch (specificationMethod) {
+case FILENAME:
       String filename=environmentSubstitute(getFilename());
-      logBasic("Loading transformation from XML file [" + filename + "]");
-      transMeta=new TransMeta(filename,null,true,this);
-      transMeta.copyVariablesFrom(this);
-    }
- else     if (!Const.isEmpty(getTransname()) && getDirectory() != null) {
-      String filename=environmentSubstitute(getTransname());
-      logBasic(BaseMessages.getString(PKG,"JobTrans.Log.LoadingTransRepDirec",filename,"" + getDirectory()));
-      if (rep != null) {
-        transMeta=rep.loadTransformation(filename,rep.loadRepositoryDirectoryTree().findDirectory(environmentSubstitute(getDirectory())),null,true,null);
-        transMeta.copyVariablesFrom(this);
-      }
+    logBasic("Loading transformation from XML file [" + filename + "]");
+  transMeta=new TransMeta(filename,null,true,this);
+break;
+case REPOSITORY_BY_NAME:
+String transname=environmentSubstitute(getTransname());
+String realDirectory=environmentSubstitute(getDirectory());
+logBasic(BaseMessages.getString(PKG,"JobTrans.Log.LoadingTransRepDirec",transname,realDirectory));
+if (rep != null) {
+RepositoryDirectoryInterface repositoryDirectory=rep.loadRepositoryDirectoryTree().findDirectory(realDirectory);
+transMeta=rep.loadTransformation(transname,repositoryDirectory,null,true,null);
+}
  else {
-        throw new KettleException(BaseMessages.getString(PKG,"JobTrans.Exception.NoRepDefined"));
-      }
-    }
- else {
-      throw new KettleJobException(BaseMessages.getString(PKG,"JobTrans.Exception.TransNotSpecified"));
-    }
-    transMeta.setArguments(arguments);
-    return transMeta;
-  }
- catch (  Exception e) {
-    throw new KettleException(BaseMessages.getString(PKG,"JobTrans.Exception.MetaDataLoad"),e);
-  }
+throw new KettleException(BaseMessages.getString(PKG,"JobTrans.Exception.NoRepDefined"));
+}
+break;
+case REPOSITORY_BY_REFERENCE:
+if (rep != null) {
+transMeta=rep.loadTransformation(transObjectId,null);
+}
+break;
+default :
+throw new KettleException("The specified object location specification method '" + specificationMethod + "' is not yet supported in this job entry.");
+}
+if (transMeta != null) {
+transMeta.copyVariablesFrom(this);
+transMeta.setArguments(arguments);
+}
+return transMeta;
+}
+ catch (Exception e) {
+throw new KettleException(BaseMessages.getString(PKG,"JobTrans.Exception.MetaDataLoad"),e);
+}
 }

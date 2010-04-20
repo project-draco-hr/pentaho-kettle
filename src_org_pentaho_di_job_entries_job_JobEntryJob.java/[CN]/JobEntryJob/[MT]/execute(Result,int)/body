@@ -34,283 +34,282 @@
     if (parentJob.getJobMeta() != null) {
       parentJob.getJobMeta().setInternalKettleVariables();
     }
-    JobMeta jobMeta=null;
-    boolean fromRepository=rep != null && !Const.isEmpty(jobname) && directory != null;
-    boolean fromXMLFile=!Const.isEmpty(filename);
-    if (fromRepository) {
-      if (log.isDetailed())       logDetailed("Loading job from repository : [" + directory + " : "+ environmentSubstitute(jobname)+ "]");
-      jobMeta=rep.loadJob(environmentSubstitute(jobname),rep.loadRepositoryDirectoryTree().findDirectory(environmentSubstitute(directory)),null,null);
-      jobMeta.setParentVariableSpace(parentJob);
+switch (specificationMethod) {
+case REPOSITORY_BY_NAME:
+      if (log.isDetailed()) {
+        logDetailed("Loading job from repository : [" + directory + " : "+ environmentSubstitute(jobname)+ "]");
+      }
+    break;
+case FILENAME:
+  if (log.isDetailed()) {
+    logDetailed("Loading job from XML file : [" + environmentSubstitute(filename) + "]");
+  }
+break;
+case REPOSITORY_BY_REFERENCE:
+if (log.isDetailed()) {
+logDetailed("Loading job from repository by reference : [" + jobObjectId + "]");
+}
+break;
+}
+JobMeta jobMeta=getJobMeta(rep,this);
+if (jobMeta == null) {
+throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
+}
+verifyRecursiveExecution(parentJob,jobMeta);
+int iteration=0;
+String args1[]=arguments;
+if (args1 == null || args1.length == 0) {
+args1=parentJob.getJobMeta().getArguments();
+}
+copyVariablesFrom(parentJob);
+setParentVariableSpace(parentJob);
+String args[]=null;
+if (args1 != null) {
+args=new String[args1.length];
+for (int idx=0; idx < args1.length; idx++) {
+args[idx]=environmentSubstitute(args1[idx]);
+}
+}
+NamedParams namedParam=new NamedParamsDefault();
+if (parameters != null) {
+for (int idx=0; idx < parameters.length; idx++) {
+if (!Const.isEmpty(parameters[idx])) {
+try {
+namedParam.addParameterDefinition(parameters[idx],"","Job entry runtime");
+}
+ catch (DuplicateParamException e) {
+logError("Duplicate parameter definition for " + parameters[idx]);
+}
+if (Const.isEmpty(Const.trim(parameterFieldNames[idx]))) {
+namedParam.setParameterValue(parameters[idx],Const.NVL(environmentSubstitute(parameterValues[idx]),""));
+}
+ else {
+namedParam.setParameterValue(parameters[idx],"");
+}
+}
+}
+}
+RowMetaAndData resultRow=null;
+boolean first=true;
+List<RowMetaAndData> rows=new ArrayList<RowMetaAndData>(result.getRows());
+while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
+if (execPerRow) {
+result.getRows().clear();
+}
+first=false;
+if (rows != null && execPerRow) {
+resultRow=(RowMetaAndData)rows.get(iteration);
+}
+ else {
+resultRow=null;
+}
+Result oneResult=new Result();
+List<RowMetaAndData> sourceRows=null;
+if (execPerRow) {
+if (argFromPrevious) {
+args=null;
+if (resultRow != null) {
+args=new String[resultRow.size()];
+for (int i=0; i < resultRow.size(); i++) {
+  args[i]=resultRow.getString(i,null);
+}
+}
+}
+ else {
+List<RowMetaAndData> newList=new ArrayList<RowMetaAndData>();
+newList.add(resultRow);
+sourceRows=newList;
+}
+if (paramsFromPrevious) {
+if (parameters != null) {
+for (int idx=0; idx < parameters.length; idx++) {
+  if (!Const.isEmpty(parameters[idx])) {
+    if (Const.isEmpty(Const.trim(parameterFieldNames[idx]))) {
+      namedParam.setParameterValue(parameters[idx],Const.NVL(environmentSubstitute(parameterValues[idx]),""));
     }
- else     if (fromXMLFile) {
-      if (log.isDetailed())       logDetailed("Loading job from XML file : [" + environmentSubstitute(filename) + "]");
-      jobMeta=new JobMeta(environmentSubstitute(filename),rep,null);
-      jobMeta.setParentVariableSpace(parentJob);
-    }
-    if (jobMeta == null) {
-      throw new KettleException("Unable to load the job: please specify the name and repository directory OR a filename");
-    }
-    verifyRecursiveExecution(parentJob,jobMeta);
-    if (fromRepository) {
-      if (log.isBasic())       logBasic("Starting job, loaded from repository : [" + directory + " : "+ environmentSubstitute(jobname)+ "]");
-    }
- else     if (fromXMLFile) {
-      if (log.isDetailed())       logDetailed("Starting job, loaded from XML file : [" + environmentSubstitute(filename) + "]");
-    }
-    int iteration=0;
-    String args1[]=arguments;
-    if (args1 == null || args1.length == 0) {
-      args1=parentJob.getJobMeta().getArguments();
-    }
-    copyVariablesFrom(parentJob);
-    setParentVariableSpace(parentJob);
-    String args[]=null;
-    if (args1 != null) {
-      args=new String[args1.length];
-      for (int idx=0; idx < args1.length; idx++) {
-        args[idx]=environmentSubstitute(args1[idx]);
-      }
-    }
-    NamedParams namedParam=new NamedParamsDefault();
-    if (parameters != null) {
-      for (int idx=0; idx < parameters.length; idx++) {
-        if (!Const.isEmpty(parameters[idx])) {
-          try {
-            namedParam.addParameterDefinition(parameters[idx],"","Job entry runtime");
-          }
- catch (          DuplicateParamException e) {
-            logError("Duplicate parameter definition for " + parameters[idx]);
-          }
-          if (Const.isEmpty(Const.trim(parameterFieldNames[idx]))) {
-            namedParam.setParameterValue(parameters[idx],Const.NVL(environmentSubstitute(parameterValues[idx]),""));
-          }
  else {
-            namedParam.setParameterValue(parameters[idx],"");
-          }
-        }
+      String fieldValue="";
+      if (resultRow != null) {
+        fieldValue=resultRow.getString(parameterFieldNames[idx],"");
       }
-    }
-    RowMetaAndData resultRow=null;
-    boolean first=true;
-    List<RowMetaAndData> rows=new ArrayList<RowMetaAndData>(result.getRows());
-    while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0)) {
-      if (execPerRow) {
-        result.getRows().clear();
-      }
-      first=false;
-      if (rows != null && execPerRow) {
-        resultRow=(RowMetaAndData)rows.get(iteration);
-      }
- else {
-        resultRow=null;
-      }
-      Result oneResult=new Result();
-      List<RowMetaAndData> sourceRows=null;
-      if (execPerRow) {
-        if (argFromPrevious) {
-          args=null;
-          if (resultRow != null) {
-            args=new String[resultRow.size()];
-            for (int i=0; i < resultRow.size(); i++) {
-              args[i]=resultRow.getString(i,null);
-            }
-          }
-        }
- else {
-          List<RowMetaAndData> newList=new ArrayList<RowMetaAndData>();
-          newList.add(resultRow);
-          sourceRows=newList;
-        }
-        if (paramsFromPrevious) {
-          if (parameters != null) {
-            for (int idx=0; idx < parameters.length; idx++) {
-              if (!Const.isEmpty(parameters[idx])) {
-                if (Const.isEmpty(Const.trim(parameterFieldNames[idx]))) {
-                  namedParam.setParameterValue(parameters[idx],Const.NVL(environmentSubstitute(parameterValues[idx]),""));
-                }
- else {
-                  String fieldValue="";
-                  if (resultRow != null) {
-                    fieldValue=resultRow.getString(parameterFieldNames[idx],"");
-                  }
-                  namedParam.setParameterValue(parameters[idx],Const.NVL(fieldValue,""));
-                }
-              }
-            }
-          }
-        }
-      }
- else {
-        if (argFromPrevious) {
-          args=null;
-          if (resultRow != null) {
-            args=new String[resultRow.size()];
-            for (int i=0; i < resultRow.size(); i++) {
-              args[i]=resultRow.getString(i,null);
-            }
-          }
-        }
- else {
-          sourceRows=result.getRows();
-        }
-        if (paramsFromPrevious) {
-          if (parameters != null) {
-            for (int idx=0; idx < parameters.length; idx++) {
-              if (!Const.isEmpty(parameters[idx])) {
-                if (Const.isEmpty(Const.trim(parameterFieldNames[idx]))) {
-                  namedParam.setParameterValue(parameters[idx],Const.NVL(environmentSubstitute(parameterValues[idx]),""));
-                }
- else {
-                  String fieldValue="";
-                  if (resultRow != null) {
-                    fieldValue=resultRow.getString(parameterFieldNames[idx],"");
-                  }
-                  namedParam.setParameterValue(parameters[idx],Const.NVL(fieldValue,""));
-                }
-              }
-            }
-          }
-        }
-      }
-      if (remoteSlaveServer == null) {
-        job=new Job(rep,jobMeta,parentJob);
-        job.setLogLevel(jobLogLevel);
-        job.shareVariablesWith(this);
-        job.setInternalKettleVariables(this);
-        job.copyParametersFrom(jobMeta);
-        job.setInteractive(parentJob.isInteractive());
-        if (job.isInteractive()) {
-          job.getJobEntryListeners().addAll(parentJob.getJobEntryListeners());
-        }
-        job.setSocketRepository(parentJob.getSocketRepository());
-        job.clearParameters();
-        String[] parameterNames=job.listParameters();
-        for (int idx=0; idx < parameterNames.length; idx++) {
-          String thisValue=namedParam.getParameterValue(parameterNames[idx]);
-          if (!Const.isEmpty(thisValue)) {
-            job.setParameterValue(parameterNames[idx],thisValue);
-          }
- else {
-            if (isPassingAllParameters()) {
-              String parentValue=parentJob.getParameterValue(parameterNames[idx]);
-              if (!Const.isEmpty(parentValue)) {
-                job.setParameterValue(parameterNames[idx],parentValue);
-              }
-            }
-          }
-        }
-        job.activateParameters();
-        job.setSourceRows(sourceRows);
-        job.beginProcessing();
-        parentJob.getJobTracker().addJobTracker(job.getJobTracker());
-        job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
-        job.setParentJob(parentJob);
-        if (parentJob.getJobMeta().isBatchIdPassed()) {
-          job.setPassedBatchId(parentJob.getBatchId());
-        }
-        job.getJobMeta().setArguments(args);
-        JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr);
-        Thread jobRunnerThread=new Thread(runner);
-        jobRunnerThread.setName(Const.NVL(job.getJobMeta().getName(),job.getJobMeta().getFilename()));
-        jobRunnerThread.start();
-        while (!runner.isFinished() && !parentJob.isStopped()) {
-          try {
-            Thread.sleep(0,1);
-          }
- catch (          InterruptedException e) {
-          }
-        }
-        if (parentJob.isStopped()) {
-          job.stopAll();
-          runner.waitUntilFinished();
-        }
-        oneResult=runner.getResult();
-      }
- else {
-        JobExecutionConfiguration jobExecutionConfiguration=new JobExecutionConfiguration();
-        jobExecutionConfiguration.setPreviousResult(result.clone());
-        jobExecutionConfiguration.getPreviousResult().setRows(sourceRows);
-        jobExecutionConfiguration.setArgumentStrings(args);
-        jobExecutionConfiguration.setVariables(this);
-        jobExecutionConfiguration.setRemoteServer(remoteSlaveServer);
-        jobExecutionConfiguration.setRepository(rep);
-        jobExecutionConfiguration.setLogLevel(jobLogLevel);
-        jobExecutionConfiguration.setPassingExport(passingExport);
-        String carteObjectId=null;
-        try {
-          carteObjectId=Job.sendToSlaveServer(jobMeta,jobExecutionConfiguration,rep);
-        }
- catch (        KettleException e) {
-          parentJob.stopAll();
-          throw e;
-        }
-        SlaveServerJobStatus jobStatus=null;
-        while (!parentJob.isStopped() && waitingToFinish) {
-          try {
-            jobStatus=remoteSlaveServer.getJobStatus(jobMeta.getName(),carteObjectId,0);
-            if (jobStatus.getResult() != null) {
-              oneResult=jobStatus.getResult();
-              break;
-            }
-          }
- catch (          Exception e1) {
-            logError("Unable to contact slave server [" + remoteSlaveServer + "] to verify the status of job ["+ jobMeta.getName()+ "]");
-            oneResult.setNrErrors(1L);
-            break;
-          }
-          try {
-            Thread.sleep(10000);
-          }
- catch (          InterruptedException e) {
-          }
-          ;
-        }
-        if (!waitingToFinish) {
-          oneResult=new Result();
-          oneResult.setResult(true);
-        }
-        if (parentJob.isStopped()) {
-          try {
-            if (jobStatus == null || jobStatus.isRunning()) {
-              remoteSlaveServer.stopJob(jobMeta.getName(),carteObjectId);
-            }
-          }
- catch (          Exception e1) {
-            logError("Unable to contact slave server [" + remoteSlaveServer + "] to stop job ["+ jobMeta.getName()+ "]");
-            oneResult.setNrErrors(1L);
-            break;
-          }
-        }
-      }
-      if (iteration == 0) {
-        result.clear();
-      }
-      result.add(oneResult);
-      if (oneResult.getResult() == false) {
-        result.setNrErrors(result.getNrErrors() + 1);
-      }
-      iteration++;
+      namedParam.setParameterValue(parameters[idx],Const.NVL(fieldValue,""));
     }
   }
- catch (  KettleException ke) {
-    logError("Error running job entry 'job' : " + ke.toString());
-    logError(Const.getStackTracker(ke));
-    result.setResult(false);
-    result.setNrErrors(1L);
-  }
-  if (setLogfile) {
-    if (appender != null) {
-      LogWriter.getInstance().removeAppender(appender);
-      appender.close();
-      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,appender.getFile(),parentJob.getJobname(),getName());
-      result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+}
+}
+}
+}
+ else {
+if (argFromPrevious) {
+args=null;
+if (resultRow != null) {
+args=new String[resultRow.size()];
+for (int i=0; i < resultRow.size(); i++) {
+  args[i]=resultRow.getString(i,null);
+}
+}
+}
+ else {
+sourceRows=result.getRows();
+}
+if (paramsFromPrevious) {
+if (parameters != null) {
+for (int idx=0; idx < parameters.length; idx++) {
+  if (!Const.isEmpty(parameters[idx])) {
+    if (Const.isEmpty(Const.trim(parameterFieldNames[idx]))) {
+      namedParam.setParameterValue(parameters[idx],Const.NVL(environmentSubstitute(parameterValues[idx]),""));
+    }
+ else {
+      String fieldValue="";
+      if (resultRow != null) {
+        fieldValue=resultRow.getString(parameterFieldNames[idx],"");
+      }
+      namedParam.setParameterValue(parameters[idx],Const.NVL(fieldValue,""));
     }
   }
-  if (result.getNrErrors() > 0) {
-    result.setResult(false);
-  }
+}
+}
+}
+}
+if (remoteSlaveServer == null) {
+job=new Job(rep,jobMeta,parentJob);
+job.setLogLevel(jobLogLevel);
+job.shareVariablesWith(this);
+job.setInternalKettleVariables(this);
+job.copyParametersFrom(jobMeta);
+job.setInteractive(parentJob.isInteractive());
+if (job.isInteractive()) {
+job.getJobEntryListeners().addAll(parentJob.getJobEntryListeners());
+}
+job.setSocketRepository(parentJob.getSocketRepository());
+job.clearParameters();
+String[] parameterNames=job.listParameters();
+for (int idx=0; idx < parameterNames.length; idx++) {
+String thisValue=namedParam.getParameterValue(parameterNames[idx]);
+if (!Const.isEmpty(thisValue)) {
+job.setParameterValue(parameterNames[idx],thisValue);
+}
  else {
-    result.setResult(true);
+if (isPassingAllParameters()) {
+  String parentValue=parentJob.getParameterValue(parameterNames[idx]);
+  if (!Const.isEmpty(parentValue)) {
+    job.setParameterValue(parameterNames[idx],parentValue);
   }
-  return result;
+}
+}
+}
+job.activateParameters();
+job.setSourceRows(sourceRows);
+job.beginProcessing();
+parentJob.getJobTracker().addJobTracker(job.getJobTracker());
+job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
+job.setParentJob(parentJob);
+if (parentJob.getJobMeta().isBatchIdPassed()) {
+job.setPassedBatchId(parentJob.getBatchId());
+}
+job.getJobMeta().setArguments(args);
+JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr);
+Thread jobRunnerThread=new Thread(runner);
+jobRunnerThread.setName(Const.NVL(job.getJobMeta().getName(),job.getJobMeta().getFilename()));
+jobRunnerThread.start();
+while (!runner.isFinished() && !parentJob.isStopped()) {
+try {
+Thread.sleep(0,1);
+}
+ catch (InterruptedException e) {
+}
+}
+if (parentJob.isStopped()) {
+job.stopAll();
+runner.waitUntilFinished();
+}
+oneResult=runner.getResult();
+}
+ else {
+JobExecutionConfiguration jobExecutionConfiguration=new JobExecutionConfiguration();
+jobExecutionConfiguration.setPreviousResult(result.clone());
+jobExecutionConfiguration.getPreviousResult().setRows(sourceRows);
+jobExecutionConfiguration.setArgumentStrings(args);
+jobExecutionConfiguration.setVariables(this);
+jobExecutionConfiguration.setRemoteServer(remoteSlaveServer);
+jobExecutionConfiguration.setRepository(rep);
+jobExecutionConfiguration.setLogLevel(jobLogLevel);
+jobExecutionConfiguration.setPassingExport(passingExport);
+String carteObjectId=null;
+try {
+carteObjectId=Job.sendToSlaveServer(jobMeta,jobExecutionConfiguration,rep);
+}
+ catch (KettleException e) {
+parentJob.stopAll();
+throw e;
+}
+SlaveServerJobStatus jobStatus=null;
+while (!parentJob.isStopped() && waitingToFinish) {
+try {
+jobStatus=remoteSlaveServer.getJobStatus(jobMeta.getName(),carteObjectId,0);
+if (jobStatus.getResult() != null) {
+  oneResult=jobStatus.getResult();
+  break;
+}
+}
+ catch (Exception e1) {
+logError("Unable to contact slave server [" + remoteSlaveServer + "] to verify the status of job ["+ jobMeta.getName()+ "]");
+oneResult.setNrErrors(1L);
+break;
+}
+try {
+Thread.sleep(10000);
+}
+ catch (InterruptedException e) {
+}
+;
+}
+if (!waitingToFinish) {
+oneResult=new Result();
+oneResult.setResult(true);
+}
+if (parentJob.isStopped()) {
+try {
+if (jobStatus == null || jobStatus.isRunning()) {
+  remoteSlaveServer.stopJob(jobMeta.getName(),carteObjectId);
+}
+}
+ catch (Exception e1) {
+logError("Unable to contact slave server [" + remoteSlaveServer + "] to stop job ["+ jobMeta.getName()+ "]");
+oneResult.setNrErrors(1L);
+break;
+}
+}
+}
+if (iteration == 0) {
+result.clear();
+}
+result.add(oneResult);
+if (oneResult.getResult() == false) {
+result.setNrErrors(result.getNrErrors() + 1);
+}
+iteration++;
+}
+}
+ catch (KettleException ke) {
+logError("Error running job entry 'job' : " + ke.toString());
+logError(Const.getStackTracker(ke));
+result.setResult(false);
+result.setNrErrors(1L);
+}
+if (setLogfile) {
+if (appender != null) {
+LogWriter.getInstance().removeAppender(appender);
+appender.close();
+ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,appender.getFile(),parentJob.getJobname(),getName());
+result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+}
+}
+if (result.getNrErrors() > 0) {
+result.setResult(false);
+}
+ else {
+result.setResult(true);
+}
+return result;
 }
