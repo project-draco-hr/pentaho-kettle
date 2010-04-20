@@ -44,6 +44,17 @@
     }
     ftpclient.setControlEncoding(controlEncoding);
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.SetEncoding",controlEncoding));
+    if (!Const.isEmpty(socksProxyHost)) {
+      if (!Const.isEmpty(socksProxyPort)) {
+        FTPClient.initSOCKS(environmentSubstitute(socksProxyPort),environmentSubstitute(socksProxyHost));
+      }
+ else {
+        throw new FTPException(BaseMessages.getString(PKG,"JobFTPPUT.SocksProxy.PortMissingException",environmentSubstitute(socksProxyHost)));
+      }
+      if (!Const.isEmpty(socksProxyUsername) && Const.isEmpty(socksProxyPassword) || Const.isEmpty(socksProxyUsername) && !Const.isEmpty(socksProxyPassword)) {
+        throw new FTPException(BaseMessages.getString(PKG,"JobFTPPUT.SocksProxy.IncompleteCredentials",environmentSubstitute(socksProxyHost),getName()));
+      }
+    }
     ftpclient.connect();
     ftpclient.login(realUsername,realPassword);
     if (binaryMode) {
@@ -118,6 +129,7 @@
         logError(BaseMessages.getString(PKG,"JobFTPPUT.Log.ErrorQuitingFTP",e.getMessage()));
       }
     }
+    FTPClient.clearSOCKS();
   }
   return result;
 }

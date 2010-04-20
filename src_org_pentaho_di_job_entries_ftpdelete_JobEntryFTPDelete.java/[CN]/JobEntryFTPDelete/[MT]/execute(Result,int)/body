@@ -29,6 +29,20 @@
   try {
     String[] filelist=null;
     if (protocol.equals(PROTOCOL_FTP)) {
+      if (!Const.isEmpty(socksProxyHost)) {
+        if (!Const.isEmpty(socksProxyPort)) {
+          FTPClient.initSOCKS(environmentSubstitute(socksProxyPort),environmentSubstitute(socksProxyHost));
+        }
+ else {
+          throw new FTPException(BaseMessages.getString(PKG,"JobEntryFTPDelete.SocksProxy.PortMissingException",environmentSubstitute(socksProxyHost),getName()));
+        }
+        if (!Const.isEmpty(socksProxyUsername) && !Const.isEmpty(socksProxyPassword)) {
+          FTPClient.initSOCKSAuthentication(environmentSubstitute(socksProxyUsername),environmentSubstitute(socksProxyPassword));
+        }
+ else         if (!Const.isEmpty(socksProxyUsername) && Const.isEmpty(socksProxyPassword) || Const.isEmpty(socksProxyUsername) && !Const.isEmpty(socksProxyPassword)) {
+          throw new FTPException(BaseMessages.getString(PKG,"JobEntryFTPDelete.SocksProxy.IncompleteCredentials",environmentSubstitute(socksProxyHost),getName()));
+        }
+      }
       FTPConnect(realservername,realUsername,realPassword,realserverport,realFtpDirectory,realproxyhost,realproxyusername,realproxypassword,realproxyport,timeout);
       filelist=ftpclient.dir();
       if (filelist.length == 1) {
@@ -169,6 +183,7 @@
         logError(BaseMessages.getString(PKG,"JobEntryFTPDelete.ErrorQuitting",e.getMessage()));
       }
     }
+    FTPClient.clearSOCKS();
   }
   result.setResult(!successConditionBroken);
   result.setNrFilesRetrieved(NrfilesDeleted);
