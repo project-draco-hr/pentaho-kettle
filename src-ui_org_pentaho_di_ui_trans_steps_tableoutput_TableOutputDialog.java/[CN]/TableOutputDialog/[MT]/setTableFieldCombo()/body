@@ -1,38 +1,51 @@
 {
-  Runnable fieldLoader=new Runnable(){
+  final Runnable clearTableFields=new Runnable(){
     public void run(){
       for (int i=0; i < tableFieldColumns.size(); i++) {
-        ColumnInfo colInfo=(ColumnInfo)tableFieldColumns.get(i);
+        ColumnInfo colInfo=tableFieldColumns.get(i);
         colInfo.setComboValues(new String[]{});
-      }
-      if (!Const.isEmpty(wTable.getText())) {
-        DatabaseMeta ci=transMeta.findDatabase(wConnection.getText());
-        if (ci != null) {
-          Database db=new Database(loggingObject,ci);
-          try {
-            db.connect();
-            String schemaTable=ci.getQuotedSchemaTableCombination(transMeta.environmentSubstitute(wSchema.getText()),transMeta.environmentSubstitute(wTable.getText()));
-            RowMetaInterface r=db.getTableFields(schemaTable);
-            if (null != r) {
-              String[] fieldNames=r.getFieldNames();
-              if (null != fieldNames) {
-                for (int i=0; i < tableFieldColumns.size(); i++) {
-                  ColumnInfo colInfo=(ColumnInfo)tableFieldColumns.get(i);
-                  colInfo.setComboValues(fieldNames);
-                }
-              }
-            }
-          }
- catch (          Exception e) {
-            for (int i=0; i < tableFieldColumns.size(); i++) {
-              ColumnInfo colInfo=(ColumnInfo)tableFieldColumns.get(i);
-              colInfo.setComboValues(new String[]{});
-            }
-          }
-        }
       }
     }
   }
 ;
-  shell.getDisplay().asyncExec(fieldLoader);
+  shell.getDisplay().asyncExec(clearTableFields);
+  if (!Const.isEmpty(wTable.getText())) {
+    final DatabaseMeta ci=transMeta.findDatabase(wConnection.getText());
+    if (ci != null) {
+      final Database db=new Database(loggingObject,ci);
+      new Thread(new Runnable(){
+        public void run(){
+          try {
+            db.connect();
+            shell.getDisplay().asyncExec(new Runnable(){
+              public void run(){
+                String schemaTable=ci.getQuotedSchemaTableCombination(transMeta.environmentSubstitute(wSchema.getText()),transMeta.environmentSubstitute(wTable.getText()));
+                RowMetaInterface r;
+                try {
+                  r=db.getTableFields(schemaTable);
+                  if (null != r) {
+                    final String[] fieldNames=r.getFieldNames();
+                    if (null != fieldNames) {
+                      for (int i=0; i < tableFieldColumns.size(); i++) {
+                        ColumnInfo colInfo=tableFieldColumns.get(i);
+                        colInfo.setComboValues(fieldNames);
+                      }
+                    }
+                  }
+                }
+ catch (                KettleDatabaseException e) {
+                  shell.getDisplay().asyncExec(clearTableFields);
+                }
+              }
+            }
+);
+          }
+ catch (          Exception e) {
+            shell.getDisplay().asyncExec(clearTableFields);
+          }
+        }
+      }
+).start();
+    }
+  }
 }
