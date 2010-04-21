@@ -1,0 +1,38 @@
+{
+  TransMeta mappingTransMeta=null;
+switch (mappingMeta.getSpecificationMethod()) {
+case FILENAME:
+    String realFilename=space.environmentSubstitute(mappingMeta.getFileName());
+  try {
+    mappingTransMeta=new TransMeta(realFilename,false);
+    mappingTransMeta.getLogChannel().logDetailed("Loading Mapping from repository","Mapping transformation was loaded from XML file [" + realFilename + "]");
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"MappingMeta.Exception.UnableToLoadMapping"),e);
+  }
+break;
+case REPOSITORY_BY_NAME:
+String realTransname=space.environmentSubstitute(mappingMeta.getTransName());
+String realDirectory=space.environmentSubstitute(mappingMeta.getDirectoryPath());
+if (!Const.isEmpty(realTransname) && !Const.isEmpty(realDirectory) && rep != null) {
+RepositoryDirectoryInterface repdir=rep.loadRepositoryDirectoryTree().findDirectory(realDirectory);
+if (repdir != null) {
+try {
+mappingTransMeta=rep.loadTransformation(realTransname,repdir,null,true,null);
+mappingTransMeta.getLogChannel().logDetailed("Loading Mapping from repository","Mapping transformation [" + realTransname + "] was loaded from the repository");
+}
+ catch (Exception e) {
+throw new KettleException("Unable to load transformation [" + realTransname + "]",e);
+}
+}
+ else {
+throw new KettleException(BaseMessages.getString(PKG,"MappingMeta.Exception.UnableToLoadTransformation",realTransname) + realDirectory);
+}
+}
+break;
+case REPOSITORY_BY_REFERENCE:
+mappingTransMeta=rep.loadTransformation(mappingMeta.getTransObjectId(),null);
+break;
+}
+return mappingTransMeta;
+}
