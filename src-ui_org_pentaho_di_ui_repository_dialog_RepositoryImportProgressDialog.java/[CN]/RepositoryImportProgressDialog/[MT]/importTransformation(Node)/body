@@ -1,0 +1,63 @@
+{
+  TransMeta transMeta=new TransMeta(transnode,null);
+  replaceSharedObjects(transMeta);
+  wLabel.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.ImportTrans.Label",Integer.toString(transformationNumber),transMeta.getName()));
+  String directoryPath=XMLHandler.getTagValue(transnode,"info","directory");
+  directoryPath=directoryPath.substring(1);
+  RepositoryDirectoryInterface targetDirectory=baseDirectory.findDirectory(directoryPath);
+  if (targetDirectory == null) {
+    if (askDirectory) {
+      MessageDialogWithToggle mb=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.CreateDir.Title"),null,BaseMessages.getString(PKG,"RepositoryImportDialog.CreateDir.Message",directoryPath),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"System.Button.Yes"),BaseMessages.getString(PKG,"System.Button.No"),BaseMessages.getString(PKG,"System.Button.Cancel")},1,BaseMessages.getString(PKG,"RepositoryImportDialog.DontAskAgain.Label"),!askDirectory);
+      MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
+      int answer=mb.open();
+      makeDirectory=(answer & 0xFF) == 0;
+      askDirectory=!mb.getToggleState();
+      if ((answer & 0xFF) == 1)       return false;
+    }
+    if (makeDirectory) {
+      addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.CreateDir.Log",directoryPath,baseDirectory.toString()));
+      targetDirectory=rep.createRepositoryDirectory(baseDirectory,directoryPath);
+    }
+ else {
+      targetDirectory=baseDirectory;
+    }
+  }
+  ObjectId existingId=rep.getTransformationID(transMeta.getName(),targetDirectory);
+  if (existingId != null && askOverwrite) {
+    MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.OverwriteTrans.Title"),null,BaseMessages.getString(PKG,"RepositoryImportDialog.OverwriteTrans.Message",transMeta.getName()),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"System.Button.Yes"),BaseMessages.getString(PKG,"System.Button.No")},1,BaseMessages.getString(PKG,"RepositoryImportDialog.DontAskAgain.Label"),!askOverwrite);
+    MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
+    int answer=md.open();
+    overwrite=(answer & 0xFF) == 0;
+    askOverwrite=!md.getToggleState();
+  }
+ else {
+    shell.getDisplay().update();
+  }
+  if (existingId == null || overwrite) {
+    transMeta.setObjectId(existingId);
+    transMeta.setRepositoryDirectory(targetDirectory);
+    patchMappingSteps(transMeta);
+    try {
+      if (transMeta.getCreatedUser() == null || transMeta.getCreatedUser().equals("-")) {
+        transMeta.setCreatedDate(new Date());
+        transMeta.setCreatedUser(rep.getUserInfo().getLogin());
+      }
+ else {
+        transMeta.setCreatedDate(transMeta.getCreatedDate());
+        transMeta.setCreatedUser(transMeta.getCreatedUser());
+      }
+      transMeta.setModifiedDate(new Date());
+      transMeta.setModifiedUser(rep.getUserInfo().getLogin());
+      rep.save(transMeta,versionComment,this);
+      addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.TransSaved.Log",Integer.toString(transformationNumber),transMeta.getName()));
+    }
+ catch (    Exception e) {
+      addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.ErrorSavingTrans.Log",Integer.toString(transformationNumber),transMeta.getName(),e.toString()));
+      addLog(Const.getStackTracker(e));
+    }
+  }
+ else {
+    addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.ErrorSavingTrans2.Log",transMeta.getName()));
+  }
+  return true;
+}

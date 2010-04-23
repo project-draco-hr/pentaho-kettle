@@ -1,6 +1,7 @@
 {
-  JobMeta jobMeta=new JobMeta(jobnode,rep,SpoonFactory.getInstance());
-  wLabel.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.ImportJob.Label",Integer.toString(nrthis),Integer.toString(nrjobs),jobMeta.getName()));
+  JobMeta jobMeta=new JobMeta(jobnode,rep,false,SpoonFactory.getInstance());
+  replaceSharedObjects(jobMeta);
+  wLabel.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.ImportJob.Label",Integer.toString(jobNumber),jobMeta.getName()));
   String directoryPath=Const.NVL(XMLHandler.getTagValue(jobnode,"directory"),Const.FILE_SEPARATOR);
   RepositoryDirectoryInterface targetDirectory=baseDirectory.findDirectory(directoryPath);
   if (targetDirectory == null) {
@@ -20,8 +21,8 @@
       targetDirectory=baseDirectory;
     }
   }
-  ObjectId id=rep.getJobId(jobMeta.getName(),targetDirectory);
-  if (id != null && askOverwrite) {
+  ObjectId existintId=rep.getJobId(jobMeta.getName(),targetDirectory);
+  if (existintId != null && askOverwrite) {
     MessageDialogWithToggle md=new MessageDialogWithToggle(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.OverwriteJob.Title"),null,BaseMessages.getString(PKG,"RepositoryImportDialog.OverwriteJob.Message",jobMeta.getName()),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"System.Button.Yes"),BaseMessages.getString(PKG,"System.Button.No")},1,BaseMessages.getString(PKG,"RepositoryImportDialog.DontAskAgain.Label"),!askOverwrite);
     MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
     int answer=md.open();
@@ -31,10 +32,12 @@
  else {
     shell.getDisplay().update();
   }
-  if (id == null || overwrite) {
+  if (existintId == null || overwrite) {
     jobMeta.setRepositoryDirectory(targetDirectory);
+    jobMeta.setObjectId(existintId);
+    patchJobEntries(jobMeta);
     rep.save(jobMeta,versionComment,null);
-    addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.JobSaved.Log",Integer.toString(nrthis),jobMeta.getName()));
+    addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.JobSaved.Log",Integer.toString(jobNumber),jobMeta.getName()));
   }
  else {
     addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.ErrorSavingJob.Log",jobMeta.getName()));

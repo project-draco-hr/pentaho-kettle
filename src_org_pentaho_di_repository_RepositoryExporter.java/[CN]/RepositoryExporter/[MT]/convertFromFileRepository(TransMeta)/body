@@ -1,0 +1,25 @@
+{
+  if (repository instanceof KettleFileRepository) {
+    KettleFileRepository fileRep=(KettleFileRepository)repository;
+    String transMetaFilename=fileRep.calcFilename(transMeta.getObjectId());
+    transMeta.setFilename(transMetaFilename);
+    for (    StepMeta stepMeta : transMeta.getSteps()) {
+      if (stepMeta.isMapping()) {
+        MappingMeta mappingMeta=(MappingMeta)stepMeta.getStepMetaInterface();
+        if (mappingMeta.getSpecificationMethod() == ObjectLocationSpecificationMethod.FILENAME) {
+          try {
+            TransMeta meta=MappingMeta.loadMappingMeta(mappingMeta,repository,transMeta);
+            FileObject fileObject=KettleVFS.getFileObject(meta.getFilename());
+            mappingMeta.setSpecificationMethod(ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME);
+            mappingMeta.setFileName(null);
+            mappingMeta.setTransName(meta.getName());
+            mappingMeta.setDirectoryPath(Const.NVL(calcRepositoryDirectory(fileRep,fileObject),"/"));
+          }
+ catch (          Exception e) {
+            log.logError("Unable to load transformation specified in map '" + mappingMeta.getName() + "'",e);
+          }
+        }
+      }
+    }
+  }
+}

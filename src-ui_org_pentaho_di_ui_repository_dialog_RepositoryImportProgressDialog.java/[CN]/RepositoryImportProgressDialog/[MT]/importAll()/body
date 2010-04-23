@@ -1,122 +1,20 @@
 {
   wLabel.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.ImportXML.Label"));
   try {
+    loadSharedObjects();
     RepositoryImportLocation.setRepositoryImportLocation(baseDirectory);
     for (int ii=0; ii < filenames.length; ++ii) {
       final String filename=((fileDirectory != null) && (fileDirectory.length() > 0)) ? fileDirectory + Const.FILE_SEPARATOR + filenames[ii] : filenames[ii];
       if (log.isBasic())       log.logBasic("Import objects from XML file [" + filename + "]");
       addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.WhichFile.Log",filename));
       wLabel.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.WhichDir.Label"));
-      Document doc=XMLHandler.loadXMLFile(filename);
-      if (doc != null) {
-        Node repnode=XMLHandler.getSubNode(doc,"repository");
-        if (null == repnode) {
-          Node firstnode=doc.getFirstChild();
-          if ((null != firstnode) && firstnode.getNodeName().equals("transformation")) {
-            nrtrans=filenames.length;
-            wBar.setMinimum(0);
-            wBar.setMaximum(nrtrans);
-            wBar.setSelection(ii);
-            askDirectory=false;
-            try {
-              if (!importTransformation(ii + 1,firstnode)) {
-                return;
-              }
-            }
- catch (            Exception e) {
-              new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringTransformationImport.Title"),BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringTransformationImport.Message"),e);
-              MessageBox mb=new MessageBox(shell,SWT.ICON_QUESTION | SWT.YES | SWT.NO);
-              mb.setMessage(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Message"));
-              mb.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Title"));
-              int answer=mb.open();
-              if (answer == SWT.NO)               return;
-            }
-            wBar.setSelection(ii + 1);
-            continue;
-          }
-          if ((null != firstnode) && firstnode.getNodeName().equals("job")) {
-            nrjobs=filenames.length;
-            wBar.setMinimum(0);
-            wBar.setMaximum(nrjobs);
-            wBar.setSelection(ii);
-            askDirectory=false;
-            try {
-              if (!importJob(ii + 1,firstnode)) {
-                return;
-              }
-            }
- catch (            Exception e) {
-              new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringJobImport.Title"),BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringJobImport.Message"),e);
-              MessageBox mb=new MessageBox(shell,SWT.ICON_QUESTION | SWT.YES | SWT.NO);
-              mb.setMessage(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Message"));
-              mb.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Title"));
-              int answer=mb.open();
-              if (answer == SWT.NO)               return;
-            }
-            wBar.setSelection(ii + 1);
-            continue;
-          }
-        }
-        Node transsnode=XMLHandler.getSubNode(repnode,"transformations");
-        if (transsnode != null) {
-          nrtrans=XMLHandler.countNodes(transsnode,"transformation");
-          wBar.setMinimum(0);
-          wBar.setMaximum(filenames.length - 1 + nrtrans);
-          for (int i=0; i < nrtrans; i++) {
-            wBar.setSelection(ii + i);
-            wBar.getDisplay().update();
-            Node transnode=XMLHandler.getSubNodeByNr(transsnode,"transformation",i);
-            try {
-              if (!importTransformation(i + 1,transnode)) {
-                return;
-              }
-            }
- catch (            Exception e) {
-              new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringTransformationImport.Title"),BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringTransformationImport.Message"),e);
-              MessageBox mb=new MessageBox(shell,SWT.ICON_QUESTION | SWT.YES | SWT.NO);
-              mb.setMessage(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Message"));
-              mb.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Title"));
-              int answer=mb.open();
-              if (answer == SWT.NO)               return;
-            }
-            wBar.setSelection(ii + i + 1);
-            wBar.getDisplay().update();
-          }
-        }
-        overwrite=false;
-        askOverwrite=true;
-        Node jobsnode=XMLHandler.getSubNode(repnode,"jobs");
-        if (jobsnode != null) {
-          nrjobs=XMLHandler.countNodes(jobsnode,"job");
-          wBar.setMinimum(0);
-          wBar.setMaximum(filenames.length - 1 + nrjobs);
-          for (int i=0; i < nrjobs; i++) {
-            wBar.setSelection(ii + i);
-            wBar.getDisplay().update();
-            Node jobnode=XMLHandler.getSubNodeByNr(jobsnode,"job",i);
-            try {
-              if (!importJob(i + 1,jobnode)) {
-                return;
-              }
-            }
- catch (            Exception e) {
-              new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringJobImport.Title"),BaseMessages.getString(PKG,"RepositoryImportDialog.UnexpectedErrorDuringJobImport.Message"),e);
-              MessageBox mb=new MessageBox(shell,SWT.ICON_QUESTION | SWT.YES | SWT.NO);
-              mb.setMessage(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Message"));
-              mb.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.DoYouWantToContinue.Title"));
-              int answer=mb.open();
-              if (answer == SWT.NO)               return;
-            }
-            wBar.setSelection(ii + i + 1);
-            wBar.getDisplay().update();
-          }
-        }
+      askDirectory=false;
+      try {
+        RepositoryExportSaxParser parser=new RepositoryExportSaxParser(filename);
+        parser.parse(this);
       }
- else {
-        MessageBox mb=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
-        mb.setMessage(BaseMessages.getString(PKG,"RepositoryImportDialog.ErrorInvalidXML.Message"));
-        mb.setText(BaseMessages.getString(PKG,"RepositoryImportDialog.ErrorInvalidXML.Title"));
-        mb.open();
+ catch (      Exception e) {
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"RepositoryImportDialog.ErrorGeneral.Title"),BaseMessages.getString(PKG,"RepositoryImportDialog.ErrorGeneral.Message"),e);
       }
     }
     addLog(BaseMessages.getString(PKG,"RepositoryImportDialog.ImportFinished.Log"));

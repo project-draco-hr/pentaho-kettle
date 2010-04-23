@@ -1,0 +1,42 @@
+{
+  if (repository instanceof KettleFileRepository) {
+    KettleFileRepository fileRep=(KettleFileRepository)repository;
+    String jobMetaFilename=fileRep.calcFilename(jobMeta.getObjectId());
+    jobMeta.setFilename(jobMetaFilename);
+    for (    JobEntryCopy copy : jobMeta.getJobCopies()) {
+      JobEntryInterface entry=copy.getEntry();
+      if (entry instanceof JobEntryTrans) {
+        JobEntryTrans trans=(JobEntryTrans)entry;
+        if (trans.getSpecificationMethod() == ObjectLocationSpecificationMethod.FILENAME) {
+          try {
+            TransMeta meta=trans.getTransMeta(repository,jobMeta);
+            FileObject fileObject=KettleVFS.getFileObject(meta.getFilename());
+            trans.setSpecificationMethod(ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME);
+            trans.setFileName(null);
+            trans.setTransname(meta.getName());
+            trans.setDirectory(Const.NVL(calcRepositoryDirectory(fileRep,fileObject),"/"));
+          }
+ catch (          Exception e) {
+            log.logError("Unable to load transformation specified in job entry '" + trans.getName() + "'",e);
+          }
+        }
+      }
+      if (entry instanceof JobEntryJob) {
+        JobEntryJob job=(JobEntryJob)entry;
+        if (job.getSpecificationMethod() == ObjectLocationSpecificationMethod.FILENAME) {
+          try {
+            JobMeta meta=job.getJobMeta(repository,jobMeta);
+            FileObject fileObject=KettleVFS.getFileObject(meta.getFilename());
+            job.setSpecificationMethod(ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME);
+            job.setFileName(null);
+            job.setJobName(meta.getName());
+            job.setDirectory(Const.NVL(calcRepositoryDirectory(fileRep,fileObject),"/"));
+          }
+ catch (          Exception e) {
+            log.logError("Unable to load job specified in job entry '" + job.getName() + "'",e);
+          }
+        }
+      }
+    }
+  }
+}
