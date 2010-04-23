@@ -1,0 +1,60 @@
+{
+  if (!openNextFile()) {
+    return null;
+  }
+  Object[] outputRowData=buildEmptyRow();
+  try {
+    if (meta.getIsInFields())     System.arraycopy(data.readrow,0,outputRowData,0,data.readrow.length);
+    for (int i=0; i < data.nrInputFields; i++) {
+      LoadFileInputField loadFileInputField=meta.getInputFields()[i];
+      String o=null;
+switch (loadFileInputField.getElementType()) {
+case LoadFileInputField.ELEMENT_TYPE_FILECONTENT:
+switch (loadFileInputField.getTrimType()) {
+case LoadFileInputField.TYPE_TRIM_LEFT:
+          data.filecontent=Const.ltrim(data.filecontent);
+        break;
+case LoadFileInputField.TYPE_TRIM_RIGHT:
+      data.filecontent=Const.rtrim(data.filecontent);
+    break;
+case LoadFileInputField.TYPE_TRIM_BOTH:
+  data.filecontent=Const.trim(data.filecontent);
+break;
+default :
+break;
+}
+o=data.filecontent;
+break;
+case LoadFileInputField.ELEMENT_TYPE_FILESIZE:
+o=String.valueOf(data.fileSize);
+break;
+default :
+break;
+}
+int indexField=data.totalpreviousfields + i;
+ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(indexField);
+ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(indexField);
+outputRowData[indexField]=targetValueMeta.convertData(sourceValueMeta,o);
+if (loadFileInputField.isRepeated()) {
+if (data.previousRow != null && o == null) {
+outputRowData[indexField]=data.previousRow[indexField];
+}
+}
+}
+int rowIndex=data.totalpreviousfields + data.nrInputFields;
+if (meta.includeFilename() && meta.getFilenameField() != null && meta.getFilenameField().length() > 0) {
+outputRowData[rowIndex++]=KettleVFS.getFilename(data.file);
+}
+if (meta.includeRowNumber() && meta.getRowNumberField() != null && meta.getRowNumberField().length() > 0) {
+outputRowData[rowIndex++]=new Long(data.rownr);
+}
+RowMetaInterface irow=getInputRowMeta();
+data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+incrementLinesInput();
+data.rownr++;
+}
+ catch (Exception e) {
+throw new KettleException("Impossible de charger le fichier",e);
+}
+return outputRowData;
+}

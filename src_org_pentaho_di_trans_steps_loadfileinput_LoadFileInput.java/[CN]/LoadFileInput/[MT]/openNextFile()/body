@@ -1,0 +1,81 @@
+{
+  try {
+    if (meta.getIsInFields()) {
+      data.readrow=getRow();
+      if (data.readrow == null) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"LoadFileInput.Log.FinishedProcessing"));
+        return false;
+      }
+      if (first) {
+        first=false;
+        data.inputRowMeta=getInputRowMeta();
+        data.outputRowMeta=data.inputRowMeta.clone();
+        meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+        data.convertRowMeta=data.outputRowMeta.clone();
+        data.convertRowMeta=data.outputRowMeta.clone();
+        for (int i=0; i < data.convertRowMeta.size(); i++) {
+          data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+        }
+        if (meta.getIsInFields()) {
+          if (Const.isEmpty(meta.getDynamicFilenameField())) {
+            logError(BaseMessages.getString(PKG,"LoadFileInput.Log.NoField"));
+            throw new KettleException(BaseMessages.getString(PKG,"LoadFileInput.Log.NoField"));
+          }
+          if (data.indexOfFilenameField < 0) {
+            data.indexOfFilenameField=data.inputRowMeta.indexOfValue(meta.getDynamicFilenameField());
+            if (data.indexOfFilenameField < 0) {
+              logError(BaseMessages.getString(PKG,"LoadFileInput.Log.ErrorFindingField") + "[" + meta.getDynamicFilenameField()+ "]");
+              throw new KettleException(BaseMessages.getString(PKG,"LoadFileInput.Exception.CouldnotFindField",meta.getDynamicFilenameField()));
+            }
+          }
+          data.totalpreviousfields=data.inputRowMeta.size();
+        }
+      }
+      String Fieldvalue=data.inputRowMeta.getString(data.readrow,data.indexOfFilenameField);
+      if (log.isDetailed())       log.logDetailed(toString(),BaseMessages.getString(PKG,"LoadFileInput.Log.Stream",meta.getDynamicFilenameField(),Fieldvalue));
+      FileObject file=null;
+      try {
+        data.file=KettleVFS.getFileObject(Fieldvalue);
+      }
+ catch (      Exception e) {
+        throw new KettleException(e);
+      }
+ finally {
+        try {
+          if (file != null)           file.close();
+        }
+ catch (        Exception e) {
+        }
+      }
+    }
+ else {
+      if (data.filenr >= data.files.nrOfFiles()) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"LoadFileInput.Log.FinishedProcessing"));
+        return false;
+      }
+      data.last_file=(data.filenr == data.files.nrOfFiles() - 1);
+      data.file=(FileObject)data.files.getFile(data.filenr);
+    }
+    data.fileSize=data.file.getContent().getSize();
+    data.filenr++;
+    if (meta.isIgnoreEmptyFile() && data.fileSize == 0) {
+      log.logError(toString(),BaseMessages.getString(PKG,"LoadFileInput.Error.FileSizeZero","" + data.file.getName()));
+      openNextFile();
+    }
+ else {
+      if (log.isDetailed())       log.logDetailed(toString(),BaseMessages.getString(PKG,"LoadFileInput.Log.OpeningFile",data.file.toString()));
+      getFileContent();
+      addFileToResultFilesname(data.file);
+      if (log.isDetailed()) {
+        logDetailed(BaseMessages.getString(PKG,"LoadFileInput.Log.FileOpened",data.file.toString()));
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"LoadFileInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+    stopAll();
+    setErrors(1);
+    return false;
+  }
+  return true;
+}
