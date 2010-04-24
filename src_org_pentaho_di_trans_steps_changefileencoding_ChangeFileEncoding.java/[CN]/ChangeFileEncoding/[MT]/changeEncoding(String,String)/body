@@ -1,0 +1,41 @@
+{
+  BufferedWriter buffWriter=null;
+  BufferedReader buffReader=null;
+  try {
+    buffWriter=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(targetFilename,false),data.targetEncoding));
+    if (Const.isEmpty(data.sourceEncoding))     buffReader=new BufferedReader(new InputStreamReader(new FileInputStream(sourceFilename)));
+ else     buffReader=new BufferedReader(new InputStreamReader(new FileInputStream(sourceFilename),data.sourceEncoding));
+    char[] cBuf=new char[8192];
+    int readSize=0;
+    while ((readSize=buffReader.read(cBuf)) != -1) {
+      buffWriter.write(cBuf,0,readSize);
+    }
+    if (meta.addSourceResultFilenames()) {
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.sourceFile,getTransMeta().getName(),getStepname());
+      resultFile.setComment(BaseMessages.getString(PKG,"ChangeFileEncoding.Log.FileAddedResult"));
+      addResultFile(resultFile);
+      if (isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"ChangeFileEncoding.Log.FilenameAddResult",data.sourceFile.toString()));
+    }
+    if (meta.addTargetResultFilenames()) {
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(targetFilename),getTransMeta().getName(),getStepname());
+      resultFile.setComment(BaseMessages.getString(PKG,"ChangeFileEncoding.Log.FileAddedResult"));
+      addResultFile(resultFile);
+      if (isDetailed())       logDetailed(toString(),BaseMessages.getString(PKG,"ChangeFileEncoding.Log.FilenameAddResult",targetFilename));
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"ChangeFileEncoding.Error.CreatingFile"),e);
+  }
+ finally {
+    try {
+      if (buffWriter != null) {
+        buffWriter.flush();
+        buffWriter.close();
+      }
+      if (buffReader != null)       buffReader.close();
+    }
+ catch (    Exception e) {
+    }
+    ;
+  }
+}
