@@ -1,0 +1,46 @@
+{
+  Iterator<String> it=data.look.iterator();
+  long distance=-1;
+  String fuzzyValue=null;
+  Object o=row[data.indexOfMainField];
+  if (o != null) {
+    String lookupvalue=(String)o;
+    while (it.hasNext()) {
+      String cacheValue=(String)it.next();
+      int cdistance=-1;
+      String usecacheValue=cacheValue;
+      String uselookupvalue=lookupvalue;
+      if (!meta.isCaseSensitive()) {
+        usecacheValue=cacheValue.toLowerCase();
+        uselookupvalue=lookupvalue.toLowerCase();
+      }
+switch (meta.getAlgorithmType()) {
+case FuzzyMatchMeta.OPERATION_TYPE_DAMERAU_LEVENSHTEIN:
+        cdistance=Utils.getDamerauLevenshteinDistance(usecacheValue,uselookupvalue);
+      break;
+case FuzzyMatchMeta.OPERATION_TYPE_NEEDLEMAN_WUNSH:
+    cdistance=Math.abs((int)new NeedlemanWunsch().score(usecacheValue,uselookupvalue));
+  break;
+default :
+cdistance=StringUtils.getLevenshteinDistance(usecacheValue,uselookupvalue);
+break;
+}
+if (data.minimalDistance <= cdistance && cdistance <= data.maximalDistance) {
+if (meta.isGetCloserValue()) {
+if (cdistance < distance || distance == -1) {
+distance=cdistance;
+fuzzyValue=cacheValue;
+}
+}
+ else {
+if (fuzzyValue == null) fuzzyValue=cacheValue;
+ else fuzzyValue+=data.valueSeparator + cacheValue;
+}
+}
+}
+}
+Object[] retval;
+if (data.addValueFieldName) retval=new Object[]{fuzzyValue};
+ else retval=new Object[]{fuzzyValue,distance};
+return retval;
+}

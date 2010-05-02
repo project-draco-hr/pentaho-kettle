@@ -1,0 +1,50 @@
+{
+  meta=(FuzzyMatchMeta)smi;
+  data=(FuzzyMatchData)sdi;
+  if (data.readLookupValues) {
+    data.readLookupValues=false;
+    if (!readLookupValues()) {
+      logError(BaseMessages.getString(PKG,"FuzzyMatch.Log.UnableToReadDataFromLookupStream"));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+    if (isDetailed())     logDetailed(BaseMessages.getString(PKG,"FuzzyMatch.Log.ReadValuesInMemory",data.look.size()));
+  }
+  Object[] r=getRow();
+  if (r == null) {
+    if (isDetailed())     logDetailed(BaseMessages.getString(PKG,"FuzzyMatch.Log.StoppedProcessingWithEmpty",getLinesRead()));
+    setOutputDone();
+    return false;
+  }
+  try {
+    Object[] outputRow=lookupValues(getInputRowMeta(),r);
+    if (outputRow == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRow);
+    if (checkFeedback(getLinesRead())) {
+      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"FuzzyMatch.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"FuzzyMatch.Log.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,meta.getMainStreamField(),"FuzzyMatch001");
+    }
+  }
+  return true;
+}

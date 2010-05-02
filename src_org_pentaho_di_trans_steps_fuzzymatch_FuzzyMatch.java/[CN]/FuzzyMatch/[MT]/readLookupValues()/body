@@ -1,0 +1,25 @@
+{
+  data.infoStream=meta.getStepIOMeta().getInfoStreams().get(0);
+  if (data.infoStream.getStepMeta() == null) {
+    logError(BaseMessages.getString(PKG,"FuzzyMatch.Log.NoLookupStepSpecified"));
+    return false;
+  }
+  if (isDetailed())   logDetailed(BaseMessages.getString(PKG,"FuzzyMatch.Log.ReadingFromStream") + data.infoStream.getStepname() + "]");
+  boolean firstRun=true;
+  RowSet rowSet=findInputRowSet(data.infoStream.getStepname());
+  Object[] rowData=getRowFrom(rowSet);
+  while (rowData != null) {
+    if (firstRun) {
+      data.infoMeta=rowSet.getRowMeta().clone();
+      data.indexOfLookupField=data.infoMeta.indexOfValue(environmentSubstitute(meta.getLookupField()));
+      if (data.indexOfLookupField < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"FuzzyMatch.Exception.CouldnotFindLookField",meta.getLookupField()));
+      }
+    }
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"FuzzyMatch.Log.ReadLookupRow") + rowSet.getRowMeta().getString(rowData));
+    addToCache(rowSet.getRowMeta().getString(rowData,data.indexOfLookupField));
+    rowData=getRowFrom(rowSet);
+    if (firstRun)     firstRun=false;
+  }
+  return true;
+}

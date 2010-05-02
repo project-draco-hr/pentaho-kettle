@@ -1,0 +1,40 @@
+{
+  Iterator<String> it=data.look.iterator();
+  double similarity=-1;
+  String fuzzyValue=null;
+  Object o=row[data.indexOfMainField];
+  if (o != null) {
+    String lookupvalue=(String)o;
+    while (it.hasNext()) {
+      String cacheValue=(String)it.next();
+      double csimilarity=0;
+switch (meta.getAlgorithmType()) {
+case FuzzyMatchMeta.OPERATION_TYPE_JARO:
+        csimilarity=new Jaro().score(cacheValue,lookupvalue);
+      break;
+case FuzzyMatchMeta.OPERATION_TYPE_JARO_WINKLER:
+    csimilarity=new JaroWinkler().score(cacheValue,lookupvalue);
+  break;
+default :
+csimilarity=LetterPairSimilarity.getSimiliarity(cacheValue,lookupvalue);
+break;
+}
+if (data.minimalSimilarity <= csimilarity && csimilarity <= data.maximalSimilarity) {
+if (meta.isGetCloserValue()) {
+if (csimilarity > similarity || similarity == -1) {
+similarity=csimilarity;
+fuzzyValue=cacheValue;
+}
+}
+ else {
+if (fuzzyValue == null) fuzzyValue=cacheValue;
+ else fuzzyValue+=data.valueSeparator + cacheValue;
+}
+}
+}
+}
+Object[] retval;
+if (data.addValueFieldName) retval=new Object[]{fuzzyValue,similarity};
+ else retval=new Object[]{fuzzyValue};
+return retval;
+}
