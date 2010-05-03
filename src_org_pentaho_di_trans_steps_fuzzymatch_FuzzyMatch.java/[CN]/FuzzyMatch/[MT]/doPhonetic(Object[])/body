@@ -1,21 +1,21 @@
 {
-  Iterator<String> it=data.look.iterator();
-  String fuzzyValue=null;
+  Object[] rowData=buildEmptyRow();
+  Iterator<Object[]> it=data.look.iterator();
   String lookupValueMF=null;
   Object o=row[data.indexOfMainField];
-  if (o != null) {
-    String lookupvalue=(String)o;
-    lookupValueMF=(new Metaphone()).metaphone(lookupvalue);
-    while (it.hasNext()) {
-      String cacheValue=(String)it.next();
-      String cacheValueMF="";
+  String lookupvalue=(String)o;
+  lookupValueMF=(new Metaphone()).metaphone(lookupvalue);
+  while (it.hasNext()) {
+    Object[] cachedData=(Object[])it.next();
+    String cacheValue=(String)cachedData[0];
+    String cacheValueMF="";
 switch (meta.getAlgorithmType()) {
 case FuzzyMatchMeta.OPERATION_TYPE_METAPHONE:
-        cacheValueMF=(new Metaphone()).metaphone(cacheValue);
-      break;
+      cacheValueMF=(new Metaphone()).metaphone(cacheValue);
+    break;
 case FuzzyMatchMeta.OPERATION_TYPE_DOUBLE_METAPHONE:
-    cacheValueMF=((new DoubleMetaphone()).doubleMetaphone(cacheValue));
-  break;
+  cacheValueMF=((new DoubleMetaphone()).doubleMetaphone(cacheValue));
+break;
 case FuzzyMatchMeta.OPERATION_TYPE_SOUNDEX:
 cacheValueMF=(new Soundex()).encode(cacheValue);
 break;
@@ -26,12 +26,18 @@ default :
 break;
 }
 if (lookupValueMF.equals(cacheValueMF)) {
-fuzzyValue=cacheValue;
+rowData[0]=cacheValue;
+if (data.addValueFieldName) {
+rowData[1]=cacheValueMF;
+}
+if (data.addAdditionalFields) {
+for (int i=0; i < meta.getValue().length; i++) {
+int nf=i + 2;
+int nr=i + 1;
+rowData[nf]=cachedData[nr];
 }
 }
 }
-Object[] retval;
-if (data.addValueFieldName) retval=new Object[]{fuzzyValue,lookupValueMF};
- else retval=new Object[]{fuzzyValue};
-return retval;
+}
+return rowData;
 }

@@ -11,13 +11,33 @@
   while (rowData != null) {
     if (firstRun) {
       data.infoMeta=rowSet.getRowMeta().clone();
-      data.indexOfLookupField=data.infoMeta.indexOfValue(environmentSubstitute(meta.getLookupField()));
-      if (data.indexOfLookupField < 0) {
+      int indexOfLookupField=data.infoMeta.indexOfValue(environmentSubstitute(meta.getLookupField()));
+      if (indexOfLookupField < 0) {
         throw new KettleException(BaseMessages.getString(PKG,"FuzzyMatch.Exception.CouldnotFindLookField",meta.getLookupField()));
+      }
+      data.infoCache=new RowMeta();
+      data.infoCache.addValueMeta(data.infoMeta.getValueMeta(indexOfLookupField));
+      data.indexOfCachedFields[0]=indexOfLookupField;
+      if (data.addAdditionalFields) {
+        for (int i=0; i < meta.getValue().length; i++) {
+          int fi=i + 1;
+          data.indexOfCachedFields[fi]=data.infoMeta.indexOfValue(meta.getValue()[i]);
+          if (data.indexOfCachedFields[fi] < 0) {
+            throw new KettleException(BaseMessages.getString(PKG,"FuzzyMatch.Exception.CouldnotFindLookField",meta.getValue()[i]));
+          }
+          data.infoCache.addValueMeta(data.infoMeta.getValueMeta(data.indexOfCachedFields[fi]));
+        }
+        data.nrCachedFields+=meta.getValue().length;
       }
     }
     if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"FuzzyMatch.Log.ReadLookupRow") + rowSet.getRowMeta().getString(rowData));
-    addToCache(rowSet.getRowMeta().getString(rowData,data.indexOfLookupField));
+    Object[] storeData=new Object[data.nrCachedFields];
+    storeData[0]=rowData[data.indexOfCachedFields[0]] == null ? "" : rowData[data.indexOfCachedFields[0]];
+    for (int i=1; i < data.nrCachedFields; i++) {
+      storeData[i]=rowData[data.indexOfCachedFields[i]];
+    }
+    if (isDebug())     logDebug(BaseMessages.getString(PKG,"FuzzyMatch.Log.AddingValueToCache",data.infoCache.getString(storeData)));
+    addToCache(storeData);
     rowData=getRowFrom(rowSet);
     if (firstRun)     firstRun=false;
   }
