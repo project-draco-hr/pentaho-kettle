@@ -36,51 +36,28 @@
     Attributes attributes=searchResult.getAttributes();
     if (attributes != null) {
       for (int i=0; i < meta.getInputFields().length; i++) {
-        String attrvalue=null;
-        Attribute attr=attributes.get(environmentSubstitute(meta.getInputFields()[i].getAttribute()));
+        LDAPInputField field=meta.getInputFields()[i];
+        Attribute attr=attributes.get(field.getRealAttribute());
         if (attr != null) {
-          StringBuilder attrStr=new StringBuilder();
-          for (NamingEnumeration<?> eattr=attr.getAll(); eattr.hasMore(); ) {
-            if (attrStr.length() > 0) {
-              attrStr.append(data.multi_valuedFieldSeparator);
-            }
-            attrStr.append(eattr.next().toString());
+          outputRowData[i]=getAttributeValue(field,attr,i,outputRowData[i]);
+        }
+        if (field.isRepeated()) {
+          if (data.previousRow != null && outputRowData[i] == null) {
+            outputRowData[i]=data.previousRow[i];
           }
-          attrvalue=attrStr.toString();
-switch (meta.getInputFields()[i].getTrimType()) {
-case LDAPInputField.TYPE_TRIM_LEFT:
-            attrvalue=Const.ltrim(attrvalue);
-          break;
-case LDAPInputField.TYPE_TRIM_RIGHT:
-        attrvalue=Const.rtrim(attrvalue);
-      break;
-case LDAPInputField.TYPE_TRIM_BOTH:
-    attrvalue=Const.trim(attrvalue);
-  break;
-default :
-break;
-}
-}
-ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(i);
-ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(i);
-outputRowData[i]=targetValueMeta.convertData(sourceValueMeta,attrvalue);
-if (meta.getInputFields()[i].isRepeated()) {
-if (data.previousRow != null && Const.isEmpty(attrvalue)) {
-outputRowData[i]=data.previousRow[i];
-}
-}
-}
-if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
-outputRowData[data.nrfields]=new Long(data.rownr);
-}
-RowMetaInterface irow=getInputRowMeta();
-data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
-data.rownr++;
-incrementLinesInput();
-}
-}
- catch (Exception e) {
-throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Exception.CanNotReadLDAP"),e);
-}
-return outputRowData;
+        }
+      }
+      if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+        outputRowData[data.nrfields]=new Long(data.rownr);
+      }
+      RowMetaInterface irow=getInputRowMeta();
+      data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
+      data.rownr++;
+      incrementLinesInput();
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Exception.CanNotReadLDAP"),e);
+  }
+  return outputRowData;
 }

@@ -12,10 +12,25 @@
     if (hostname.indexOf("ldap://") >= 0)     env.put(Context.PROVIDER_URL,hostname + ":" + portint);
  else     env.put(Context.PROVIDER_URL,"ldap://" + hostname + ":"+ portint);
     env.put(Context.SECURITY_AUTHENTICATION,"simple");
+    String[] attrReturned=new String[meta.getInputFields().length];
+    data.attributesBinary=new HashSet<String>();
+    for (int i=0; i < meta.getInputFields().length; i++) {
+      LDAPInputField field=meta.getInputFields()[i];
+      String name=environmentSubstitute(field.getAttribute());
+      field.setRealAttribute(name);
+      if (field.getReturnType() == LDAPInputField.FETCH_ATTRIBUTE_AS_BINARY) {
+        if (!data.attributesBinary.contains(name)) {
+          env.put("java.naming.ldap.attributes.binary",name);
+          data.attributesBinary.add(name);
+        }
+      }
+      attrReturned[i]=name;
+    }
     if (meta.UseAuthentication()) {
       env.put(Context.SECURITY_PRINCIPAL,username);
       env.put(Context.SECURITY_CREDENTIALS,password);
     }
+    env.put(Context.REFERRAL,"follow");
     data.ctx=new InitialLdapContext(env,null);
     if (data.ctx == null) {
       logError(BaseMessages.getString(PKG,"LDAPInput.Error.UnableToConnectToServer"));
@@ -26,10 +41,6 @@
     data.controls=new SearchControls();
     data.controls.setCountLimit(meta.getRowLimit());
     if (meta.getTimeLimit() > 0)     data.controls.setTimeLimit(meta.getTimeLimit() * 1000);
-    String[] attrReturned=new String[meta.getInputFields().length];
-    for (int i=0; i < meta.getInputFields().length; i++) {
-      attrReturned[i]=environmentSubstitute(meta.getInputFields()[i].getAttribute());
-    }
     data.controls.setReturningAttributes(attrReturned);
     if (Const.isEmpty(data.searchbase)) {
       Attributes attrs=data.ctx.getAttributes("",new String[]{"namingContexts"});
