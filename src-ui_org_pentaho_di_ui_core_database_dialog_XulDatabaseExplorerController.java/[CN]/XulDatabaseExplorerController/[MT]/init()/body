@@ -1,16 +1,31 @@
 {
+  SwtButton theAcceptButton=(SwtButton)this.document.getElementById("databaseExplorerDialog_accept");
+  SwtButton theCancelButton=(SwtButton)this.document.getElementById("databaseExplorerDialog_cancel");
   if (this.isJustLook) {
-    SwtButton theAcceptButton=(SwtButton)this.document.getElementById("databaseExplorerDialog_accept");
     theAcceptButton.setVisible(false);
+    theCancelButton.setLabel(BaseMessages.getString(getClass(),"DatabaseExplorer.Button.Ok"));
+    theAcceptButton.setDisabled(false);
+  }
+ else {
+    theCancelButton.setLabel(BaseMessages.getString(getClass(),"DatabaseExplorer.Button.Cancel"));
+    theAcceptButton.setDisabled(true);
   }
   createDatabaseNodes();
   this.dbExplorerDialog=(SwtDialog)this.document.getElementById("databaseExplorerDialog");
-  this.actionLabel=(XulLabel)document.getElementById("action_label");
   this.bf.setDocument(super.document);
   this.bf.setBindingType(Type.ONE_WAY);
   this.expandCollapseButton=(XulButton)document.getElementById("expandCollapseButton");
   this.databaseTree=(XulTree)document.getElementById("databaseTree");
   this.databaseTreeBinding=bf.createBinding(this.model,"database",this.databaseTree,"elements");
+  bf.createBinding(model,"table",theAcceptButton,"disabled",new BindingConvertor<DatabaseExplorerNode,Boolean>(){
+    @Override public Boolean sourceToTarget(    DatabaseExplorerNode arg0){
+      return (!isJustLook && arg0 == null);
+    }
+    @Override public DatabaseExplorerNode targetToSource(    Boolean arg0){
+      return null;
+    }
+  }
+);
   BindingConvertor<DatabaseExplorerNode,String> theTableNameConvertor=new BindingConvertor<DatabaseExplorerNode,String>(){
     public String sourceToTarget(    DatabaseExplorerNode aValue){
       String theTable=null;
@@ -24,34 +39,42 @@
     }
   }
 ;
-  BindingConvertor<DatabaseExplorerNode,String> theTableSchemaConvertor=new BindingConvertor<DatabaseExplorerNode,String>(){
-    public String sourceToTarget(    DatabaseExplorerNode aValue){
-      String theSchema=null;
-      if (aValue != null && aValue.isTable()) {
-        theSchema=aValue.getSchema();
+  bf.setBindingType(Binding.Type.BI_DIRECTIONAL);
+  this.bf.createBinding(this.databaseTree,"selectedItems",this.model,"table",new BindingConvertor<List<DatabaseExplorerNode>,DatabaseExplorerNode>(){
+    @Override public DatabaseExplorerNode sourceToTarget(    List<DatabaseExplorerNode> arg0){
+      if (arg0 == null || arg0.size() == 0) {
+        return null;
       }
-      return theSchema;
-    }
-    public DatabaseExplorerNode targetToSource(    String aValue){
+      DatabaseExplorerNode node=arg0.get(0);
+      if (node.isTable()) {
+        return node;
+      }
       return null;
     }
+    @Override public List<DatabaseExplorerNode> targetToSource(    DatabaseExplorerNode arg0){
+      return Collections.singletonList(arg0);
+    }
   }
-;
-  this.bf.createBinding(this.databaseTree,"selectedItem",this.model,"table",theTableNameConvertor);
-  this.bf.createBinding(this.databaseTree,"selectedItem",this.model,"schema",theTableSchemaConvertor);
-  BindingConvertor<String,List<DatabaseExplorerNode>> theSelectedItemsConvertor=new BindingConvertor<String,List<DatabaseExplorerNode>>(){
-    public String targetToSource(    List<DatabaseExplorerNode> aValue){
+);
+  this.bf.createBinding(this.databaseTree,"selectedItems",this.model,"schema",new BindingConvertor<List<DatabaseExplorerNode>,DatabaseExplorerNode>(){
+    @Override public DatabaseExplorerNode sourceToTarget(    List<DatabaseExplorerNode> arg0){
+      if (arg0 == null || arg0.size() == 0) {
+        return null;
+      }
+      DatabaseExplorerNode node=arg0.get(0);
+      if (node.isSchema()) {
+        return node;
+      }
+ else       if (node.isTable()) {
+        return (DatabaseExplorerNode)node.getParent();
+      }
       return null;
     }
-    public List<DatabaseExplorerNode> sourceToTarget(    String aValue){
-      DatabaseExplorerNode theNode=XulDatabaseExplorerController.this.model.findBy(aValue);
-      List<DatabaseExplorerNode> theResult=new ArrayList<DatabaseExplorerNode>();
-      theResult.add(theNode);
-      return theResult;
+    @Override public List<DatabaseExplorerNode> targetToSource(    DatabaseExplorerNode arg0){
+      return Collections.singletonList(arg0);
     }
   }
-;
-  this.selectedTableBinding=this.bf.createBinding(this.model,"table",this.databaseTree,"selectedItems",theSelectedItemsConvertor);
+);
   BindingConvertor<DatabaseExplorerNode,Boolean> isDisabledConvertor=new BindingConvertor<DatabaseExplorerNode,Boolean>(){
     public Boolean sourceToTarget(    DatabaseExplorerNode value){
       return !(value != null && value.isTable());
@@ -61,7 +84,8 @@
     }
   }
 ;
+  bf.setBindingType(Binding.Type.ONE_WAY);
   this.bf.createBinding(this.databaseTree,"selectedItem","buttonMenuPopUp","disabled",isDisabledConvertor);
-  this.bf.createBinding(this.databaseTree,"selectedItem",actionLabel,"disabled",isDisabledConvertor);
+  this.bf.createBinding(this.databaseTree,"selectedItem","buttonMenuPopUpImg","disabled",isDisabledConvertor);
   fireBindings();
 }

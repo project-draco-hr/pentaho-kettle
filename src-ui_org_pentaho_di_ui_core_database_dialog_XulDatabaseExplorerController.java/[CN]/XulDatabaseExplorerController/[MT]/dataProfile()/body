@@ -1,0 +1,23 @@
+{
+  Shell dbShell=(Shell)dbExplorerDialog.getRootObject();
+  try {
+    TransProfileFactory profileFactory=new TransProfileFactory(this.model.getDatabaseMeta(),model.getTable().getName());
+    TransMeta transMeta=profileFactory.generateTransformation(new LoggingObject(model.getTable()));
+    TransPreviewProgressDialog progressDialog=new TransPreviewProgressDialog(dbShell,transMeta,new String[]{TransProfileFactory.RESULT_STEP_NAME},new int[]{25000});
+    progressDialog.open();
+    if (!progressDialog.isCancelled()) {
+      Trans trans=progressDialog.getTrans();
+      String loggingText=progressDialog.getLoggingText();
+      if (trans.getResult() != null && trans.getResult().getNrErrors() > 0) {
+        EnterTextDialog etd=new EnterTextDialog(dbShell,BaseMessages.getString(PKG,"System.Dialog.PreviewError.Title"),BaseMessages.getString(PKG,"System.Dialog.PreviewError.Message"),loggingText,true);
+        etd.setReadOnly();
+        etd.open();
+      }
+      PreviewRowsDialog prd=new PreviewRowsDialog(dbShell,transMeta,SWT.NONE,TransProfileFactory.RESULT_STEP_NAME,progressDialog.getPreviewRowsMeta(TransProfileFactory.RESULT_STEP_NAME),progressDialog.getPreviewRows(TransProfileFactory.RESULT_STEP_NAME),loggingText);
+      prd.open();
+    }
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"DatabaseExplorerDialog.UnexpectedProfilingError.Title"),BaseMessages.getString(PKG,"DatabaseExplorerDialog.UnexpectedProfilingError.Message"),e);
+  }
+}
