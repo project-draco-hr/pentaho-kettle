@@ -8,6 +8,7 @@
   int intervalInSeconds=Const.toInt(environmentSubstitute(jobLogTable.getLogInterval()),-1);
   if (jobLogTable.isDefined()) {
     DatabaseMeta logcon=jobMeta.getJobLogTable().getDatabaseMeta();
+    String schemaName=jobMeta.getJobLogTable().getSchemaName();
     String tableName=jobMeta.getJobLogTable().getTableName();
     Database ldb=new Database(this,logcon);
     ldb.shareVariablesWith(this);
@@ -21,7 +22,7 @@
         lockedTable=true;
         String sql="INSERT INTO " + logcon.quoteField(tableName) + "("+ logcon.quoteField(jobLogTable.getKeyField().getFieldName())+ ") values (-1)";
         ldb.execStatement(sql);
-        id_batch=ldb.getNextValue(null,tableName,"ID_JOB");
+        id_batch=ldb.getNextValue(null,schemaName,tableName,jobLogTable.getKeyField().getFieldName());
         setBatchId(id_batch.longValue());
         if (getPassedBatchId() <= 0) {
           setPassedBatchId(id_batch.longValue());
@@ -90,6 +91,20 @@
  finally {
       ldb.disconnect();
     }
+  }
+  JobEntryLogTable jobEntryLogTable=jobMeta.getJobEntryLogTable();
+  if (jobEntryLogTable.isDefined()) {
+    addJobListener(new JobListener(){
+      public void jobFinished(      Job job) throws KettleException {
+        try {
+          writeJobEntryLogInformation();
+        }
+ catch (        KettleException e) {
+          throw new KettleException(BaseMessages.getString(PKG,"Job.Exception.UnableToPerformLoggingAtJobEnd"),e);
+        }
+      }
+    }
+);
   }
   ChannelLogTable channelLogTable=jobMeta.getChannelLogTable();
   if (channelLogTable.isDefined()) {
