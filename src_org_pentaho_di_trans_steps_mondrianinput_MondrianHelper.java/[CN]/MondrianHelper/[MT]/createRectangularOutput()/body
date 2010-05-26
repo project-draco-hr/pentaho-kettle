@@ -39,34 +39,51 @@
     rows.add(rowValues);
   }
   outputRowMeta=new RowMeta();
-  for (int i=0; i < rows.size() && i < 1; i++) {
-    List<Object> rowValues=rows.get(i);
-    for (int c=0; c < rowValues.size(); c++) {
-      ValueMetaInterface valueMeta=new ValueMeta(headings.get(c));
-      Object valueData=rowValues.get(c);
-      if (valueData instanceof String) {
-        valueMeta.setType(ValueMetaInterface.TYPE_STRING);
-      }
- else       if (valueData instanceof Date) {
-        valueMeta.setType(ValueMetaInterface.TYPE_DATE);
-      }
- else       if (valueData instanceof Boolean) {
-        valueMeta.setType(ValueMetaInterface.TYPE_BOOLEAN);
-      }
- else       if (valueData instanceof Long) {
-        valueMeta.setType(ValueMetaInterface.TYPE_INTEGER);
-      }
- else       if (valueData instanceof Double) {
-        valueMeta.setType(ValueMetaInterface.TYPE_NUMBER);
-      }
- else       if (valueData instanceof BigDecimal) {
-        valueMeta.setType(ValueMetaInterface.TYPE_BIGNUMBER);
-      }
+  if (rows.size() > 0) {
+    int columnCount=rows.get(0).size();
+    HashSet<Integer> controlHash=new HashSet<Integer>();
+    List<ValueMetaInterface> metaValues=new ArrayList<ValueMetaInterface>(columnCount);
+    for (int i=0; i < rows.size(); i++) {
+      List<Object> rowValues=rows.get(i);
+      for (int c=0; c < rowValues.size(); c++) {
+        if (controlHash.contains(new Integer(c)))         continue;
+        ValueMetaInterface valueMeta=new ValueMeta(headings.get(c));
+        Object valueData=rowValues.get(c);
+        if (valueData == null)         continue;
+        if (valueData instanceof String) {
+          valueMeta.setType(ValueMetaInterface.TYPE_STRING);
+        }
+ else         if (valueData instanceof Date) {
+          valueMeta.setType(ValueMetaInterface.TYPE_DATE);
+        }
+ else         if (valueData instanceof Boolean) {
+          valueMeta.setType(ValueMetaInterface.TYPE_BOOLEAN);
+        }
+ else         if (valueData instanceof Long) {
+          valueMeta.setType(ValueMetaInterface.TYPE_INTEGER);
+        }
+ else         if (valueData instanceof Double) {
+          valueMeta.setType(ValueMetaInterface.TYPE_NUMBER);
+        }
+ else         if (valueData instanceof BigDecimal) {
+          valueMeta.setType(ValueMetaInterface.TYPE_BIGNUMBER);
+        }
  else {
-        throw new KettleDatabaseException("Unhandled data type found '" + valueData.getClass().toString() + "'");
+          throw new KettleDatabaseException("Unhandled data type found '" + valueData.getClass().toString() + "'");
+        }
+        metaValues.add(c,valueMeta);
+        controlHash.add(new Integer(c));
       }
-      outputRowMeta.addValueMeta(valueMeta);
+      if (controlHash.size() == columnCount)       break;
     }
+    if (controlHash.size() != columnCount) {
+      for (int c=0; c < columnCount; c++) {
+        if (controlHash.contains(new Integer(c)))         continue;
+        ValueMetaInterface valueMeta=new ValueMeta(headings.get(c),ValueMetaInterface.TYPE_STRING);
+        metaValues.add(c,valueMeta);
+      }
+    }
+    outputRowMeta.setValueMetaList(metaValues);
   }
   DBCacheEntry cacheEntry=new DBCacheEntry(databaseMeta.getName(),queryString);
   DBCache.getInstance().put(cacheEntry,outputRowMeta);
