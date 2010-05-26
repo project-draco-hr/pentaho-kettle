@@ -6,6 +6,7 @@
   endDate=currentDate;
   DatabaseMeta logConnection=transLogTable.getDatabaseMeta();
   String logTable=transLogTable.getTableName();
+  String logSchema=transLogTable.getSchemaName();
   try {
     boolean lockedTable=false;
     if (logConnection != null) {
@@ -23,9 +24,9 @@
       if (transLogTable.isBatchIdUsed()) {
         transLogTableDatabaseConnection.lockTables(new String[]{logTable});
         lockedTable=true;
-        String sql="INSERT INTO " + logConnection.quoteField(logTable) + "("+ logConnection.quoteField("ID_BATCH")+ ") values (-1)";
+        String sql="INSERT INTO " + logConnection.quoteField(logTable) + "("+ logConnection.quoteField(transLogTable.getKeyField().getFieldName())+ ") values (-1)";
         transLogTableDatabaseConnection.execStatement(sql);
-        Long id_batch=transLogTableDatabaseConnection.getNextValue(transMeta.getCounters(),logTable,"ID_BATCH");
+        Long id_batch=transLogTableDatabaseConnection.getNextValue(transMeta.getCounters(),logSchema,logTable,transLogTable.getKeyField().getFieldName());
         setBatchId(id_batch.longValue());
       }
       Object[] lastr=transLogTableDatabaseConnection.getLastLogDate(logTable,transMeta.getName(),false,LogStatus.END);
@@ -128,7 +129,7 @@
       if (endDate.compareTo(maxdesired) > 0)       endDate=maxdesired;
     }
     if (lockedTable) {
-      String sql="DELETE FROM " + logConnection.quoteField(logTable) + " WHERE "+ logConnection.quoteField("ID_BATCH")+ "= -1";
+      String sql="DELETE FROM " + logConnection.quoteField(logTable) + " WHERE "+ logConnection.quoteField(transLogTable.getKeyField().getFieldName())+ "= -1";
       transLogTableDatabaseConnection.execStatement(sql);
       transLogTableDatabaseConnection.unlockTables(new String[]{logTable});
     }
