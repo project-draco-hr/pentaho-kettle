@@ -41,12 +41,13 @@
   outputRowMeta=new RowMeta();
   if (rows.size() > 0) {
     int columnCount=rows.get(0).size();
-    HashSet<Integer> controlHash=new HashSet<Integer>();
-    List<ValueMetaInterface> metaValues=new ArrayList<ValueMetaInterface>(columnCount);
+    HashMap<Integer,ValueMetaInterface> valueMetaHash=new HashMap<Integer,ValueMetaInterface>();
     for (int i=0; i < rows.size(); i++) {
       List<Object> rowValues=rows.get(i);
       for (int c=0; c < rowValues.size(); c++) {
-        if (controlHash.contains(new Integer(c)))         continue;
+        if (valueMetaHash.containsKey(new Integer(c))) {
+          continue;
+        }
         ValueMetaInterface valueMeta=new ValueMeta(headings.get(c));
         Object valueData=rowValues.get(c);
         if (valueData == null)         continue;
@@ -71,19 +72,21 @@
  else {
           throw new KettleDatabaseException("Unhandled data type found '" + valueData.getClass().toString() + "'");
         }
-        metaValues.add(c,valueMeta);
-        controlHash.add(new Integer(c));
+        valueMetaHash.put(c,valueMeta);
       }
-      if (controlHash.size() == columnCount)       break;
+      if (valueMetaHash.size() == columnCount)       break;
     }
-    if (controlHash.size() != columnCount) {
-      for (int c=0; c < columnCount; c++) {
-        if (controlHash.contains(new Integer(c)))         continue;
+    List<ValueMetaInterface> valueMetaList=new ArrayList<ValueMetaInterface>();
+    for (int c=0; c < columnCount; c++) {
+      if (valueMetaHash.containsKey(new Integer(c))) {
+        valueMetaList.add(valueMetaHash.get(new Integer(c)));
+      }
+ else {
         ValueMetaInterface valueMeta=new ValueMeta(headings.get(c),ValueMetaInterface.TYPE_STRING);
-        metaValues.add(c,valueMeta);
+        valueMetaList.add(valueMeta);
       }
     }
-    outputRowMeta.setValueMetaList(metaValues);
+    outputRowMeta.setValueMetaList(valueMetaList);
   }
   DBCacheEntry cacheEntry=new DBCacheEntry(databaseMeta.getName(),queryString);
   DBCache.getInstance().put(cacheEntry,outputRowMeta);
