@@ -3,46 +3,48 @@
   result.setResult(false);
   int Multiple;
   String Waitscale;
-  if (scaleTime == 0) {
+switch (scaleTime) {
+case 0:
     Multiple=1000;
-    Waitscale=BaseMessages.getString(PKG,"JobEntryDelay.SScaleTime.Label");
-  }
- else   if (scaleTime == 1) {
-    Multiple=60000;
-    Waitscale=BaseMessages.getString(PKG,"JobEntryDelay.MnScaleTime.Label");
-  }
+  Waitscale=BaseMessages.getString(PKG,"JobEntryDelay.SScaleTime.Label");
+break;
+case 1:
+Multiple=60000;
+Waitscale=BaseMessages.getString(PKG,"JobEntryDelay.MnScaleTime.Label");
+break;
+default :
+Multiple=3600000;
+Waitscale=BaseMessages.getString(PKG,"JobEntryDelay.HrScaleTime.Label");
+break;
+}
+try {
+long timeStart=System.currentTimeMillis() / Multiple;
+long iMaximumTimeout=Const.toInt(getrealMaximumTimeout(),Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0));
+if (isDetailed()) {
+logDetailed(BaseMessages.getString(PKG,"JobEntryDelay.LetsWaitFor.Label",iMaximumTimeout,Waitscale));
+}
+boolean continueLoop=true;
+if (iMaximumTimeout < 0) {
+iMaximumTimeout=Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0);
+logBasic(BaseMessages.getString(PKG,"JobEntryDelay.MaximumTimeReset.Label",String.valueOf(iMaximumTimeout),String.valueOf(Waitscale)));
+}
+while (continueLoop && !parentJob.isStopped()) {
+long now=System.currentTimeMillis() / Multiple;
+if ((iMaximumTimeout > 0) && (now >= (timeStart + iMaximumTimeout))) {
+if (log.isDetailed()) {
+logDetailed(BaseMessages.getString(PKG,"JobEntryDelay.WaitTimeIsElapsed.Label"));
+}
+continueLoop=false;
+result.setResult(true);
+}
  else {
-    Multiple=3600000;
-    Waitscale=BaseMessages.getString(PKG,"JobEntryDelay.HrScaleTime.Label");
-  }
-  try {
-    long timeStart=System.currentTimeMillis() / Multiple;
-    long iMaximumTimeout=Const.toInt(getrealMaximumTimeout(),Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0));
-    if (log.isDetailed()) {
-      logDetailed(BaseMessages.getString(PKG,"JobEntryDelay.LetsWaitFor.Label",String.valueOf(iMaximumTimeout),String.valueOf(Waitscale)));
-    }
-    boolean continueLoop=true;
-    if (iMaximumTimeout < 0) {
-      iMaximumTimeout=Const.toInt(DEFAULT_MAXIMUM_TIMEOUT,0);
-      logBasic(BaseMessages.getString(PKG,"JobEntryDelay.MaximumTimeReset.Label",String.valueOf(iMaximumTimeout),String.valueOf(Waitscale)));
-    }
-    while (continueLoop && !parentJob.isStopped()) {
-      long now=System.currentTimeMillis() / Multiple;
-      if ((iMaximumTimeout > 0) && (now >= (timeStart + iMaximumTimeout))) {
-        if (log.isDetailed()) {
-          logDetailed(BaseMessages.getString(PKG,"JobEntryDelay.WaitTimeIsElapsed.Label"));
-        }
-        continueLoop=false;
-        result.setResult(true);
-      }
- else {
-        Thread.sleep(100);
-      }
-    }
-  }
- catch (  Exception e) {
-    result.setResult(false);
-    logError("Error  : " + e.getMessage());
-  }
-  return result;
+Thread.sleep(100);
+}
+}
+}
+ catch (Exception e) {
+result.setResult(false);
+logError("Error  : " + e.getMessage());
+}
+return result;
 }
