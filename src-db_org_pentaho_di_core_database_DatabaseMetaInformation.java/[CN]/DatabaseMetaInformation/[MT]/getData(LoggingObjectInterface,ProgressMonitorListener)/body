@@ -13,14 +13,25 @@
     if (monitor != null)     monitor.worked(1);
     if (monitor != null && monitor.isCanceled())     return;
     if (monitor != null)     monitor.subTask(BaseMessages.getString(PKG,"DatabaseMeta.Info.GettingInfo"));
+    Map connectionExtraOptions=databaseMeta.getExtraOptions();
     if (databaseMeta.supportsCatalogs() && dbmd.supportsCatalogsInTableDefinitions()) {
       ArrayList<Catalog> catalogList=new ArrayList<Catalog>();
-      ResultSet catalogResultSet=dbmd.getCatalogs();
-      while (catalogResultSet != null && catalogResultSet.next()) {
-        String catalogName=catalogResultSet.getString(1);
-        catalogList.add(new Catalog(catalogName));
+      String catalogFilterKey=databaseMeta.getDatabaseTypeDesc() + "." + FILTER_CATALOG_LIST;
+      if ((connectionExtraOptions != null) && connectionExtraOptions.containsKey(catalogFilterKey)) {
+        String catsFilterCommaList=(String)connectionExtraOptions.get(catalogFilterKey);
+        String[] catsFilterArray=catsFilterCommaList.split(",");
+        for (int i=0; i < catsFilterArray.length; i++) {
+          catalogList.add(new Catalog(catsFilterArray[i].trim()));
+        }
       }
-      catalogResultSet.close();
+      if (catalogList.size() == 0) {
+        ResultSet catalogResultSet=dbmd.getCatalogs();
+        while (catalogResultSet != null && catalogResultSet.next()) {
+          String catalogName=catalogResultSet.getString(1);
+          catalogList.add(new Catalog(catalogName));
+        }
+        catalogResultSet.close();
+      }
       for (      Catalog catalog : catalogList) {
         ArrayList<String> catalogTables=new ArrayList<String>();
         try {
@@ -46,24 +57,34 @@
     if (databaseMeta.supportsSchemas() && dbmd.supportsSchemasInTableDefinitions()) {
       ArrayList<Schema> schemaList=new ArrayList<Schema>();
       try {
-        String sql=databaseMeta.getSQLListOfSchemas();
-        if (!Const.isEmpty(sql)) {
-          Statement schemaStatement=db.getConnection().createStatement();
-          ResultSet schemaResultSet=schemaStatement.executeQuery(sql);
-          while (schemaResultSet != null && schemaResultSet.next()) {
-            String schemaName=schemaResultSet.getString("name");
-            schemaList.add(new Schema(schemaName));
+        String schemaFilterKey=databaseMeta.getDatabaseTypeDesc() + "." + FILTER_SCHEMA_LIST;
+        if ((connectionExtraOptions != null) && connectionExtraOptions.containsKey(schemaFilterKey)) {
+          String schemasFilterCommaList=(String)connectionExtraOptions.get(schemaFilterKey);
+          String[] schemasFilterArray=schemasFilterCommaList.split(",");
+          for (int i=0; i < schemasFilterArray.length; i++) {
+            schemaList.add(new Schema(schemasFilterArray[i].trim()));
           }
-          schemaResultSet.close();
-          schemaStatement.close();
         }
- else {
-          ResultSet schemaResultSet=dbmd.getSchemas();
-          while (schemaResultSet != null && schemaResultSet.next()) {
-            String schemaName=schemaResultSet.getString(1);
-            schemaList.add(new Schema(schemaName));
+        if (schemaList.size() == 0) {
+          String sql=databaseMeta.getSQLListOfSchemas();
+          if (!Const.isEmpty(sql)) {
+            Statement schemaStatement=db.getConnection().createStatement();
+            ResultSet schemaResultSet=schemaStatement.executeQuery(sql);
+            while (schemaResultSet != null && schemaResultSet.next()) {
+              String schemaName=schemaResultSet.getString("name");
+              schemaList.add(new Schema(schemaName));
+            }
+            schemaResultSet.close();
+            schemaStatement.close();
           }
-          schemaResultSet.close();
+ else {
+            ResultSet schemaResultSet=dbmd.getSchemas();
+            while (schemaResultSet != null && schemaResultSet.next()) {
+              String schemaName=schemaResultSet.getString(1);
+              schemaList.add(new Schema(schemaName));
+            }
+            schemaResultSet.close();
+          }
         }
         for (        Schema schema : schemaList) {
           ArrayList<String> schemaTables=new ArrayList<String>();
