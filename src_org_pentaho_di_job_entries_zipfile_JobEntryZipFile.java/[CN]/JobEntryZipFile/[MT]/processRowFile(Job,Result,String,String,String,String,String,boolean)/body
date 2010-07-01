@@ -8,7 +8,7 @@
   FileObject originFile=null;
   ZipInputStream zin=null;
   byte[] buffer=null;
-  FileOutputStream dest=null;
+  OutputStream dest=null;
   BufferedOutputStream buff=null;
   ZipOutputStream out=null;
   ZipEntry entry=null;
@@ -131,7 +131,7 @@
           }
           if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobZipFiles.Files_Found1.Label") + fileList.length + BaseMessages.getString(PKG,"JobZipFiles.Files_Found2.Label")+ localSourceFilename+ BaseMessages.getString(PKG,"JobZipFiles.Files_Found3.Label"));
           buffer=new byte[18024];
-          dest=new FileOutputStream(getFile(localrealZipfilename));
+          dest=KettleVFS.getOutputStream(localrealZipfilename,false);
           buff=new BufferedOutputStream(dest);
           out=new ZipOutputStream(buff);
           HashSet<String> fileSet=new HashSet<String>();
@@ -191,10 +191,11 @@
             if (sourceFileOrFolder.getType().equals(FileType.FILE)) {
               targetFilename=localSourceFilename;
             }
-            File file=getFile(targetFilename);
-            if (getIt && !getItexclude && !file.isDirectory()&& !fileSet.contains(targetFilename)) {
+            FileObject file=KettleVFS.getFileObject(targetFilename);
+            boolean isTargetDirectory=file.exists() && file.getType().equals(FileType.FOLDER);
+            if (getIt && !getItexclude && !isTargetDirectory&& !fileSet.contains(targetFilename)) {
               if (log.isDebug())               logDebug(BaseMessages.getString(PKG,"JobZipFiles.Add_FilesToZip1.Label") + fileList[i] + BaseMessages.getString(PKG,"JobZipFiles.Add_FilesToZip2.Label")+ localSourceFilename+ BaseMessages.getString(PKG,"JobZipFiles.Add_FilesToZip3.Label"));
-              FileInputStream in=new FileInputStream(file);
+              InputStream in=KettleVFS.getInputStream(file);
               String relativeName;
               String fullName=fileList[i].getName().getPath();
               String basePath=sourceFileOrFolder.getName().getPath();
