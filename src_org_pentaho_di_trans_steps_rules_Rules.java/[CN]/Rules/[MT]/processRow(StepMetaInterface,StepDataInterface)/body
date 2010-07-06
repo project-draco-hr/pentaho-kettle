@@ -1,0 +1,36 @@
+{
+  meta=(RulesMeta)smi;
+  data=(RulesData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    data.shutdown();
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    if (!runtimeInit()) {
+      return false;
+    }
+    first=false;
+  }
+  data.loadRow(r);
+  data.execute();
+  Object[] outputRow;
+  int beginOutputRowFill=0;
+  String[] expectedResults=meta.getExpectedResultList();
+  if (meta.isKeepInputFields()) {
+    int inputRowSize=getInputRowMeta().size();
+    outputRow=Arrays.copyOf(r,inputRowSize + expectedResults.length);
+    beginOutputRowFill=inputRowSize;
+  }
+ else {
+    outputRow=new Object[expectedResults.length];
+  }
+  Rules.Column result=null;
+  for (int i=0; i < expectedResults.length; i++) {
+    result=(Rules.Column)data.fetchResult(expectedResults[i]);
+    outputRow[i + beginOutputRowFill]=result == null ? null : result.getPayload();
+  }
+  putRow(data.getOutputRowMeta(),outputRow);
+  return true;
+}
