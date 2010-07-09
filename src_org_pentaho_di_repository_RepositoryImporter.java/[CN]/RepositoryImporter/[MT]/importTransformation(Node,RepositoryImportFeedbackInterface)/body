@@ -1,0 +1,49 @@
+{
+  TransMeta transMeta=new TransMeta(transnode,null);
+  replaceSharedObjects(transMeta);
+  feedback.setLabel(BaseMessages.getString(PKG,"RepositoryImporter.ImportTrans.Label",Integer.toString(transformationNumber),transMeta.getName()));
+  String directoryPath=XMLHandler.getTagValue(transnode,"info","directory");
+  directoryPath=directoryPath.substring(1);
+  RepositoryDirectoryInterface targetDirectory=baseDirectory.findDirectory(directoryPath);
+  if (targetDirectory == null) {
+    targetDirectory=baseDirectory.findDirectory(directoryPath);
+    if (targetDirectory == null) {
+      feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.CreateDir.Log",directoryPath,baseDirectory.toString()));
+      targetDirectory=rep.createRepositoryDirectory(baseDirectory,directoryPath);
+    }
+  }
+  ObjectId existingId=rep.getTransformationID(transMeta.getName(),targetDirectory);
+  if (existingId != null && askOverwrite) {
+    overwrite=transOverwritePrompt(transMeta);
+  }
+ else {
+    updateDisplay();
+  }
+  if (existingId == null || overwrite) {
+    transMeta.setObjectId(existingId);
+    transMeta.setRepositoryDirectory(targetDirectory);
+    patchMappingSteps(transMeta);
+    try {
+      if (transMeta.getCreatedUser() == null || transMeta.getCreatedUser().equals("-")) {
+        transMeta.setCreatedDate(new Date());
+        transMeta.setCreatedUser(rep.getUserInfo().getLogin());
+      }
+ else {
+        transMeta.setCreatedDate(transMeta.getCreatedDate());
+        transMeta.setCreatedUser(transMeta.getCreatedUser());
+      }
+      transMeta.setModifiedDate(new Date());
+      transMeta.setModifiedUser(rep.getUserInfo().getLogin());
+      rep.save(transMeta,versionComment,this);
+      feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.TransSaved.Log",Integer.toString(transformationNumber),transMeta.getName()));
+    }
+ catch (    Exception e) {
+      feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ErrorSavingTrans.Log",Integer.toString(transformationNumber),transMeta.getName(),e.toString()));
+      feedback.addLog(Const.getStackTracker(e));
+    }
+  }
+ else {
+    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ErrorSavingTrans2.Log",transMeta.getName()));
+  }
+  return true;
+}

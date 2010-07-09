@@ -1,0 +1,32 @@
+{
+  JobMeta jobMeta=new JobMeta(jobnode,rep,false,SpoonFactory.getInstance());
+  replaceSharedObjects(jobMeta);
+  feedback.setLabel(BaseMessages.getString(PKG,"RepositoryImporter.ImportJob.Label",Integer.toString(jobNumber),jobMeta.getName()));
+  String directoryPath=Const.NVL(XMLHandler.getTagValue(jobnode,"directory"),Const.FILE_SEPARATOR);
+  RepositoryDirectoryInterface targetDirectory=baseDirectory.findDirectory(directoryPath);
+  if (targetDirectory == null) {
+    targetDirectory=baseDirectory.findDirectory(directoryPath);
+    if (targetDirectory == null) {
+      feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.CreateDir.Log",directoryPath,baseDirectory.toString()));
+      targetDirectory=rep.createRepositoryDirectory(baseDirectory,directoryPath);
+    }
+  }
+  ObjectId existintId=rep.getJobId(jobMeta.getName(),targetDirectory);
+  if (existintId != null && askOverwrite) {
+    overwrite=feedback.jobOverwritePrompt(jobMeta);
+  }
+ else {
+    updateDisplay();
+  }
+  if (existintId == null || overwrite) {
+    jobMeta.setRepositoryDirectory(targetDirectory);
+    jobMeta.setObjectId(existintId);
+    patchJobEntries(jobMeta);
+    rep.save(jobMeta,versionComment,null);
+    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.JobSaved.Log",Integer.toString(jobNumber),jobMeta.getName()));
+  }
+ else {
+    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ErrorSavingJob.Log",jobMeta.getName()));
+  }
+  return true;
+}
