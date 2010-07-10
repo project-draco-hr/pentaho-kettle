@@ -1,0 +1,35 @@
+{
+  meta=(SSHMeta)smi;
+  data=(SSHData)sdi;
+  if (super.init(smi,sdi)) {
+    String servername=environmentSubstitute(meta.getServerName());
+    int nrPort=Const.toInt(environmentSubstitute(meta.getPort()),22);
+    String username=environmentSubstitute(meta.getuserName());
+    String password=environmentSubstitute(meta.getpassword());
+    String keyFilename=environmentSubstitute(meta.getKeyFileName());
+    String passphrase=environmentSubstitute(meta.getPassphrase());
+    if (Const.isEmpty(servername)) {
+      log.logError(toString(),BaseMessages.getString(PKG,"SSH.MissingServerName"));
+    }
+    if (Const.isEmpty(meta.getuserName())) {
+      log.logError(toString(),BaseMessages.getString(PKG,"SSH.Error.UserNamedMissing"));
+      return false;
+    }
+    data.stdOutField=environmentSubstitute(meta.getStdOutFieldName());
+    if (Const.isEmpty(data.stdOutField)) {
+      log.logError(toString(),BaseMessages.getString(PKG,"SSH.Error.StdOutFieldNameMissing"));
+      return false;
+    }
+    data.stdTypeField=environmentSubstitute(meta.getStdErrFieldName());
+    try {
+      data.conn=SSHMeta.OpenConnection(servername,nrPort,username,password,meta.isusePrivateKey(),keyFilename,passphrase,this);
+      if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"SSH.Log.ConnectionOpened"));
+    }
+ catch (    Exception e) {
+      log.logError(toString(),BaseMessages.getString(PKG,"SSH.Error.OpeningConnection",e.getMessage()));
+      return false;
+    }
+    return true;
+  }
+  return false;
+}

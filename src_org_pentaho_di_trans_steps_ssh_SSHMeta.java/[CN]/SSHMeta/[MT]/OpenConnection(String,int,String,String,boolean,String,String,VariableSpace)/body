@@ -1,0 +1,30 @@
+{
+  Connection conn=null;
+  boolean isAuthenticated=false;
+  File keyFile=null;
+  try {
+    if (useKey) {
+      if (Const.isEmpty(keyFilename)) {
+        throw new KettleException(BaseMessages.getString(PKG,"SSH.Error.PrivateKeyFileMissing"));
+      }
+      keyFile=new File(keyFilename);
+      if (!keyFile.exists()) {
+        throw new KettleException(BaseMessages.getString(PKG,"SSH.Error.PrivateKeyNotExist",keyFilename));
+      }
+    }
+    conn=new Connection(serveur,port);
+    conn.connect();
+    if (useKey) {
+      isAuthenticated=conn.authenticateWithPublicKey(username,keyFile,space.environmentSubstitute(passPhrase));
+    }
+ else {
+      isAuthenticated=conn.authenticateWithPassword(username,password);
+    }
+    if (isAuthenticated == false)     throw new KettleException(BaseMessages.getString(PKG,"SSH.Error.AuthenticationFailed",username));
+  }
+ catch (  Exception e) {
+    if (conn != null)     conn.close();
+    throw new KettleException(BaseMessages.getString(PKG,"SSH.Error.ErrorConnecting",serveur,username),e);
+  }
+  return conn;
+}
