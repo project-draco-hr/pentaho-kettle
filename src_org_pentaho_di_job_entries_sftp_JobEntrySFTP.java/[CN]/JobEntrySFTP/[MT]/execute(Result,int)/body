@@ -36,8 +36,24 @@
   String realSftpDirString=environmentSubstitute(sftpDirectory);
   String realWildcard=environmentSubstitute(wildcard);
   String realTargetDirectory=environmentSubstitute(targetDirectory);
+  String realKeyFilename=null;
+  String realPassPhrase=null;
   FileObject TargetFolder=null;
   try {
+    if (isUseKeyFile()) {
+      realKeyFilename=environmentSubstitute(getKeyFilename());
+      if (Const.isEmpty(realKeyFilename)) {
+        logError(BaseMessages.getString(PKG,"JobSFTP.Error.KeyFileMissing"));
+        result.setNrErrors(1);
+        return result;
+      }
+      if (!KettleVFS.fileExists(realKeyFilename)) {
+        logError(BaseMessages.getString(PKG,"JobSFTP.Error.KeyFileNotFound",realKeyFilename));
+        result.setNrErrors(1);
+        return result;
+      }
+      realPassPhrase=environmentSubstitute(getKeyPassPhrase());
+    }
     if (!Const.isEmpty(realTargetDirectory)) {
       TargetFolder=KettleVFS.getFileObject(realTargetDirectory,this);
       boolean TargetFolderExists=TargetFolder.exists();
@@ -60,8 +76,13 @@
       TargetFolder.close();
       TargetFolder=null;
     }
-    sftpclient=new SFTPClient(InetAddress.getByName(realServerName),Const.toInt(realServerPort,22),realUsername);
+    sftpclient=new SFTPClient(InetAddress.getByName(realServerName),Const.toInt(realServerPort,22),realUsername,realKeyFilename,realPassPhrase);
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobSFTP.Log.OpenedConnection",realServerName,realServerPort,realUsername));
+    sftpclient.setCompression(getCompression());
+    String realProxyHost=environmentSubstitute(getProxyHost());
+    if (!Const.isEmpty(realProxyHost)) {
+      sftpclient.setProxy(realProxyHost,environmentSubstitute(getProxyPort()),environmentSubstitute(getProxyUsername()),environmentSubstitute(getProxyPassword()),getProxyType());
+    }
     sftpclient.login(realPassword);
     if (!Const.isEmpty(realSftpDirString)) {
       try {
