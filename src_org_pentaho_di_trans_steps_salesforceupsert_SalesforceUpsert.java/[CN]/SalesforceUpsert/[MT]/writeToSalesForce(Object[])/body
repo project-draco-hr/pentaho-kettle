@@ -2,14 +2,24 @@
   try {
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"SalesforceUpsert.CalledWrite",data.iBufferPos,meta.getBatchSizeInt()));
     if (data.iBufferPos < meta.getBatchSizeInt()) {
-      MessageElement[] arNode=new MessageElement[data.nrfields];
-      int index=0;
+      ArrayList<String> fieldsToNull=new ArrayList<String>();
+      ArrayList<MessageElement> upsertfields=new ArrayList<MessageElement>();
       for (int i=0; i < data.nrfields; i++) {
-        arNode[index++]=newMessageElement(meta.getUpdateLookup()[i],rowData[data.fieldnrs[i]]);
+        if (data.inputRowMeta.isNull(rowData,data.fieldnrs[i])) {
+          fieldsToNull.add(meta.getUpdateLookup()[i]);
+        }
+ else {
+          upsertfields.add(newMessageElement(meta.getUpdateLookup()[i],rowData[data.fieldnrs[i]]));
+        }
       }
       SObject sobjPass=new SObject();
-      sobjPass.set_any(arNode);
       sobjPass.setType(data.realModule);
+      if (upsertfields.size() > 0) {
+        sobjPass.set_any((MessageElement[])upsertfields.toArray(new MessageElement[upsertfields.size()]));
+      }
+      if (fieldsToNull.size() > 0) {
+        sobjPass.setFieldsToNull((String[])fieldsToNull.toArray(new String[fieldsToNull.size()]));
+      }
       data.sfBuffer[data.iBufferPos]=sobjPass;
       data.outputBuffer[data.iBufferPos]=rowData;
       data.iBufferPos++;
@@ -20,6 +30,6 @@
     }
   }
  catch (  Exception e) {
-    throw new KettleException(BaseMessages.getString(PKG,"SalesforceUpsert.FailedInWrite",e.getMessage()));
+    throw new KettleException(BaseMessages.getString(PKG,"SalesforceUpsert.FailedInWrite",e.toString()));
   }
 }
