@@ -1,0 +1,54 @@
+{
+  Result result=previousResult;
+  result.setResult(false);
+  result.setNrErrors(1);
+  String realFilename=getRealFilename();
+  if (!Const.isEmpty(realFilename)) {
+    String content=environmentSubstitute(getContent());
+    String encoding=environmentSubstitute(getEncoding());
+    OutputStreamWriter osw=null;
+    FileOutputStream fos=null;
+    try {
+      createParentFolder(realFilename);
+      fos=new FileOutputStream(realFilename,isAppendFile());
+      if (Const.isEmpty(encoding)) {
+        if (isDebug())         logDebug(BaseMessages.getString(PKG,"JobWriteToFile.Log.WritingToFile",realFilename));
+        osw=new OutputStreamWriter(fos);
+      }
+ else {
+        if (isDebug())         logDebug(BaseMessages.getString(PKG,"JobWriteToFile.Log.WritingToFileWithEncoding",realFilename,encoding));
+        osw=new OutputStreamWriter(fos,encoding);
+      }
+      osw.write(content);
+      result.setResult(true);
+      result.setNrErrors(0);
+    }
+ catch (    Exception e) {
+      logError(BaseMessages.getString(PKG,"JobWriteToFile.Error.WritingFile",realFilename,e.getMessage()));
+    }
+ finally {
+      if (osw != null) {
+        try {
+          osw.flush();
+          osw.close();
+        }
+ catch (        Exception ex) {
+        }
+        ;
+      }
+      if (fos != null) {
+        try {
+          fos.flush();
+          fos.close();
+        }
+ catch (        Exception ex) {
+        }
+        ;
+      }
+    }
+  }
+ else {
+    logError(BaseMessages.getString(PKG,"JobWriteToFile.Error.MissinfgFile"));
+  }
+  return result;
+}
