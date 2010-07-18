@@ -10,6 +10,7 @@
   }
   if (first) {
     data.outputRowMeta=getInputRowMeta().clone();
+    data.inputRowMeta=getInputRowMeta();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
     if (meta.isUrlInField()) {
       if (Const.isEmpty(meta.getUrlField())) {
@@ -27,6 +28,19 @@
     }
  else {
       data.realUrl=environmentSubstitute(meta.getUrl());
+    }
+    int nrHeaders=meta.getHeaderField().length;
+    if (nrHeaders > 0)     data.useHeaderParameters=true;
+    data.header_parameters_nrs=new int[nrHeaders];
+    data.headerParameters=new NameValuePair[nrHeaders];
+    for (int i=0; i < nrHeaders; i++) {
+      int fieldIndex=data.inputRowMeta.indexOfValue(meta.getHeaderField()[i]);
+      if (fieldIndex < 0) {
+        logError(BaseMessages.getString(PKG,"HTTP.Exception.ErrorFindingField") + meta.getHeaderField()[i] + "]");
+        throw new KettleStepException(BaseMessages.getString(PKG,"HTTP.Exception.ErrorFindingField",meta.getHeaderField()[i]));
+      }
+      data.header_parameters_nrs[i]=fieldIndex;
+      data.headerParameters[i]=new NameValuePair(environmentSubstitute(meta.getHeaderParameter()[i]),data.outputRowMeta.getString(r,data.header_parameters_nrs[i]));
     }
   }
   try {
