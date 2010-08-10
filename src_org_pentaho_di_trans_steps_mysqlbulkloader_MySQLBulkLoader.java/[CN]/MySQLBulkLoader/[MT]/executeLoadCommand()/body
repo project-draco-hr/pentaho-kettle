@@ -27,5 +27,28 @@
   logBasic("Starting the MySQL bulk Load in a separate thread : " + loadCommand);
   data.sqlRunner=new SqlRunner(data,loadCommand);
   data.sqlRunner.start();
-  data.fifoStream=new BufferedOutputStream(new FileOutputStream(data.fifoFilename),1000);
+  logBasic("Opening fifo " + data.fifoFilename + " for writing.");
+  OpenFifo openFifo=new OpenFifo(data.fifoFilename,1000);
+  openFifo.start();
+  while (true) {
+    openFifo.join(200);
+    if (openFifo.getState() == Thread.State.TERMINATED)     break;
+    try {
+      data.sqlRunner.checkExcn();
+    }
+ catch (    Exception e) {
+      new BufferedInputStream(new FileInputStream(data.fifoFilename)).close();
+      openFifo.join();
+      logError("Make sure user has been granted the FILE privilege.");
+      logError("");
+      throw e;
+    }
+    try {
+      openFifo.checkExcn();
+    }
+ catch (    Exception e) {
+      throw e;
+    }
+  }
+  data.fifoStream=openFifo.getFifoStream();
 }
