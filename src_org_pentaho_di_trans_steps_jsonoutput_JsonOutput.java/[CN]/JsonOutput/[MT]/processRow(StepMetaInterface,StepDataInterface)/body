@@ -1,0 +1,66 @@
+{
+  meta=(JsonOutputMeta)smi;
+  data=(JsonOutputData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    if (!data.rowsAreSafe) {
+      outPutRow(r);
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.inputRowMeta=getInputRowMeta();
+    data.inputRowMetaSize=data.inputRowMeta.size();
+    if (data.outputValue) {
+      data.outputRowMeta=data.inputRowMeta.clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    }
+    data.nrFields=meta.getOutputFields().length;
+    data.fieldIndexes=new int[data.nrFields];
+    for (int i=0; i < data.nrFields; i++) {
+      data.fieldIndexes[i]=data.inputRowMeta.indexOfValue(meta.getOutputFields()[i].getFieldName());
+      if (data.fieldIndexes[i] < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"JsonOutput.Exception.FieldNotFound"));
+      }
+      JsonOutputField field=meta.getOutputFields()[i];
+      field.setElementName(environmentSubstitute(field.getElementName()));
+    }
+  }
+  data.rowsAreSafe=false;
+  for (int i=0; i < data.nrFields; i++) {
+    JsonOutputField outputField=meta.getOutputFields()[i];
+    ValueMetaInterface v=data.inputRowMeta.getValueMeta(data.fieldIndexes[i]);
+    JSONObject jo=new JSONObject();
+switch (v.getType()) {
+case ValueMeta.TYPE_BOOLEAN:
+      jo.put(outputField.getElementName(),data.inputRowMeta.getBoolean(r,data.fieldIndexes[i]));
+    break;
+case ValueMeta.TYPE_INTEGER:
+  jo.put(outputField.getElementName(),data.inputRowMeta.getInteger(r,data.fieldIndexes[i]));
+break;
+case ValueMeta.TYPE_NUMBER:
+jo.put(outputField.getElementName(),data.inputRowMeta.getNumber(r,data.fieldIndexes[i]));
+break;
+case ValueMeta.TYPE_BIGNUMBER:
+jo.put(outputField.getElementName(),data.inputRowMeta.getBigNumber(r,data.fieldIndexes[i]));
+break;
+default :
+jo.put(outputField.getElementName(),data.inputRowMeta.getString(r,data.fieldIndexes[i]));
+break;
+}
+data.ja.add(jo);
+}
+data.nrRow++;
+if (data.nrRowsInBloc > 0) {
+if (data.nrRow % data.nrRowsInBloc == 0) {
+outPutRow(r);
+}
+}
+if (data.writeToFile && !data.outputValue) {
+putRow(data.inputRowMeta,r);
+incrementLinesOutput();
+}
+return true;
+}
