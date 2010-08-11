@@ -15,20 +15,24 @@
       data.fieldnr=meta.getFieldName().length;
       data.fieldnrs=new int[data.fieldnr];
       data.previousValues=new Object[data.fieldnr];
+      data.fieldnrsMeta=new ValueMeta[data.fieldnr];
       for (int i=0; i < data.fieldnr; i++) {
         data.fieldnrs[i]=data.previousMeta.indexOfValue(meta.getFieldName()[i]);
         if (data.fieldnrs[i] < 0) {
           logError(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.CanNotFindField",meta.getFieldName()[i]));
           throw new KettleException(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.CanNotFindField",meta.getFieldName()[i]));
         }
+        data.fieldnrsMeta[i]=data.previousMeta.getValueMeta(data.fieldnrs[i]);
       }
     }
  else {
       data.fieldnr=data.previousMeta.size();
       data.fieldnrs=new int[data.fieldnr];
       data.previousValues=new Object[data.fieldnr];
+      data.fieldnrsMeta=new ValueMeta[data.fieldnr];
       for (int i=0; i < data.previousMeta.size(); i++) {
         data.fieldnrs[i]=i;
+        data.fieldnrsMeta[i]=data.previousMeta.getValueMeta(i);
       }
     }
     data.startAt=Const.toInt(environmentSubstitute(meta.getStart()),1);
@@ -39,15 +43,15 @@
     boolean change=false;
     for (int i=0; i < data.fieldnr; i++) {
       if (!first) {
-        if (!data.previousValues[i].equals(r[data.fieldnrs[i]]))         change=true;
+        if (data.fieldnrsMeta[i].compare(data.previousValues[i],r[data.fieldnrs[i]]) != 0)         change=true;
       }
       data.previousValues[i]=r[data.fieldnrs[i]];
     }
     if (first)     first=false;
     if (change)     data.seq=data.startAt;
     if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.ReadRow") + getLinesRead() + " : "+ getInputRowMeta().getString(r));
-    r[data.nextIndexField]=data.seq;
-    putRow(data.outputRowMeta,r);
+    Object[] outputRowData=RowDataUtil.addValueData(r,data.nextIndexField,data.seq);
+    putRow(data.outputRowMeta,outputRowData);
     data.seq+=data.incrementBy;
     if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"FieldsChangeSequence.Log.WriteRow") + getLinesWritten() + " : "+ getInputRowMeta().getString(r));
     if (checkFeedback(getLinesRead())) {
@@ -63,6 +67,7 @@
     }
  else {
       logError(BaseMessages.getString(PKG,"FieldsChangeSequence.ErrorInStepRunning") + e.getMessage());
+      logError(Const.getStackTracker(e));
       setErrors(1);
       stopAll();
       setOutputDone();
