@@ -1,0 +1,26 @@
+{
+  setSearchBase(searchBase);
+  setFilter(Const.NVL(correctFilter(filter),DEFAUL_FILTER_STRING));
+  try {
+    if (Const.isEmpty(getSearchBase())) {
+      Attributes attrs=getInitialContext().getAttributes("",new String[]{"namingContexts"});
+      Attribute attr=attrs.get("namingContexts");
+      setSearchBase(attr.get().toString());
+      if (log.isDetailed())       log.logDetailed(BaseMessages.getString(PKG,"LDAPInput.SearchBaseFound",getSearchBase()));
+    }
+    this.controls=new SearchControls();
+    if (limitRows > 0)     this.controls.setCountLimit(limitRows);
+    if (getTimeLimit() > 0)     this.controls.setTimeLimit(getTimeLimit() * 1000);
+    if (attributeReturned != null)     this.controls.setReturningAttributes(attributeReturned);
+    this.controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+    if (isPagingUsed()) {
+      Control[] ctls=new Control[]{new PagedResultsControl(GetPagingSize(),true)};
+      getInitialContext().setRequestControls(ctls);
+      if (log.isDebug())       log.logDebug(BaseMessages.getString("LDAPInput.Log.PageSize",String.valueOf(GetPagingSize())));
+    }
+    this.results=getInitialContext().search(getSearchBase(),getFilter(),getSearchControls());
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString("LDAPConnection.Error.Search"),e);
+  }
+}
