@@ -1,0 +1,69 @@
+{
+  wTree=new Tree(shell,SWT.SINGLE | SWT.V_SCROLL | SWT.H_SCROLL| SWT.BORDER);
+  FormData fdTree=new FormData();
+  fdTree.left=new FormAttachment(0,0);
+  fdTree.right=new FormAttachment(100,0);
+  fdTree.top=new FormAttachment(gTransGroup,2 * margin);
+  fdTree.bottom=new FormAttachment(wOK,-2 * margin);
+  wTree.setLayoutData(fdTree);
+  ColumnInfo[] colinf=new ColumnInfo[]{new ColumnInfo(BaseMessages.getString(PKG,"MetaInjectDialog.Column.TargetStep"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"MetaInjectDialog.Column.TargetDescription"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"MetaInjectDialog.Column.SourceStep"),ColumnInfo.COLUMN_TYPE_CCOMBO,false,true),new ColumnInfo(BaseMessages.getString(PKG,"MetaInjectDialog.Column.SourceField"),ColumnInfo.COLUMN_TYPE_CCOMBO,false,true)};
+  wTree.setHeaderVisible(true);
+  for (int i=0; i < colinf.length; i++) {
+    ColumnInfo columnInfo=colinf[i];
+    TreeColumn treeColumn=new TreeColumn(wTree,columnInfo.getAllignement());
+    treeColumn.setText(columnInfo.getName());
+    treeColumn.setWidth(200);
+  }
+  wTree.addListener(SWT.MouseDown,new Listener(){
+    public void handleEvent(    Event event){
+      try {
+        Point point=new Point(event.x,event.y);
+        TreeItem item=wTree.getItem(point);
+        if (item != null) {
+          TargetStepAttribute target=treeItemTargetMap.get(item);
+          if (target != null) {
+            SourceStepField source=targetSourceMapping.get(target);
+            String[] prevStepNames=transMeta.getPrevStepNames(stepMeta);
+            Arrays.sort(prevStepNames);
+            EnterSelectionDialog selectStep=new EnterSelectionDialog(shell,prevStepNames,"Select source step","Select the source step");
+            if (source != null && !Const.isEmpty(source.getStepname())) {
+              int index=Const.indexOfString(source.getStepname(),prevStepNames);
+              if (index >= 0) {
+                selectStep.setSelectedNrs(new int[]{index});
+              }
+            }
+            String prevStep=selectStep.open();
+            if (prevStep != null) {
+              RowMetaInterface fields=transMeta.getStepFields(prevStep);
+              String[] fieldNames=fields.getFieldNames();
+              Arrays.sort(fieldNames);
+              EnterSelectionDialog selectField=new EnterSelectionDialog(shell,fieldNames,"Select field","Select the source field");
+              if (source != null && !Const.isEmpty(source.getField())) {
+                int index=Const.indexOfString(source.getField(),fieldNames);
+                if (index >= 0) {
+                  selectField.setSelectedNrs(new int[]{index});
+                }
+              }
+              String fieldName=selectField.open();
+              if (fieldName != null) {
+                item.setText(2,prevStep);
+                item.setText(3,fieldName);
+                source=new SourceStepField(prevStep,fieldName);
+                targetSourceMapping.put(target,source);
+              }
+            }
+ else {
+              item.setText(2,"");
+              item.setText(3,"");
+              targetSourceMapping.remove(target);
+            }
+          }
+        }
+      }
+ catch (      Exception e) {
+        new ErrorDialog(shell,"Oops","Unexpected Error",e);
+      }
+    }
+  }
+);
+}
