@@ -20,7 +20,7 @@
       if (getCondition() != null)       log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginCondition",getCondition()));
       log.logDetailed("<-----------------------------------------");
     }
-    this.loginResult=this.binding.login(getUsername(),getPassword());
+    this.loginResult=getBinding().login(getUsername(),getPassword());
     if (log.isDebug()) {
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.SessionId") + " : " + this.loginResult.getSessionId());
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.NewServerURL") + " : " + this.loginResult.getServerUrl());
@@ -43,7 +43,14 @@
     if (log.isDebug())     BaseMessages.getString(PKG,"SalesforceInput.Log.ServerTimestamp","" + this.serverTimestamp);
     if (log.isDetailed())     log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.Connected"));
   }
- catch (  Exception e) {
+ catch (  LoginFault ex) {
+    ExceptionCode exCode=ex.getExceptionCode();
+    if (exCode == ExceptionCode.FUNCTIONALITY_NOT_ENABLED || exCode == ExceptionCode.INVALID_CLIENT || exCode == ExceptionCode.INVALID_LOGIN || exCode == ExceptionCode.LOGIN_DURING_RESTRICTED_DOMAIN || exCode == ExceptionCode.LOGIN_DURING_RESTRICTED_TIME || exCode == ExceptionCode.ORG_LOCKED || exCode == ExceptionCode.PASSWORD_LOCKOUT || exCode == ExceptionCode.SERVER_UNAVAILABLE || exCode == ExceptionCode.TRIAL_EXPIRED || exCode == ExceptionCode.UNSUPPORTED_CLIENT) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Error.InvalidUsernameOrPassword"));
+    }
+    throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Error.Connection"),ex);
+  }
+catch (  Exception e) {
     throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Error.Connection"),e);
   }
 }
