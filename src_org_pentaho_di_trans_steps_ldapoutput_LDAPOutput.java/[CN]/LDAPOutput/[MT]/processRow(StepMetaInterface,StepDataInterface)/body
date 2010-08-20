@@ -6,7 +6,7 @@
   }
   if (first) {
     first=false;
-    if (meta.getOperationType() != LDAPOutputMeta.OPERATION_TYPE_DELETE) {
+    if (meta.getOperationType() != LDAPOutputMeta.OPERATION_TYPE_DELETE && meta.getOperationType() != LDAPOutputMeta.OPERATION_TYPE_RENAME) {
       data.nrfields=meta.getUpdateLookup().length;
       if (data.nrfields == 0) {
         throw new KettleException(BaseMessages.getString(PKG,"LDAPOutputUpdateDialog.FieldsMissing.DialogMessage"));
@@ -44,22 +44,45 @@
         data.attributesToUpdate=new String[data.nrfieldsToUpdate];
       }
     }
-    String dnField=environmentSubstitute(meta.getDnField());
-    if (Const.isEmpty(dnField)) {
-      throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.DNFieldMissing"));
+    if (meta.getOperationType() == LDAPOutputMeta.OPERATION_TYPE_RENAME) {
+      String oldDnField=environmentSubstitute(meta.getOldDnFieldName());
+      if (Const.isEmpty(oldDnField)) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.OldDNFieldMissing"));
+      }
+      String newDnField=environmentSubstitute(meta.getNewDnFieldName());
+      if (Const.isEmpty(newDnField)) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.NewDNFieldMissing"));
+      }
+      data.indexOfOldDNField=getInputRowMeta().indexOfValue(oldDnField);
+      if (data.indexOfOldDNField < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.CanNotFindField",oldDnField));
+      }
+      data.indexOfNewDNField=getInputRowMeta().indexOfValue(newDnField);
+      if (data.indexOfNewDNField < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.CanNotFindField",newDnField));
+      }
     }
-    data.indexOfDNField=getInputRowMeta().indexOfValue(dnField);
-    if (data.indexOfDNField < 0) {
-      throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.CanNotFindField",dnField));
+ else {
+      String dnField=environmentSubstitute(meta.getDnField());
+      if (Const.isEmpty(dnField)) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.DNFieldMissing"));
+      }
+      data.indexOfDNField=getInputRowMeta().indexOfValue(dnField);
+      if (data.indexOfDNField < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPOutput.Error.CanNotFindField",dnField));
+      }
     }
   }
   incrementLinesInput();
+  String dn=null;
   try {
-    String dn=getInputRowMeta().getString(outputRowData,data.indexOfDNField);
-    if (isDebug())     logDebug(BaseMessages.getString(PKG,"LDAPOutput.ProcessDn",dn));
-    if (meta.getOperationType() != LDAPOutputMeta.OPERATION_TYPE_DELETE) {
-      for (int i=0; i < data.nrfields; i++) {
-        data.attributes[i]=getInputRowMeta().getString(outputRowData,data.fieldStream[i]);
+    if (meta.getOperationType() != LDAPOutputMeta.OPERATION_TYPE_RENAME) {
+      dn=getInputRowMeta().getString(outputRowData,data.indexOfDNField);
+      if (isDebug())       logDebug(BaseMessages.getString(PKG,"LDAPOutput.ProcessDn",dn));
+      if (meta.getOperationType() != LDAPOutputMeta.OPERATION_TYPE_DELETE) {
+        for (int i=0; i < data.nrfields; i++) {
+          data.attributes[i]=getInputRowMeta().getString(outputRowData,data.fieldStream[i]);
+        }
       }
     }
 switch (meta.getOperationType()) {
@@ -112,6 +135,12 @@ default :
 incrementLinesSkipped();
 break;
 }
+break;
+case LDAPOutputMeta.OPERATION_TYPE_RENAME:
+String oldDn=getInputRowMeta().getString(outputRowData,data.indexOfOldDNField);
+String newDn=getInputRowMeta().getString(outputRowData,data.indexOfNewDNField);
+data.connection.rename(oldDn,newDn,meta.isDeleteRDN());
+incrementLinesOutput();
 break;
 default :
 data.connection.insert(dn,data.fieldsAttribute,data.attributes,data.separator);

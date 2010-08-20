@@ -1,0 +1,41 @@
+{
+  try {
+    if (!deleteRDN) {
+      getInitialContext().removeFromEnvironment("java.naming.ldap.deleteRDN");
+    }
+    Map<String,Attributes> childs=new java.util.HashMap<String,Attributes>();
+    List<String> paths=new ArrayList<String>();
+    list(oldDn,childs,paths);
+    for (    String childName : paths) {
+      getInitialContext().destroySubcontext(childName);
+    }
+    try {
+      getInitialContext().rename(oldDn,newDn);
+    }
+ catch (    Exception e) {
+      for (int i=paths.size(); i > 0; i--) {
+        getInitialContext().createSubcontext(paths.get(i - 1),childs.get(paths.get(i - 1)));
+      }
+      throw e;
+    }
+    List<String> newpaths=new ArrayList<String>();
+    for (    String childName : paths) {
+      newpaths.add(childName.replaceAll(oldDn,newDn));
+    }
+    for (int i=newpaths.size(); i > 0; i--) {
+      getInitialContext().createSubcontext(newpaths.get(i - 1),childs.get(paths.get(i - 1)));
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"LDAPConnection.Error.Renaming",oldDn,newDn),e);
+  }
+ finally {
+    try {
+      if (!deleteRDN) {
+        getInitialContext().addToEnvironment("java.naming.ldap.deleteRDN","true");
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+}
