@@ -1,63 +1,17 @@
 {
-  while (!data.results.hasMoreElements()) {
-    if (data.pagingSet) {
-      try {
-        Control[] rc=data.ctx.getResponseControls();
-        if (rc != null) {
-          for (int i=0; i < rc.length; i++) {
-            if (rc[i] instanceof PagedResultsResponseControl) {
-              PagedResultsResponseControl prc=(PagedResultsResponseControl)rc[i];
-              data.cookie=prc.getCookie();
-            }
-          }
-        }
-        data.ctx.setRequestControls(new javax.naming.ldap.Control[]{new PagedResultsControl(data.pageSize,data.cookie,Control.CRITICAL)});
-        if ((data.cookie != null) && (data.cookie.length != 0)) {
-          data.results=data.ctx.search(data.searchbase,data.filter,data.controls);
-        }
- else {
-          return null;
-        }
-      }
- catch (      Exception e) {
-        throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Exception.ErrorPaging"),e);
-      }
-      while (!data.results.hasMoreElements()) {
+  if (data.dynamic) {
+    while (data.readRow == null || (data.attributes=data.connection.getAttributes()) == null) {
+      if (!dynamicSearch()) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"LDAPInput.Log.FinishedProcessing"));
         return null;
       }
     }
+  }
  else {
-      return null;
-    }
+    data.attributes=data.connection.getAttributes();
   }
-  Object[] outputRowData=buildEmptyRow();
-  try {
-    SearchResult searchResult=(SearchResult)data.results.next();
-    Attributes attributes=searchResult.getAttributes();
-    if (attributes != null) {
-      for (int i=0; i < meta.getInputFields().length; i++) {
-        LDAPInputField field=meta.getInputFields()[i];
-        Attribute attr=attributes.get(field.getRealAttribute());
-        if (attr != null) {
-          outputRowData[i]=getAttributeValue(field,attr,i,outputRowData[i]);
-        }
-        if (field.isRepeated()) {
-          if (data.previousRow != null && outputRowData[i] == null) {
-            outputRowData[i]=data.previousRow[i];
-          }
-        }
-      }
-      if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
-        outputRowData[data.nrfields]=new Long(data.rownr);
-      }
-      RowMetaInterface irow=getInputRowMeta();
-      data.previousRow=irow == null ? outputRowData : (Object[])irow.cloneRow(outputRowData);
-      data.rownr++;
-      incrementLinesInput();
-    }
+  if (data.attributes == null) {
+    return null;
   }
- catch (  Exception e) {
-    throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Exception.CanNotReadLDAP"),e);
-  }
-  return outputRowData;
+  return buildRow();
 }

@@ -1,0 +1,50 @@
+{
+  data.readRow=getRow();
+  if (data.readRow == null) {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"LDAPInput.Log.FinishedProcessing"));
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    if (meta.isDynamicSearch()) {
+      if (Const.isEmpty(meta.getDynamicSearchFieldName())) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Error.DynamicSearchFieldMissing"));
+      }
+    }
+    if (meta.isDynamicFilter()) {
+      if (Const.isEmpty(meta.getDynamicSearchFieldName())) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Error.DynamicFilterFieldMissing"));
+      }
+    }
+    data.nrIncomingFields=getInputRowMeta().size();
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (int i=0; i < data.convertRowMeta.size(); i++) {
+      data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+    }
+    if (meta.isDynamicSearch()) {
+      data.indexOfSearchBaseField=getInputRowMeta().indexOfValue(meta.getDynamicSearchFieldName());
+      if (data.indexOfSearchBaseField < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Exception.CouldnotFindField",meta.getDynamicSearchFieldName()));
+      }
+    }
+    if (meta.isDynamicFilter()) {
+      data.indexOfFilterField=getInputRowMeta().indexOfValue(meta.getDynamicFilterFieldName());
+      if (data.indexOfFilterField < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Exception.CouldnotFindField",meta.getDynamicFilterFieldName()));
+      }
+    }
+  }
+  String searchBase=data.staticSearchBase;
+  if (data.indexOfSearchBaseField > 0) {
+    searchBase=getInputRowMeta().getString(data.readRow,data.indexOfSearchBaseField);
+  }
+  String filter=data.staticFilter;
+  if (data.indexOfFilterField > 0) {
+    filter=getInputRowMeta().getString(data.readRow,data.indexOfFilterField);
+  }
+  search(searchBase,filter);
+  return true;
+}

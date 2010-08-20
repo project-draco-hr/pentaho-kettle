@@ -1,30 +1,34 @@
 {
+  LDAPConnection connection=null;
   try {
     LDAPInputMeta meta=new LDAPInputMeta();
     getInfo(meta);
-    DirContext ctx=connectServerLdap(transMeta.environmentSubstitute(meta.getHost()),transMeta.environmentSubstitute(meta.getUserName()),Encr.decryptPasswordOptionallyEncrypted(transMeta.environmentSubstitute(meta.getPassword())),transMeta.environmentSubstitute(meta.getPort()));
-    if (Const.isEmpty(wSearchBase.getText())) {
-      Attributes attrs=ctx.getAttributes("",new String[]{"namingContexts"});
-      Attribute attr=attrs.get("namingContexts");
-      wSearchBase.setText(attr.get().toString());
-    }
-    if (ctx != null) {
-      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
-      mb.setMessage(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.OK") + Const.CR);
-      mb.setText(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.Title.Ok"));
-      mb.open();
+    connection=new LDAPConnection(log,transMeta.environmentSubstitute(meta.getHost()),Const.toInt(transMeta.environmentSubstitute(meta.getPort()),LDAPConnection.DEFAULT_PORT));
+    if (wusingAuthentication.getSelection()) {
+      connection.connect(transMeta.environmentSubstitute(meta.getUserName()),Encr.decryptPasswordOptionallyEncrypted(transMeta.environmentSubstitute(meta.getPassword())));
     }
  else {
-      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-      mb.setMessage(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.NOK.DirecttoryContextNull"));
-      mb.setText(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.Title.Error"));
-      mb.open();
+      connection.connect();
     }
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+    mb.setMessage(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.OK") + Const.CR);
+    mb.setText(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.Title.Ok"));
+    mb.open();
   }
  catch (  Exception e) {
     MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
     mb.setMessage(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.NOK",e.getMessage()));
     mb.setText(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.Title.Error"));
     mb.open();
+  }
+ finally {
+    if (connection != null) {
+      try {
+        connection.close();
+      }
+ catch (      Exception e) {
+      }
+      ;
+    }
   }
 }

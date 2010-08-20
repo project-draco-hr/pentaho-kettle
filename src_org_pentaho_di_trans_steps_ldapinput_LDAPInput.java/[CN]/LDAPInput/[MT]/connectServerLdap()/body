@@ -1,66 +1,31 @@
 {
-  try {
-    String port=environmentSubstitute(meta.getPort());
-    int portint=Const.toInt(port,389);
-    String hostname=environmentSubstitute(meta.getHost());
+  data.connection=new LDAPConnection(log,environmentSubstitute(meta.getHost()),Const.toInt(environmentSubstitute(meta.getPort()),LDAPConnection.DEFAULT_PORT));
+  data.attrReturned=new String[meta.getInputFields().length];
+  data.attributesBinary=new HashSet<String>();
+  for (int i=0; i < meta.getInputFields().length; i++) {
+    LDAPInputField field=meta.getInputFields()[i];
+    String name=environmentSubstitute(field.getAttribute());
+    field.setRealAttribute(name);
+    if (field.getReturnType() == LDAPInputField.FETCH_ATTRIBUTE_AS_BINARY) {
+      if (!data.attributesBinary.contains(name)) {
+        data.connection.addBinaryAttribute(name);
+        data.attributesBinary.add(name);
+      }
+    }
+    data.attrReturned[i]=name;
+  }
+  if (meta.UseAuthentication()) {
     String username=environmentSubstitute(meta.getUserName());
     String password=Encr.decryptPasswordOptionallyEncrypted(environmentSubstitute(meta.getPassword()));
-    data.filter=LDAPInputMeta.correctFilter(environmentSubstitute(meta.getFilterString()));
-    data.searchbase=environmentSubstitute(meta.getSearchBase());
-    Hashtable<String,String> env=new Hashtable<String,String>();
-    env.put(Context.INITIAL_CONTEXT_FACTORY,"com.sun.jndi.ldap.LdapCtxFactory");
-    if (hostname.indexOf("ldap://") >= 0)     env.put(Context.PROVIDER_URL,hostname + ":" + portint);
- else     env.put(Context.PROVIDER_URL,"ldap://" + hostname + ":"+ portint);
-    env.put(Context.SECURITY_AUTHENTICATION,"simple");
-    String[] attrReturned=new String[meta.getInputFields().length];
-    data.attributesBinary=new HashSet<String>();
-    for (int i=0; i < meta.getInputFields().length; i++) {
-      LDAPInputField field=meta.getInputFields()[i];
-      String name=environmentSubstitute(field.getAttribute());
-      field.setRealAttribute(name);
-      if (field.getReturnType() == LDAPInputField.FETCH_ATTRIBUTE_AS_BINARY) {
-        if (!data.attributesBinary.contains(name)) {
-          env.put("java.naming.ldap.attributes.binary",name);
-          data.attributesBinary.add(name);
-        }
-      }
-      attrReturned[i]=name;
-    }
-    if (meta.UseAuthentication()) {
-      env.put(Context.SECURITY_PRINCIPAL,username);
-      env.put(Context.SECURITY_CREDENTIALS,password);
-    }
-    env.put(Context.REFERRAL,"follow");
-    data.ctx=new InitialLdapContext(env,null);
-    if (data.ctx == null) {
-      logError(BaseMessages.getString(PKG,"LDAPInput.Error.UnableToConnectToServer"));
-      throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Error.UnableToConnectToServer"));
-    }
-    if (log.isBasic())     logBasic(BaseMessages.getString(PKG,"LDAPInput.Log.ConnectedToServer",hostname,username));
-    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"LDAPInput.ClassUsed.Message",data.ctx.getClass().getName()));
-    data.controls=new SearchControls();
-    data.controls.setCountLimit(meta.getRowLimit());
-    if (meta.getTimeLimit() > 0)     data.controls.setTimeLimit(meta.getTimeLimit() * 1000);
-    data.controls.setReturningAttributes(attrReturned);
-    if (Const.isEmpty(data.searchbase)) {
-      Attributes attrs=data.ctx.getAttributes("",new String[]{"namingContexts"});
-      Attribute attr=attrs.get("namingContexts");
-      data.searchbase=attr.get().toString();
-      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"LDAPInput.SearchBaseFound",data.searchbase));
-    }
-    data.controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-    if (meta.isPaging()) {
-      data.pageSize=Const.toInt(environmentSubstitute(meta.getPageSize()),-1);
-      if (data.pageSize > -1) {
-        data.pagingSet=true;
-        Control[] ctls=new Control[]{new PagedResultsControl(data.pageSize,true)};
-        data.ctx.setRequestControls(ctls);
-        if (log.isDebug())         logDebug(BaseMessages.getString(PKG,"LDAPInput.Log.PageSize",data.pageSize));
-      }
-    }
-    data.results=data.ctx.search(data.searchbase,data.filter,data.controls);
+    data.connection.connect(username,password);
   }
- catch (  Exception e) {
-    throw new KettleException(BaseMessages.getString(PKG,"LDAPinput.Exception.ErrorConnecting",e.getMessage()));
+ else {
+    data.connection.connect();
+  }
+  if (meta.getTimeLimit() > 0) {
+    data.connection.setTimeLimit(meta.getTimeLimit() * 1000);
+  }
+  if (meta.isPaging()) {
+    data.connection.SetPagingSize(Const.toInt(environmentSubstitute(meta.getPageSize()),-1));
   }
 }

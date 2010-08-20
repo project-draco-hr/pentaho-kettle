@@ -1,49 +1,31 @@
 {
+  LDAPConnection connection=null;
   try {
     LDAPInputMeta meta=new LDAPInputMeta();
     getInfo(meta);
     wFields.removeAll();
-    String port=transMeta.environmentSubstitute(meta.getPort());
-    String hostname=transMeta.environmentSubstitute(meta.getHost());
-    String username=transMeta.environmentSubstitute(meta.getUserName());
-    String password=Encr.decryptPasswordOptionallyEncrypted(transMeta.environmentSubstitute(meta.getPassword()));
-    String filter=LDAPInputMeta.correctFilter(transMeta.environmentSubstitute(meta.getFilterString()));
-    String searchbase=transMeta.environmentSubstitute(meta.getSearchBase());
-    NamingEnumeration<SearchResult> results=null;
-    DirContext ctx=connectServerLdap(hostname,username,password,port);
-    if (log.isBasic())     log.logBasic("Connection","Connected to server [{0}]",hostname);
-    SearchControls controls=new SearchControls();
-    controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-    results=ctx.search(searchbase,filter,controls);
-    SearchResult searchAttr=results.next();
-    Attributes listattributes=searchAttr.getAttributes();
-    NamingEnumeration<? extends Attribute> ne=listattributes.getAll();
-    Attribute attr=null;
-    while (ne.hasMore()) {
-      attr=ne.next();
-      String fieldName=attr.getID();
+    connection=new LDAPConnection(log,transMeta.environmentSubstitute(meta.getHost()),Const.toInt(transMeta.environmentSubstitute(meta.getPort()),LDAPConnection.DEFAULT_PORT));
+    if (meta.UseAuthentication()) {
+      String username=transMeta.environmentSubstitute(meta.getUserName());
+      String password=Encr.decryptPasswordOptionallyEncrypted(transMeta.environmentSubstitute(meta.getPassword()));
+      connection.connect(username,password);
+    }
+ else {
+      connection.connect();
+    }
+    RowMeta listattributes=connection.getFields(transMeta.environmentSubstitute(meta.getSearchBase()),transMeta.environmentSubstitute(meta.getFilterString()));
+    for (int i=0; i < listattributes.size(); i++) {
+      ValueMetaInterface v=listattributes.getValueMeta(i);
       TableItem item=new TableItem(wFields.table,SWT.NONE);
-      item.setText(1,fieldName);
-      item.setText(2,fieldName);
-      if (LDAPInputField.binaryAttributes.contains(fieldName)) {
+      item.setText(1,v.getName());
+      item.setText(2,v.getName());
+      if (LDAPInputField.binaryAttributes.contains(v.getName())) {
         item.setText(3,BaseMessages.getString(PKG,"LDAPInputField.FetchAttributeAs.Binary"));
       }
  else {
         item.setText(3,BaseMessages.getString(PKG,"LDAPInputField.FetchAttributeAs.String"));
       }
-      String attributeValue=attr.getID();
-      if (IsDate(attributeValue)) {
-        item.setText(4,"Date");
-      }
- else       if (IsInteger(attributeValue)) {
-        item.setText(4,"Integer");
-      }
- else       if (IsNumber(attributeValue)) {
-        item.setText(4,"Number");
-      }
- else {
-        item.setText(4,"String");
-      }
+      item.setText(4,v.getTypeDesc());
     }
     wFields.removeEmptyRows();
     wFields.setRowNums();
@@ -54,5 +36,15 @@
   }
 catch (  Exception e) {
     new ErrorDialog(shell,BaseMessages.getString(PKG,"LDAPInputDialog.ErrorGettingColums.DialogTitle"),BaseMessages.getString(PKG,"LDAPInputDialog.ErrorGettingColums.DialogMessage"),e);
+  }
+ finally {
+    if (connection != null) {
+      try {
+        connection.close();
+      }
+ catch (      Exception e) {
+      }
+      ;
+    }
   }
 }
