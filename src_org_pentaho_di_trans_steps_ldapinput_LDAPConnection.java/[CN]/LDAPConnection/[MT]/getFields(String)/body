@@ -1,31 +1,41 @@
 {
+  RowMeta fields=new RowMeta();
+  List<String> fieldsl=new ArrayList<String>();
   try {
     search(searchBase,null,0,null);
-    Attributes attributes=getAttributes();
-    NamingEnumeration<? extends Attribute> ne=attributes.getAll();
-    RowMeta fields=new RowMeta();
-    Attribute attr=null;
-    while (ne.hasMore()) {
-      attr=ne.next();
-      ValueMetaInterface value=new ValueMeta(attr.getID());
-      String attributeValue=attr.getID();
-      if (IsDate(attributeValue)) {
-        value.setType(ValueMeta.TYPE_DATE);
-      }
- else       if (IsInteger(attributeValue)) {
-        value.setType(ValueMeta.TYPE_INTEGER);
-      }
- else       if (IsNumber(attributeValue)) {
-        value.setType(ValueMeta.TYPE_NUMBER);
-      }
+    Attributes attributes=null;
+    fieldsl=new ArrayList<String>();
+    while ((attributes=getAttributes()) != null) {
+      NamingEnumeration<? extends Attribute> ne=attributes.getAll();
+      while (ne.hasMore()) {
+        Attribute attr=ne.next();
+        String fieldName=attr.getID();
+        if (!fieldsl.contains(fieldName)) {
+          fieldsl.add(fieldName);
+          ValueMetaInterface value=new ValueMeta(fieldName);
+          String attributeValue=attr.get().toString();
+          if (IsDate(attributeValue)) {
+            value.setType(ValueMeta.TYPE_DATE);
+          }
+ else           if (IsInteger(attributeValue)) {
+            value.setType(ValueMeta.TYPE_INTEGER);
+          }
+ else           if (IsNumber(attributeValue)) {
+            value.setType(ValueMeta.TYPE_NUMBER);
+          }
  else {
-        value.setType(ValueMeta.TYPE_STRING);
+            value.setType(ValueMeta.TYPE_STRING);
+          }
+          fields.addValueMeta(value);
+        }
       }
-      fields.addValueMeta(value);
     }
     return fields;
   }
  catch (  Exception e) {
     throw new KettleException(BaseMessages.getString(PKG,"LDAPConnection.Error.RetrievingFields"));
+  }
+ finally {
+    fieldsl=null;
   }
 }
