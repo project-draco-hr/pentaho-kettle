@@ -13,10 +13,30 @@
     if (getTimeLimit() > 0)     this.controls.setTimeLimit(getTimeLimit() * 1000);
     if (attributeReturned != null)     this.controls.setReturningAttributes(attributeReturned);
     this.controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+    Control ctlp=null;
+    Control ctlk=null;
+    int nrCtl=0;
+    if (isSortingAttributes()) {
+      setSortingAttributesKeys((String[])getSortingAttributes().toArray(new String[getSortingAttributes().size()]));
+      ctlk=new SortControl(getSortingAttributesKeys(),Control.NONCRITICAL);
+      nrCtl++;
+      if (log.isDebug())       log.logDebug(BaseMessages.getString("LDAPInput.Log.SortingKeys",getSortingAttributesKeys().toString()));
+    }
     if (isPagingUsed()) {
-      Control[] ctls=new Control[]{new PagedResultsControl(GetPagingSize(),true)};
-      getInitialContext().setRequestControls(ctls);
+      ctlp=new PagedResultsControl(GetPagingSize(),Control.CRITICAL);
+      nrCtl++;
       if (log.isDebug())       log.logDebug(BaseMessages.getString("LDAPInput.Log.PageSize",String.valueOf(GetPagingSize())));
+    }
+    if (nrCtl > 0) {
+      Control[] ctls=new Control[nrCtl];
+      int index=0;
+      if (ctlk != null) {
+        ctls[index++]=ctlk;
+      }
+      if (ctlp != null) {
+        ctls[index++]=ctlp;
+      }
+      getInitialContext().setRequestControls(ctls);
     }
     this.results=getInitialContext().search(getSearchBase(),getFilter(),getSearchControls());
   }
