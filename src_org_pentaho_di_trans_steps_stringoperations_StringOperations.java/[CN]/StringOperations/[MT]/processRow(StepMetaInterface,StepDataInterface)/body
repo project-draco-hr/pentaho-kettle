@@ -1,0 +1,90 @@
+{
+  meta=(StringOperationsMeta)smi;
+  data=(StringOperationsData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    data.inputFieldsNr=data.outputRowMeta.size();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.nrFieldsInStream=meta.getFieldInStream().length;
+    data.inStreamNrs=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.inStreamNrs[i]=getInputRowMeta().indexOfValue(meta.getFieldInStream()[i]);
+      if (data.inStreamNrs[i] < 0) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"StringOperations.Exception.FieldRequired",meta.getFieldInStream()[i]));
+      }
+      if (!getInputRowMeta().getValueMeta(data.inStreamNrs[i]).isString())       throw new KettleStepException(BaseMessages.getString(PKG,"StringOperations.Exception.FieldTypeNotString",meta.getFieldInStream()[i]));
+    }
+    data.outStreamNrs=new String[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.outStreamNrs[i]=meta.getFieldOutStream()[i];
+    }
+    data.trimOperators=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.trimOperators[i]=meta.getTrimType()[i];
+    }
+    data.lowerUpperOperators=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.lowerUpperOperators[i]=meta.getLowerUpper()[i];
+    }
+    data.padType=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.padType[i]=meta.getPaddingType()[i];
+    }
+    data.padChar=new String[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.padChar[i]=environmentSubstitute(meta.getPadChar()[i]);
+    }
+    data.padLen=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.padLen[i]=Const.toInt(environmentSubstitute(meta.getPadLen()[i]),0);
+    }
+    data.initCap=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.initCap[i]=meta.getInitCap()[i];
+    }
+    data.maskHTML=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.maskHTML[i]=meta.getMaskXML()[i];
+    }
+    data.digits=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.digits[i]=meta.getDigits()[i];
+    }
+    data.removeSpecialCharacters=new int[data.nrFieldsInStream];
+    for (int i=0; i < meta.getFieldInStream().length; i++) {
+      data.removeSpecialCharacters[i]=meta.getRemoveSpecialCharacters()[i];
+    }
+  }
+  try {
+    Object[] output=processRow(getInputRowMeta(),r);
+    putRow(data.outputRowMeta,output);
+    if (checkFeedback(getLinesRead())) {
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"StringOperations.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"StringOperations.Log.ErrorInStep",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"StringOperations001");
+    }
+  }
+  return true;
+}
