@@ -1,0 +1,39 @@
+{
+  Object[] outputRowData=null;
+  try {
+    outputRowData=data.yaml.getRow(data.rowMeta);
+    if (outputRowData == null)     return null;
+    if (data.readrow != null) {
+      outputRowData=RowDataUtil.addRowData(data.readrow,data.totalPreviousFields,outputRowData);
+    }
+ else {
+      outputRowData=RowDataUtil.resizeArray(outputRowData,data.totalOutStreamFields);
+    }
+    int rowIndex=data.totalOutFields;
+    if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
+      outputRowData[rowIndex++]=KettleVFS.getFilename(data.file);
+    }
+    if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+      outputRowData[rowIndex++]=new Long(data.rownr);
+    }
+  }
+ catch (  Exception e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"YamlInput.ErrorInStepRunning",e.toString()));
+      setErrors(1);
+      stopAll();
+      logError(Const.getStackTracker(e));
+      setOutputDone();
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),outputRowData,1,errorMessage,null,"YamlInput001");
+    }
+  }
+  return outputRowData;
+}

@@ -1,0 +1,45 @@
+{
+  try {
+    data.readrow=getRow();
+    if (data.readrow == null) {
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"YamlInput.Log.FinishedProcessing"));
+      return false;
+    }
+    if (first) {
+      first=false;
+      data.outputRowMeta=getInputRowMeta().clone();
+      data.totalPreviousFields=data.outputRowMeta.size();
+      data.totalOutFields=data.totalPreviousFields + data.nrInputFields;
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+      if (Const.isEmpty(meta.getYamlField())) {
+        logError(BaseMessages.getString(PKG,"YamlInput.Log.NoField"));
+        throw new KettleException(BaseMessages.getString(PKG,"YamlInput.Log.NoField"));
+      }
+      data.indexOfYamlField=getInputRowMeta().indexOfValue(meta.getYamlField());
+      if (data.indexOfYamlField < 0) {
+        logError(BaseMessages.getString(PKG,"YamlInput.Log.ErrorFindingField",meta.getYamlField()));
+        throw new KettleException(BaseMessages.getString(PKG,"YamlInput.Exception.CouldnotFindField",meta.getYamlField()));
+      }
+    }
+    String Fieldvalue=getInputRowMeta().getString(data.readrow,data.indexOfYamlField);
+    getLinesInput();
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"YamlInput.Log.YAMLStream",meta.getYamlField(),Fieldvalue));
+    if (meta.getIsAFile()) {
+      data.yaml=new YamlReader();
+      data.yaml.loadFile(KettleVFS.getFileObject(Fieldvalue,getTransMeta()));
+      addFileToResultFilesname(data.yaml.getFile());
+    }
+ else {
+      data.yaml=new YamlReader();
+      data.yaml.loadString(Fieldvalue);
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"YamlInput.Log.UnexpectedError",e.toString()));
+    stopAll();
+    logError(Const.getStackTracker(e));
+    setErrors(1);
+    return false;
+  }
+  return true;
+}
