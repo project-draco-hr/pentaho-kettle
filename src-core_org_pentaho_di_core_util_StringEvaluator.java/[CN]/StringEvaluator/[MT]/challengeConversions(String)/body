@@ -20,7 +20,7 @@
           int nrDots=0;
           int nrCommas=0;
           for (          char c : value.toCharArray()) {
-            if (!Character.isDigit(c) && c != '.' && c != ',' && !Character.isSpaceChar(c)) {
+            if (!Character.isDigit(c) && c != '.' && c != ',' && !Character.isSpaceChar(c) && (!String.valueOf(c).equals(cmm.getConversionMeta().getCurrencySymbol()) && c != '(' && c != ')')) {
               evaluationResults.remove(cmm);
               stop=true;
               break;
@@ -45,51 +45,20 @@
         meta.setConversionMetadata(cmm.getConversionMeta());
         meta.setTrimType(cmm.getConversionMeta().getTrimType());
         Object object=meta.convertDataUsingConversionMetaData(value);
-        if (cmm.getConversionMeta().isNumeric() || cmm.getConversionMeta().isDate()) {
-          if (!cmm.getConversionMeta().isNull(object)) {
-            String compare=cmm.getConversionMeta().getString(object);
-switch (cmm.getConversionMeta().getTrimType()) {
-case ValueMetaInterface.TRIM_TYPE_NONE:
-              if (!compare.equalsIgnoreCase(value)) {
-                evaluationResults.remove(cmm);
-                continue;
-              }
-            break;
-case ValueMetaInterface.TRIM_TYPE_LEFT:
-          if (!compare.equalsIgnoreCase(Const.ltrim(value))) {
-            evaluationResults.remove(cmm);
-            continue;
-          }
-        break;
-case ValueMetaInterface.TRIM_TYPE_RIGHT:
-      if (!compare.equalsIgnoreCase(Const.rtrim(value))) {
-        evaluationResults.remove(cmm);
-        continue;
+        if (cmm.getConversionMeta().isNull(object)) {
+          cmm.incrementNrNull();
+        }
+        if (cmm.getMin() == null || cmm.getConversionMeta().compare(cmm.getMin(),object) > 0) {
+          cmm.setMin(object);
+        }
+        if (cmm.getMax() == null || cmm.getConversionMeta().compare(cmm.getMax(),object) < 0) {
+          cmm.setMax(object);
+        }
       }
-    break;
-case ValueMetaInterface.TRIM_TYPE_BOTH:
-  if (!compare.equalsIgnoreCase(Const.trim(value))) {
-    evaluationResults.remove(cmm);
-    continue;
+ catch (      KettleValueException e) {
+        evaluationResults.remove(cmm);
+      }
+    }
   }
-break;
-}
-}
-}
-if (cmm.getConversionMeta().isNull(object)) {
-cmm.incrementNrNull();
-}
-if (cmm.getMin() == null || cmm.getConversionMeta().compare(cmm.getMin(),object) > 0) {
-cmm.setMin(object);
-}
-if (cmm.getMax() == null || cmm.getConversionMeta().compare(cmm.getMax(),object) < 0) {
-cmm.setMax(object);
-}
-}
- catch (KettleValueException e) {
-evaluationResults.remove(cmm);
-}
-}
-}
-System.out.println("Evaluated '" + value + "' and now there are "+ evaluationResults.size()+ " evaluation results left");
+  System.out.println("Evaluated '" + value + "' and now there are "+ evaluationResults.size()+ " evaluation results left");
 }

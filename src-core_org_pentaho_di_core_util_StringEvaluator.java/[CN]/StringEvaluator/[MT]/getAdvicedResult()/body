@@ -24,7 +24,10 @@
     if (containsInteger() && containsNumber()) {
       for (Iterator<StringEvaluationResult> iterator=evaluationResults.iterator(); iterator.hasNext(); ) {
         StringEvaluationResult result=iterator.next();
-        if (result.getConversionMeta().isNumber()) {
+        if (maxPrecision == 0 && result.getConversionMeta().isNumber()) {
+          iterator.remove();
+        }
+ else         if (maxPrecision > 0 && result.getConversionMeta().isInteger()) {
           iterator.remove();
         }
       }
@@ -37,19 +40,33 @@
         }
       }
     }
-    int minIndex=0;
-    int minLength=Integer.MAX_VALUE;
-    for (int i=0; i < evaluationResults.size(); i++) {
-      StringEvaluationResult result=evaluationResults.get(i);
-      ValueMetaInterface conversionMeta=result.getConversionMeta();
-      if (!Const.isEmpty(conversionMeta.getConversionMask()) && !conversionMeta.isBoolean()) {
-        int maskLength=conversionMeta.getConversionMask().length();
-        if (minLength > maskLength) {
-          minLength=maskLength;
-          minIndex=i;
+    Comparator<StringEvaluationResult> compare=null;
+    if (containsDate()) {
+      compare=new Comparator<StringEvaluationResult>(){
+        @Override public int compare(        StringEvaluationResult r1,        StringEvaluationResult r2){
+          Integer length1=r1.getConversionMeta().getConversionMask() == null ? 0 : r1.getConversionMeta().getConversionMask().length();
+          Integer length2=r2.getConversionMeta().getConversionMask() == null ? 0 : r2.getConversionMeta().getConversionMask().length();
+          return length2.compareTo(length1);
         }
       }
+;
     }
-    return evaluationResults.get(minIndex);
+ else {
+      compare=new Comparator<StringEvaluationResult>(){
+        @Override public int compare(        StringEvaluationResult r1,        StringEvaluationResult r2){
+          Integer length1=r1.getConversionMeta().getConversionMask() == null ? 0 : r1.getConversionMeta().getConversionMask().length();
+          Integer length2=r2.getConversionMeta().getConversionMask() == null ? 0 : r2.getConversionMeta().getConversionMask().length();
+          return length1.compareTo(length2);
+        }
+      }
+;
+    }
+    Collections.sort(evaluationResults,compare);
+    StringEvaluationResult result=evaluationResults.get(0);
+    ValueMetaInterface conversionMeta=result.getConversionMeta();
+    if (conversionMeta.isNumber() && conversionMeta.getCurrencySymbol() == null) {
+      conversionMeta.setPrecision(maxPrecision);
+    }
+    return result;
   }
 }

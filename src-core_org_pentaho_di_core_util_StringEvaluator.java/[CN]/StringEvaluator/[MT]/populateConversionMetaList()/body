@@ -7,33 +7,47 @@
     trimTypes=new int[]{ValueMetaInterface.TRIM_TYPE_NONE};
   }
   for (  int trimType : trimTypes) {
-    for (    String format : Const.getDateFormats()) {
+    for (    String format : getDateFormats()) {
       ValueMetaInterface conversionMeta=new ValueMeta("date",ValueMetaInterface.TYPE_DATE);
       conversionMeta.setConversionMask(format);
       conversionMeta.setTrimType(trimType);
       conversionMeta.setDateFormatLenient(false);
       evaluationResults.add(new StringEvaluationResult(conversionMeta));
     }
-    final String[] numberFormats=new String[]{"#,###,###.#","#.#"," #.#","#","#.0","#.00","#.000","#.0000","#.00000","#.000000"," #.0#"};
-    for (    String format : numberFormats) {
+    for (    String format : getNumberFormats()) {
+      if (format.equals("#") || format.equals("0")) {
+        continue;
+      }
       ValueMetaInterface conversionMeta=new ValueMeta("number-us",ValueMetaInterface.TYPE_NUMBER);
+      int precision=determinePrecision(format);
       conversionMeta.setConversionMask(format);
       conversionMeta.setTrimType(trimType);
       conversionMeta.setDecimalSymbol(".");
       conversionMeta.setGroupingSymbol(",");
-      conversionMeta.setLength(-1);
-      conversionMeta.setPrecision(-1);
+      conversionMeta.setLength(15);
+      conversionMeta.setPrecision(precision);
       evaluationResults.add(new StringEvaluationResult(conversionMeta));
       conversionMeta=new ValueMeta("number-eu",ValueMetaInterface.TYPE_NUMBER);
       conversionMeta.setConversionMask(format);
       conversionMeta.setTrimType(trimType);
       conversionMeta.setDecimalSymbol(",");
       conversionMeta.setGroupingSymbol(".");
-      conversionMeta.setLength(-1);
-      conversionMeta.setPrecision(-1);
+      conversionMeta.setLength(15);
+      conversionMeta.setPrecision(precision);
       evaluationResults.add(new StringEvaluationResult(conversionMeta));
     }
-    ValueMetaInterface conversionMeta=new ValueMeta("integer",ValueMetaInterface.TYPE_INTEGER);
+    DecimalFormat currencyFormat=((DecimalFormat)NumberFormat.getCurrencyInstance());
+    ValueMetaInterface conversionMeta=new ValueMeta("number-currency",ValueMetaInterface.TYPE_NUMBER);
+    String currencyMask=currencyFormat.toLocalizedPattern().replace("\u00A4",currencyFormat.getCurrency().getSymbol());
+    conversionMeta.setConversionMask(currencyMask);
+    conversionMeta.setTrimType(trimType);
+    conversionMeta.setDecimalSymbol(String.valueOf(currencyFormat.getDecimalFormatSymbols().getDecimalSeparator()));
+    conversionMeta.setGroupingSymbol(String.valueOf(currencyFormat.getDecimalFormatSymbols().getGroupingSeparator()));
+    conversionMeta.setCurrencySymbol(currencyFormat.getCurrency().getSymbol());
+    conversionMeta.setLength(15);
+    conversionMeta.setPrecision(currencyFormat.getCurrency().getDefaultFractionDigits());
+    evaluationResults.add(new StringEvaluationResult(conversionMeta));
+    conversionMeta=new ValueMeta("integer",ValueMetaInterface.TYPE_INTEGER);
     conversionMeta.setConversionMask("#");
     conversionMeta.setLength(15);
     evaluationResults.add(new StringEvaluationResult(conversionMeta));
