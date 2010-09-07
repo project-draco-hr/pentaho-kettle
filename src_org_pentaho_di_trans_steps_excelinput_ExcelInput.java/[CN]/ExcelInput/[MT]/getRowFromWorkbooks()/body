@@ -34,11 +34,7 @@
         addResultFile(resultFile);
       }
       if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"ExcelInput.Log.OpeningFile","" + data.filenr + " : "+ data.filename));
-      WorkbookSettings ws=new WorkbookSettings();
-      if (!Const.isEmpty(meta.getEncoding())) {
-        ws.setEncoding(meta.getEncoding());
-      }
-      data.workbook=Workbook.getWorkbook(KettleVFS.getInputStream(data.file),ws);
+      data.workbook=WorkbookFactory.getWorkbook(meta.getSpreadSheetType(),data.filename,meta.getEncoding());
       data.errorHandler.handleFile(data.file);
       data.sheetnr=0;
       if (meta.readAllSheets()) {
@@ -54,7 +50,7 @@
     boolean nextsheet=false;
     if (log.isDebug())     logDetailed(BaseMessages.getString(PKG,"ExcelInput.Log.GetSheet","" + data.filenr + "."+ data.sheetnr));
     String sheetName=data.sheetNames[data.sheetnr];
-    Sheet sheet=data.workbook.getSheet(sheetName);
+    KSheet sheet=data.workbook.getSheet(sheetName);
     if (sheet != null) {
       if (data.rownr < 0) {
         data.rownr=data.startRow[data.sheetnr];
@@ -64,7 +60,7 @@
       }
       data.colnr=data.startColumn[data.sheetnr];
       try {
-        Cell line[]=sheet.getRow(data.rownr);
+        KCell line[]=sheet.getRow(data.rownr);
         int lineNr=++data.rownr;
         if (!data.filePlayList.isProcessingNeeded(data.file,lineNr,sheetName)) {
           retval=null;
@@ -107,7 +103,7 @@
     }
   }
  catch (  Exception e) {
-    logError(BaseMessages.getString(PKG,"ExcelInput.Error.ProcessRowFromExcel",data.filename + "",e.toString()));
+    logError(BaseMessages.getString(PKG,"ExcelInput.Error.ProcessRowFromExcel",data.filename + "",e.toString()),e);
     setErrors(1);
     stopAll();
     return null;
