@@ -1,6 +1,7 @@
 {
   getLogInfo();
   try {
+    boolean allOK=true;
     for (    LogTableInterface logTable : new LogTableInterface[]{transLogTable,performanceLogTable,channelLogTable,stepLogTable}) {
       if (logTable.getDatabaseMeta() != null && !Const.isEmpty(logTable.getTableName())) {
         Database db=null;
@@ -8,20 +9,30 @@
           db=new Database(transMeta,logTable.getDatabaseMeta());
           db.shareVariablesWith(transMeta);
           db.connect();
+          StringBuilder ddl=new StringBuilder();
           RowMetaInterface fields=logTable.getLogRecord(LogStatus.START,null,null).getRowMeta();
-          String schemaTable=logTable.getDatabaseMeta().getSchemaTableCombination(logTable.getSchemaName(),logTable.getTableName());
+          String tableName=logTable.getTableName();
+          String schemaTable=logTable.getDatabaseMeta().getSchemaTableCombination(logTable.getSchemaName(),tableName);
           String createTable=db.getDDL(schemaTable,fields);
           if (!Const.isEmpty(createTable)) {
-            String comments="-- " + logTable.getLogTableType() + Const.CR;
-            comments+="--" + Const.CR + Const.CR;
-            SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,logTable.getDatabaseMeta(),transMeta.getDbCache(),comments + createTable);
-            sqledit.open();
+            ddl.append("-- ").append(logTable.getLogTableType()).append(Const.CR);
+            ddl.append("--").append(Const.CR).append(Const.CR);
+            ddl.append(createTable).append(Const.CR);
           }
- else {
-            MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
-            mb.setText(BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogTitle"));
-            mb.setMessage(logTable.getLogTableType() + Const.CR + Const.CR+ BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogMessage"));
-            mb.open();
+          java.util.List<RowMetaInterface> indexes=logTable.getRecommendedIndexes();
+          for (int i=0; i < indexes.size(); i++) {
+            RowMetaInterface index=indexes.get(i);
+            if (!index.isEmpty()) {
+              String createIndex=db.getCreateIndexStatement(schemaTable,"IDX_" + tableName + "_"+ (i + 1),index.getFieldNames(),false,false,false,true);
+              if (!Const.isEmpty(createIndex)) {
+                ddl.append(createIndex);
+              }
+            }
+          }
+          if (ddl.length() > 0) {
+            allOK=false;
+            SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,logTable.getDatabaseMeta(),transMeta.getDbCache(),ddl.toString());
+            sqledit.open();
           }
         }
   finally {
@@ -30,6 +41,12 @@
           }
         }
       }
+    }
+    if (allOK) {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+      mb.setText(BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogTitle"));
+      mb.setMessage(BaseMessages.getString(PKG,"TransDialog.NoSqlNedds.DialogMessage"));
+      mb.open();
     }
   }
  catch (  Exception e) {
