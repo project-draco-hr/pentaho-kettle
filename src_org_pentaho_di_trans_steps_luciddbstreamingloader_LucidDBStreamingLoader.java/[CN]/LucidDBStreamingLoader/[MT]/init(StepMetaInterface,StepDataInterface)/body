@@ -16,6 +16,16 @@ synchronized (getTrans()) {
       }
       data.db.setAutoCommit(true);
       if (log.isDebug())       logDebug("Connected to LucidDB");
+      String qualifiedTableName="\"" + meta.getSchemaName() + "\""+ ".\""+ meta.getTableName()+ "\"";
+      if (meta.isAutoCreateTbFlag()) {
+        if (!data.db.checkTableExists(qualifiedTableName)) {
+          StringBuffer sql=new StringBuffer(300);
+          sql.append("call applib.create_table_as( ").append("'" + meta.getSchemaName() + "', ").append("'" + meta.getTableName() + "', ").append("'" + meta.getSelectStmt() + "', ").append("false)");
+          System.out.println(sql.toString());
+          PreparedStatement ps=data.db.prepareSQL(sql.toString());
+          ps.executeUpdate();
+        }
+      }
       if (log.isDebug())       logDebug("Preparing sql statements: " + Const.CR + meta.getSql_statement());
       String sql=meta.getSql_statement();
       PreparedStatement ps=data.db.prepareSQL(sql);
