@@ -2,14 +2,20 @@
   int c=0;
   line.setLength(0);
   try {
+    String encoding=reader.getEncoding();
+    final EncodingType encodingType=EncodingType.guessEncodingType(encoding);
+    int marker=reader.read();
+    if (encodingType == EncodingType.SINGLE || (marker != EncodingType.DOUBLE_BIG_ENDIAN.getBom() && marker != EncodingType.DOUBLE_LITTLE_ENDIAN.getBom())) {
+      line.append((char)marker);
+    }
 switch (formatNr) {
 case TextFileInputMeta.FILE_FORMAT_DOS:
 {
         while (c >= 0) {
           c=reader.read();
-          if (c == '\r' || c == '\n') {
+          if (encodingType.isReturn(c) || encodingType.isLinefeed(c)) {
             c=reader.read();
-            if (c != '\r' && c != '\n') {
+            if (!encodingType.isReturn(c) && !encodingType.isLinefeed(c)) {
               throw new KettleFileException(BaseMessages.getString(PKG,"TextFileInput.Log.SingleLineFound"));
             }
             return line.toString();
@@ -22,7 +28,7 @@ case TextFileInputMeta.FILE_FORMAT_UNIX:
 {
     while (c >= 0) {
       c=reader.read();
-      if (c == '\n' || c == '\r') {
+      if (encodingType.isLinefeed(c) || encodingType.isReturn(c)) {
         return line.toString();
       }
       if (c >= 0)       line.append((char)c);
@@ -33,10 +39,10 @@ case TextFileInputMeta.FILE_FORMAT_MIXED:
 {
 while (c >= 0) {
   c=reader.read();
-  if (c == '\n') {
+  if (encodingType.isLinefeed(c)) {
     return line.toString();
   }
- else   if (c != '\r') {
+ else   if (!encodingType.isReturn(c)) {
     if (c >= 0)     line.append((char)c);
   }
 }
