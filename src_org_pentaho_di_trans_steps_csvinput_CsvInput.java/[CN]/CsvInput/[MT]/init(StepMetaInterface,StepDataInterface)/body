@@ -16,23 +16,19 @@
       data.filenr=0;
     }
     data.totalBytesRead=0L;
+    data.encodingType=EncodingType.guessEncodingType(meta.getEncoding());
     try {
-      if (Const.isEmpty(meta.getEncoding())) {
-        data.delimiter=environmentSubstitute(meta.getDelimiter()).getBytes();
+      data.delimiter=data.encodingType.getBytes(environmentSubstitute(meta.getDelimiter()),meta.getEncoding());
+      if (Const.isEmpty(meta.getEnclosure())) {
+        data.enclosure=null;
       }
  else {
-        data.delimiter=environmentSubstitute(meta.getDelimiter()).getBytes(meta.getEncoding());
+        data.enclosure=data.encodingType.getBytes(environmentSubstitute(meta.getEnclosure()),meta.getEncoding());
       }
     }
  catch (    UnsupportedEncodingException e) {
       logError(BaseMessages.getString(PKG,"CsvInput.BadEncoding.Message"),e);
       return false;
-    }
-    if (Const.isEmpty(meta.getEnclosure())) {
-      data.enclosure=null;
-    }
- else {
-      data.enclosure=environmentSubstitute(meta.getEnclosure()).getBytes();
     }
     data.isAddingRowNumber=!Const.isEmpty(meta.getRowNumField());
     data.stopReading=false;
@@ -42,7 +38,35 @@
       data.fileSizes=new ArrayList<Long>();
       data.totalFileSize=0L;
     }
-    return true;
-  }
-  return false;
+    if (data.delimiter.length == 1) {
+      data.delimiterMatcher=new SingleBytePatternMatcher();
+    }
+ else {
+      data.delimiterMatcher=new MultiBytePatternMatcher();
+    }
+    if (data.enclosure == null) {
+      data.enclosureMatcher=new EmptyPatternMatcher();
+    }
+ else {
+      if (data.enclosure.length == 1) {
+        data.enclosureMatcher=new SingleBytePatternMatcher();
+      }
+ else {
+        data.enclosureMatcher=new MultiBytePatternMatcher();
+      }
+    }
+switch (data.encodingType) {
+case DOUBLE_BIG_ENDIAN:
+      data.crLfMatcher=new MultiByteBigCrLfMatcher();
+    break;
+case DOUBLE_LITTLE_ENDIAN:
+  data.crLfMatcher=new MultiByteLittleCrLfMatcher();
+break;
+default :
+data.crLfMatcher=new SingleByteCrLfMatcher();
+break;
+}
+return true;
+}
+return false;
 }

@@ -20,10 +20,10 @@
       boolean enclosureFound=false;
       int escapedEnclosureFound=0;
       while (!delimiterFound) {
-        if (data.byteBuffer[data.endBuffer] == data.delimiter[0]) {
+        if (data.delimiterMatcher.matchesPattern(data.byteBuffer,data.endBuffer,data.delimiter)) {
           delimiterFound=true;
         }
- else         if (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+ else         if (data.crLfMatcher.isReturn(data.byteBuffer,data.endBuffer) || data.crLfMatcher.isLineFeed(data.byteBuffer,data.endBuffer)) {
           data.endBuffer++;
           data.totalBytesRead++;
           newLines=1;
@@ -31,7 +31,7 @@
             data.resizeByteBufferArray();
             data.readBufferFromFile();
           }
-          if (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+          if (data.crLfMatcher.isReturn(data.byteBuffer,data.endBuffer) || data.crLfMatcher.isLineFeed(data.byteBuffer,data.endBuffer)) {
             data.endBuffer++;
             data.totalBytesRead++;
             newLines=2;
@@ -43,7 +43,7 @@
           newLineFound=true;
           delimiterFound=true;
         }
- else         if (data.enclosure != null && data.byteBuffer[data.endBuffer] == data.enclosure[0]) {
+ else         if (data.enclosure != null && data.enclosureMatcher.matchesPattern(data.byteBuffer,data.endBuffer,data.enclosure)) {
           enclosureFound=true;
           boolean keepGoing;
           do {
@@ -51,13 +51,13 @@
               enclosureFound=false;
               break;
             }
-            keepGoing=data.byteBuffer[data.endBuffer] != data.enclosure[0];
+            keepGoing=!data.enclosureMatcher.matchesPattern(data.byteBuffer,data.endBuffer,data.enclosure);
             if (!keepGoing) {
               if (data.increaseEndBuffer()) {
                 enclosureFound=false;
                 break;
               }
-              keepGoing=data.byteBuffer[data.endBuffer] == data.enclosure[0];
+              keepGoing=data.enclosureMatcher.matchesPattern(data.byteBuffer,data.endBuffer,data.enclosure);
               if (keepGoing)               escapedEnclosureFound++;
             }
           }
@@ -80,18 +80,7 @@
           }
         }
       }
-      int length=data.endBuffer - data.startBuffer;
-      if (newLineFound) {
-        length-=newLines;
-        if (length <= 0)         length=0;
-        if (endOfBuffer)         data.startBuffer++;
-      }
-      if (enclosureFound) {
-        data.startBuffer++;
-        length-=2;
-        if (length <= 0)         length=0;
-      }
-      if (length <= 0)       length=0;
+      int length=calculateFieldLength(newLineFound,newLines,enclosureFound,endOfBuffer);
       byte[] field=new byte[length];
       System.arraycopy(data.byteBuffer,data.startBuffer,field,0,length);
       if (escapedEnclosureFound > 0) {
@@ -135,9 +124,9 @@
           break;
         }
       }
- while (data.byteBuffer[data.endBuffer] != '\n' && data.byteBuffer[data.endBuffer] != '\r');
+ while (!data.crLfMatcher.isReturn(data.byteBuffer,data.endBuffer) && !data.crLfMatcher.isLineFeed(data.byteBuffer,data.endBuffer));
       if (!checkBufferSize()) {
-        while (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+        while (data.crLfMatcher.isReturn(data.byteBuffer,data.endBuffer) || data.crLfMatcher.isLineFeed(data.byteBuffer,data.endBuffer)) {
           data.endBuffer++;
           data.totalBytesRead++;
           if (checkBufferSize()) {
