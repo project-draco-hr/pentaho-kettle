@@ -1,0 +1,72 @@
+{
+  if (log4j.isDebugEnabled()) {
+    log4j.debug(BaseMessages.getString(PKG,"MVSFileParser.DEBUG.Guess.Date"));
+  }
+  String[] dateSplit=dateStr.split("/");
+  String yrFmt=null;
+  int yrPos=-1;
+  int dayPos=-1;
+  for (int i=0; i < dateSplit.length; i++) {
+    int aDigit=Integer.parseInt(dateSplit[i]);
+    if (dateSplit[i].length() == 4) {
+      yrFmt="yyyy";
+      yrPos=i;
+    }
+ else     if (aDigit > 31) {
+      yrFmt="yy";
+      yrPos=i;
+    }
+ else     if (aDigit > 12) {
+      dayPos=i;
+    }
+  }
+  if (yrFmt != null) {
+    StringBuffer fmt=new StringBuffer();
+    if (dayPos >= 0) {
+      String[] tmp=new String[3];
+      tmp[yrPos]=yrFmt;
+      tmp[dayPos]="dd";
+      for (int i=0; i < tmp.length; i++) {
+        fmt.append(i > 0 ? "/" : "");
+        fmt.append(tmp[i] == null ? "MM" : tmp[i]);
+      }
+      if (log4j.isDebugEnabled()) {
+        log4j.debug(BaseMessages.getString(PKG,"MVSFileParser.DEBUG.Guess.Date.Obvious"));
+      }
+    }
+ else {
+      StringBuffer altFmt=new StringBuffer();
+      if (yrPos == 0) {
+        fmt.append(yrFmt).append("/MM/dd");
+        altFmt.append(yrFmt).append("/dd/MM");
+      }
+ else {
+        fmt.append("MM/dd/").append(yrFmt);
+        altFmt.append("dd/MM/").append(yrFmt);
+      }
+      this.alternateFormatString=altFmt.toString();
+      if (log4j.isDebugEnabled()) {
+        log4j.debug(BaseMessages.getString(PKG,"MVSFileParser.DEBUG.Guess.Date.Ambiguous"));
+      }
+    }
+    this.dateFormatString=fmt.toString();
+    this.dateFormat=new SimpleDateFormat(dateFormatString);
+    if (log4j.isDebugEnabled()) {
+      log4j.debug(BaseMessages.getString(PKG,"MVSFileParser.DEBUG.Guess.Date.Decided",this.dateFormatString));
+    }
+    try {
+      dateFormat.parse(dateStr);
+    }
+ catch (    ParseException ex) {
+      if (log4j.isDebugEnabled()) {
+        log4j.debug(BaseMessages.getString(PKG,"MVSFileParser.DEBUG.Guess.Date.Unparsable",dateStr));
+      }
+    }
+  }
+ else {
+    if (log4j.isDebugEnabled()) {
+      log4j.debug(BaseMessages.getString(PKG,"MVSFileParser.DEBUG.Guess.Date.Year.Ambiguous"));
+    }
+    return;
+  }
+}
