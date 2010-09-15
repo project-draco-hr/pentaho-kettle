@@ -10,17 +10,25 @@
     boolean caExists=transMeta.findTransHop(selectedStep,hi.getFromStep()) != null;
     boolean bcExists=transMeta.findTransHop(hi.getToStep(),selectedStep) != null;
     if (!caExists && !bcExists) {
-      StepIOMetaInterface fromIo=hi.getFromStep().getStepMetaInterface().getStepIOMeta();
+      StepMeta fromStep=hi.getFromStep();
+      StepMeta toStep=hi.getToStep();
+      StepIOMetaInterface fromIo=fromStep.getStepMetaInterface().getStepIOMeta();
       for (      StreamInterface stream : fromIo.getTargetStreams()) {
-        if (stream.getStepMeta() != null && stream.getStepMeta().equals(hi.getToStep())) {
+        if (stream.getStepMeta() != null && stream.getStepMeta().equals(toStep)) {
           stream.setStepMeta(selectedStep);
+          fromStep.getStepMetaInterface().handleStreamSelection(stream);
         }
       }
-      StepIOMetaInterface toIo=hi.getToStep().getStepMetaInterface().getStepIOMeta();
+      StepIOMetaInterface toIo=toStep.getStepMetaInterface().getStepIOMeta();
       for (      StreamInterface stream : toIo.getInfoStreams()) {
-        if (stream.getStepMeta() != null && stream.getStepMeta().equals(hi.getFromStep())) {
+        if (stream.getStepMeta() != null && stream.getStepMeta().equals(fromStep)) {
           stream.setStepMeta(selectedStep);
+          toStep.getStepMetaInterface().handleStreamSelection(stream);
         }
+      }
+      StepErrorMeta errorMeta=fromStep.getStepErrorMeta();
+      if (fromStep.isDoingErrorHandling() && toStep.equals(errorMeta.getTargetStep())) {
+        errorMeta.setTargetStep(selectedStep);
       }
       TransHopMeta newhop1=new TransHopMeta(hi.getFromStep(),selectedStep);
       transMeta.addTransHop(newhop1);
