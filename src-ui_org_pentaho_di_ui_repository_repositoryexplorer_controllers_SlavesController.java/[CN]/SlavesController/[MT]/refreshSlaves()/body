@@ -1,15 +1,22 @@
 {
   if (repository != null) {
-    try {
-      slaveList.clear();
-      ObjectId[] slaveIdList=repository.getSlaveIDs(false);
-      for (      ObjectId slaveId : slaveIdList) {
-        SlaveServer slave=repository.loadSlaveServer(slaveId,null);
-        slaveList.add(new UISlave(slave));
+    final List<UISlave> tmpList=new ArrayList<UISlave>();
+    Runnable r=new Runnable(){
+      public void run(){
+        try {
+          ObjectId[] slaveIdList=repository.getSlaveIDs(false);
+          for (          ObjectId slaveId : slaveIdList) {
+            SlaveServer slave=repository.loadSlaveServer(slaveId,null);
+            tmpList.add(new UISlave(slave));
+          }
+        }
+ catch (        KettleException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
- catch (    KettleException e) {
-      throw new RuntimeException(e);
-    }
+;
+    doWithBusyIndicator(r);
+    slaveList.setChildren(tmpList);
   }
 }

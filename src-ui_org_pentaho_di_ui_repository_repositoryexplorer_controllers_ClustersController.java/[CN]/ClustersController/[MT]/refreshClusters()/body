@@ -1,15 +1,22 @@
 {
   if (repository != null) {
-    try {
-      clusterList.clear();
-      ObjectId[] clusterIdList=repository.getClusterIDs(false);
-      for (      ObjectId clusterId : clusterIdList) {
-        ClusterSchema cluster=repository.loadClusterSchema(clusterId,repository.getSlaveServers(),null);
-        clusterList.add(new UICluster(cluster));
+    final List<UICluster> tmpList=new ArrayList<UICluster>();
+    Runnable r=new Runnable(){
+      public void run(){
+        try {
+          ObjectId[] clusterIdList=repository.getClusterIDs(false);
+          for (          ObjectId clusterId : clusterIdList) {
+            ClusterSchema cluster=repository.loadClusterSchema(clusterId,repository.getSlaveServers(),null);
+            tmpList.add(new UICluster(cluster));
+          }
+        }
+ catch (        KettleException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
- catch (    KettleException e) {
-      throw new RuntimeException(e);
-    }
+;
+    doWithBusyIndicator(r);
+    clusterList.setChildren(tmpList);
   }
 }

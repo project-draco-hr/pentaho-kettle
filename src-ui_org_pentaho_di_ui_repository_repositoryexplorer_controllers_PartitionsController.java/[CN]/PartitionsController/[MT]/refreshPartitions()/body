@@ -1,15 +1,22 @@
 {
   if (repository != null) {
-    try {
-      partitionList.clear();
-      ObjectId[] partitionIdList=repository.getPartitionSchemaIDs(false);
-      for (      ObjectId partitionId : partitionIdList) {
-        PartitionSchema partition=repository.loadPartitionSchema(partitionId,null);
-        partitionList.add(new UIPartition(partition));
+    final List<UIPartition> tmpList=new ArrayList<UIPartition>();
+    Runnable r=new Runnable(){
+      public void run(){
+        try {
+          ObjectId[] partitionIdList=repository.getPartitionSchemaIDs(false);
+          for (          ObjectId partitionId : partitionIdList) {
+            PartitionSchema partition=repository.loadPartitionSchema(partitionId,null);
+            tmpList.add(new UIPartition(partition));
+          }
+        }
+ catch (        KettleException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
- catch (    KettleException e) {
-      throw new RuntimeException(e);
-    }
+;
+    doWithBusyIndicator(r);
+    partitionList.setChildren(tmpList);
   }
 }

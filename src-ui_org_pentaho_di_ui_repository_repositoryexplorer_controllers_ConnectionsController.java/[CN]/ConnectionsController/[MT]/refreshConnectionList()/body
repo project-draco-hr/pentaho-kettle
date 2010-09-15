@@ -1,13 +1,20 @@
 {
-  try {
-    dbConnectionList.clear();
-    ObjectId[] dbIdList=repository.getDatabaseIDs(false);
-    for (    ObjectId dbId : dbIdList) {
-      DatabaseMeta dbMeta=repository.loadDatabaseMeta(dbId,null);
-      dbConnectionList.add(new UIDatabaseConnection(dbMeta));
+  final List<UIDatabaseConnection> tmpList=new ArrayList<UIDatabaseConnection>();
+  Runnable r=new Runnable(){
+    public void run(){
+      try {
+        ObjectId[] dbIdList=repository.getDatabaseIDs(false);
+        for (        ObjectId dbId : dbIdList) {
+          DatabaseMeta dbMeta=repository.loadDatabaseMeta(dbId,null);
+          tmpList.add(new UIDatabaseConnection(dbMeta));
+        }
+      }
+ catch (      KettleException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
- catch (  KettleException e) {
-    throw new RuntimeException(e);
-  }
+;
+  doWithBusyIndicator(r);
+  dbConnectionList.setChildren(tmpList);
 }
