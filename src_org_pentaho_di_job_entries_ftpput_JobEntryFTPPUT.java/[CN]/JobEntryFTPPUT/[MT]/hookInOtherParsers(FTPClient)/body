@@ -1,0 +1,56 @@
+{
+  if (log.isDebug()) {
+    logDebug(BaseMessages.getString(PKG,"JobEntryFTP.DEBUG.Hooking.Parsers"));
+  }
+  String system=ftpClient.system();
+  MVSFileParser parser=new MVSFileParser();
+  if (log.isDebug()) {
+    logDebug(BaseMessages.getString(PKG,"JobEntryFTP.DEBUG.Created.MVS.Parser"));
+  }
+  FTPFileFactory factory=new FTPFileFactory(system);
+  if (log.isDebug()) {
+    logDebug(BaseMessages.getString(PKG,"JobEntryFTP.DEBUG.Created.Factory"));
+  }
+  factory.addParser(parser);
+  ftpClient.setFTPFileFactory(factory);
+  if (log.isDebug()) {
+    logDebug(BaseMessages.getString(PKG,"JobEntryFTP.DEBUG.Get.Variable.Space"));
+  }
+  VariableSpace vs=this.getVariables();
+  if (vs != null) {
+    if (log.isDebug()) {
+      logDebug(BaseMessages.getString(PKG,"JobEntryFTP.DEBUG.Getting.Other.Parsers"));
+    }
+    String otherParserNames=vs.getVariable("ftp.file.parser.class.names");
+    if (otherParserNames != null) {
+      if (log.isDebug()) {
+        logDebug(BaseMessages.getString(PKG,"JobEntryFTP.DEBUG.Creating.Parsers"));
+      }
+      String[] parserClasses=otherParserNames.split("|");
+      String cName=null;
+      Class clazz=null;
+      Object parserInstance=null;
+      for (int i=0; i < parserClasses.length; i++) {
+        cName=parserClasses[i].trim();
+        if (cName.length() > 0) {
+          try {
+            clazz=Class.forName(cName);
+            parserInstance=clazz.newInstance();
+            if (parserInstance instanceof FTPFileParser) {
+              if (log.isDetailed()) {
+                logDetailed(BaseMessages.getString(PKG,"JobEntryFTP.DEBUG.Created.Other.Parser",cName));
+              }
+              factory.addParser((FTPFileParser)parserInstance);
+            }
+          }
+ catch (          Exception ignored) {
+            if (log.isDebug()) {
+              ignored.printStackTrace();
+              logError(BaseMessages.getString(PKG,"JobEntryFTP.ERROR.Creating.Parser",cName));
+            }
+          }
+        }
+      }
+    }
+  }
+}
