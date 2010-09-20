@@ -14,109 +14,48 @@
     try {
       db.connect(partitionId);
       String sqlScript=Const.isEmpty(wScript.getSelectionText()) ? wScript.getText() : wScript.getSelectionText();
-      String all=sqlScript + Const.CR;
-      int from=0;
-      int to=0;
-      int length=all.length();
+      List<String> statements=ci.getDatabaseInterface().parseStatements(sqlScript + Const.CR);
       int nrstats=0;
-      while (to < length) {
-        char c=all.charAt(to);
-        while (all.substring(from).startsWith("--")) {
-          int nextLineIndex=all.indexOf(Const.CR,from);
-          from=nextLineIndex + Const.CR.length();
-          if (to >= length)           break;
-          c=all.charAt(c);
-        }
-        if (to >= length)         break;
-        if (c == '"') {
-          int nextDQuoteIndex=all.indexOf('"',to + 1);
-          if (nextDQuoteIndex >= 0) {
-            to=nextDQuoteIndex + 1;
-          }
-        }
-        c=all.charAt(to);
-        if (c == '\'') {
-          boolean skip=true;
-          if (to > 0) {
-            char prevChar=all.charAt(to - 1);
-            if (prevChar == '\\' || prevChar == '\'') {
-              skip=false;
-            }
-          }
-          while (skip) {
-            int nextQuoteIndex=all.indexOf('\'',to + 1);
-            if (nextQuoteIndex >= 0) {
-              to=nextQuoteIndex + 1;
-              skip=false;
-              if (to < all.length()) {
-                char nextChar=all.charAt(to);
-                if (nextChar == '\'') {
-                  skip=true;
-                  to++;
-                }
-              }
-              if (to > 0) {
-                char prevChar=all.charAt(to - 2);
-                if (prevChar == '\\') {
-                  skip=true;
-                  to++;
-                }
-              }
-            }
-          }
-        }
-        c=all.charAt(to);
-        if (c == ';' || to >= length - 1) {
-          if (to >= length - 1)           to++;
-          String stat=all.substring(from,to);
-          if (!onlySpaces(stat)) {
-            String sql=Const.trim(stat);
-            if (sql.toUpperCase().startsWith("SELECT")) {
-              log.logDetailed("launch SELECT statement: " + Const.CR + sql);
-              nrstats++;
-              try {
-                List<Object[]> rows=db.getRows(sql,1000);
-                RowMetaInterface rowMeta=db.getReturnRowMeta();
-                if (rows.size() > 0) {
-                  PreviewRowsDialog prd=new PreviewRowsDialog(shell,ci,SWT.NONE,BaseMessages.getString(PKG,"SQLEditor.ResultRows.Title",Integer.toString(nrstats)),rowMeta,rows);
-                  prd.open();
-                }
- else {
-                  MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
-                  mb.setMessage(BaseMessages.getString(PKG,"SQLEditor.NoRows.Message",sql));
-                  mb.setText(BaseMessages.getString(PKG,"SQLEditor.NoRows.Title"));
-                  mb.open();
-                }
-              }
- catch (              KettleDatabaseException dbe) {
-                new ErrorDialog(shell,BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Title"),BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Message",sql),dbe);
-              }
+      for (      String sql : statements) {
+        if (sql.toUpperCase().startsWith("SELECT")) {
+          log.logDetailed("launch SELECT statement: " + Const.CR + sql);
+          nrstats++;
+          try {
+            List<Object[]> rows=db.getRows(sql,1000);
+            RowMetaInterface rowMeta=db.getReturnRowMeta();
+            if (rows.size() > 0) {
+              PreviewRowsDialog prd=new PreviewRowsDialog(shell,ci,SWT.NONE,BaseMessages.getString(PKG,"SQLEditor.ResultRows.Title",Integer.toString(nrstats)),rowMeta,rows);
+              prd.open();
             }
  else {
-              log.logDetailed("launch DDL statement: " + Const.CR + sql);
-              nrstats++;
-              try {
-                log.logDetailed("Executing SQL: " + Const.CR + sql);
-                db.execStatement(sql);
-                message.append(BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecuted",sql));
-                message.append(Const.CR);
-                if (dbcache != null)                 dbcache.clear(ci.getName());
-              }
- catch (              Exception dbe) {
-                String error=BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecError",sql,dbe.toString());
-                message.append(error).append(Const.CR);
-                ErrorDialog dialog=new ErrorDialog(shell,BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Title"),error,dbe,true);
-                if (dialog.isCancelled()) {
-                  break;
-                }
-              }
+              MessageBox mb=new MessageBox(shell,SWT.ICON_INFORMATION | SWT.OK);
+              mb.setMessage(BaseMessages.getString(PKG,"SQLEditor.NoRows.Message",sql));
+              mb.setText(BaseMessages.getString(PKG,"SQLEditor.NoRows.Title"));
+              mb.open();
             }
           }
-          to++;
-          from=to;
+ catch (          KettleDatabaseException dbe) {
+            new ErrorDialog(shell,BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Title"),BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Message",sql),dbe);
+          }
         }
  else {
-          to++;
+          log.logDetailed("launch DDL statement: " + Const.CR + sql);
+          nrstats++;
+          try {
+            log.logDetailed("Executing SQL: " + Const.CR + sql);
+            db.execStatement(sql);
+            message.append(BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecuted",sql));
+            message.append(Const.CR);
+            if (dbcache != null)             dbcache.clear(ci.getName());
+          }
+ catch (          Exception dbe) {
+            String error=BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecError",sql,dbe.toString());
+            message.append(error).append(Const.CR);
+            ErrorDialog dialog=new ErrorDialog(shell,BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Title"),error,dbe,true);
+            if (dialog.isCancelled()) {
+              break;
+            }
+          }
         }
       }
       message.append(BaseMessages.getString(PKG,"SQLEditor.Log.StatsExecuted",Integer.toString(nrstats)));
