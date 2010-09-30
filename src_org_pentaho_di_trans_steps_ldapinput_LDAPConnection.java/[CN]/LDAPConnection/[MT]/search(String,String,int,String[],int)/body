@@ -1,0 +1,56 @@
+{
+  setSearchBase(searchBase);
+  setFilter(Const.NVL(correctFilter(filter),DEFAUL_FILTER_STRING));
+  try {
+    if (Const.isEmpty(getSearchBase())) {
+      Attributes attrs=getInitialContext().getAttributes("",new String[]{"namingContexts"});
+      Attribute attr=attrs.get("namingContexts");
+      setSearchBase(attr.get().toString());
+      if (log.isDetailed())       log.logDetailed(BaseMessages.getString(PKG,"LDAPInput.SearchBaseFound",getSearchBase()));
+    }
+    this.controls=new SearchControls();
+    if (limitRows > 0)     this.controls.setCountLimit(limitRows);
+    if (getTimeLimit() > 0)     this.controls.setTimeLimit(getTimeLimit() * 1000);
+    if (attributeReturned != null)     this.controls.setReturningAttributes(attributeReturned);
+switch (searchScope) {
+case SEARCH_SCOPE_OBJECT_SCOPE:
+      this.controls.setSearchScope(SearchControls.OBJECT_SCOPE);
+    break;
+case SEARCH_SCOPE_ONELEVEL_SCOPE:
+  this.controls.setSearchScope(SearchControls.ONELEVEL_SCOPE);
+break;
+default :
+this.controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+break;
+}
+Control ctlp=null;
+Control ctlk=null;
+int nrCtl=0;
+if (isSortingAttributes()) {
+setSortingAttributesKeys((String[])getSortingAttributes().toArray(new String[getSortingAttributes().size()]));
+ctlk=new SortControl(getSortingAttributesKeys(),Control.NONCRITICAL);
+nrCtl++;
+if (log.isDebug()) log.logDebug(BaseMessages.getString("LDAPInput.Log.SortingKeys",getSortingAttributesKeys().toString()));
+}
+if (isPagingUsed()) {
+ctlp=new PagedResultsControl(GetPagingSize(),Control.CRITICAL);
+nrCtl++;
+if (log.isDebug()) log.logDebug(BaseMessages.getString("LDAPInput.Log.PageSize",String.valueOf(GetPagingSize())));
+}
+if (nrCtl > 0) {
+Control[] ctls=new Control[nrCtl];
+int index=0;
+if (ctlk != null) {
+ctls[index++]=ctlk;
+}
+if (ctlp != null) {
+ctls[index++]=ctlp;
+}
+getInitialContext().setRequestControls(ctls);
+}
+this.results=getInitialContext().search(getSearchBase(),getFilter(),getSearchControls());
+}
+ catch (Exception e) {
+throw new KettleException(BaseMessages.getString("LDAPConnection.Error.Search"),e);
+}
+}
