@@ -10,6 +10,7 @@
   boolean performInsert=false;
   boolean performUpdate=false;
   boolean performDelete=false;
+  boolean lineSkipped=false;
   try {
     if (operation == null)     throw new KettleException(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.OperationFieldEmpty",meta.getOperationOrderField()));
     if (meta.istablenameInField()) {
@@ -17,7 +18,6 @@
       if (Const.isEmpty(data.realTableName))       throw new KettleStepException("The name of the table is not specified!");
       data.realSchemaTable=data.db.getDatabaseMeta().getQuotedSchemaTableCombination(data.realSchemaName,data.realTableName);
     }
-    incrementLinesInput();
     if (operation.equals(data.insertValue)) {
       if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.InsertRow",row.toString()));
       Object[] insertRowData=new Object[data.valuenrs.length];
@@ -69,6 +69,7 @@
         data.db.setValues(data.lookupParameterRowMeta,lookupRow,data.lookupStatement);
         if (log.isRowLevel())         logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.ValuesSetForLookup",data.lookupParameterRowMeta.getString(lookupRow)));
         Object[] add=data.db.getLookup(data.lookupStatement);
+        incrementLinesInput();
         if (add == null) {
           if (data.stringErrorKeyNotFound == null) {
             data.stringErrorKeyNotFound=BaseMessages.getString(PKG,"SynchronizeAfterMerge.Exception.KeyCouldNotFound") + data.lookupParameterRowMeta.getString(lookupRow);
@@ -127,7 +128,10 @@
           performUpdate=true;
           incrementLinesUpdated();
         }
- else         incrementLinesSkipped();
+ else {
+          incrementLinesSkipped();
+          lineSkipped=true;
+        }
       }
  else       if (operation.equals(data.deleteValue)) {
         if (meta.istablenameInField()) {
@@ -162,9 +166,10 @@
       }
  else {
         incrementLinesSkipped();
+        lineSkipped=true;
       }
     }
-    if (performInsert || performUpdate || performDelete) {
+    if (performInsert || performUpdate || performDelete|| (data.batchBuffer.size() > 0 && lineSkipped)) {
       String tableName=data.realTableName;
       if (performInsert)       tableName+="insert";
  else       if (performUpdate)       tableName+="update";
@@ -277,7 +282,9 @@ catch (  KettleDatabaseException dbe) {
       }
     }
  else {
-      data.batchBuffer.add(row);
+      if (!lineSkipped) {
+        data.batchBuffer.add(row);
+      }
       if (rowIsSafe) {
         for (int i=0; i < data.batchBuffer.size(); i++) {
           Object[] rowb=(Object[])data.batchBuffer.get(i);
@@ -285,6 +292,9 @@ catch (  KettleDatabaseException dbe) {
           incrementLinesOutput();
         }
         data.batchBuffer.clear();
+      }
+      if (lineSkipped) {
+        putRow(data.outputRowMeta,row);
       }
     }
   }
