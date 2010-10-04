@@ -17,7 +17,7 @@
   for (int i=0; i < data.nrInputFields; i++) {
     String path=meta.getInputFields()[i].getPath();
     NJSONArray ja=data.jsonReader.getPath(path);
-    if (data.nrrecords != -1 && data.nrrecords != ja.size()) {
+    if (data.nrrecords != -1 && data.nrrecords != ja.size() && !ja.isNull()) {
       throw new KettleException(BaseMessages.getString(PKG,"JsonInput.Error.BadStructure",ja.size(),path,prevPath,data.nrrecords));
     }
     resultList.add(ja);
@@ -28,9 +28,14 @@
   }
   data.resultList=new ArrayList<NJSONArray>();
   Iterator<NJSONArray> it=resultList.iterator();
+  boolean firstIteration=false;
   while (it.hasNext()) {
     NJSONArray j=it.next();
     if (j.isNull()) {
+      if (!firstIteration && data.nrrecords == -1) {
+        data.nrrecords=1;
+        firstIteration=true;
+      }
       j=new NJSONArray();
       for (int i=0; i < data.nrrecords; i++) {
         j.add(null);
