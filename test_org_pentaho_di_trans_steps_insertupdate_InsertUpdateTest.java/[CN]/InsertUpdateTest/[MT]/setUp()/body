@@ -1,0 +1,42 @@
+{
+  KettleEnvironment.init();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("insert/update test");
+  for (int i=0; i < databasesXML.length; i++) {
+    DatabaseMeta databaseMeta=new DatabaseMeta(databasesXML[i]);
+    transMeta.addDatabase(databaseMeta);
+  }
+  DatabaseMeta dbInfo=transMeta.findDatabase("db");
+  db=new Database(transMeta,dbInfo);
+  db.connect();
+  String source=db.getCreateTableStatement(TARGET_TABLE,getTargetTableRowMeta(),null,false,null,true);
+  db.execStatement(source);
+  for (  String sql : insertStatement) {
+    db.execStatement(sql);
+  }
+  PluginRegistry registry=PluginRegistry.getInstance();
+  String injectorStepName="injector step";
+  InjectorMeta im=new InjectorMeta();
+  String injectorPid=registry.getPluginId(StepPluginType.class,im);
+  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepName,(StepMetaInterface)im);
+  transMeta.addStep(injectorStep);
+  String updateStepName="insert/update [" + TARGET_TABLE + "]";
+  insupd=new InsertUpdateMeta();
+  insupd.setDatabaseMeta(transMeta.findDatabase("db"));
+  insupd.setTableName(TARGET_TABLE);
+  insupd.setUpdateLookup(new String[]{"VALUE","ROW_ORDER"});
+  insupd.setUpdateStream(new String[]{"VALUE","ROW_ORDER"});
+  insupd.setUpdate(new Boolean[]{true,false});
+  String fromid=registry.getPluginId(StepPluginType.class,insupd);
+  StepMeta updateStep=new StepMeta(fromid,updateStepName,(StepMetaInterface)insupd);
+  updateStep.setDescription("insert/update data in table [" + TARGET_TABLE + "] on database ["+ dbInfo+ "]");
+  transMeta.addStep(updateStep);
+  TransHopMeta hi=new TransHopMeta(injectorStep,updateStep);
+  transMeta.addTransHop(hi);
+  trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(updateStepName,0);
+  rc=new RowStepCollector();
+  si.addRowListener(rc);
+  rp=trans.addRowProducer(injectorStepName,0);
+}
