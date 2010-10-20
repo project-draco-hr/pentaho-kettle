@@ -8,10 +8,18 @@
       meta.setDataFormat(DataFormat.TXT_VARIABLE);
     }
     DataFormat dataFormat=DataFormat.valueForDisplayName(meta.getInfobrightProductType());
+    int agentPort=meta.getAgentPort();
+    Charset charset=meta.getCharset();
     Connection conn=db.getConnection();
     String tableName=meta.getDatabaseMeta().getQuotedSchemaTableCombination(step.environmentSubstitute(meta.getSchemaName()),step.environmentSubstitute(meta.getTablename()));
     EtlLogger logger=new KettleEtlLogger(step);
-    loader=new InfobrightNamedPipeLoader(tableName,conn,logger,dataFormat);
+    loader=new InfobrightNamedPipeLoader(tableName,conn,logger,dataFormat,charset,agentPort);
+    loader.setTimeout(30);
+    String debugFile=meta.getDebugFile();
+    if (debugFile != null) {
+      OutputStream debugOutputStream=new FileOutputStream(debugFile);
+      loader.setDebugOutputStream(debugOutputStream);
+    }
     record=loader.createRecord(false);
     loader.start();
   }
