@@ -6,6 +6,10 @@
     setOutputDone();
     return false;
   }
+  Object[] rowCopy=null;
+  if (getStepMeta().isDoingErrorHandling()) {
+    rowCopy=getInputRowMeta().cloneRow(rowData);
+  }
   if (log.isRowLevel())   logRowlevel(BaseMessages.getString(PKG,"SelectValues.Log.GotRowFromPreviousStep") + getInputRowMeta().getString(rowData));
   if (first) {
     first=false;
@@ -16,16 +20,26 @@
     data.metadataRowMeta=data.deselectRowMeta.clone();
     meta.getMetadataFields(data.metadataRowMeta,getStepname());
   }
-  Object[] outputData=rowData;
-  if (data.select)   outputData=selectValues(getInputRowMeta(),outputData);
-  if (data.deselect)   outputData=removeValues(data.selectRowMeta,outputData);
-  if (data.metadata)   outputData=metadataValues(data.deselectRowMeta,outputData);
-  if (outputData == null) {
-    setOutputDone();
-    return false;
+  try {
+    Object[] outputData=rowData;
+    if (data.select)     outputData=selectValues(getInputRowMeta(),outputData);
+    if (data.deselect)     outputData=removeValues(data.selectRowMeta,outputData);
+    if (data.metadata)     outputData=metadataValues(data.deselectRowMeta,outputData);
+    if (outputData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.metadataRowMeta,outputData);
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"SelectValues.Log.WroteRowToNextStep") + data.metadataRowMeta.getString(outputData));
   }
-  putRow(data.metadataRowMeta,outputData);
-  if (log.isRowLevel())   logRowlevel(BaseMessages.getString(PKG,"SelectValues.Log.WroteRowToNextStep") + data.metadataRowMeta.getString(outputData));
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(getInputRowMeta(),rowCopy,1,e.getMessage(),null,"SELECT001");
+    }
+ else {
+      throw e;
+    }
+  }
   if (checkFeedback(getLinesRead()))   logBasic(BaseMessages.getString(PKG,"SelectValues.Log.LineNumber") + getLinesRead());
   return true;
 }
