@@ -1,18 +1,21 @@
 {
-  List<String> ids=new ArrayList<String>();
-  ResultSet rs=database.openQuery(sql);
-  try {
-    Object[] r=database.getRow(rs);
-    while (r != null) {
-      RowMetaInterface rowMeta=database.getReturnRowMeta();
-      ids.add(rowMeta.getString(r,0));
-      r=database.getRow(rs);
-    }
+  PreparedStatement ps=sqlMap.get(sql);
+  if (ps == null) {
+    ps=database.prepareSQL(sql);
+    sqlMap.put(sql,ps);
   }
-  finally {
-    if (rs != null) {
-      database.closeQuery(rs);
-    }
+  RowMetaInterface parameterMeta=new RowMeta();
+  Object[] parameterData=new Object[0];
+  ResultSet resultSet=database.openQuery(ps,parameterMeta,parameterData);
+  List<Object[]> rows=database.getRows(resultSet,0,null);
+  if (Const.isEmpty(rows)) {
+    return new String[0];
   }
-  return (String[])ids.toArray(new String[ids.size()]);
+  RowMetaInterface rowMeta=database.getReturnRowMeta();
+  String[] strings=new String[rows.size()];
+  for (int i=0; i < strings.length; i++) {
+    Object[] row=rows.get(i);
+    strings[i]=rowMeta.getString(row,0);
+  }
+  return strings;
 }
