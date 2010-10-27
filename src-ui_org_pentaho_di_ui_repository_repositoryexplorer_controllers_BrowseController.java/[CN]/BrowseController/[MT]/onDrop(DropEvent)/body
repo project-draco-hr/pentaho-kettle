@@ -19,10 +19,43 @@
       }
     }
     if (result == true) {
-      for (      UIRepositoryObject o : moveList) {
-        o.move(targetDirectory);
+      List<UIRepositoryObject> collisionObjects=new ArrayList<UIRepositoryObject>();
+      for (      UIRepositoryObject newChild : moveList) {
+        for (        UIRepositoryObject currChild : targetDirectory.getRepositoryObjects()) {
+          if ((currChild instanceof UIRepositoryDirectory) && (newChild instanceof UIRepositoryDirectory) && (currChild.getName().equalsIgnoreCase(newChild.getName()))) {
+            messageBox.setTitle(messages.getString("Dialog.Error"));
+            messageBox.setAcceptLabel(messages.getString("Dialog.Ok"));
+            messageBox.setMessage(BaseMessages.getString(RepositoryExplorer.class,"BrowseController.UnableToMove.DirectoryAlreadyExists",currChild.getPath()));
+            messageBox.open();
+            result=false;
+            break;
+          }
+ else           if (!(currChild instanceof UIRepositoryDirectory) && (currChild.getType().equalsIgnoreCase(newChild.getType())) && (currChild.getName().equalsIgnoreCase(newChild.getName()))) {
+            collisionObjects.add(currChild);
+          }
+        }
+        if (!result) {
+          break;
+        }
       }
-      event.getDataTransfer().setData(dirList);
+      if (result && collisionObjects.size() > 0) {
+        FileOverwriteDialogController fileOverwriteDialog=FileOverwriteDialogController.getInstance(getXulDomContainer().getOuterContext() instanceof Shell ? (Shell)getXulDomContainer().getOuterContext() : null,collisionObjects);
+        fileOverwriteDialog.show();
+        if (fileOverwriteDialog.isOverwriteFiles()) {
+          for (          UIRepositoryObject o : collisionObjects) {
+            o.delete();
+          }
+        }
+ else {
+          result=false;
+        }
+      }
+      if (result) {
+        for (        UIRepositoryObject o : moveList) {
+          o.move(targetDirectory);
+        }
+        event.getDataTransfer().setData(dirList);
+      }
     }
   }
  catch (  Exception e) {
