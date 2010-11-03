@@ -1,0 +1,31 @@
+{
+  String sql="SELECT * FROM " + quoteTable(KettleDatabaseRepository.TABLE_R_DATABASE_ATTRIBUTE) + " WHERE "+ quote(KettleDatabaseRepository.FIELD_DATABASE_ID_DATABASE)+ " = ?";
+  PreparedStatement ps=sqlMap.get(sql);
+  if (ps == null) {
+    ps=database.prepareSQL(sql);
+    sqlMap.put(sql,ps);
+  }
+  RowMetaInterface parameterMeta=new RowMeta();
+  parameterMeta.addValueMeta(new ValueMeta("id",ValueMetaInterface.TYPE_INTEGER));
+  Object[] parameterData=new Object[]{((LongObjectId)id_database).longValue()};
+  List<RowMetaAndData> attrs=new ArrayList<RowMetaAndData>();
+  ResultSet resultSet=null;
+  try {
+    resultSet=database.openQuery(ps,parameterMeta,parameterData);
+    List<Object[]> rows=database.getRows(resultSet,0,null);
+    for (    Object[] row : rows) {
+      RowMetaAndData rowWithMeta=new RowMetaAndData(repository.connectionDelegate.getReturnRowMeta(),row);
+      long id=rowWithMeta.getInteger(quote(KettleDatabaseRepository.FIELD_DATABASE_ATTRIBUTE_ID_DATABASE_ATTRIBUTE),0);
+      if (id > 0) {
+        attrs.add(rowWithMeta);
+      }
+    }
+    return attrs;
+  }
+ catch (  KettleDatabaseException e) {
+    throw e;
+  }
+ finally {
+    database.closeQuery(resultSet);
+  }
+}

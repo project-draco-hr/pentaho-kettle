@@ -1,4 +1,24 @@
 {
-  String sql="SELECT * FROM " + tablename + " WHERE "+ keyfield+ " = "+ id;
-  return getOneRow(sql);
+  String sql="SELECT * FROM " + tablename + " WHERE "+ keyfield+ " = ?";
+  PreparedStatement ps=sqlMap.get(sql);
+  if (ps == null) {
+    ps=database.prepareSQL(sql);
+    sqlMap.put(sql,ps);
+  }
+  RowMetaInterface parameterMeta=new RowMeta();
+  parameterMeta.addValueMeta(new ValueMeta("id",ValueMetaInterface.TYPE_INTEGER));
+  Object[] parameterData=new Object[]{((LongObjectId)id).longValue()};
+  ResultSet resultSet=null;
+  try {
+    resultSet=database.openQuery(ps,parameterMeta,parameterData);
+    Object[] result=database.getRow(resultSet);
+    if (result == null)     return null;
+    return new RowMetaAndData(database.getReturnRowMeta(),result);
+  }
+ catch (  KettleException e) {
+    throw e;
+  }
+ finally {
+    if (resultSet != null)     database.closeQuery(resultSet);
+  }
 }
