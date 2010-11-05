@@ -3,14 +3,23 @@
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"SalesforceInsert.WriteToSalesforce",data.iBufferPos,meta.getBatchSizeInt()));
     if (data.iBufferPos < meta.getBatchSizeInt()) {
       ArrayList<MessageElement> insertfields=new ArrayList<MessageElement>();
+      ArrayList<String> fieldsToNull=new ArrayList<String>();
       for (int i=0; i < data.nrfields; i++) {
-        if (!data.inputRowMeta.isNull(rowData,data.fieldnrs[i])) {
+        if (data.inputRowMeta.isNull(rowData,data.fieldnrs[i])) {
+          fieldsToNull.add(meta.getUpdateLookup()[i]);
+        }
+ else {
           insertfields.add(SalesforceConnection.createMessageElement(meta.getUpdateLookup()[i],rowData[data.fieldnrs[i]],meta.getUseExternalId()[i]));
         }
       }
       SObject sobjPass=new SObject();
-      sobjPass.set_any((MessageElement[])insertfields.toArray(new MessageElement[insertfields.size()]));
       sobjPass.setType(data.realModule);
+      if (insertfields.size() > 0) {
+        sobjPass.set_any((MessageElement[])insertfields.toArray(new MessageElement[insertfields.size()]));
+      }
+      if (fieldsToNull.size() > 0) {
+        sobjPass.setFieldsToNull((String[])fieldsToNull.toArray(new String[fieldsToNull.size()]));
+      }
       data.sfBuffer[data.iBufferPos]=sobjPass;
       data.outputBuffer[data.iBufferPos]=rowData;
       data.iBufferPos++;

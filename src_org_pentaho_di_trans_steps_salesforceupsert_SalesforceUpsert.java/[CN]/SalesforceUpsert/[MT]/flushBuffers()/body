@@ -24,25 +24,18 @@
         }
       }
  else {
-        boolean sendToErrorRow=false;
-        String errorMessage=null;
-        if (getStepMeta().isDoingErrorHandling()) {
-          sendToErrorRow=true;
-          errorMessage="";
-          for (int i=0; i < data.upsertResult[j].getErrors().length; i++) {
-            com.salesforce.soap.partner.Error err=data.upsertResult[j].getErrors()[i];
-            errorMessage+=BaseMessages.getString(PKG,"SalesforceUpsert.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
-          }
-        }
- else {
+        if (!getStepMeta().isDoingErrorHandling()) {
           if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"SalesforceUpsert.ErrorFound"));
-          com.salesforce.soap.partner.Error err=data.upsertResult[j].getErrors()[0];
+          com.sforce.soap.partner.Error err=data.upsertResult[j].getErrors()[0];
           throw new KettleException(BaseMessages.getString(PKG,"SalesforceUpsert.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage()));
         }
-        if (sendToErrorRow) {
-          if (log.isDebug())           logDebug(BaseMessages.getString(PKG,"SalesforceUpsert.PassingRowToErrorStep"));
-          putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceUpsert001");
+        String errorMessage="";
+        for (int i=0; i < data.upsertResult[j].getErrors().length; i++) {
+          com.sforce.soap.partner.Error err=data.upsertResult[j].getErrors()[i];
+          errorMessage+=BaseMessages.getString(PKG,"SalesforceUpsert.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
         }
+        if (log.isDebug())         logDebug(BaseMessages.getString(PKG,"SalesforceUpsert.PassingRowToErrorStep"));
+        putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceUpsert001");
       }
     }
     data.sfBuffer=new SObject[meta.getBatchSizeInt()];
@@ -50,7 +43,13 @@
     data.iBufferPos=0;
   }
  catch (  Exception e) {
-    throw new KettleException(BaseMessages.getString(PKG,"SalesforceUpsert.FailedUpsert",e.getMessage()));
+    if (!getStepMeta().isDoingErrorHandling()) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceUpsert.FailedUpsert",e.getMessage()));
+    }
+    if (log.isDebug())     logDebug("Passing row to error step");
+    for (int i=0; i < data.iBufferPos; i++) {
+      putError(data.inputRowMeta,data.outputBuffer[i],1,e.getMessage(),null,"SalesforceUpsert002");
+    }
   }
  finally {
     if (data.upsertResult != null)     data.upsertResult=null;

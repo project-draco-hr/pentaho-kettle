@@ -1,7 +1,8 @@
 {
   try {
     data.saveResult=data.connection.update(data.sfBuffer);
-    for (int j=0; j < data.saveResult.length; j++) {
+    int nr=data.saveResult.length;
+    for (int j=0; j < nr; j++) {
       if (data.saveResult[j].isSuccess()) {
         String id=data.saveResult[j].getId();
         if (log.isDetailed())         logDetailed("Row updated with id: " + id);
@@ -14,25 +15,18 @@
         }
       }
  else {
-        boolean sendToErrorRow=false;
-        String errorMessage=null;
-        if (getStepMeta().isDoingErrorHandling()) {
-          sendToErrorRow=true;
-          errorMessage="";
-          for (int i=0; i < data.saveResult[j].getErrors().length; i++) {
-            com.salesforce.soap.partner.Error err=data.saveResult[j].getErrors()[i];
-            errorMessage+=BaseMessages.getString(PKG,"SalesforceUpdate.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
-          }
-        }
- else {
+        if (!getStepMeta().isDoingErrorHandling()) {
           if (log.isDetailed())           logDetailed("Found error from SalesForce and raising the exception");
-          com.salesforce.soap.partner.Error err=data.saveResult[j].getErrors()[0];
+          com.sforce.soap.partner.Error err=data.saveResult[j].getErrors()[0];
           throw new KettleException(BaseMessages.getString(PKG,"SalesforceUpdate.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage()));
         }
-        if (sendToErrorRow) {
-          if (log.isDebug())           logDebug("Passing row to error step");
-          putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceUpdate001");
+        String errorMessage="";
+        for (int i=0; i < data.saveResult[j].getErrors().length; i++) {
+          com.sforce.soap.partner.Error err=data.saveResult[j].getErrors()[i];
+          errorMessage+=BaseMessages.getString(PKG,"SalesforceUpdate.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
         }
+        if (log.isDebug())         logDebug("Passing row to error step");
+        putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceUpdate001");
       }
     }
     data.sfBuffer=new SObject[meta.getBatchSizeInt()];
@@ -40,7 +34,13 @@
     data.iBufferPos=0;
   }
  catch (  Exception e) {
-    throw new KettleException("\nFailed to update object, error message was: \n" + e.getMessage());
+    if (!getStepMeta().isDoingErrorHandling()) {
+      throw new KettleException("\nFailed to update object, error message was: \n" + e.getMessage());
+    }
+    if (log.isDebug())     logDebug("Passing row to error step");
+    for (int i=0; i < data.iBufferPos; i++) {
+      putError(data.inputRowMeta,data.outputBuffer[i],1,e.getMessage(),null,"SalesforceUpdate002");
+    }
   }
  finally {
     if (data.saveResult != null)     data.saveResult=null;

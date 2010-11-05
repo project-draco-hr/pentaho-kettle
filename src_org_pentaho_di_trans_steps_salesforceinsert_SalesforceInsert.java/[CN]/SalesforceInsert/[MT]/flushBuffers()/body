@@ -18,25 +18,18 @@
         }
       }
  else {
-        boolean sendToErrorRow=false;
-        String errorMessage=null;
-        if (getStepMeta().isDoingErrorHandling()) {
-          sendToErrorRow=true;
-          errorMessage="";
-          for (int i=0; i < data.saveResult[j].getErrors().length; i++) {
-            com.salesforce.soap.partner.Error err=data.saveResult[j].getErrors()[i];
-            errorMessage+=BaseMessages.getString(PKG,"SalesforceInsert.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
-          }
-        }
- else {
+        if (!getStepMeta().isDoingErrorHandling()) {
           if (log.isDebug())           logDebug(BaseMessages.getString(PKG,"SalesforceInsert.ErrorFound"));
-          com.salesforce.soap.partner.Error err=data.saveResult[j].getErrors()[0];
+          com.sforce.soap.partner.Error err=data.saveResult[j].getErrors()[0];
           throw new KettleException(BaseMessages.getString(PKG,"SalesforceInsert.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage()));
         }
-        if (sendToErrorRow) {
-          if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"SalesforceInsert.PassingRowToErrorStep"));
-          putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceInsert001");
+        String errorMessage="";
+        for (int i=0; i < data.saveResult[j].getErrors().length; i++) {
+          com.sforce.soap.partner.Error err=data.saveResult[j].getErrors()[i];
+          errorMessage+=BaseMessages.getString(PKG,"SalesforceInsert.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
         }
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"SalesforceInsert.PassingRowToErrorStep"));
+        putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceInsert001");
       }
     }
     data.sfBuffer=new SObject[meta.getBatchSizeInt()];
@@ -44,7 +37,13 @@
     data.iBufferPos=0;
   }
  catch (  Exception e) {
-    throw new KettleException(BaseMessages.getString(PKG,"SalesforceInsert.FailedToInsertObject",e.getMessage()));
+    if (!getStepMeta().isDoingErrorHandling()) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceInsert.FailedToInsertObject",e.getMessage()));
+    }
+    if (log.isDebug())     logDebug("Passing row to error step");
+    for (int i=0; i < data.iBufferPos; i++) {
+      putError(data.inputRowMeta,data.outputBuffer[i],1,e.getMessage(),null,"SalesforceInsert002");
+    }
   }
  finally {
     if (data.saveResult != null)     data.saveResult=null;
