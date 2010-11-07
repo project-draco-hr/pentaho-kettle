@@ -1,7 +1,8 @@
 {
   try {
     data.deleteResult=data.connection.delete(data.deleteId);
-    for (int j=0; j < data.deleteResult.length; j++) {
+    int nr=data.deleteResult.length;
+    for (int j=0; j < nr; j++) {
       if (data.deleteResult[j].isSuccess()) {
         putRow(data.outputRowMeta,data.outputBuffer[j]);
         incrementLinesOutput();
@@ -10,25 +11,19 @@
         }
       }
  else {
-        boolean sendToErrorRow=false;
-        String errorMessage=null;
-        if (getStepMeta().isDoingErrorHandling()) {
-          sendToErrorRow=true;
-          errorMessage="";
-          for (int i=0; i < data.deleteResult[j].getErrors().length; i++) {
-            com.sforce.soap.partner.Error err=data.deleteResult[j].getErrors()[i];
-            errorMessage+=BaseMessages.getString(PKG,"SalesforceDelete.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
-          }
-        }
- else {
+        if (!getStepMeta().isDoingErrorHandling()) {
           if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"SalesforceDelete.Found.Error"));
           com.sforce.soap.partner.Error err=data.deleteResult[j].getErrors()[0];
           throw new KettleException(BaseMessages.getString(PKG,"SalesforceDelete.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage()));
         }
-        if (sendToErrorRow) {
-          if (log.isDebug())           logDebug(BaseMessages.getString(PKG,"SalesforceDelete.PassingRowToErrorStep"));
-          putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceDelete001");
+        String errorMessage="";
+        int nrErrors=data.deleteResult[j].getErrors().length;
+        for (int i=0; i < nrErrors; i++) {
+          com.sforce.soap.partner.Error err=data.deleteResult[j].getErrors()[i];
+          errorMessage+=BaseMessages.getString(PKG,"SalesforceDelete.Error.FlushBuffer",new Integer(j),err.getStatusCode(),err.getMessage());
         }
+        if (log.isDebug())         logDebug(BaseMessages.getString(PKG,"SalesforceDelete.PassingRowToErrorStep"));
+        putError(getInputRowMeta(),data.outputBuffer[j],1,errorMessage,null,"SalesforceDelete001");
       }
     }
     data.deleteId=new String[meta.getBatchSizeInt()];
@@ -36,7 +31,13 @@
     data.iBufferPos=0;
   }
  catch (  Exception e) {
-    throw new KettleException(BaseMessages.getString(PKG,"SalesforceDelete.FailedToDeleted",e.getMessage()));
+    if (!getStepMeta().isDoingErrorHandling()) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceDelete.FailedToDeleted",e.getMessage()));
+    }
+    if (log.isDebug())     logDebug("Passing row to error step");
+    for (int i=0; i < data.iBufferPos; i++) {
+      putError(data.inputRowMeta,data.outputBuffer[i],1,e.getMessage(),null,"SalesforceDelete002");
+    }
   }
  finally {
     if (data.deleteResult != null)     data.deleteResult=null;
