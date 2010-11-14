@@ -9,14 +9,15 @@
       return null;
     }
  else {
-      if (data.rownr >= data.nrRecords) {
-        if (meta.getRecordsFilter() == SalesforceConnectionUtils.RECORDS_FILTER_ALL) {
+      if (data.rownr >= data.nrRecords || data.finishedRecord) {
+        if (meta.getRecordsFilter() != SalesforceConnectionUtils.RECORDS_FILTER_UPDATED) {
           if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.NeedQueryMore","" + data.rownr));
           if (data.connection.queryMore()) {
             int nr=data.connection.getRecordsCount();
             data.nrRecords+=nr;
             if (log.isDetailed())             logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.QueryMoreRetrieved","" + nr));
             data.recordIndex=0;
+            data.finishedRecord=false;
           }
  else {
             return null;
@@ -24,8 +25,18 @@
         }
       }
     }
+    SalesforceRecordValue srvalue=data.connection.getRecord((int)data.recordIndex);
+    data.finishedRecord=srvalue.isAllRecordsProcessed();
+    if (meta.getRecordsFilter() == SalesforceConnectionUtils.RECORDS_FILTER_DELETED) {
+      if (srvalue.isRecordIndexChanges()) {
+        data.recordIndex=srvalue.getRecordIndex();
+      }
+      if (data.finishedRecord && srvalue.getRecordValue() == null) {
+        return null;
+      }
+    }
     for (int i=0; i < data.nrfields; i++) {
-      String value=data.connection.getRecordValue((int)data.recordIndex,i);
+      String value=data.connection.getRecordValue(srvalue.getRecordValue(),i);
 switch (meta.getInputFields()[i].getTrimType()) {
 case SalesforceInputField.TYPE_TRIM_LEFT:
         value=Const.ltrim(value);
