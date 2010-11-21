@@ -1,0 +1,134 @@
+{
+  try {
+    int numOfFields=meta.getOutputFields() != null && meta.getOutputFields().length > 0 ? meta.getOutputFields().length : 0;
+    if (numOfFields == 0) {
+      numOfFields=data.inputRowMeta != null ? data.inputRowMeta.size() : 0;
+    }
+    data.clearStyleCache(numOfFields);
+    String buildFilename=buildFilename(data.splitnr);
+    data.file=KettleVFS.getFileObject(buildFilename,getTransMeta());
+    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"ExcelWriterStep.Log.OpeningFile",buildFilename));
+    if (data.file.exists() && data.createNewFile) {
+      if (!data.file.delete()) {
+        if (log.isBasic()) {
+          logBasic(BaseMessages.getString(PKG,"ExcelWriterStep.Log.CouldNotDeleteStaleFile",buildFilename));
+        }
+        setErrors(1);
+        throw new KettleException("Could not delete stale file " + buildFilename);
+      }
+    }
+    if (meta.isAddToResultFiles()) {
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
+      resultFile.setComment("This file was created with an Excel writer step by Pentaho Data Integration");
+      addResultFile(resultFile);
+    }
+    boolean appendingToSheet=true;
+    if (!data.file.exists()) {
+      if (meta.isTemplateEnabled()) {
+        String templateExt=KettleVFS.getFileObject(data.realTemplateFileName).getName().getExtension();
+        if (!meta.getExtension().equalsIgnoreCase(templateExt)) {
+          throw new KettleException("Template Format Mismatch: Template has extension: " + templateExt + ", but output file has extension: "+ meta.getExtension()+ ". Template and output file must share the same format!");
+        }
+        if (KettleVFS.getFileObject(data.realTemplateFileName).exists()) {
+          copyFile(KettleVFS.getFileObject(data.realTemplateFileName,getTransMeta()),data.file);
+        }
+ else {
+          if (log.isBasic())           logBasic(BaseMessages.getString(PKG,"ExcelWriterStep.Log.TemplateMissing",data.realTemplateFileName));
+          setErrors(1);
+          throw new KettleException("Template file missing: " + data.realTemplateFileName);
+        }
+      }
+ else {
+        Workbook wb=meta.getExtension().equalsIgnoreCase("xlsx") ? new XSSFWorkbook() : new HSSFWorkbook();
+        OutputStream out=KettleVFS.getOutputStream(data.file,false);
+        wb.createSheet(data.realSheetname);
+        wb.write(out);
+        out.close();
+      }
+      appendingToSheet=false;
+    }
+    if (meta.getExtension().equalsIgnoreCase("xlsx")) {
+      data.wb=new XSSFWorkbook(KettleVFS.getInputStream(data.file));
+    }
+ else {
+      data.wb=new HSSFWorkbook(KettleVFS.getInputStream(data.file));
+    }
+    int existingActiveSheetIndex=data.wb.getActiveSheetIndex();
+    int replacingSheetAt=-1;
+    if (data.wb.getSheet(data.realSheetname) != null) {
+      if (data.createNewSheet) {
+        replacingSheetAt=data.wb.getSheetIndex(data.wb.getSheet(data.realSheetname));
+        data.wb.removeSheetAt(replacingSheetAt);
+      }
+    }
+    if (data.wb.getSheet(data.realSheetname) == null) {
+      if (meta.isTemplateSheetEnabled()) {
+        Sheet ts=data.wb.getSheet(data.realTemplateSheetName);
+        if (ts == null) {
+          throw new KettleException("Tempate Sheet: " + data.realTemplateSheetName + " not found, aborting");
+        }
+        data.sheet=data.wb.cloneSheet(data.wb.getSheetIndex(ts));
+        data.wb.setSheetName(data.wb.getSheetIndex(data.sheet),data.realSheetname);
+        data.wb.setSheetHidden(data.wb.getSheetIndex(data.sheet),false);
+      }
+ else {
+        data.sheet=data.wb.createSheet(data.realSheetname);
+      }
+      if (replacingSheetAt > -1) {
+        data.wb.setSheetOrder(data.sheet.getSheetName(),replacingSheetAt);
+      }
+      data.wb.setActiveSheet(existingActiveSheetIndex);
+      data.wb.setSelectedTab(existingActiveSheetIndex);
+      appendingToSheet=false;
+    }
+ else {
+      data.sheet=data.wb.getSheet(data.realSheetname);
+    }
+    if (meta.isMakeSheetActive()) {
+      int sheetIndex=data.wb.getSheetIndex(data.sheet);
+      data.wb.setActiveSheet(sheetIndex);
+      data.wb.setSelectedTab(sheetIndex);
+    }
+    if (meta.isSheetProtected()) {
+      if (data.wb instanceof HSSFWorkbook) {
+        ((HSSFWorkbook)data.wb).writeProtectWorkbook(data.realPassword,Const.isEmpty(meta.getProtectedBy()) ? "Kettle PDI" : data.realProtectedBy);
+      }
+    }
+    data.startingRow=0;
+    data.startingCol=0;
+    if (!Const.isEmpty(data.realStartingCell)) {
+      CellReference cellRef=new CellReference(data.realStartingCell);
+      data.startingRow=cellRef.getRow();
+      data.startingCol=cellRef.getCol();
+    }
+    data.posX=data.startingCol;
+    data.posY=data.startingRow;
+    if (!data.createNewSheet && meta.isAppendLines() && appendingToSheet) {
+      data.posY=data.sheet.getLastRowNum();
+      if (data.posY > 0) {
+        data.posY++;
+      }
+    }
+    if (!data.createNewSheet && meta.getAppendOffset() != 0 && appendingToSheet) {
+      data.posY+=meta.getAppendOffset();
+    }
+    if (!data.createNewSheet && meta.getAppendEmpty() > 0 && appendingToSheet) {
+      for (int i=0; i < meta.getAppendEmpty(); i++) {
+        openLine();
+        if (!data.shiftExistingCells || meta.isAppendLines()) {
+          data.posY++;
+        }
+      }
+    }
+    if (meta.isHeaderEnabled() && !(!data.createNewSheet && meta.isAppendOmitHeader() && appendingToSheet)) {
+      writeHeader();
+    }
+    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"ExcelWriterStep.Log.FileOpened",buildFilename));
+    data.splitnr++;
+  }
+ catch (  Exception e) {
+    logError("Error opening new file",e);
+    setErrors(1);
+    throw new KettleException(e);
+  }
+}

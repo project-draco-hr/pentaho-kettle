@@ -1,0 +1,131 @@
+{
+  try {
+    Cell cell=xlsRow.getCell(posX);
+    if (cell == null) {
+      cell=xlsRow.createCell(posX);
+    }
+    if (!isTitle && data.getCachedStyle(fieldNr) != null) {
+      cell.setCellStyle(data.getCachedStyle(fieldNr));
+    }
+ else {
+      if (excelField != null) {
+        String styleRef=null;
+        if (!isTitle && !Const.isEmpty(excelField.getStyleCell())) {
+          styleRef=excelField.getStyleCell();
+        }
+ else         if (isTitle && !Const.isEmpty(excelField.getTitleStyleCell())) {
+          styleRef=excelField.getTitleStyleCell();
+        }
+        if (styleRef != null) {
+          Cell styleCell=getCellFromReference(styleRef);
+          if (styleCell != null && cell != styleCell) {
+            cell.setCellStyle(styleCell.getCellStyle());
+          }
+        }
+      }
+      if (!isTitle && excelField != null && !Const.isEmpty(excelField.getFormat()) && !excelField.getFormat().startsWith("Image")) {
+        DataFormat format=data.wb.createDataFormat();
+        short formatIndex=format.getFormat(excelField.getFormat());
+        CellUtil.setCellStyleProperty(cell,data.wb,CellUtil.DATA_FORMAT,formatIndex);
+      }
+      if (!isTitle) {
+        data.cacheStyle(fieldNr,cell.getCellStyle());
+      }
+    }
+    if (!isTitle && excelField != null && data.linkfieldnrs[fieldNr] >= 0) {
+      String link=data.inputRowMeta.getValueMeta(data.linkfieldnrs[fieldNr]).getString(row[data.linkfieldnrs[fieldNr]]);
+      if (!Const.isEmpty(link)) {
+        CreationHelper ch=data.wb.getCreationHelper();
+        Hyperlink hyperLink=null;
+        if (link.startsWith("http:") || link.startsWith("https:") || link.startsWith("ftp:")) {
+          hyperLink=ch.createHyperlink(Hyperlink.LINK_URL);
+          hyperLink.setLabel("URL Link");
+        }
+ else         if (link.startsWith("mailto:")) {
+          hyperLink=ch.createHyperlink(Hyperlink.LINK_EMAIL);
+          hyperLink.setLabel("Email Link");
+        }
+ else         if (link.startsWith("'")) {
+          hyperLink=ch.createHyperlink(Hyperlink.LINK_DOCUMENT);
+          hyperLink.setLabel("Link within this document");
+        }
+ else {
+          hyperLink=ch.createHyperlink(Hyperlink.LINK_FILE);
+          hyperLink.setLabel("Link to a file");
+        }
+        hyperLink.setAddress(link);
+        cell.setHyperlink(hyperLink);
+        if (data.getCachedLinkStyle(fieldNr) != null) {
+          cell.setCellStyle(data.getCachedLinkStyle(fieldNr));
+        }
+ else {
+          Font origFont=data.wb.getFontAt(cell.getCellStyle().getFontIndex());
+          Font hlink_font=data.wb.createFont();
+          hlink_font.setBoldweight(origFont.getBoldweight());
+          hlink_font.setCharSet(origFont.getCharSet());
+          hlink_font.setFontHeight(origFont.getFontHeight());
+          hlink_font.setFontName(origFont.getFontName());
+          hlink_font.setItalic(origFont.getItalic());
+          hlink_font.setStrikeout(origFont.getStrikeout());
+          hlink_font.setTypeOffset(origFont.getTypeOffset());
+          hlink_font.setUnderline(Font.U_SINGLE);
+          hlink_font.setColor(IndexedColors.BLUE.getIndex());
+          CellUtil.setCellStyleProperty(cell,data.wb,CellUtil.FONT,hlink_font.getIndex());
+          data.cacheLinkStyle(fieldNr,cell.getCellStyle());
+        }
+      }
+    }
+    if (!isTitle && excelField != null && data.commentfieldnrs[fieldNr] >= 0 && data.wb instanceof XSSFWorkbook) {
+      String comment=data.inputRowMeta.getValueMeta(data.commentfieldnrs[fieldNr]).getString(row[data.commentfieldnrs[fieldNr]]);
+      if (!Const.isEmpty(comment)) {
+        String author=data.commentauthorfieldnrs[fieldNr] >= 0 ? data.inputRowMeta.getValueMeta(data.commentauthorfieldnrs[fieldNr]).getString(row[data.commentauthorfieldnrs[fieldNr]]) : "Kettle PDI";
+        cell.setCellComment(createCellComment(author,comment));
+      }
+    }
+    if (!isTitle && excelField != null && excelField.isFormula()) {
+      cell.setCellFormula(vMeta.getString(v));
+    }
+ else {
+switch (vMeta.getType()) {
+case ValueMetaInterface.TYPE_DATE:
+{
+          if (v != null && vMeta.getDate(v) != null) {
+            cell.setCellValue(vMeta.getDate(v));
+          }
+        }
+      break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+{
+      if (v != null) {
+        cell.setCellValue(vMeta.getBoolean(v));
+      }
+    }
+  break;
+case ValueMetaInterface.TYPE_STRING:
+case ValueMetaInterface.TYPE_BINARY:
+{
+  if (v != null) {
+    cell.setCellValue(vMeta.getString(v));
+  }
+}
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+case ValueMetaInterface.TYPE_NUMBER:
+case ValueMetaInterface.TYPE_INTEGER:
+{
+if (v != null) {
+cell.setCellValue(vMeta.getNumber(v));
+}
+}
+break;
+default :
+break;
+}
+}
+}
+ catch (Exception e) {
+logError("Error writing field (" + data.posX + ","+ data.posY+ ") : "+ e.toString());
+logError(Const.getStackTracker(e));
+throw new KettleException(e);
+}
+}
