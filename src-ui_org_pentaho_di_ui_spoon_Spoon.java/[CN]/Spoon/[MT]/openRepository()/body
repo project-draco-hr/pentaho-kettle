@@ -5,15 +5,7 @@
         rep.disconnect();
         SpoonPluginManager.getInstance().notifyLifecycleListeners(SpoonLifeCycleEvent.REPOSITORY_DISCONNECTED);
       }
-      RepositoryDirectoryInterface directoryTree=null;
-      try {
-        setRepository(repository);
-        directoryTree=rep.loadRepositoryDirectoryTree();
-      }
- catch (      KettleException ke) {
-        rep=null;
-        new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Message",Const.CR),ke);
-      }
+      setRepository(repository);
       TransMeta transMetas[]=getLoadedTransformations();
       for (int t=0; t < transMetas.length; t++) {
         TransMeta transMeta=transMetas[t];
@@ -43,12 +35,18 @@
             transMeta.addDatabase(oldDatabase);
           }
         }
-        RepositoryDirectoryInterface redi=directoryTree.findDirectory(transMeta.getRepositoryDirectory().getPath());
-        if (redi != null) {
-          transMeta.setRepositoryDirectory(redi);
-        }
+        try {
+          RepositoryDirectoryInterface redi=rep.findDirectory(transMeta.getRepositoryDirectory().getPath());
+          if (redi != null) {
+            transMeta.setRepositoryDirectory(redi);
+          }
  else {
-          transMeta.setRepositoryDirectory(directoryTree);
+            transMeta.setRepositoryDirectory(rep.loadRepositoryDirectoryTree());
+          }
+        }
+ catch (        KettleException ke) {
+          rep=null;
+          new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Message",Const.CR),ke);
         }
       }
       refreshTree();
