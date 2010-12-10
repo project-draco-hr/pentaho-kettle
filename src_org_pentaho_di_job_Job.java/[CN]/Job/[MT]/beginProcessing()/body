@@ -10,6 +10,7 @@
     DatabaseMeta logcon=jobMeta.getJobLogTable().getDatabaseMeta();
     String schemaName=environmentSubstitute(jobMeta.getJobLogTable().getActualSchemaName());
     String tableName=environmentSubstitute(jobMeta.getJobLogTable().getActualTableName());
+    String schemaAndTable=jobMeta.getJobLogTable().getDatabaseMeta().getQuotedSchemaTableCombination(schemaName,tableName);
     Database ldb=new Database(this,logcon);
     ldb.shareVariablesWith(this);
     try {
@@ -18,9 +19,9 @@
       ldb.setCommit(10);
       Long id_batch=new Long(1);
       if (jobMeta.getJobLogTable().isBatchIdUsed()) {
-        ldb.lockTables(new String[]{tableName});
+        ldb.lockTables(new String[]{schemaAndTable});
         lockedTable=true;
-        String sql="INSERT INTO " + logcon.quoteField(tableName) + "("+ logcon.quoteField(jobLogTable.getKeyField().getFieldName())+ ") values (-1)";
+        String sql="INSERT INTO " + schemaAndTable + " ("+ logcon.quoteField(jobLogTable.getKeyField().getFieldName())+ ") values (-1)";
         ldb.execStatement(sql);
         id_batch=ldb.getNextValue(null,schemaName,tableName,jobLogTable.getKeyField().getFieldName());
         setBatchId(id_batch.longValue());
@@ -28,7 +29,7 @@
           setPassedBatchId(id_batch.longValue());
         }
       }
-      Object[] lastr=ldb.getLastLogDate(tableName,jobMeta.getName(),true,LogStatus.END);
+      Object[] lastr=ldb.getLastLogDate(schemaAndTable,jobMeta.getName(),true,LogStatus.END);
       if (!Const.isEmpty(lastr)) {
         Date last;
         try {
@@ -44,9 +45,9 @@
       depDate=currentDate;
       ldb.writeLogRecord(jobMeta.getJobLogTable(),LogStatus.START,this,null);
       if (lockedTable) {
-        String sql="DELETE FROM " + logcon.quoteField(tableName) + " WHERE "+ logcon.quoteField(jobLogTable.getKeyField().getFieldName())+ "= -1";
+        String sql="DELETE FROM " + schemaAndTable + " WHERE "+ logcon.quoteField(jobLogTable.getKeyField().getFieldName())+ "= -1";
         ldb.execStatement(sql);
-        ldb.unlockTables(new String[]{tableName});
+        ldb.unlockTables(new String[]{schemaAndTable});
       }
       ldb.disconnect();
       if (intervalInSeconds > 0) {

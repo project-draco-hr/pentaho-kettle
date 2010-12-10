@@ -7,6 +7,7 @@
   DatabaseMeta logConnection=transLogTable.getDatabaseMeta();
   String logTable=environmentSubstitute(transLogTable.getActualTableName());
   String logSchema=environmentSubstitute(transLogTable.getActualSchemaName());
+  String logSchemaAndTable=logConnection.getQuotedSchemaTableCombination(logSchema,logTable);
   try {
     boolean lockedTable=false;
     if (logConnection != null) {
@@ -22,14 +23,14 @@
       transLogTableDatabaseConnection.connect();
       transLogTableDatabaseConnection.setCommit(10);
       if (transLogTable.isBatchIdUsed()) {
-        transLogTableDatabaseConnection.lockTables(new String[]{logTable});
+        transLogTableDatabaseConnection.lockTables(new String[]{logSchemaAndTable});
         lockedTable=true;
-        String sql="INSERT INTO " + logConnection.quoteField(logTable) + "("+ logConnection.quoteField(transLogTable.getKeyField().getFieldName())+ ") values (-1)";
+        String sql="INSERT INTO " + logSchemaAndTable + " ("+ logConnection.quoteField(transLogTable.getKeyField().getFieldName())+ ") values (-1)";
         transLogTableDatabaseConnection.execStatement(sql);
         Long id_batch=transLogTableDatabaseConnection.getNextValue(transMeta.getCounters(),logSchema,logTable,transLogTable.getKeyField().getFieldName());
         setBatchId(id_batch.longValue());
       }
-      Object[] lastr=transLogTableDatabaseConnection.getLastLogDate(logTable,transMeta.getName(),false,LogStatus.END);
+      Object[] lastr=transLogTableDatabaseConnection.getLastLogDate(logSchemaAndTable,transMeta.getName(),false,LogStatus.END);
       if (lastr != null && lastr.length > 0) {
         startDate=(Date)lastr[0];
         if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.StartDateFound") + startDate);
@@ -131,13 +132,13 @@
       if (endDate.compareTo(maxdesired) > 0)       endDate=maxdesired;
     }
     if (lockedTable) {
-      String sql="DELETE FROM " + logConnection.quoteField(logTable) + " WHERE "+ logConnection.quoteField(transLogTable.getKeyField().getFieldName())+ "= -1";
+      String sql="DELETE FROM " + logSchemaAndTable + " WHERE "+ logConnection.quoteField(transLogTable.getKeyField().getFieldName())+ "= -1";
       transLogTableDatabaseConnection.execStatement(sql);
-      transLogTableDatabaseConnection.unlockTables(new String[]{logTable});
+      transLogTableDatabaseConnection.unlockTables(new String[]{logSchemaAndTable});
     }
   }
  catch (  KettleException e) {
-    throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ErrorCalculatingDateRange",logTable),e);
+    throw new KettleTransException(BaseMessages.getString(PKG,"Trans.Exception.ErrorCalculatingDateRange",logSchemaAndTable),e);
   }
  finally {
   }
