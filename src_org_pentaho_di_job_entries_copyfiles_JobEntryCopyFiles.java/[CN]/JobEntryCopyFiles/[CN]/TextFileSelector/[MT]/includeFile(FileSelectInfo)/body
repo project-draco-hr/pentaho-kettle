@@ -1,19 +1,22 @@
 {
   boolean returncode=false;
   FileObject file_name=null;
+  String addFileNameString=null;
   try {
     if (!info.getFile().toString().equals(source_folder) && !parentjob.isStopped()) {
-      String short_filename_from_basefolder=info.getFile().getName().toString().substring(source_folder.length(),info.getFile().getName().toString().length());
       String short_filename=info.getFile().getName().getBaseName();
-      file_name=KettleVFS.getFileObject(destination_folder + Const.FILE_SEPARATOR + short_filename_from_basefolder,JobEntryCopyFiles.this);
+      if (destinationFolderObject == null) {
+        destinationFolderObject=KettleVFS.getFileObject(destination_folder,JobEntryCopyFiles.this);
+      }
+      file_name=destinationFolderObject.getChild(short_filename);
       if (!info.getFile().getParent().equals(info.getBaseFolder())) {
         if (include_subfolders) {
           if (info.getFile().getType() == FileType.FOLDER) {
             if (include_subfolders && copy_empty_folders && Const.isEmpty(file_wildcard)) {
-              if (!file_name.exists()) {
+              if ((file_name == null) || (!file_name.exists())) {
                 if (log.isDetailed()) {
                   log.logDetailed(" ------ ");
-                  log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopied",info.getFile().toString(),file_name.toString()));
+                  log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopied",info.getFile().toString(),file_name != null ? file_name.toString() : ""));
                 }
                 returncode=true;
               }
@@ -30,11 +33,11 @@
             }
           }
  else {
-            if (GetFileWildcard(short_filename,file_wildcard)) {
-              if (!file_name.exists()) {
+            if (GetFileWildcard(short_filename)) {
+              if ((file_name == null) || (!file_name.exists())) {
                 if (log.isDetailed()) {
                   log.logDetailed(" ------ ");
-                  log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopied",info.getFile().toString(),file_name.toString()));
+                  log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopied",info.getFile().toString(),file_name != null ? file_name.toString() : ""));
                 }
                 returncode=true;
               }
@@ -55,10 +58,10 @@
  else {
         if (info.getFile().getType() == FileType.FOLDER) {
           if (include_subfolders && copy_empty_folders && Const.isEmpty(file_wildcard)) {
-            if (!file_name.exists()) {
+            if ((file_name == null) || (!file_name.exists())) {
               if (log.isDetailed()) {
                 log.logDetailed(""," ------ ");
-                log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopied",info.getFile().toString(),file_name.toString()));
+                log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FolderCopied",info.getFile().toString(),file_name != null ? file_name.toString() : ""));
               }
               returncode=true;
             }
@@ -75,11 +78,11 @@
           }
         }
  else {
-          if (GetFileWildcard(short_filename,file_wildcard)) {
-            if (!file_name.exists()) {
+          if (GetFileWildcard(short_filename)) {
+            if ((file_name == null) || (!file_name.exists())) {
               if (log.isDetailed()) {
                 log.logDetailed(""," ------ ");
-                log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopied",info.getFile().toString(),file_name.toString()));
+                log.logDetailed("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopiedInfos"),BaseMessages.getString(PKG,"JobCopyFiles.Log.FileCopied",info.getFile().toString(),file_name != null ? file_name.toString() : ""));
               }
               returncode=true;
             }
@@ -105,6 +108,9 @@
  finally {
     if (file_name != null) {
       try {
+        if (returncode && add_result_filesname) {
+          addFileNameString=file_name.toString();
+        }
         file_name.close();
         file_name=null;
       }
@@ -117,7 +123,7 @@
     list_files_remove.add(info.getFile().toString());
   }
   if (returncode && add_result_filesname) {
-    list_add_result.add(file_name.toString());
+    list_add_result.add(addFileNameString);
   }
   return returncode;
 }

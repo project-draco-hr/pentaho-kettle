@@ -29,13 +29,31 @@
               log.logDetailed("","  ");
               logDetailed(BaseMessages.getString(PKG,"JobCopyFiles.Log.FetchFolder",sourcefilefolder.toString()));
             }
-            destinationfilefolder.copyFrom(sourcefilefolder,new TextFileSelector(sourcefilefolder.toString(),destinationfilefolder.toString(),realWildcard,parentJob));
+            TextFileSelector textFileSelector=new TextFileSelector(sourcefilefolder,destinationfilefolder,realWildcard,parentJob);
+            try {
+              destinationfilefolder.copyFrom(sourcefilefolder,textFileSelector);
+            }
+  finally {
+              textFileSelector.shutdown();
+            }
           }
           if (remove_source_files && !list_files_remove.isEmpty()) {
+            String sourceFilefoldername=sourcefilefolder.toString();
+            int trimPathLength=sourceFilefoldername.length() + 1;
+            FileObject removeFile;
             for (Iterator<String> iter=list_files_remove.iterator(); iter.hasNext() && !parentJob.isStopped(); ) {
               String fileremoventry=(String)iter.next();
-              if (KettleVFS.getFileObject(fileremoventry,this).getType() == FileType.FILE) {
-                boolean deletefile=KettleVFS.getFileObject(fileremoventry,this).delete();
+              removeFile=null;
+              if (fileremoventry.startsWith(sourceFilefoldername)) {
+                if (trimPathLength < fileremoventry.length()) {
+                  removeFile=sourcefilefolder.getChild(fileremoventry.substring(trimPathLength));
+                }
+              }
+              if (removeFile == null) {
+                removeFile=KettleVFS.getFileObject(fileremoventry,this);
+              }
+              if (removeFile.getType() == FileType.FILE) {
+                boolean deletefile=removeFile.delete();
                 log.logBasic(" ------ ");
                 if (!deletefile) {
                   log.logError("      " + BaseMessages.getString(PKG,"JobCopyFiles.Log.Error"),BaseMessages.getString(PKG,"JobCopyFiles.Error.Exception.CanRemoveFileFolder",fileremoventry));
@@ -47,10 +65,22 @@
             }
           }
           if (add_result_filesname && !list_add_result.isEmpty()) {
+            String destinationFilefoldername=destinationfilefolder.toString();
+            int trimPathLength=destinationFilefoldername.length() + 1;
+            FileObject addFile;
             for (Iterator<String> iter=list_add_result.iterator(); iter.hasNext(); ) {
               String fileaddentry=(String)iter.next();
-              if (KettleVFS.getFileObject(fileaddentry,this).getType() == FileType.FILE) {
-                ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(fileaddentry,this),parentJob.getJobname(),toString());
+              addFile=null;
+              if (fileaddentry.startsWith(destinationFilefoldername)) {
+                if (trimPathLength < fileaddentry.length()) {
+                  addFile=destinationfilefolder.getChild(fileaddentry.substring(trimPathLength));
+                }
+              }
+              if (addFile == null) {
+                addFile=KettleVFS.getFileObject(fileaddentry,this);
+              }
+              if (addFile.getType() == FileType.FILE) {
+                ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,addFile,parentJob.getJobname(),toString());
                 result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
                 if (log.isDetailed()) {
                   log.logDetailed(""," ------ ");
