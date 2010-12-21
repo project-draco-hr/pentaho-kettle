@@ -1,0 +1,33 @@
+{
+  SlaveServer[] slaveServers=transSplitter.getSlaveTargets();
+  TransMeta[] slaves=transSplitter.getSlaves();
+  SlaveServer masterServer;
+  try {
+    masterServer=transSplitter.getMasterServer();
+  }
+ catch (  KettleException e) {
+    log.logError("Unable to obtain the master server from the cluster",e);
+    return 1;
+  }
+  TransMeta masterTransMeta=transSplitter.getMaster();
+  int errors=0;
+  for (int s=0; s < slaveServers.length; s++) {
+    try {
+      cleanupSlaveServer(transSplitter,slaveServers[s],slaves[s].getName());
+    }
+ catch (    Exception e) {
+      errors++;
+      log.logError("Unable to contact slave server '" + slaveServers[s].getName() + "' to clean up slave transformation",e);
+    }
+  }
+  if (masterTransMeta != null && masterTransMeta.nrSteps() > 0) {
+    try {
+      cleanupSlaveServer(transSplitter,masterServer,masterTransMeta.getName());
+    }
+ catch (    Exception e) {
+      errors++;
+      log.logError("Unable to contact master server '" + masterServer.getName() + "' to clean up master transformation",e);
+    }
+  }
+  return errors;
+}
