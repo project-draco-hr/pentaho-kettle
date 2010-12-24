@@ -38,12 +38,14 @@
         if (log.isDetailed())         log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactoryInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerFactory",factory.getClass().getName()));
         InputStream xslInputStream=KettleVFS.getInputStream(xslfile);
         InputStream xmlInputStream=KettleVFS.getInputStream(xmlfile);
+        OutputStream os=null;
         try {
           Templates template=factory.newTemplates(new StreamSource(xslInputStream));
           Transformer xformer=template.newTransformer();
           if (log.isDetailed())           log.logDetailed(BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClassInfos"),BaseMessages.getString(PKG,"JobEntryXSL.Log.TransformerClass",xformer.getClass().getName()));
           Source source=new StreamSource(xmlInputStream);
-          StreamResult resultat=new StreamResult(KettleVFS.getOutputStream(outputfile,false));
+          os=KettleVFS.getOutputStream(outputfile,false);
+          StreamResult resultat=new StreamResult(os);
           xformer.transform(source,resultat);
           if (isAddFileToResult()) {
             ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(outputfilename,this),parentJob.getJobname(),toString());
@@ -59,6 +61,11 @@
           }
           try {
             xmlInputStream.close();
+          }
+ catch (          IOException ignored) {
+          }
+          try {
+            if (os != null)             os.close();
           }
  catch (          IOException ignored) {
           }
