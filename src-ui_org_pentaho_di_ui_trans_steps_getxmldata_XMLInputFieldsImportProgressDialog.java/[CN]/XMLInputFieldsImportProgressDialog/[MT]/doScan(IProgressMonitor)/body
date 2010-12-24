@@ -1,0 +1,51 @@
+{
+  monitor.beginTask(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.ScanningFile",filename),1);
+  SAXReader reader=new SAXReader();
+  monitor.worked(1);
+  if (monitor.isCanceled())   return null;
+  if (meta.isValidating()) {
+    reader.setValidation(true);
+    reader.setFeature("http://apache.org/xml/features/validation/schema",true);
+  }
+ else {
+    reader.setEntityResolver(new IgnoreDTDEntityResolver());
+  }
+  monitor.worked(1);
+  monitor.beginTask(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.ReadingDocument"),1);
+  if (monitor.isCanceled())   return null;
+  InputStream is=null;
+  try {
+    is=KettleVFS.getInputStream(filename);
+    Document document=reader.read(is,encoding);
+    monitor.worked(1);
+    monitor.beginTask(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.DocumentOpened"),1);
+    monitor.worked(1);
+    monitor.beginTask(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.ReadingNode"),1);
+    if (monitor.isCanceled())     return null;
+    List<Node> nodes=document.selectNodes(this.loopXPath);
+    monitor.worked(1);
+    monitor.subTask(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.FetchNodes"));
+    if (monitor.isCanceled())     return null;
+    for (    Node node : nodes) {
+      if (monitor.isCanceled())       return null;
+      nr++;
+      monitor.subTask(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.FetchNodes",nr));
+      monitor.subTask(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.FetchNodes",node.getPath()));
+      setNodeField(node,monitor);
+      childNode(node,monitor);
+    }
+    monitor.worked(1);
+  }
+  finally {
+    try {
+      if (is != null)       is.close();
+    }
+ catch (    Exception e) {
+    }
+    ;
+  }
+  RowMetaAndData[] listFields=fieldsList.toArray(new RowMetaAndData[fieldsList.size()]);
+  monitor.setTaskName(BaseMessages.getString(PKG,"GetXMLDateLoopNodesImportProgressDialog.Task.NodesReturned"));
+  monitor.done();
+  return listFields;
+}

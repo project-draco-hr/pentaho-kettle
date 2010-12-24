@@ -1,37 +1,52 @@
 {
+  InputStream is=null;
   try {
-    list.clear();
     GetXMLDataMeta meta=new GetXMLDataMeta();
     getInfo(meta);
     if (!checkLoopXPath(meta))     return;
+    int clearFields=SWT.YES;
+    if (wFields.nrNonEmpty() > 0) {
+      MessageBox messageBox=new MessageBox(shell,SWT.YES | SWT.NO | SWT.CANCEL| SWT.ICON_QUESTION);
+      messageBox.setMessage(BaseMessages.getString(PKG,"GetXMLDataDialog.ClearFieldList.DialogMessage"));
+      messageBox.setText(BaseMessages.getString(PKG,"GetXMLDataDialog.ClearFieldList.DialogTitle"));
+      clearFields=messageBox.open();
+      if (clearFields == SWT.CANCEL) {
+        return;
+      }
+    }
     FileInputList inputList=meta.getFiles(transMeta);
     if (inputList.getFiles().size() > 0) {
-      wFields.removeAll();
-      String encoding="UTF-8";
-      if (!Const.isEmpty(meta.getEncoding())) {
-        encoding=meta.getEncoding();
+      XMLInputFieldsImportProgressDialog prd=new XMLInputFieldsImportProgressDialog(shell,meta,KettleVFS.getFilename(inputList.getFile(0)),meta.getEncoding() == null ? "UTF-8" : meta.getEncoding(),transMeta.environmentSubstitute(meta.getLoopXPath()));
+      RowMetaAndData[] fields=prd.open();
+      if (fields != null) {
+        if (clearFields == SWT.YES) {
+          wFields.clearAll(false);
+        }
+        int nr=fields.length;
+        for (int i=0; i < nr; i++) {
+          RowMetaAndData row=fields[i];
+          TableItem item=new TableItem(wFields.table,SWT.NONE);
+          item.setText(1,row.getString(0,""));
+          item.setText(2,row.getString(1,""));
+          item.setText(3,row.getString(2,GetXMLDataField.ElementTypeDesc[0]));
+          item.setText(4,row.getString(3,"String"));
+          item.setText(5,row.getString(4,""));
+        }
+        wFields.removeEmptyRows();
+        wFields.setRowNums();
+        wFields.optWidth(true);
       }
-      SAXReader reader=new SAXReader();
-      if (meta.isValidating()) {
-        reader.setValidation(true);
-        reader.setFeature("http://apache.org/xml/features/validation/schema",true);
-      }
- else {
-        reader.setEntityResolver(new IgnoreDTDEntityResolver());
-      }
-      Document document=reader.read(KettleVFS.getInputStream(inputList.getFile(0)),encoding);
-      String realXPath=transMeta.environmentSubstitute(meta.getLoopXPath());
-      List<Node> nodes=document.selectNodes(realXPath);
-      for (      Node node : nodes) {
-        setNodeField(node);
-        ChildNode(node);
-      }
-      wFields.removeEmptyRows();
-      wFields.setRowNums();
-      wFields.optWidth(true);
     }
   }
  catch (  Exception e) {
     new ErrorDialog(shell,BaseMessages.getString(PKG,"GetXMLDataDialog.ErrorParsingData.DialogTitle"),BaseMessages.getString(PKG,"GetXMLDataDialog.ErrorParsingData.DialogMessage"),e);
+  }
+ finally {
+    try {
+      if (is != null)       is.close();
+    }
+ catch (    Exception e) {
+    }
+    ;
   }
 }

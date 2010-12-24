@@ -5,29 +5,13 @@
     FileInputList fileinputList=meta.getFiles(transMeta);
     if (fileinputList.nrOfFiles() > 0) {
       if (fileinputList.getFile(0).exists()) {
-        listpath.clear();
-        String encoding="UTF-8";
-        if (!Const.isEmpty(meta.getEncoding()))         encoding=meta.getEncoding();
-        SAXReader reader=new SAXReader();
-        if (meta.isValidating()) {
-          reader.setValidation(true);
-          reader.setFeature("http://apache.org/xml/features/validation/schema",true);
+        LoopNodesImportProgressDialog pd=new LoopNodesImportProgressDialog(shell,meta,KettleVFS.getFilename(fileinputList.getFile(0)),meta.getEncoding() == null ? "UTF-8" : meta.getEncoding());
+        String[] list_xpath=pd.open();
+        if (list_xpath != null) {
+          EnterSelectionDialog dialog=new EnterSelectionDialog(shell,list_xpath,BaseMessages.getString(PKG,"GetXMLDataDialog.Dialog.SelectALoopPath.Title"),BaseMessages.getString(PKG,"GetXMLDataDialog.Dialog.SelectALoopPath.Message"));
+          String listxpaths=dialog.open();
+          if (listxpaths != null)           wLoopXPath.setText(listxpaths);
         }
- else {
-          reader.setEntityResolver(new IgnoreDTDEntityResolver());
-        }
-        Document document=reader.read(KettleVFS.getInputStream(fileinputList.getFile(0)),encoding);
-        List<Node> nodes=document.selectNodes(document.getRootElement().getName());
-        for (        Node node : nodes) {
-          if (!listpath.contains(node.getPath())) {
-            listpath.add(node.getPath());
-            addLoopXPath(node);
-          }
-        }
-        String[] list_xpath=(String[])listpath.toArray(new String[listpath.size()]);
-        EnterSelectionDialog dialog=new EnterSelectionDialog(shell,list_xpath,BaseMessages.getString(PKG,"GetXMLDataDialog.Dialog.SelectALoopPath.Title"),BaseMessages.getString(PKG,"GetXMLDataDialog.Dialog.SelectALoopPath.Message"));
-        String listxpaths=dialog.open();
-        if (listxpaths != null)         wLoopXPath.setText(listxpaths);
       }
  else {
         throw new KettleException(BaseMessages.getString(PKG,"GetXMLDataDialog.Exception.FileDoesNotExist",KettleVFS.getFilename(fileinputList.getFile(0))));
