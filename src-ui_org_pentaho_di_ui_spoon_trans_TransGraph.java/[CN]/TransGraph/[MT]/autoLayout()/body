@@ -1,0 +1,43 @@
+{
+  Map<StepMeta,StepVelocity> speeds=new HashMap<StepMeta,StepVelocity>();
+  Map<StepMeta,StepLocation> locations=new HashMap<StepMeta,StepLocation>();
+  for (  StepMeta stepMeta : transMeta.getSteps()) {
+    speeds.put(stepMeta,new StepVelocity(0,0));
+    StepLocation location=new StepLocation(stepMeta.getLocation().x,stepMeta.getLocation().y);
+    locations.put(stepMeta,location);
+  }
+  StepLocation center=calculateCenter(locations);
+  double totalKineticEngergy=0;
+  do {
+    totalKineticEngergy=0;
+    for (    StepMeta stepMeta : transMeta.getSteps()) {
+      Force netForce=new Force(0,0);
+      StepVelocity velocity=speeds.get(stepMeta);
+      StepLocation location=locations.get(stepMeta);
+      for (      StepMeta otherStep : transMeta.getSteps()) {
+        if (!stepMeta.equals(otherStep)) {
+          netForce.add(getCoulombRepulsion(stepMeta,otherStep,locations));
+        }
+      }
+      for (int i=0; i < transMeta.nrTransHops(); i++) {
+        TransHopMeta hopMeta=transMeta.getTransHop(i);
+        if (hopMeta.getFromStep().equals(stepMeta) || hopMeta.getToStep().equals(stepMeta)) {
+          netForce.add(getHookeAttraction(hopMeta,locations));
+        }
+      }
+      adjustVelocity(velocity,netForce);
+      adjustLocation(location,velocity);
+      totalKineticEngergy+=nodeMass * (velocity.dx * velocity.dx + velocity.dy * velocity.dy);
+    }
+    StepLocation newCenter=calculateCenter(locations);
+    StepLocation diff=new StepLocation(center.x - newCenter.x,center.y - newCenter.y);
+    for (    StepMeta stepMeta : transMeta.getSteps()) {
+      StepLocation location=locations.get(stepMeta);
+      location.x+=diff.x;
+      location.y+=diff.y;
+      stepMeta.setLocation((int)Math.round(location.x),(int)Math.round(location.y));
+    }
+    redraw();
+  }
+ while (totalKineticEngergy < 0.01);
+}
