@@ -3,7 +3,20 @@
   if (stepInterface == null) {
     throw new KettleException("Unable to find thread with name " + stepname + " and copy number "+ copynr);
   }
-  BlockingRowSet rowSet=new BlockingRowSet(transMeta.getSizeRowset());
-  stepInterface.getInputRowSets().add(rowSet);
-  return new RowProducer(stepInterface,rowSet);
+  RowSet rowSet;
+switch (transMeta.getTransformationType()) {
+case Normal:
+    rowSet=new BlockingRowSet(transMeta.getSizeRowset());
+  break;
+case Monitored:
+rowSet=new BlockingListeningRowSet(transMeta.getSizeRowset());
+break;
+case SerialSingleThreaded:
+rowSet=new SingleRowRowSet();
+break;
+default :
+throw new KettleException("Unhandled transformation type: " + transMeta.getTransformationType());
+}
+stepInterface.getInputRowSets().add(rowSet);
+return new RowProducer(stepInterface,rowSet);
 }

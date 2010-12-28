@@ -15,13 +15,21 @@
     System.arraycopy(row,0,errorRowData,0,rowMeta.size());
   }
   stepErrorMeta.addErrorRowData(errorRowData,rowMeta.size(),nrErrors,errorDescriptions,fieldNames,errorCodes);
-  for (int i=0; i < rowListeners.size(); i++) {
-    RowListener rowListener=(RowListener)rowListeners.get(i);
-    rowListener.errorRowWrittenEvent(rowMeta,row);
+synchronized (this) {
+    for (int i=0; i < rowListeners.size(); i++) {
+      RowListener rowListener=rowListeners.get(i);
+      rowListener.errorRowWrittenEvent(rowMeta,row);
+    }
   }
-  if (errorRowSet != null) {
-    while (!errorRowSet.putRow(errorRowMeta,errorRowData) && !isStopped())     ;
-    incrementLinesRejected();
+  setPassingData(true);
+  try {
+    if (errorRowSet != null) {
+      while (!errorRowSet.putRow(errorRowMeta,errorRowData) && !isStopped())       ;
+      incrementLinesRejected();
+    }
+    verifyRejectionRates();
   }
-  verifyRejectionRates();
+  finally {
+    setPassingData(false);
+  }
 }

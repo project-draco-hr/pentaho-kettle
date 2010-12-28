@@ -28,53 +28,61 @@
   }
   RowSet inputRowSet=null;
   Object[] row=null;
-  if (blockPointer >= NR_OF_ROWS_IN_BLOCK) {
-    for (int r=0; r < inputRowSets.size() && row == null; r++) {
-      nextInputStream();
-      inputRowSet=currentInputStream();
-      row=inputRowSet.getRowImmediate();
-    }
-    if (row != null)     incrementLinesRead();
-  }
- else {
-    inputRowSet=currentInputStream();
-  }
-  if (isUsingThreadPriorityManagment() && !inputRowSet.isDone() && inputRowSet.size() <= lowerBufferBoundary && !isStopped()) {
-    try {
-      Thread.sleep(0,1);
-    }
- catch (    InterruptedException e) {
-    }
-  }
-  while (row == null && !isStopped()) {
-    row=inputRowSet.getRowWait(1,TimeUnit.MILLISECONDS);
-    if (row != null) {
-      incrementLinesRead();
-      blockPointer++;
-    }
- else {
-      if (inputRowSet.isDone()) {
-        row=inputRowSet.getRowWait(1,TimeUnit.MILLISECONDS);
-        if (row == null) {
-          inputRowSets.remove(currentInputRowSetNr);
-          if (inputRowSets.isEmpty())           return null;
-        }
- else {
-          incrementLinesRead();
-        }
+  setPassingData(true);
+  try {
+    if (blockPointer >= NR_OF_ROWS_IN_BLOCK) {
+      for (int r=0; r < inputRowSets.size() && row == null; r++) {
+        nextInputStream();
+        inputRowSet=currentInputStream();
+        row=inputRowSet.getRowImmediate();
       }
-      nextInputStream();
+      if (row != null) {
+        incrementLinesRead();
+      }
+    }
+ else {
       inputRowSet=currentInputStream();
     }
+    if (isUsingThreadPriorityManagment() && !inputRowSet.isDone() && inputRowSet.size() <= lowerBufferBoundary && !isStopped()) {
+      try {
+        Thread.sleep(0,1);
+      }
+ catch (      InterruptedException e) {
+      }
+    }
+    while (row == null && !isStopped()) {
+      row=inputRowSet.getRowWait(1,TimeUnit.MILLISECONDS);
+      if (row != null) {
+        incrementLinesRead();
+        blockPointer++;
+      }
+ else {
+        if (inputRowSet.isDone()) {
+          row=inputRowSet.getRowWait(1,TimeUnit.MILLISECONDS);
+          if (row == null) {
+            inputRowSets.remove(currentInputRowSetNr);
+            if (inputRowSets.isEmpty())             return null;
+          }
+ else {
+            incrementLinesRead();
+          }
+        }
+        nextInputStream();
+        inputRowSet=currentInputStream();
+      }
+    }
+    while (row == null && !stopped.get()) {
+      if (inputRowSets.isEmpty())       return null;
+      nextInputStream();
+      inputRowSet=currentInputStream();
+      row=getRowFrom(inputRowSet);
+    }
+    if (inputRowMeta == null) {
+      inputRowMeta=inputRowSet.getRowMeta();
+    }
   }
-  while (row == null && !stopped.get()) {
-    if (inputRowSets.isEmpty())     return null;
-    nextInputStream();
-    inputRowSet=currentInputStream();
-    row=getRowFrom(inputRowSet);
-  }
-  if (inputRowMeta == null) {
-    inputRowMeta=inputRowSet.getRowMeta();
+  finally {
+    setPassingData(false);
   }
   if (row != null) {
     if (trans.isSafeModeEnabled()) {
@@ -83,9 +91,11 @@
         throw new KettleException("Safe mode check noticed that the length of the row data is smaller (" + row.length + ") than the row metadata size ("+ inputRowMeta.size()+ ")");
       }
     }
-    for (int i=0; i < rowListeners.size(); i++) {
-      RowListener rowListener=(RowListener)rowListeners.get(i);
-      rowListener.rowReadEvent(inputRowMeta,row);
+synchronized (this) {
+      for (int i=0; i < rowListeners.size(); i++) {
+        RowListener rowListener=rowListeners.get(i);
+        rowListener.rowReadEvent(inputRowMeta,row);
+      }
     }
   }
   verifyRejectionRates();

@@ -17,36 +17,45 @@
     }
     this.checkTransRunning=true;
   }
-  if (isUsingThreadPriorityManagment() && !rowSet.isDone() && rowSet.size() <= lowerBufferBoundary && !isStopped()) {
-    try {
-      Thread.sleep(0,1);
+  Object[] rowData=null;
+  setPassingData(true);
+  try {
+    if (isUsingThreadPriorityManagment() && !rowSet.isDone() && rowSet.size() <= lowerBufferBoundary && !isStopped()) {
+      try {
+        Thread.sleep(0,1);
+      }
+ catch (      InterruptedException e) {
+      }
     }
- catch (    InterruptedException e) {
+    rowData=rowSet.getRow();
+    while (rowData == null && !rowSet.isDone() && !stopped.get()) {
+      rowData=rowSet.getRow();
     }
-  }
-  Object[] rowData=rowSet.getRow();
-  while (rowData == null && !rowSet.isDone() && !stopped.get()) {
-    rowData=rowSet.getRow();
-  }
-  if (rowData == null && rowSet.isDone()) {
-    rowData=rowSet.getRow();
-  }
-  if (stopped.get()) {
-    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"BaseStep.Log.StopLookingForMoreRows"));
-    stopAll();
-    return null;
-  }
-  if (rowData == null && rowSet.isDone()) {
-    rowData=rowSet.getRow();
-    if (rowData == null) {
-      inputRowSets.remove(rowSet);
+    if (rowData == null && rowSet.isDone()) {
+      rowData=rowSet.getRow();
+    }
+    if (stopped.get()) {
+      if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"BaseStep.Log.StopLookingForMoreRows"));
+      stopAll();
       return null;
     }
+    if (rowData == null && rowSet.isDone()) {
+      rowData=rowSet.getRow();
+      if (rowData == null) {
+        inputRowSets.remove(rowSet);
+        return null;
+      }
+    }
+  }
+  finally {
+    setPassingData(false);
   }
   incrementLinesRead();
-  for (int i=0; i < rowListeners.size(); i++) {
-    RowListener rowListener=(RowListener)rowListeners.get(i);
-    rowListener.rowReadEvent(rowSet.getRowMeta(),rowData);
+synchronized (this) {
+    for (int i=0; i < rowListeners.size(); i++) {
+      RowListener rowListener=rowListeners.get(i);
+      rowListener.rowReadEvent(rowSet.getRowMeta(),rowData);
+    }
   }
   return rowData;
 }

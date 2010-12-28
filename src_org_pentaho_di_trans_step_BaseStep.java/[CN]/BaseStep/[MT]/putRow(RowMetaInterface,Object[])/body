@@ -24,7 +24,7 @@
   }
 synchronized (this) {
     for (int i=0; i < rowListeners.size(); i++) {
-      RowListener rowListener=(RowListener)rowListeners.get(i);
+      RowListener rowListener=rowListeners.get(i);
       rowListener.rowWrittenEvent(rowMeta,row);
     }
   }
@@ -40,28 +40,13 @@ synchronized (this) {
     incrementLinesWritten();
     return;
   }
+  setPassingData(true);
+  try {
 switch (repartitioning) {
 case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
 {
-      if (distributed) {
-        RowSet rs=outputRowSets.get(currentOutputRowSetNr);
-        if (isUsingThreadPriorityManagment() && !rs.isDone() && rs.size() >= upperBufferBoundary && !isStopped()) {
-          try {
-            Thread.sleep(0,1);
-          }
- catch (          InterruptedException e) {
-          }
-        }
-        while (!rs.putRow(rowMeta,row) && !isStopped())         ;
-        incrementLinesWritten();
-        if (outputRowSets.size() > 1) {
-          currentOutputRowSetNr++;
-          if (currentOutputRowSetNr >= outputRowSets.size())           currentOutputRowSetNr=0;
-        }
-      }
- else {
-        for (int i=1; i < outputRowSets.size(); i++) {
-          RowSet rs=outputRowSets.get(i);
+        if (distributed) {
+          RowSet rs=outputRowSets.get(currentOutputRowSetNr);
           if (isUsingThreadPriorityManagment() && !rs.isDone() && rs.size() >= upperBufferBoundary && !isStopped()) {
             try {
               Thread.sleep(0,1);
@@ -69,94 +54,115 @@ case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
  catch (            InterruptedException e) {
             }
           }
-          try {
-            while (!rs.putRow(rowMeta,rowMeta.cloneRow(row)) && !isStopped())             ;
-            incrementLinesWritten();
-          }
- catch (          KettleValueException e) {
-            throw new KettleStepException("Unable to clone row while copying rows to multiple target steps",e);
+          while (!rs.putRow(rowMeta,row) && !isStopped())           ;
+          incrementLinesWritten();
+          if (outputRowSets.size() > 1) {
+            currentOutputRowSetNr++;
+            if (currentOutputRowSetNr >= outputRowSets.size())             currentOutputRowSetNr=0;
           }
         }
-        RowSet rs=outputRowSets.get(0);
-        while (!rs.putRow(rowMeta,row) && !isStopped())         ;
-        incrementLinesWritten();
+ else {
+          for (int i=1; i < outputRowSets.size(); i++) {
+            RowSet rs=outputRowSets.get(i);
+            if (isUsingThreadPriorityManagment() && !rs.isDone() && rs.size() >= upperBufferBoundary && !isStopped()) {
+              try {
+                Thread.sleep(0,1);
+              }
+ catch (              InterruptedException e) {
+              }
+            }
+            try {
+              while (!rs.putRow(rowMeta,rowMeta.cloneRow(row)) && !isStopped())               ;
+              incrementLinesWritten();
+            }
+ catch (            KettleValueException e) {
+              throw new KettleStepException("Unable to clone row while copying rows to multiple target steps",e);
+            }
+          }
+          RowSet rs=outputRowSets.get(0);
+          while (!rs.putRow(rowMeta,row) && !isStopped())           ;
+          incrementLinesWritten();
+        }
       }
-    }
-  break;
+    break;
 case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
 {
-  if (nextStepPartitioningMeta == null) {
-    List<StepMeta> nextSteps=transMeta.findNextSteps(stepMeta);
-    if (nextSteps.size() > 0) {
-      nextStepPartitioningMeta=nextSteps.get(0).getStepPartitioningMeta();
+    if (nextStepPartitioningMeta == null) {
+      List<StepMeta> nextSteps=transMeta.findNextSteps(stepMeta);
+      if (nextSteps.size() > 0) {
+        nextStepPartitioningMeta=nextSteps.get(0).getStepPartitioningMeta();
+      }
     }
-  }
-  int partitionNr;
-  try {
-    partitionNr=nextStepPartitioningMeta.getPartition(rowMeta,row);
-  }
- catch (  KettleException e) {
-    throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
-  }
-  RowSet selectedRowSet=null;
-  if (clusteredPartitioningFirst) {
-    clusteredPartitioningFirst=false;
-    clusteredPartitioning=transMeta.getSlaveStepCopyPartitionDistribution() != null && !transMeta.getSlaveStepCopyPartitionDistribution().getDistribution().isEmpty();
-  }
-  if (clusteredPartitioning) {
-    if (partitionNrRowSetList == null) {
-      partitionNrRowSetList=new RowSet[outputRowSets.size()];
-      SlaveStepCopyPartitionDistribution distribution=transMeta.getSlaveStepCopyPartitionDistribution();
-      String nextPartitionSchemaName=TransSplitter.createPartitionSchemaNameFromTarget(nextStepPartitioningMeta.getPartitionSchema().getName());
-      for (      RowSet outputRowSet : outputRowSets) {
-        try {
-          int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),nextPartitionSchemaName,outputRowSet.getDestinationStepCopy());
-          if (partNr < 0) {
-            throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", partition schema="+ nextStepPartitioningMeta.getPartitionSchema().getName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
+    int partitionNr;
+    try {
+      partitionNr=nextStepPartitioningMeta.getPartition(rowMeta,row);
+    }
+ catch (    KettleException e) {
+      throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
+    }
+    RowSet selectedRowSet=null;
+    if (clusteredPartitioningFirst) {
+      clusteredPartitioningFirst=false;
+      clusteredPartitioning=transMeta.getSlaveStepCopyPartitionDistribution() != null && !transMeta.getSlaveStepCopyPartitionDistribution().getDistribution().isEmpty();
+    }
+    if (clusteredPartitioning) {
+      if (partitionNrRowSetList == null) {
+        partitionNrRowSetList=new RowSet[outputRowSets.size()];
+        SlaveStepCopyPartitionDistribution distribution=transMeta.getSlaveStepCopyPartitionDistribution();
+        String nextPartitionSchemaName=TransSplitter.createPartitionSchemaNameFromTarget(nextStepPartitioningMeta.getPartitionSchema().getName());
+        for (        RowSet outputRowSet : outputRowSets) {
+          try {
+            int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),nextPartitionSchemaName,outputRowSet.getDestinationStepCopy());
+            if (partNr < 0) {
+              throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", partition schema="+ nextStepPartitioningMeta.getPartitionSchema().getName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
+            }
+            partitionNrRowSetList[partNr]=outputRowSet;
           }
-          partitionNrRowSetList[partNr]=outputRowSet;
-        }
- catch (        NullPointerException e) {
-          throw (e);
+ catch (          NullPointerException e) {
+            throw (e);
+          }
         }
       }
-    }
-    if (partitionNr < partitionNrRowSetList.length) {
-      selectedRowSet=partitionNrRowSetList[partitionNr];
-    }
- else {
-      String rowsets="";
-      for (      RowSet rowSet : partitionNrRowSetList) {
-        rowsets+="[" + rowSet.toString() + "] ";
+      if (partitionNr < partitionNrRowSetList.length) {
+        selectedRowSet=partitionNrRowSetList[partitionNr];
       }
-      throw new KettleStepException("Internal error: the referenced partition nr '" + partitionNr + "' is higher than the maximum of '"+ (partitionNrRowSetList.length - 1)+ ".  The available row sets are: {"+ rowsets+ "}");
+ else {
+        String rowsets="";
+        for (        RowSet rowSet : partitionNrRowSetList) {
+          rowsets+="[" + rowSet.toString() + "] ";
+        }
+        throw new KettleStepException("Internal error: the referenced partition nr '" + partitionNr + "' is higher than the maximum of '"+ (partitionNrRowSetList.length - 1)+ ".  The available row sets are: {"+ rowsets+ "}");
+      }
+    }
+ else {
+      selectedRowSet=outputRowSets.get(partitionNr);
+    }
+    if (selectedRowSet == null) {
+      logBasic("Target rowset is not available for target partition, partitionNr=" + partitionNr);
+    }
+    while (!selectedRowSet.putRow(rowMeta,row) && !isStopped())     ;
+    incrementLinesWritten();
+    if (log.isRowLevel())     try {
+      logRowlevel("Partitioned #" + partitionNr + " to "+ selectedRowSet+ ", row="+ rowMeta.getString(row));
+    }
+ catch (    KettleValueException e) {
+      throw new KettleStepException(e);
     }
   }
- else {
-    selectedRowSet=outputRowSets.get(partitionNr);
-  }
-  if (selectedRowSet == null) {
-    logBasic("Target rowset is not available for target partition, partitionNr=" + partitionNr);
-  }
-  while (!selectedRowSet.putRow(rowMeta,row) && !isStopped())   ;
-  incrementLinesWritten();
-  if (log.isRowLevel())   try {
-    logRowlevel("Partitioned #" + partitionNr + " to "+ selectedRowSet+ ", row="+ rowMeta.getString(row));
-  }
- catch (  KettleValueException e) {
-    throw new KettleStepException(e);
-  }
-}
 break;
 case StepPartitioningMeta.PARTITIONING_METHOD_MIRROR:
 {
 for (int r=0; r < outputRowSets.size(); r++) {
-RowSet rowSet=outputRowSets.get(r);
-while (!rowSet.putRow(rowMeta,row) && !isStopped()) ;
+  RowSet rowSet=outputRowSets.get(r);
+  while (!rowSet.putRow(rowMeta,row) && !isStopped())   ;
 }
 }
 break;
 default :
 throw new KettleStepException("Internal error: invalid repartitioning type: " + repartitioning);
+}
+}
+  finally {
+setPassingData(false);
 }
 }
