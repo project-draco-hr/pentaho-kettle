@@ -1,0 +1,34 @@
+{
+  for (int s=0; s < steps.size() && !trans.isStopped(); s++) {
+    if (!done[s]) {
+      StepMetaDataCombi combi=steps.get(s);
+      boolean stepDone=false;
+      if (combi.step.isWaitingForData()) {
+        while (!trans.isStopped() && combi.step.processRow(combi.meta,combi.data))         ;
+        stepDone=true;
+      }
+ else {
+        List<RowSet> infoRowSets=stepInfoRowSets.get(s);
+        for (        RowSet rowSet : infoRowSets) {
+          boolean once=true;
+          while (once || (rowSet.size() > 0 && !stepDone)) {
+            once=false;
+            stepDone=!combi.step.processRow(combi.meta,combi.data);
+          }
+        }
+        List<RowSet> rowSets=combi.step.getInputRowSets();
+        for (        RowSet rowSet : rowSets) {
+          int nrRows=rowSet.size();
+          for (int i=0; i < nrRows; i++) {
+            stepDone=!combi.step.processRow(combi.meta,combi.data);
+          }
+        }
+      }
+      if (stepDone) {
+        nrDone++;
+      }
+      done[s]=stepDone;
+    }
+  }
+  return nrDone < steps.size() && !trans.isStopped();
+}
