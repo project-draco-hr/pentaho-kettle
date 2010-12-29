@@ -27,69 +27,7 @@
   doSort|=data.files.size() > 0 && r == null && data.buffer.size() > 0;
   doSort|=data.freeMemoryPctLimit > 0 && data.freeMemoryPct < data.freeMemoryPctLimit && data.buffer.size() >= data.minSortSize;
   if (doSort) {
-    quickSort(data.buffer);
-    DataOutputStream dos;
-    GZIPOutputStream gzos;
-    int p;
-    Object[] previousRow=null;
-    try {
-      FileObject fileObject=KettleVFS.createTempFile(meta.getPrefix(),".tmp",environmentSubstitute(meta.getDirectory()),getTransMeta());
-      data.files.add(fileObject);
-      OutputStream outputStream=KettleVFS.getOutputStream(fileObject,false);
-      if (data.compressFiles) {
-        gzos=new GZIPOutputStream(new BufferedOutputStream(outputStream));
-        dos=new DataOutputStream(gzos);
-      }
- else {
-        dos=new DataOutputStream(new BufferedOutputStream(outputStream,500000));
-        gzos=null;
-      }
-      if (meta.isOnlyPassingUniqueRows()) {
-        int index=0;
-        while (index < data.buffer.size()) {
-          Object[] row=data.buffer.get(index);
-          if (previousRow != null) {
-            int result=data.outputRowMeta.compare(row,previousRow,data.fieldnrs);
-            if (result == 0) {
-              data.buffer.remove(index);
-              if (log.isRowLevel())               logRowlevel("Duplicate row removed: " + data.outputRowMeta.getString(row));
-            }
- else {
-              index++;
-            }
-          }
- else {
-            index++;
-          }
-          previousRow=row;
-        }
-      }
-      data.bufferSizes.add(data.buffer.size());
-      for (p=0; p < data.buffer.size(); p++) {
-        data.outputRowMeta.writeData(dos,data.buffer.get(p));
-      }
-      if (data.sortSize < 0) {
-        if (data.buffer.size() > data.minSortSize) {
-          data.minSortSize=data.buffer.size();
-          data.minSortSize=(int)Math.round((double)data.minSortSize * 0.90);
-        }
-      }
-      data.buffer.clear();
-      dos.close();
-      if (gzos != null) {
-        gzos.close();
-      }
-      outputStream.close();
-      data.freeMemoryPct=Const.getPercentageFreeMemory();
-      data.freeCounter=0;
-      if (data.sortSize <= 0) {
-        if (log.isDetailed())         logDetailed("Available memory : " + data.freeMemoryPct + "%");
-      }
-    }
- catch (    Exception e) {
-      throw new KettleException("Error processing temp-file!",e);
-    }
-    data.getBufferIndex=0;
+    sortExternalRows();
   }
   return true;
 }
