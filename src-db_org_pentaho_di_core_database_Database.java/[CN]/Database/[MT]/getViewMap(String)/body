@@ -1,0 +1,45 @@
+{
+  if (!databaseMeta.supportsViews())   return Collections.emptyMap();
+  String schemaname=schemanamein;
+  if (schemaname == null) {
+    if (databaseMeta.useSchemaNameForTableList())     schemaname=environmentSubstitute(databaseMeta.getUsername()).toUpperCase();
+  }
+  Multimap<String,String> viewMap=HashMultimap.create();
+  ResultSet alltables=null;
+  try {
+    alltables=dbmd.getTables(null,schemaname,null,databaseMeta.getViewTypes());
+    while (alltables.next()) {
+      String cat="";
+      try {
+        cat=alltables.getString("TABLE_CAT");
+      }
+ catch (      Exception e) {
+        if (log.isDebug())         log.logDebug("Error getting views for field TABLE_CAT (ignored): " + e.toString());
+      }
+      String schema="";
+      try {
+        schema=alltables.getString("TABLE_SCHEM");
+      }
+ catch (      Exception e) {
+        if (log.isDebug())         log.logDebug("Error getting views for field TABLE_SCHEM (ignored): " + e.toString());
+      }
+      if (Const.isEmpty(schema))       schema=cat;
+      String table=alltables.getString("TABLE_NAME");
+      if (log.isRowLevel())       log.logRowlevel(toString(),"got view from meta-data: " + databaseMeta.getQuotedSchemaTableCombination(schema,table));
+      viewMap.put(schema,table);
+    }
+  }
+ catch (  SQLException e) {
+    throw new KettleDatabaseException("Error getting views from schema [" + schemaname + "]",e);
+  }
+ finally {
+    try {
+      if (alltables != null)       alltables.close();
+    }
+ catch (    SQLException e) {
+      throw new KettleDatabaseException("Error closing resultset after getting views from schema [" + schemaname + "]",e);
+    }
+  }
+  if (log.isDetailed())   log.logDetailed("read :" + viewMap.values().size() + " views from db meta-data.");
+  return viewMap.asMap();
+}
