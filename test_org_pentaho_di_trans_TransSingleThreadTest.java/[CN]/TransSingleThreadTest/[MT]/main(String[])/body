@@ -30,7 +30,8 @@
     long delay=end - start;
     totalWait+=delay;
     if (i > 0 && (i % 100000) == 0) {
-      double speed=Const.round(((double)i * inputList.size()) / ((double)(end - transStart) / 1000),1);
+      long rowsProcessed=trans.findRunThread("bottles").getLinesRead();
+      double speed=Const.round(((double)rowsProcessed) / ((double)(end - transStart) / 1000),1);
       int totalRows=0;
       for (      StepMetaDataCombi combi : trans.getSteps()) {
         for (        RowSet rowSet : combi.step.getInputRowSets())         totalRows+=rowSet.size();
@@ -39,11 +40,12 @@
       System.out.println("#" + i + " : Finished processing one iteration in "+ delay+ "ms, average is: "+ Const.round(((double)totalWait / (i + 1)),1)+ ", speed="+ speed+ " row/s, total rows buffered: "+ totalRows);
     }
     List<RowMetaAndData> resultRows=rc.getRowsWritten();
-    assertEquals(inputList.size() - 1,resultRows.size());
+    assertEquals("Error found in iteration " + i,6,resultRows.size());
     rc.clear();
   }
   rp.finished();
   executor.dispose();
+  long rowsProcessed=trans.findRunThread("bottles").getLinesRead();
   long transEnd=System.currentTimeMillis();
   long transTime=transEnd - transStart;
   System.out.println("Average delay before idle : " + Const.round(((double)totalWait / iterations),1));
@@ -51,6 +53,6 @@
   System.out.println("Total transformation runtime for " + iterations + " iterations :"+ transTimeSeconds+ " seconds");
   double transTimePerIteration=Const.round(((double)transTime / iterations),2);
   System.out.println("Runtime per iteration: " + transTimePerIteration + " miliseconds");
-  double rowsPerSecond=Const.round(((double)iterations * inputList.size()) / ((double)transTime / 1000),1);
+  double rowsPerSecond=Const.round(((double)rowsProcessed) / ((double)transTime / 1000),1);
   System.out.println("Average speed: " + rowsPerSecond + " rows/second");
 }

@@ -1,0 +1,50 @@
+{
+  if (data.filenr >= data.file.length) {
+    data.caching=false;
+    data.filenr=0;
+    return true;
+  }
+  if (data.dataOutputStream[data.filenr] == null) {
+    try {
+      data.fileOutputStream[data.filenr]=new FileOutputStream(data.file[data.filenr]);
+      data.dataOutputStream[data.filenr]=new DataOutputStream(data.fileOutputStream[data.filenr]);
+    }
+ catch (    FileNotFoundException fnfe) {
+      logError(BaseMessages.getString(PKG,"JoinRows.Log.UnableToOpenOutputstream") + data.file[data.filenr].toString() + "] : "+ fnfe.toString());
+      stopAll();
+      setErrors(1);
+      return false;
+    }
+  }
+  RowSet rowSet=data.rs[data.filenr];
+  Object[] rowData=getRowFrom(rowSet);
+  if (rowData != null) {
+    if (data.fileRowMeta[data.filenr] == null) {
+      data.fileRowMeta[data.filenr]=rowSet.getRowMeta().clone();
+    }
+    data.fileRowMeta[data.filenr].writeData(data.dataOutputStream[data.filenr],rowData);
+    data.size[data.filenr]++;
+    if (log.isRowLevel())     logRowlevel(rowData.toString());
+    if (data.size[data.filenr] <= meta.getCacheSize()) {
+      if (data.cache[data.filenr] == null)       data.cache[data.filenr]=new ArrayList<Object[]>();
+      data.cache[data.filenr].add(rowData);
+    }
+ else {
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JoinRows.Log.RowsFound",meta.getCacheSize() + "",data.rs[data.filenr].getOriginStepName()));
+      data.cache[data.filenr]=null;
+    }
+  }
+ else {
+    try {
+      data.dataOutputStream[data.filenr].close();
+      data.fileOutputStream[data.filenr].close();
+      data.dataOutputStream[data.filenr]=null;
+      data.fileOutputStream[data.filenr]=null;
+    }
+ catch (    IOException ioe) {
+      logError(BaseMessages.getString(PKG,"JoinRows.Log.ErrorInClosingOutputStream") + data.filenr + " : ["+ data.file[data.filenr].toString()+ "] : "+ ioe.toString());
+    }
+    data.filenr++;
+  }
+  return true;
+}
