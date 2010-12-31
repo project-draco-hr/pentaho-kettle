@@ -2,26 +2,52 @@
   try {
     GetXMLDataMeta meta=new GetXMLDataMeta();
     getInfo(meta);
-    FileInputList fileinputList=meta.getFiles(transMeta);
-    if (fileinputList.nrOfFiles() > 0) {
-      if (fileinputList.getFile(0).exists()) {
-        LoopNodesImportProgressDialog pd=new LoopNodesImportProgressDialog(shell,meta,KettleVFS.getFilename(fileinputList.getFile(0)),meta.getEncoding() == null ? "UTF-8" : meta.getEncoding());
-        String[] list_xpath=pd.open();
-        if (list_xpath != null) {
-          EnterSelectionDialog dialog=new EnterSelectionDialog(shell,list_xpath,BaseMessages.getString(PKG,"GetXMLDataDialog.Dialog.SelectALoopPath.Title"),BaseMessages.getString(PKG,"GetXMLDataDialog.Dialog.SelectALoopPath.Message"));
-          String listxpaths=dialog.open();
-          if (listxpaths != null)           wLoopXPath.setText(listxpaths);
+    if (meta.isInFields()) {
+      if (meta.isReadUrl()) {
+        String url=XMLSource;
+        if (url == null) {
+          EnterStringDialog d=new EnterStringDialog(shell,"",BaseMessages.getString(PKG,"GetXMLDataDialog.AskURL.Title"),BaseMessages.getString(PKG,"GetXMLDataDialog.AskURL.Message"));
+          url=d.open();
+        }
+        populateLoopPaths(meta,url,true,true);
+      }
+ else       if (meta.getIsAFile()) {
+        String str=XMLSource;
+        if (str == null) {
+          FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+          dialog.setFilterExtensions(new String[]{"*.xml;*.XML","*"});
+          dialog.setFilterNames(new String[]{BaseMessages.getString(PKG,"System.FileType.XMLFiles"),BaseMessages.getString(PKG,"System.FileType.AllFiles")});
+          if (dialog.open() != null) {
+            str=dialog.getFilterPath() + System.getProperty("file.separator") + dialog.getFileName();
+          }
+          populateLoopPaths(meta,str,false,false);
         }
       }
  else {
-        throw new KettleException(BaseMessages.getString(PKG,"GetXMLDataDialog.Exception.FileDoesNotExist",KettleVFS.getFilename(fileinputList.getFile(0))));
+        String xml=XMLSource;
+        if (xml == null) {
+          EnterTextDialog d=new EnterTextDialog(shell,BaseMessages.getString(PKG,"GetXMLDataDialog.AskXML.Title"),BaseMessages.getString(PKG,"GetXMLDataDialog.AskXML.Message"),null);
+          xml=d.open();
+        }
+        populateLoopPaths(meta,xml,true,false);
       }
     }
  else {
-      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-      mb.setMessage(BaseMessages.getString(PKG,"GetXMLDataDialog.FilesMissing.DialogMessage"));
-      mb.setText(BaseMessages.getString(PKG,"System.Dialog.Error.Title"));
-      mb.open();
+      FileInputList fileinputList=meta.getFiles(transMeta);
+      if (fileinputList.nrOfFiles() > 0) {
+        if (fileinputList.getFile(0).exists()) {
+          populateLoopPaths(meta,KettleVFS.getFilename(fileinputList.getFile(0)),false,false);
+        }
+ else {
+          throw new KettleException(BaseMessages.getString(PKG,"GetXMLDataDialog.Exception.FileDoesNotExist",KettleVFS.getFilename(fileinputList.getFile(0))));
+        }
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage(BaseMessages.getString(PKG,"GetXMLDataDialog.FilesMissing.DialogMessage"));
+        mb.setText(BaseMessages.getString(PKG,"System.Dialog.Error.Title"));
+        mb.open();
+      }
     }
   }
  catch (  Exception e) {

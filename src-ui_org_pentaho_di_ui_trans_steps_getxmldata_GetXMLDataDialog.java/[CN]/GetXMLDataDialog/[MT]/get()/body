@@ -14,27 +14,40 @@
         return;
       }
     }
-    FileInputList inputList=meta.getFiles(transMeta);
-    if (inputList.getFiles().size() > 0) {
-      XMLInputFieldsImportProgressDialog prd=new XMLInputFieldsImportProgressDialog(shell,meta,KettleVFS.getFilename(inputList.getFile(0)),meta.getEncoding() == null ? "UTF-8" : meta.getEncoding(),transMeta.environmentSubstitute(meta.getLoopXPath()));
-      RowMetaAndData[] fields=prd.open();
-      if (fields != null) {
-        if (clearFields == SWT.YES) {
-          wFields.clearAll(false);
+    if (meta.isInFields()) {
+      if (meta.isReadUrl()) {
+        String url=XMLSource;
+        if (url == null) {
+          EnterStringDialog enterStringDialog=new EnterStringDialog(shell,"",BaseMessages.getString(PKG,"GetXMLDataDialog.AskURL.Title"),BaseMessages.getString(PKG,"GetXMLDataDialog.AskURL.Title"));
+          url=enterStringDialog.open();
         }
-        int nr=fields.length;
-        for (int i=0; i < nr; i++) {
-          RowMetaAndData row=fields[i];
-          TableItem item=new TableItem(wFields.table,SWT.NONE);
-          item.setText(1,row.getString(0,""));
-          item.setText(2,row.getString(1,""));
-          item.setText(3,row.getString(2,GetXMLDataField.ElementTypeDesc[0]));
-          item.setText(4,row.getString(3,"String"));
-          item.setText(5,row.getString(4,""));
+        populateFields(meta,url,true,true,clearFields);
+      }
+ else       if (meta.getIsAFile()) {
+        String str=XMLSource;
+        if (str == null) {
+          FileDialog dialog=new FileDialog(shell,SWT.OPEN);
+          dialog.setFilterExtensions(new String[]{"*.xml;*.XML","*"});
+          dialog.setFilterNames(new String[]{BaseMessages.getString(PKG,"System.FileType.XMLFiles"),BaseMessages.getString(PKG,"System.FileType.AllFiles")});
+          if (dialog.open() != null) {
+            str=dialog.getFilterPath() + System.getProperty("file.separator") + dialog.getFileName();
+          }
         }
-        wFields.removeEmptyRows();
-        wFields.setRowNums();
-        wFields.optWidth(true);
+        populateFields(meta,str,false,false,clearFields);
+      }
+ else {
+        String xml=XMLSource;
+        if (xml == null) {
+          EnterTextDialog d=new EnterTextDialog(shell,BaseMessages.getString(PKG,"GetXMLDataDialog.AskXML.Title"),BaseMessages.getString(PKG,"GetXMLDataDialog.AskXML.Message"),null);
+          xml=d.open();
+        }
+        populateFields(meta,xml,true,false,clearFields);
+      }
+    }
+ else {
+      FileInputList inputList=meta.getFiles(transMeta);
+      if (inputList.getFiles().size() > 0) {
+        populateFields(meta,KettleVFS.getFilename(inputList.getFile(0)),false,false,clearFields);
       }
     }
   }
