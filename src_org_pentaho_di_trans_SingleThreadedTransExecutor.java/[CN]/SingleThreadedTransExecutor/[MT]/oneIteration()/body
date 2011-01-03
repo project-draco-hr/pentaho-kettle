@@ -3,20 +3,21 @@
     if (!done[s]) {
       StepMetaDataCombi combi=steps.get(s);
       boolean stepDone=false;
-      if (combi.step.isWaitingForData()) {
-        while (!trans.isStopped() && combi.step.processRow(combi.meta,combi.data))         ;
-        stepDone=true;
+      List<RowSet> infoRowSets=stepInfoRowSets.get(s);
+      for (      RowSet rowSet : infoRowSets) {
+        boolean once=true;
+        while (once || (rowSet.size() > 0 && !stepDone)) {
+          once=false;
+          stepDone=!combi.step.processRow(combi.meta,combi.data);
+        }
+      }
+      List<RowSet> rowSets=combi.step.getInputRowSets();
+      if (rowSets.size() == 0) {
+        while (!stepDone && !trans.isStopped()) {
+          stepDone=!combi.step.processRow(combi.meta,combi.data);
+        }
       }
  else {
-        List<RowSet> infoRowSets=stepInfoRowSets.get(s);
-        for (        RowSet rowSet : infoRowSets) {
-          boolean once=true;
-          while (once || (rowSet.size() > 0 && !stepDone)) {
-            once=false;
-            stepDone=!combi.step.processRow(combi.meta,combi.data);
-          }
-        }
-        List<RowSet> rowSets=combi.step.getInputRowSets();
         int nrRows=0;
         for (        RowSet rowSet : rowSets) {
           nrRows+=rowSet.size();
@@ -24,8 +25,8 @@
         for (int i=0; i < nrRows; i++) {
           stepDone=!combi.step.processRow(combi.meta,combi.data);
         }
-        combi.step.batchComplete();
       }
+      combi.step.batchComplete();
       if (stepDone) {
         nrDone++;
       }
