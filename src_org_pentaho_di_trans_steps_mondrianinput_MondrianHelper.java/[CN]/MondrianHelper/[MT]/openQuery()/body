@@ -1,12 +1,22 @@
 {
-  String connectString="Provider=mondrian;" + "Jdbc='" + space.environmentSubstitute(databaseMeta.getURL()) + "';"+ "Catalog='"+ space.environmentSubstitute(catalog)+ "';"+ "JdbcDrivers="+ space.environmentSubstitute(databaseMeta.getDriverClass())+ ";";
-  if (!Const.isEmpty(databaseMeta.getUsername())) {
-    connectString+="JdbcUser=" + space.environmentSubstitute(databaseMeta.getUsername()) + ";";
+  connection=null;
+  if (databaseMeta.getAccessType() == DatabaseMeta.TYPE_ACCESS_JNDI) {
+    DataSource dataSource=DataSourceProviderFactory.getDataSourceProviderInterface().getNamedDataSource(databaseMeta.getDatabaseName());
+    mondrian.olap.Util.PropertyList propList=new mondrian.olap.Util.PropertyList();
+    propList.put("Provider","mondrian");
+    propList.put("Catalog",space.environmentSubstitute(catalog));
+    connection=DriverManager.getConnection(propList,null,dataSource);
   }
-  if (!Const.isEmpty(databaseMeta.getPassword())) {
-    connectString+="JdbcPassword=" + space.environmentSubstitute(databaseMeta.getPassword()) + ";";
+ else {
+    String connectString="Provider=mondrian;" + "Jdbc='" + space.environmentSubstitute(databaseMeta.getURL()) + "';"+ "Catalog='"+ space.environmentSubstitute(catalog)+ "';"+ "JdbcDrivers="+ space.environmentSubstitute(databaseMeta.getDriverClass())+ ";";
+    if (!Const.isEmpty(databaseMeta.getUsername())) {
+      connectString+="JdbcUser=" + space.environmentSubstitute(databaseMeta.getUsername()) + ";";
+    }
+    if (!Const.isEmpty(databaseMeta.getPassword())) {
+      connectString+="JdbcPassword=" + space.environmentSubstitute(databaseMeta.getPassword()) + ";";
+    }
+    connection=DriverManager.getConnection(connectString,null);
   }
-  connection=DriverManager.getConnection(connectString,null);
   query=connection.parseQuery(queryString);
   result=connection.execute(query);
 }
