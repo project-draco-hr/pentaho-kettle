@@ -28,6 +28,7 @@
  catch (    Exception e) {
       logError(BaseMessages.getString(PKG,"JobSFTPPUT.Error.ArgFromPrevious"));
       result.setNrErrors(1);
+      myFileList=null;
       return result;
     }
   }
@@ -41,7 +42,43 @@
   String realLocalDirectory=environmentSubstitute(localDirectory);
   String realKeyFilename=null;
   String realPassPhrase=null;
+  String realDestinationFolder=environmentSubstitute(getDestinationFolder());
   try {
+    if (getAfterFTPS() == AFTER_FTPSPUT_MOVE) {
+      if (Const.isEmpty(realDestinationFolder)) {
+        logError(BaseMessages.getString(PKG,"JobSSH2PUT.Log.DestinatFolderMissing"));
+        result.setNrErrors(1);
+        return result;
+      }
+ else {
+        FileObject folder=null;
+        try {
+          folder=KettleVFS.getFileObject(realDestinationFolder,this);
+          if (!folder.exists()) {
+            if (createDestinationFolder)             folder.createFolder();
+ else {
+              logError(BaseMessages.getString(PKG,"JobSSH2PUT.Log.DestinatFolderNotExist",realDestinationFolder));
+              result.setNrErrors(1);
+              return result;
+            }
+          }
+          realDestinationFolder=KettleVFS.getFilename(folder);
+        }
+ catch (        Exception e) {
+          throw new KettleException(e);
+        }
+ finally {
+          if (folder != null) {
+            try {
+              folder.close();
+            }
+ catch (            Exception e) {
+            }
+            ;
+          }
+        }
+      }
+    }
     if (isUseKeyFile()) {
       realKeyFilename=environmentSubstitute(getKeyFilename());
       if (Const.isEmpty(realKeyFilename)) {
@@ -90,56 +127,81 @@
       }
     }
     if (myFileList == null || myFileList.size() == 0) {
-      logError(BaseMessages.getString(PKG,"JobSFTPPUT.Error.NoFileToSend"));
-      result.setNrErrors(1);
-      return result;
+      if (isSuccessWhenNoFile()) {
+        if (isBasic())         logBasic(BaseMessages.getString(PKG,"JobSFTPPUT.Error.NoFileToSend"));
+      }
+ else {
+        logError(BaseMessages.getString(PKG,"JobSFTPPUT.Error.NoFileToSend"));
+        result.setNrErrors(1);
+        return result;
+      }
     }
-    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.RowsFromPreviousResult","" + myFileList.size()));
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.RowsFromPreviousResult",myFileList.size()));
     Pattern pattern=null;
     if (!copyprevious) {
       if (!Const.isEmpty(realWildcard)) {
         pattern=Pattern.compile(realWildcard);
       }
     }
-    for (int i=0; i < myFileList.size() && !parentJob.isStopped(); i++) {
-      FileObject myFile=myFileList.get(i);
-      String localFilename=myFile.toString();
-      String destinationFilename=myFile.getName().getBaseName();
-      boolean getIt=true;
-      if (pattern != null) {
-        Matcher matcher=pattern.matcher(destinationFilename);
-        getIt=matcher.matches();
-      }
-      if (getIt) {
-        if (log.isDebug())         logDebug(BaseMessages.getString(PKG,"JobSFTPPUT.Log.PuttingFile",localFilename,realSftpDirString));
-        sftpclient.put(myFile,destinationFilename);
-        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.TransferedFile",localFilename));
-        if (remove) {
-          myFile.delete();
+    Iterator<FileObject> it=myFileList.iterator();
+    while (it.hasNext() && !parentJob.isStopped()) {
+      FileObject myFile=it.next();
+      try {
+        String localFilename=myFile.toString();
+        String destinationFilename=myFile.getName().getBaseName();
+        boolean getIt=true;
+        if (pattern != null) {
+          Matcher matcher=pattern.matcher(destinationFilename);
+          getIt=matcher.matches();
+        }
+        if (getIt) {
+          if (log.isDebug())           logDebug(BaseMessages.getString(PKG,"JobSFTPPUT.Log.PuttingFile",localFilename,realSftpDirString));
+          sftpclient.put(myFile,destinationFilename);
+          if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.TransferedFile",localFilename));
+switch (getAfterFTPS()) {
+case AFTER_FTPSPUT_DELETE:
+            myFile.delete();
           if (log.isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.DeletedFile",localFilename));
-        }
- else {
-          if (addFilenameResut) {
-            ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,myFile,parentJob.getJobname(),toString());
-            result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
-            if (log.isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.FilenameAddedToResultFilenames",localFilename));
-          }
-        }
-      }
-    }
-    result.setResult(true);
-  }
- catch (  Exception e) {
-    result.setNrErrors(1);
-    logError(BaseMessages.getString(PKG,"JobSFTPPUT.Exception",e.getMessage()));
-    logError(Const.getStackTracker(e));
-  }
- finally {
+        break;
+case AFTER_FTPSPUT_MOVE:
+      FileObject destination=null;
     try {
-      if (sftpclient != null)       sftpclient.disconnect();
+      destination=KettleVFS.getFileObject(realDestinationFolder + Const.FILE_SEPARATOR + myFile.getName().getBaseName(),this);
+      myFile.moveTo(destination);
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.FileMoved",myFile,destination));
     }
- catch (    Exception e) {
+  finally {
+      if (destination != null)       destination.close();
     }
-  }
-  return result;
+  break;
+default :
+if (addFilenameResut) {
+  ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,myFile,parentJob.getJobname(),toString());
+  result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+  if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.FilenameAddedToResultFilenames",localFilename));
+}
+break;
+}
+}
+}
+  finally {
+if (myFile != null) myFile.close();
+}
+}
+result.setResult(true);
+}
+ catch (Exception e) {
+result.setNrErrors(1);
+logError(BaseMessages.getString(PKG,"JobSFTPPUT.Exception",e.getMessage()));
+logError(Const.getStackTracker(e));
+}
+ finally {
+try {
+if (sftpclient != null) sftpclient.disconnect();
+}
+ catch (Exception e) {
+}
+myFileList=null;
+}
+return result;
 }
