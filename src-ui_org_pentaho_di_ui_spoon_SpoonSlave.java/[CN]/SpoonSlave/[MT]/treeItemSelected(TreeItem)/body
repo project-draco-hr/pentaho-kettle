@@ -1,0 +1,64 @@
+{
+  if (item.getData("transStatus") != null) {
+    SlaveServerTransStatus transStatus=(SlaveServerTransStatus)item.getData("transStatus");
+    try {
+      log.logDetailed("Getting transformation status for [{0}] on server [{1}]",transStatus.getTransName(),SpoonSlave.this.slaveServer);
+      Integer lastLine=lastLineMap.get(transStatus.getId());
+      int lastLineNr=lastLine == null ? 0 : lastLine.intValue();
+      SlaveServerTransStatus ts=SpoonSlave.this.slaveServer.getTransStatus(transStatus.getTransName(),transStatus.getId(),lastLineNr);
+      log.logDetailed("Finished receiving transformation status for [{0}] from server [{1}]",transStatus.getTransName(),SpoonSlave.this.slaveServer);
+      List<StepStatus> stepStatusList=ts.getStepStatusList();
+      transStatus.setStepStatusList(stepStatusList);
+      lastLineMap.put(transStatus.getId(),ts.getLastLoggingLineNr());
+      String logging=loggingMap.get(transStatus.getId());
+      if (logging == null) {
+        logging=ts.getLoggingString();
+      }
+ else {
+        logging=new StringBuffer(logging).append(ts.getLoggingString()).toString();
+      }
+      loggingMap.put(transStatus.getId(),logging);
+      item.removeAll();
+      for (int s=0; s < stepStatusList.size(); s++) {
+        StepStatus stepStatus=stepStatusList.get(s);
+        TreeItem stepItem=new TreeItem(item,SWT.NONE);
+        stepItem.setText(stepStatus.getSpoonSlaveLogFields());
+      }
+    }
+ catch (    Exception e) {
+      transStatus.setErrorDescription("Unable to access transformation details : " + Const.CR + Const.getStackTracker(e));
+    }
+  }
+ else   if (item.getData("jobStatus") != null) {
+    SlaveServerJobStatus jobStatus=(SlaveServerJobStatus)item.getData("jobStatus");
+    try {
+      log.logDetailed("Getting job status for [{0}] on server [{1}]",jobStatus.getJobName(),slaveServer);
+      Integer lastLine=lastLineMap.get(jobStatus.getId());
+      int lastLineNr=lastLine == null ? 0 : lastLine.intValue();
+      SlaveServerJobStatus ts=slaveServer.getJobStatus(jobStatus.getJobName(),jobStatus.getId(),lastLineNr);
+      log.logDetailed("Finished receiving job status for [{0}] from server [{1}]",jobStatus.getJobName(),slaveServer);
+      lastLineMap.put(jobStatus.getId(),ts.getLastLoggingLineNr());
+      String logging=loggingMap.get(jobStatus.getId());
+      if (logging == null) {
+        logging=ts.getLoggingString();
+      }
+ else {
+        logging=new StringBuffer(logging).append(ts.getLoggingString()).toString();
+      }
+      loggingMap.put(jobStatus.getId(),logging);
+      Result result=ts.getResult();
+      if (result != null) {
+        item.setText(2,"" + result.getNrLinesRead());
+        item.setText(3,"" + result.getNrLinesWritten());
+        item.setText(4,"" + result.getNrLinesInput());
+        item.setText(5,"" + result.getNrLinesOutput());
+        item.setText(6,"" + result.getNrLinesUpdated());
+        item.setText(7,"" + result.getNrLinesRejected());
+        item.setText(8,"" + result.getNrErrors());
+      }
+    }
+ catch (    Exception e) {
+      jobStatus.setErrorDescription("Unable to access transformation details : " + Const.CR + Const.getStackTracker(e));
+    }
+  }
+}
