@@ -1,0 +1,32 @@
+{
+  meta=(PrioritizeStreamsMeta)smi;
+  data=(PrioritizeStreamsData)sdi;
+  if (first) {
+    first=false;
+    if (meta.getStepName() == null || meta.getStepName().length > 0) {
+      data.stepnrs=meta.getStepName().length;
+      data.rowSets=new RowSet[data.stepnrs];
+      for (int i=0; i < data.stepnrs; i++) {
+        data.rowSets[i]=findInputRowSet(meta.getStepName()[i]);
+        if (i > 0) {
+          checkInputLayoutValid(data.rowSets[0].getRowMeta(),data.rowSets[i].getRowMeta());
+        }
+      }
+    }
+ else {
+      throw new KettleException(BaseMessages.getString(PKG,"PrioritizeStreams.Error.NotInputSteps"));
+    }
+    data.currentRowSet=data.rowSets[0];
+    data.outputRowMeta=data.currentRowSet.getRowMeta();
+  }
+  Object[] input=getOneRow();
+  while (input == null && data.stepnr < data.stepnrs - 1 && !isStopped()) {
+    input=getOneRow();
+  }
+  if (input == null) {
+    setOutputDone();
+    return false;
+  }
+  putRow(data.outputRowMeta,input);
+  return true;
+}
