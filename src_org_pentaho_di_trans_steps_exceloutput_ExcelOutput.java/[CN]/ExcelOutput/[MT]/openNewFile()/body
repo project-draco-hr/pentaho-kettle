@@ -4,12 +4,14 @@
     if (meta.isCreateParentFolder()) {
       if (!createParentFolder(data.file))       return retval;
     }
-    WorkbookSettings ws=new WorkbookSettings();
-    ws.setLocale(Locale.getDefault());
-    if (!Const.isEmpty(meta.getEncoding())) {
-      ws.setEncoding(meta.getEncoding());
+    data.realFilename=buildFilename();
+    data.file=KettleVFS.getFileObject(data.realFilename,getTransMeta());
+    if (meta.isCreateParentFolder()) {
+      if (!createParentFolder(data.file))       return retval;
     }
-    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"ExcelOutput.Log.OpeningFile",data.file.toString()));
+    data.realFilename=KettleVFS.getFilename(data.file);
+    addFilenameToResult();
+    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"ExcelOutput.Log.OpeningFile",data.realFilename));
     if (!meta.isTemplateEnabled()) {
       File fle=new File(KettleVFS.getFilename(data.file));
       if (meta.isAppend() && fle.exists()) {
@@ -28,7 +30,7 @@
       }
  else {
         data.outputStream=KettleVFS.getOutputStream(data.file,false);
-        data.workbook=Workbook.createWorkbook(data.outputStream,ws);
+        data.workbook=Workbook.createWorkbook(data.outputStream,data.ws);
         String sheetname="Sheet1";
         data.sheet=data.workbook.getSheet(sheetname);
         if (data.sheet == null) {
@@ -38,7 +40,7 @@
     }
  else {
       FileObject fo=KettleVFS.getFileObject(environmentSubstitute(meta.getTemplateFileName()),getTransMeta());
-      Workbook tmpWorkbook=Workbook.getWorkbook(KettleVFS.getInputStream(fo),ws);
+      Workbook tmpWorkbook=Workbook.getWorkbook(KettleVFS.getInputStream(fo),data.ws);
       data.outputStream=KettleVFS.getOutputStream(data.file,false);
       data.workbook=Workbook.createWorkbook(data.outputStream,tmpWorkbook);
       tmpWorkbook.close();
@@ -60,7 +62,14 @@
  else {
       data.positionY=0;
     }
+    if (data.headerImage != null) {
+      data.sheet.addImage(data.headerImage);
+      data.positionY+=Math.round(data.headerImageHeight);
+    }
+    if (data.Headerrowheight > 0 && data.Headerrowheight != ExcelOutputMeta.DEFAULT_ROW_HEIGHT)     data.sheet.setRowView(data.positionY,data.Headerrowheight);
     data.headerWrote=false;
+    data.splitnr++;
+    data.oneFileOpened=true;
     if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"ExcelOutput.Log.FileOpened",data.file.toString()));
     retval=true;
   }
@@ -68,6 +77,5 @@
     logError("Error opening new file",e);
     setErrors(1);
   }
-  data.splitnr++;
   return retval;
 }
