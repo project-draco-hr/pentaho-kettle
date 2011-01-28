@@ -1,0 +1,45 @@
+{
+  meta=(GPLoadMeta)smi;
+  data=(GPLoadData)sdi;
+  try {
+    Object[] r=getRow();
+    if (r == null) {
+      setOutputDone();
+      if (!preview) {
+        if (output != null) {
+          try {
+            output.close();
+          }
+ catch (          IOException e) {
+            throw new KettleException("Error while closing output",e);
+          }
+          output=null;
+        }
+        String loadMethod=meta.getLoadMethod();
+        if (GPLoadMeta.METHOD_AUTO_END.equals(loadMethod)) {
+          execute(meta,true);
+        }
+      }
+      return false;
+    }
+    if (!preview) {
+      if (first) {
+        first=false;
+        createControlFile(environmentSubstitute(meta.getControlFile()),r,meta);
+        output=new GPLoadDataOutput(meta);
+        output.open(this,gploadProcess);
+      }
+      output.writeLine(getInputRowMeta(),r);
+    }
+    putRow(getInputRowMeta(),r);
+    incrementLinesOutput();
+  }
+ catch (  KettleException e) {
+    logError(BaseMessages.getString(PKG,"GPLoad.Log.ErrorInStep") + e.getMessage());
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  return true;
+}
