@@ -4,7 +4,7 @@
   if (schemaname == null) {
     if (databaseMeta.useSchemaNameForTableList())     schemaname=environmentSubstitute(databaseMeta.getUsername()).toUpperCase();
   }
-  Multimap<String,String> viewMap=HashMultimap.create();
+  Map<String,Collection<String>> viewMap=new HashMap<String,Collection<String>>();
   ResultSet alltables=null;
   try {
     alltables=dbmd.getTables(null,schemaname,null,databaseMeta.getViewTypes());
@@ -26,7 +26,7 @@
       if (Const.isEmpty(schema))       schema=cat;
       String table=alltables.getString("TABLE_NAME");
       if (log.isRowLevel())       log.logRowlevel(toString(),"got view from meta-data: " + databaseMeta.getQuotedSchemaTableCombination(schema,table));
-      viewMap.put(schema,table);
+      multimapPut(schema,table,viewMap);
     }
   }
  catch (  SQLException e) {
@@ -40,6 +40,6 @@
       throw new KettleDatabaseException("Error closing resultset after getting views from schema [" + schemaname + "]",e);
     }
   }
-  if (log.isDetailed())   log.logDetailed("read :" + viewMap.values().size() + " views from db meta-data.");
-  return viewMap.asMap();
+  if (log.isDetailed())   log.logDetailed("read :" + multimapSize(viewMap) + " views from db meta-data.");
+  return viewMap;
 }
