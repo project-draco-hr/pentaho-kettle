@@ -5,6 +5,23 @@
   if (getHostName().indexOf("ldap://") >= 0)   getEnv().put(Context.PROVIDER_URL,getHostName() + ":" + getPort());
  else   getEnv().put(Context.PROVIDER_URL,"ldap://" + getHostName() + ":"+ getPort());
   getEnv().put(Context.SECURITY_AUTHENTICATION,"simple");
+  if (getProtocol() == PROTOCOL_LDAP_SSL) {
+    getEnv().put(javax.naming.Context.SECURITY_PROTOCOL,"ssl");
+  }
+  if (getProtocol() != PROTOCOL_LDAP) {
+    if (isTrustAllCertificates() || !Const.isEmpty(getTrustStorePath())) {
+      if (isTrustAllCertificates()) {
+        CustomdSocketFactory.alwaysTrust();
+      }
+ else {
+        getEnv().put("java.naming.ldap.factory.socket","org.pentaho.di.trans.steps.ldapinput.store.AdvancedSocketFactory");
+        CustomdSocketFactory.setCertStorePath(getTrustStorePath());
+        if (!Const.isEmpty(getTrustStorePassword())) {
+          CustomdSocketFactory.setCertStorePassword(getTrustStorePassword());
+        }
+      }
+    }
+  }
   if (!Const.isEmpty(username)) {
     this.username=username;
     getEnv().put(Context.SECURITY_PRINCIPAL,username);
@@ -14,6 +31,11 @@
     this.ctx=new InitialLdapContext(getEnv(),null);
     if (getInitialContext() == null) {
       throw new KettleException(BaseMessages.getString(PKG,"LDAPInput.Error.UnableToConnectToServer"));
+    }
+    if (getProtocol() == PROTOCOL_LDAP_TLS) {
+      StartTlsRequest tlsRequest=new StartTlsRequest();
+      this.tls=(StartTlsResponse)getInitialContext().extendedOperation(tlsRequest);
+      this.tls.negotiate();
     }
     if (log.isBasic())     log.logBasic(BaseMessages.getString(PKG,"LDAPInput.Log.ConnectedToServer",getHostName(),Const.NVL(getUserName(),"")));
     if (log.isDetailed())     log.logDetailed(BaseMessages.getString(PKG,"LDAPInput.ClassUsed.Message",getInitialContext().getClass().getName()));

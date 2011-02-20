@@ -1,0 +1,44 @@
+{
+  try {
+    if (certStore.endsWith(".p12"))     ks=KeyStore.getInstance("PKCS12");
+ else     ks=KeyStore.getInstance("JKS");
+  }
+ catch (  KeyStoreException e) {
+    throw new KettleException("Failed to create cert store : ",e);
+  }
+  InputStream in=null;
+  if (certStore.indexOf("://") == -1)   try {
+    in=new FileInputStream(certStore);
+  }
+ catch (  FileNotFoundException _ex) {
+  }
+ else   try {
+    URL url=new URL(certStore);
+    URLConnection con=url.openConnection();
+    in=con.getInputStream();
+  }
+ catch (  MalformedURLException e) {
+    throw new KettleException("The location of the cert store file is invalid: ",e);
+  }
+catch (  IOException _ex) {
+  }
+  try {
+    ks.load(in,certStorePwd);
+  }
+ catch (  Exception e) {
+    throw new KettleException("Failed to load the cert store : ",e);
+  }
+ finally {
+    if (in != null)     try {
+      in.close();
+    }
+ catch (    Exception _ex) {
+    }
+  }
+  try {
+    trustManager=initTrustManager(ks);
+  }
+ catch (  Exception e) {
+    throw new KettleException("Failed to create initial trust manager : ",e);
+  }
+}
