@@ -1,0 +1,88 @@
+{
+  if (meta.isUrlInField()) {
+    data.realUrl=data.inputRowMeta.getString(rowData,data.indexOfUrlField);
+  }
+  if (meta.isDynamicMethod()) {
+    data.method=data.inputRowMeta.getString(rowData,data.indexOfMethod);
+    if (Const.isEmpty(data.method)) {
+      throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.MethodMissing"));
+    }
+  }
+  WebResource webResource=null;
+  Client client=null;
+  Object[] newRow=null;
+  if (rowData != null)   newRow=rowData.clone();
+  try {
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"Rest.Log.ConnectingToURL",data.realUrl));
+    client=getClient();
+    webResource=client.resource(data.realUrl);
+    long startTime=System.currentTimeMillis();
+    if (data.useHeaders) {
+      for (int i=0; i < data.nrheader; i++) {
+        String value=data.inputRowMeta.getString(rowData,data.indexOfHeaderFields[i]);
+        webResource.header(data.headerNames[i],value);
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"Rest.Log.HeaderValue",data.headerNames[i],value));
+      }
+    }
+    if (data.useParams) {
+      for (int i=0; i < data.nrParams; i++) {
+        MultivaluedMapImpl queryParams=new MultivaluedMapImpl();
+        String value=data.inputRowMeta.getString(rowData,data.indexOfParamFields[i]);
+        queryParams.add(data.paramNames[i],value);
+        if (log.isDebug())         log.logDebug(toString(),BaseMessages.getString(PKG,"Rest.Log.BodyValue",data.paramNames[i],value));
+        webResource.queryParams(queryParams);
+      }
+    }
+    ClientResponse response=null;
+    if (data.method.equals(RestMeta.HTTP_METHOD_GET)) {
+      response=webResource.get(ClientResponse.class);
+    }
+ else     if (data.method.equals(RestMeta.HTTP_METHOD_POST)) {
+      response=webResource.post(ClientResponse.class);
+    }
+ else     if (data.method.equals(RestMeta.HTTP_METHOD_PUT)) {
+      response=webResource.put(ClientResponse.class);
+    }
+ else     if (data.method.equals(RestMeta.HTTP_METHOD_DELETE)) {
+      response=webResource.delete(ClientResponse.class);
+    }
+ else     if (data.method.equals(RestMeta.HTTP_METHOD_HEAD)) {
+      response=webResource.head();
+    }
+ else     if (data.method.equals(RestMeta.HTTP_METHOD_OPTIONS)) {
+      response=webResource.options(ClientResponse.class);
+    }
+ else {
+      throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.UnknownMethod",data.method));
+    }
+    long responseTime=System.currentTimeMillis() - startTime;
+    if (log.isDetailed())     log.logDetailed(toString(),BaseMessages.getString(PKG,"Rest.Log.ResponseTime",String.valueOf(responseTime),data.realUrl));
+    String body=response.getEntity(String.class);
+    int status=response.getStatus();
+    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"Rest.Log.ResponseCode","" + status));
+    int returnFieldsOffset=data.inputRowMeta.size();
+    if (!Const.isEmpty(data.resultFieldName)) {
+      newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,body);
+      returnFieldsOffset++;
+    }
+    if (!Const.isEmpty(data.resultCodeFieldName)) {
+      newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,new Long(status));
+      returnFieldsOffset++;
+    }
+    if (!Const.isEmpty(data.resultResponseFieldName)) {
+      newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,new Long(responseTime));
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.CanNotReadURL",data.realUrl),e);
+  }
+ finally {
+    if (webResource != null) {
+      webResource=null;
+    }
+    if (client != null) {
+      client.destroy();
+    }
+  }
+  return newRow;
+}

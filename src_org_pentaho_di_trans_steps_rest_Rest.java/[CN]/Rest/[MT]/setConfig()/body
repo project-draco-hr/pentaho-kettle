@@ -1,0 +1,50 @@
+{
+  if (data.config == null) {
+    data.config=new DefaultApacheHttpClientConfig();
+    if (!Const.isEmpty(data.realProxyHost)) {
+      data.config.getProperties().put(DefaultApacheHttpClientConfig.PROPERTY_PROXY_URI,"http://" + data.realProxyHost + ":"+ data.realProxyPort);
+      if (!Const.isEmpty(data.realHttpLogin) && !Const.isEmpty(data.realHttpPassword)) {
+        data.config.getState().setProxyCredentials(AuthScope.ANY_REALM,data.realProxyHost,data.realProxyPort,data.realHttpLogin,data.realHttpPassword);
+      }
+      if (meta.isPreemptive()) {
+        data.config.getProperties().put(ApacheHttpClientConfig.PROPERTY_PREEMPTIVE_AUTHENTICATION,true);
+      }
+    }
+    if (!Const.isEmpty(data.trustStoreFile)) {
+      try {
+        KeyStore trustStore=KeyStore.getInstance("JKS");
+        trustStore.load(new FileInputStream(data.trustStoreFile),data.trustStorePassword.toCharArray());
+        TrustManagerFactory tmf=TrustManagerFactory.getInstance("SunX509");
+        tmf.init(trustStore);
+        SSLContext ctx=SSLContext.getInstance("SSL");
+        ctx.init(null,tmf.getTrustManagers(),null);
+        HostnameVerifier hv=new HostnameVerifier(){
+          public boolean verify(          String hostname,          SSLSession session){
+            if (isDebug())             logDebug("Warning: URL Host: " + hostname + " vs. "+ session.getPeerHost());
+            return true;
+          }
+        }
+;
+        data.config.getProperties().put(HTTPSProperties.PROPERTY_HTTPS_PROPERTIES,new HTTPSProperties(hv,ctx));
+      }
+ catch (      NoSuchAlgorithmException e) {
+        throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.NoSuchAlgorithm"),e);
+      }
+catch (      KeyStoreException e) {
+        throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.KeyStoreException"),e);
+      }
+catch (      CertificateException e) {
+        throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.CertificateException"),e);
+      }
+catch (      FileNotFoundException e) {
+        throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.FileNotFound",data.trustStoreFile),e);
+      }
+catch (      IOException e) {
+        throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.IOException"),e);
+      }
+catch (      KeyManagementException e) {
+        throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.KeyManagementException"),e);
+      }
+    }
+  }
+}
