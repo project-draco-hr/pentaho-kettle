@@ -1,0 +1,58 @@
+{
+  Runtime rt=Runtime.getRuntime();
+  try {
+    data.fifoFilename=environmentSubstitute(meta.getFifoFileName());
+    File fifoFile=new File(data.fifoFilename);
+    if (!fifoFile.exists()) {
+      String mkFifoCmd="mkfifo " + data.fifoFilename;
+      logDetailed("Creating FIFO file using this command : " + mkFifoCmd);
+      Process mkFifoProcess=rt.exec(mkFifoCmd);
+      StreamLogger errorLogger=new StreamLogger(log,mkFifoProcess.getErrorStream(),"mkFifoError");
+      StreamLogger outputLogger=new StreamLogger(log,mkFifoProcess.getInputStream(),"mkFifoOuptut");
+      new Thread(errorLogger).start();
+      new Thread(outputLogger).start();
+      int result=mkFifoProcess.waitFor();
+      if (result != 0) {
+        throw new Exception("Return code " + result + " received from statement : "+ mkFifoCmd);
+      }
+      String chmodCmd="chmod 666 " + data.fifoFilename;
+      logDetailed("Setting FIFO file permissings using this command : " + chmodCmd);
+      Process chmodProcess=rt.exec(chmodCmd);
+      errorLogger=new StreamLogger(log,chmodProcess.getErrorStream(),"chmodError");
+      outputLogger=new StreamLogger(log,chmodProcess.getInputStream(),"chmodOuptut");
+      new Thread(errorLogger).start();
+      new Thread(outputLogger).start();
+      result=chmodProcess.waitFor();
+      if (result != 0) {
+        throw new Exception("Return code " + result + " received from statement : "+ chmodCmd);
+      }
+    }
+    String cmd=createCommandLine(meta);
+    try {
+      logDetailed("Executing command: " + cmd);
+      data.sqlProcess=rt.exec(cmd);
+      data.errorLogger=new StreamLogger(log,data.sqlProcess.getErrorStream(),"ERR_SQL");
+      data.outputLogger=new StreamLogger(log,data.sqlProcess.getInputStream(),"OUT_SQL");
+      data.sqlOutputStream=data.sqlProcess.getOutputStream();
+      new Thread(data.errorLogger).start();
+      new Thread(data.outputLogger).start();
+    }
+ catch (    Exception ex) {
+      throw new KettleException("Error while executing psql : " + cmd,ex);
+    }
+    logDetailed("Connected to VectorWise with the 'sql' command.");
+    String loadCommand=createLoadCommand();
+    logDetailed("Executing command: " + loadCommand);
+    data.sqlRunner=new SqlRunner(data,loadCommand);
+    data.sqlRunner.start();
+    logDetailed("LOAD TABLE command started");
+    executeLoadCommand();
+    logDetailed("Fifo stream opened");
+    waitForAConnection();
+    logDetailed("Ready to start bulk loading!");
+  }
+ catch (  Exception ex) {
+    throw new KettleException(ex);
+  }
+  return true;
+}

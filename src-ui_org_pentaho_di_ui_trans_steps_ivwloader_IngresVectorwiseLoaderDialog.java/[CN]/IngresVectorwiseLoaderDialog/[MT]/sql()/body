@@ -1,0 +1,43 @@
+{
+  try {
+    IngresVectorwiseLoaderMeta info=new IngresVectorwiseLoaderMeta();
+    getInfo(info);
+    RowMetaInterface prev=transMeta.getPrevStepFields(stepname);
+    StepMeta stepMeta=transMeta.findStep(stepname);
+    RowMetaInterface prevNew=new RowMeta();
+    for (int i=0; i < info.getFieldDatabase().length; i++) {
+      ValueMetaInterface insValue=prev.searchValueMeta(info.getFieldStream()[i]);
+      if (insValue != null) {
+        ValueMetaInterface insertValue=insValue.clone();
+        insertValue.setName(info.getFieldDatabase()[i]);
+        prevNew.addValueMeta(insertValue);
+      }
+ else {
+        throw new KettleStepException(BaseMessages.getString(PKG,"IngresVectorWiseLoaderDialog.FailedToFindField.Message",info.getFieldStream()[i]));
+      }
+    }
+    prev=prevNew;
+    SQLStatement sql=info.getSQLStatements(transMeta,stepMeta,prev);
+    if (!sql.hasError()) {
+      if (sql.hasSQL()) {
+        SQLEditor sqledit=new SQLEditor(shell,SWT.NONE,info.getDatabaseMeta(),transMeta.getDbCache(),sql.getSQL());
+        sqledit.open();
+      }
+ else {
+        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_INFORMATION);
+        mb.setMessage(BaseMessages.getString(PKG,"IngresVectorWiseLoaderDialog.NoSQL.DialogMessage"));
+        mb.setText(BaseMessages.getString(PKG,"IngresVectorWiseLoaderDialog.NoSQL.DialogTitle"));
+        mb.open();
+      }
+    }
+ else {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage(sql.getError());
+      mb.setText(BaseMessages.getString(PKG,"System.Dialog.Error.Title"));
+      mb.open();
+    }
+  }
+ catch (  KettleException ke) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"IngresVectorWiseLoaderDialog.BuildSQLError.DialogTitle"),BaseMessages.getString(PKG,"IngresVectorWiseLoaderDialog.BuildSQLError.DialogMessage"),ke);
+  }
+}

@@ -1,0 +1,44 @@
+{
+  SQLStatement retval=new SQLStatement(stepMeta.getName(),databaseMeta,null);
+  if (databaseMeta != null) {
+    if (prev != null && prev.size() > 0) {
+      if (!Const.isEmpty(tablename)) {
+        Database db=new Database(loggingObject,databaseMeta);
+        db.shareVariablesWith(transMeta);
+        try {
+          db.connect();
+          String schemaTable=databaseMeta.getQuotedSchemaTableCombination(null,tablename);
+          String cr_table=db.getDDL(schemaTable,prev);
+          String VW_CLAUSE="WITH STRUCTURE=VECTORWISE";
+          if (cr_table.toUpperCase().contains("CREATE TABLE")) {
+            int scIndex=cr_table.indexOf(';');
+            if (scIndex < 0) {
+              cr_table+=VW_CLAUSE;
+            }
+ else {
+              cr_table=cr_table.substring(0,scIndex) + VW_CLAUSE + cr_table.substring(scIndex);
+            }
+          }
+          if (cr_table == null || cr_table.length() == 0)           cr_table=null;
+          retval.setSQL(cr_table);
+        }
+ catch (        KettleDatabaseException dbe) {
+          retval.setError(BaseMessages.getString(PKG,"IngresVectorWiseLoaderMeta.Error.ErrorConnecting",dbe.getMessage()));
+        }
+ finally {
+          db.disconnect();
+        }
+      }
+ else {
+        retval.setError(BaseMessages.getString(PKG,"IngresVectorWiseLoaderMeta.Error.NoTable"));
+      }
+    }
+ else {
+      retval.setError(BaseMessages.getString(PKG,"IngresVectorWiseLoaderMeta.Error.NoInput"));
+    }
+  }
+ else {
+    retval.setError(BaseMessages.getString(PKG,"IngresVectorWiseLoaderMeta.Error.NoConnection"));
+  }
+  return retval;
+}
