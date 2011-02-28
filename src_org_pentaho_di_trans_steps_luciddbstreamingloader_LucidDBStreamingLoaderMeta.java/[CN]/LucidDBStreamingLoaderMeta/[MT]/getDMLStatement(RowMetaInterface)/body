@@ -1,0 +1,32 @@
+{
+  if (operation.equals(OPERATION_INSERT)) {
+    StringBuffer insert=new StringBuffer();
+    insert.append("INSERT INTO " + Const.CR);
+    insert.append(buildTargetTableString() + Const.CR);
+    insert.append(buildTargetColumnsForInsert() + Const.CR);
+    insert.append(buildRemoteRowsFragment(prev));
+    if (isDebug())     logDebug("-----INSERT----" + insert + "-----END INSERT-----");
+    return insert.toString();
+  }
+  if (operation.equals(OPERATION_MERGE) || operation.equals(OPERATION_UPDATE)) {
+    StringBuffer merge=new StringBuffer();
+    merge.append("MERGE INTO " + buildTargetTableString());
+    merge.append(" as " + databaseMeta.getStartQuote() + TARGET_TABLE_ALIAS+ databaseMeta.getEndQuote()+ Const.CR);
+    merge.append("USING " + buildRemoteRowsFragment(prev) + Const.CR);
+    merge.append("ON " + buildMatchCondition() + Const.CR);
+    merge.append("WHEN MATCHED THEN UPDATE SET " + Const.CR);
+    merge.append(buildMergeSetString() + Const.CR);
+    if (operation.equals(OPERATION_MERGE)) {
+      merge.append("WHEN NOT MATCHED THEN " + Const.CR);
+      merge.append("INSERT " + buildTargetColumnsForInsert() + Const.CR);
+      merge.append("VALUES " + buildSourceColumnsForInsert() + Const.CR);
+    }
+    if (isDebug())     logDebug("-----MERGE or UPDATE----" + merge + "-----END MERGE or UPDATE-----");
+    return merge.toString();
+  }
+  if (operation.equals(OPERATION_CUSTOM)) {
+    String custom=getCustom_sql().replace(" ? ",buildRemoteRowsFragment(prev));
+    if (isDebug())     logDebug("-----CUSTOM----" + custom + "-----END CUSTOM-----");
+  }
+  return "ERRORSQLSTATEMENT";
+}
