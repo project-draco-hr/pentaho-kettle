@@ -14,10 +14,12 @@
     }
     if (first) {
       first=false;
-      if (log.isDebug())       logDebug("Connected to LucidDB");
-      String qualifiedTableName="\"" + meta.getSchemaName() + "\""+ ".\""+ meta.getTableName()+ "\"";
-      if (!data.db.checkTableExists(qualifiedTableName)) {
-        throw new KettleException("Error: Table " + qualifiedTableName + " doesn't existing in LucidDB");
+      if (meta.getOperation() != LucidDBStreamingLoaderMeta.OPERATION_CUSTOM) {
+        if (log.isDebug())         logDebug("Connected to LucidDB");
+        String qualifiedTableName="\"" + meta.getSchemaName() + "\""+ ".\""+ meta.getTableName()+ "\"";
+        if (!data.db.checkTableExists(qualifiedTableName)) {
+          throw new KettleException("Error: Table " + qualifiedTableName + " doesn't existing in LucidDB");
+        }
       }
       String sql=meta.getDMLStatement(getInputRowMeta());
       PreparedStatement ps=data.db.prepareSQL(sql);
@@ -77,6 +79,9 @@ catch (        Exception ex) {
       }
       header.add(format);
       data.objOut.writeObject(header);
+    }
+    if (data.sqlRunner.ex != null) {
+      throw new KettleException(data.sqlRunner.ex);
     }
     List<Object> entity=new ArrayList<Object>();
     for (int i=0; i < data.keynrs.length; i++) {
