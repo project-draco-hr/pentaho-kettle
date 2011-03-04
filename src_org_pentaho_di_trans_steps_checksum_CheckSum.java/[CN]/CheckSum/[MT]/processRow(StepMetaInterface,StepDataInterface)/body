@@ -9,6 +9,7 @@
   if (first) {
     first=false;
     data.outputRowMeta=getInputRowMeta().clone();
+    data.nrInfields=data.outputRowMeta.size();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
     if (meta.getFieldName() == null || meta.getFieldName().length > 0) {
       data.fieldnrs=new int[meta.getFieldName().length];
@@ -27,27 +28,33 @@
       }
     }
     data.fieldnr=data.fieldnrs.length;
+    try {
+      if (meta.getCheckSumType().equals(CheckSumMeta.TYPE_MD5) || meta.getCheckSumType().equals(CheckSumMeta.TYPE_SHA1)) {
+        data.digest=MessageDigest.getInstance(meta.getCheckSumType());
+      }
+    }
+ catch (    Exception e) {
+      throw new KettleException(BaseMessages.getString(PKG,"CheckSum.Error.Digest"),e);
+    }
   }
-  boolean sendToErrorRow=false;
-  String errorMessage=null;
   Object[] outputRowData=null;
   try {
     if (meta.getCheckSumType().equals(CheckSumMeta.TYPE_ADLER32) || meta.getCheckSumType().equals(CheckSumMeta.TYPE_CRC32)) {
       Long checksum=calculCheckSum(r);
-      outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),checksum);
+      outputRowData=RowDataUtil.addValueData(r,data.nrInfields,checksum);
     }
  else {
       byte[] o=createCheckSum(r);
 switch (meta.getResultType()) {
 case CheckSumMeta.result_TYPE_BINARY:
-        outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),o);
+        outputRowData=RowDataUtil.addValueData(r,data.nrInfields,o);
       break;
 case CheckSumMeta.result_TYPE_HEXADECIMAL:
     String hex=meta.isCompatibilityMode() ? byteToHexEncode_compatible(o) : new String(Hex.encodeHex(o));
-  outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),hex);
+  outputRowData=RowDataUtil.addValueData(r,data.nrInfields,hex);
 break;
 default :
-outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),getStringFromBytes(o));
+outputRowData=RowDataUtil.addValueData(r,data.nrInfields,getStringFromBytes(o));
 break;
 }
 }
@@ -57,6 +64,8 @@ if (log.isDetailed()) logDetailed(BaseMessages.getString(PKG,"CheckSum.Log.LineN
 putRow(data.outputRowMeta,outputRowData);
 }
  catch (Exception e) {
+boolean sendToErrorRow=false;
+String errorMessage=null;
 if (getStepMeta().isDoingErrorHandling()) {
 sendToErrorRow=true;
 errorMessage=e.toString();
