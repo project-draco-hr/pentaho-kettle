@@ -1,0 +1,32 @@
+{
+  try {
+    IndexRequestBuilder requestBuilder=client.prepareIndex(index,type);
+    requestBuilder.setOpType(this.opType);
+    if (idFieldIndex != null) {
+      requestBuilder.setId((String)"" + row[idFieldIndex]);
+    }
+    if (isJsonInsert) {
+      addSourceFromJsonString(row,requestBuilder);
+    }
+ else {
+      addSourceFromRowFields(requestBuilder,rowMeta,row);
+    }
+    currentRequest.add(requestBuilder);
+    requestsBuffer.add(requestBuilder);
+    if (currentRequest.numberOfActions() >= batchSize) {
+      return processBatch(true);
+    }
+ else {
+      return true;
+    }
+  }
+ catch (  KettleStepException e) {
+    throw e;
+  }
+catch (  NoNodeAvailableException e) {
+    throw new KettleStepException(BaseMessages.getString(PKG,"ElasticSearchBulkDialog.Error.NoNodesFound"));
+  }
+catch (  Exception e) {
+    throw new KettleStepException(BaseMessages.getString(PKG,"ElasticSearchBulk.Log.Exception",e.getLocalizedMessage()),e);
+  }
+}

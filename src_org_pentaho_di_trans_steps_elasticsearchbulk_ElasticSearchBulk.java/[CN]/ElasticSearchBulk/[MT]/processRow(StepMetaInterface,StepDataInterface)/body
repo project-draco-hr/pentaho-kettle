@@ -1,0 +1,30 @@
+{
+  Object[] rowData=getRow();
+  if (rowData == null) {
+    if (currentRequest != null && currentRequest.numberOfActions() > 0) {
+      processBatch(false);
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    setupData();
+    currentRequest=client.prepareBulk();
+    requestsBuffer=new ArrayList<IndexRequestBuilder>(this.batchSize);
+    initFieldIndexes();
+  }
+  try {
+    data.inputRowBuffer[data.nextBufferRowIdx++]=rowData;
+    return indexRow(data.inputRowMeta,rowData) || !stopOnError;
+  }
+ catch (  KettleStepException e) {
+    throw e;
+  }
+catch (  Exception e) {
+    rejectAllRows(e.getLocalizedMessage());
+    String msg=BaseMessages.getString(PKG,"ElasticSearchBulk.Log.Exception",e.getLocalizedMessage());
+    logError(msg);
+    throw new KettleStepException(msg,e);
+  }
+}
