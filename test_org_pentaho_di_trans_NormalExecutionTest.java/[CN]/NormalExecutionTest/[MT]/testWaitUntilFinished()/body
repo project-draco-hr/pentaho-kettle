@@ -1,0 +1,44 @@
+{
+  final Long ROWS=10L;
+  final int ITERATIONS=100000;
+  TransMeta transMeta=new TransMeta("testfiles/NormalExecutionTest - WaitUntilFinished.ktr");
+  transMeta.setSizeRowset(5);
+  for (int t=0; t < ITERATIONS; t++) {
+    Trans trans=new Trans(transMeta);
+    trans.setLogLevel(LogLevel.NOTHING);
+    trans.prepareExecution(null);
+    StepInterface injector=trans.findRunThread("Injector");
+    StepInterface output=trans.findRunThread("Output");
+    RowMeta injectorRowMeta=new RowMeta();
+    ((BaseStepMeta)injector.getStepMeta().getStepMetaInterface()).getFields(injectorRowMeta,null,null,null,null);
+    RowProducer producer=trans.addRowProducer(injector.getStepname(),0);
+    CountingRowListener countingListener=new CountingRowListener();
+    output.addRowListener(countingListener);
+    Object[] row=new Object[1];
+    trans.startThreads();
+    for (Integer i=0; i < ROWS; i++) {
+      row[0]=i;
+      producer.putRow(injectorRowMeta,row);
+    }
+    producer.finished();
+    trans.waitUntilFinished();
+    countingListener.setListening(false);
+    assertTrue(trans.isFinished());
+    long start=System.currentTimeMillis();
+    while (countingListener.getWritten() + countingListener.getIgnoredWritten() != ROWS) {
+      Thread.sleep(0,10);
+    }
+    long end=System.currentTimeMillis();
+    System.out.println("Run report for RowListener on last step in transformation, iteration #" + (t + 1) + " :\n");
+    System.out.println("Rows read             : " + countingListener.getRead());
+    System.out.println("Rows written          : " + countingListener.getWritten());
+    System.out.println("Rows error            : " + countingListener.getError());
+    System.out.println("Rows ignored (read)   : " + countingListener.getIgnoredRead());
+    System.out.println("Rows ignored (written): " + countingListener.getIgnoredWritten());
+    System.out.println("Rows ignored (error)  : " + countingListener.getIgnoredError());
+    System.out.println("Had to wait " + (end - start) + "ms for all data to be received by the row listener.");
+    assertEquals("Incorrect number of read rows received",ROWS,countingListener.getRead());
+    assertEquals("Incorrect number of written rows received",ROWS,countingListener.getWritten());
+    assertEquals("Incorrect number of error rows received",new Long(0),countingListener.getError());
+  }
+}

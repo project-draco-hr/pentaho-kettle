@@ -3,8 +3,73 @@
   int idx=wFields.get(tabIndex).getSelectionIndex();
   if (idx >= 0) {
     String fields[]=wFields.get(tabIndex).getItem(idx);
-    String dateString=fields[13];
-    Date replayDate=XMLHandler.stringToDate(dateString);
-    spoon.executeJob(jobGraph.getManagedObject(),true,false,replayDate,false);
+    int batchId=Const.toInt(fields[0],-1);
+    List<JobEntryCopyResult> results=null;
+    boolean gotResults=false;
+    JobEntryLogTable jeLogTable=jobMeta.getJobEntryLogTable();
+    if (jeLogTable.isDefined()) {
+      try {
+        DatabaseMeta databaseMeta=jobMeta.getJobEntryLogTable().getDatabaseMeta();
+        Database db=new Database(Spoon.loggingObject,databaseMeta);
+        try {
+          db.connect();
+          String schemaTable=databaseMeta.getQuotedSchemaTableCombination(jeLogTable.getActualSchemaName(),jeLogTable.getActualTableName());
+          String sql="SELECT * FROM " + schemaTable + " WHERE "+ databaseMeta.quoteField(jeLogTable.getKeyField().getFieldName())+ " = "+ batchId;
+          List<Object[]> rows=db.getRows(sql,0);
+          RowMetaInterface rowMeta=db.getReturnRowMeta();
+          results=new ArrayList<JobEntryCopyResult>();
+          int jobEntryNameIndex=rowMeta.indexOfValue(jeLogTable.findField(JobEntryLogTable.ID.JOBENTRYNAME.toString()).getFieldName());
+          int jobEntryResultIndex=rowMeta.indexOfValue(jeLogTable.findField(JobEntryLogTable.ID.RESULT.toString()).getFieldName());
+          int jobEntryErrorsIndex=rowMeta.indexOfValue(jeLogTable.findField(JobEntryLogTable.ID.ERRORS.toString()).getFieldName());
+          LogTableField copyNrField=jeLogTable.findField(JobEntryLogTable.ID.COPY_NR.toString());
+          int jobEntryCopyNrIndex=copyNrField == null ? -1 : (copyNrField.isEnabled() ? rowMeta.indexOfValue(copyNrField.getFieldName()) : -1);
+          for (          Object[] row : rows) {
+            String jobEntryName=rowMeta.getString(row,jobEntryNameIndex);
+            boolean jobEntryResult=rowMeta.getBoolean(row,jobEntryResultIndex);
+            long errors=rowMeta.getInteger(row,jobEntryErrorsIndex);
+            long copyNr=jobEntryCopyNrIndex < 0 ? 0 : rowMeta.getInteger(row,jobEntryCopyNrIndex);
+            JobEntryCopyResult result=new JobEntryCopyResult(jobEntryName,jobEntryResult,errors,(int)copyNr);
+            results.add(result);
+          }
+        }
+  finally {
+          db.disconnect();
+        }
+        gotResults=true;
+      }
+ catch (      Exception e) {
+        new ErrorDialog(spoon.getShell(),BaseMessages.getString(PKG,"JobHistoryDelegate.ReplayHistory.UnexpectedErrorReadingJobEntryHistory.Text"),BaseMessages.getString(PKG,"JobHistoryDelegate.ReplayHistory.UnexpectedErrorReadingJobEntryHistory.Message"),e);
+      }
+    }
+ else {
+      MessageBox box=new MessageBox(spoon.getShell(),SWT.ICON_ERROR | SWT.OK);
+      box.setText(BaseMessages.getString(PKG,"JobHistoryDelegate.ReplayHistory.NoJobEntryTable.Text"));
+      box.setMessage(BaseMessages.getString(PKG,"JobHistoryDelegate.ReplayHistory.NoJobEntryTable.Message"));
+      box.open();
+    }
+    if (!gotResults) {
+      results=new ArrayList<JobEntryCopyResult>();
+      for (      JobEntryCopy copy : jobMeta.getJobCopies()) {
+        results.add(new JobEntryCopyResult(copy.getName(),null,null,copy.getNr()));
+      }
+    }
+    JobEntryCopy selection=null;
+    boolean more=true;
+    JobEntryCopy start=jobMeta.findStart();
+    while (selection == null && more) {
+      int nrNext=jobMeta.findNrNextJobEntries(start);
+      more=nrNext > 0;
+      for (int n=0; n < nrNext; n++) {
+        JobEntryCopy copy=jobMeta.findNextJobEntry(start,n);
+        JobEntryCopyResult result=JobEntryCopyResult.findResult(results,copy);
+        if (result != null) {
+        }
+      }
+    }
+    for (    JobEntryCopyResult result : results) {
+    }
+    for (    JobEntryCopyResult result : results) {
+      System.out.println("Job entry copy result --  Name=" + result.getJobEntryName() + ", result="+ result.getResult()+ ", errors="+ result.getErrors()+ ", nr="+ result.getCopyNr());
+    }
   }
 }

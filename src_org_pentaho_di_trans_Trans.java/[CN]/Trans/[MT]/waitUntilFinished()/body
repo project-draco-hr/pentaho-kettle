@@ -1,11 +1,17 @@
 {
-  try {
-    while (!finished.get()) {
-      Thread.sleep(0,1);
+  if (!finished.get()) {
+    try {
+      final BlockingQueue<Object> queue=new ArrayBlockingQueue<Object>(10);
+      addTransListener(new TransAdapter(){
+        public void transFinished(        Trans trans) throws KettleException {
+          queue.add(new Object());
+        }
+      }
+);
+      while (!finished.get() || queue.poll(1,TimeUnit.DAYS) == null)       ;
     }
-  }
- catch (  Exception e) {
-    log.logError(BaseMessages.getString(PKG,"Trans.Log.TransformationError") + e.toString());
-    log.logError(Const.getStackTracker(e));
+ catch (    InterruptedException e) {
+      throw new RuntimeException("Waiting for transformation to be finished interrupted!",e);
+    }
   }
 }
