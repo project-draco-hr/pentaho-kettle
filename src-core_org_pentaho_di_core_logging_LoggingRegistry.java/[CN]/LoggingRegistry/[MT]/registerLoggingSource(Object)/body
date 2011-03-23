@@ -8,5 +8,28 @@
   loggingSource.setLogChannelId(logChannelId);
   map.put(logChannelId,loggingSource);
   lastModificationTime=new Date();
+  loggingSource.setRegistrationDate(lastModificationTime);
+  if (maxSize > 0 && map.size() > maxSize) {
+    LoggingObjectInterface similar=findFirstSimilarLoggingObject(loggingSource);
+    if (similar != null) {
+      map.remove(similar.getLogChannelId());
+    }
+    if (map.size() > maxSize + 250) {
+      List<LoggingObjectInterface> all=new ArrayList<LoggingObjectInterface>(map.values());
+      Collections.sort(all,new Comparator<LoggingObjectInterface>(){
+        @Override public int compare(        LoggingObjectInterface o1,        LoggingObjectInterface o2){
+          if (o1 == null && o2 != null)           return -1;
+          if (o1 != null && o2 == null)           return 1;
+          if (o1 == null && o2 == null)           return 0;
+          return o1.getRegistrationDate().compareTo(o2.getRegistrationDate());
+        }
+      }
+);
+      for (int i=0; i < 250; i++) {
+        LoggingObjectInterface toRemove=all.get(i);
+        map.remove(toRemove.getLogChannelId());
+      }
+    }
+  }
   return logChannelId;
 }
