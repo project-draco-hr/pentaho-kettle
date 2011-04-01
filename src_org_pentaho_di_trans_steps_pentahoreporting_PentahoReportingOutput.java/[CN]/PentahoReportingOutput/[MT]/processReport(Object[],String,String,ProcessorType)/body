@@ -1,0 +1,92 @@
+{
+  try {
+    MasterReport report=loadMasterReport(sourceFilename);
+    ReportParameterValues values=report.getParameterValues();
+    ReportParameterDefinition definition=report.getParameterDefinition();
+    for (    String parameterName : meta.getParameterFieldMap().keySet()) {
+      String fieldName=meta.getParameterFieldMap().get(parameterName);
+      if (fieldName != null) {
+        int index=getInputRowMeta().indexOfValue(fieldName);
+        if (index < 0) {
+          throw new KettleException(BaseMessages.getString(PKG,"PentahoReportingOutput.Exception.CanNotFindField",fieldName));
+        }
+        Class<?> clazz=findParameterClass(definition,parameterName);
+        Object value=null;
+        if (clazz != null) {
+          if (clazz.equals(String.class)) {
+            value=getInputRowMeta().getString(r,index);
+          }
+ else           if (clazz.equals((new String[0]).getClass())) {
+            value=getInputRowMeta().getString(r,index).split("\t");
+          }
+ else           if (clazz.equals(Date.class)) {
+            value=getInputRowMeta().getDate(r,index);
+          }
+ else           if (clazz.equals(byte.class) || clazz.equals(Byte.class)) {
+            value=getInputRowMeta().getInteger(r,index).byteValue();
+          }
+ else           if (clazz.equals(Short.class) || clazz.equals(short.class)) {
+            value=getInputRowMeta().getInteger(r,index).shortValue();
+          }
+ else           if (clazz.equals(Integer.class) || clazz.equals(int.class)) {
+            value=getInputRowMeta().getInteger(r,index).intValue();
+          }
+ else           if (clazz.equals(Long.class) || clazz.equals(long.class)) {
+            value=getInputRowMeta().getInteger(r,index);
+          }
+ else           if (clazz.equals(Double.class) || clazz.equals(double.class)) {
+            value=getInputRowMeta().getNumber(r,index);
+          }
+ else           if (clazz.equals(Float.class) || clazz.equals(float.class)) {
+            value=getInputRowMeta().getNumber(r,index).floatValue();
+          }
+ else           if (clazz.equals(Number.class)) {
+            value=getInputRowMeta().getBigNumber(r,index).floatValue();
+          }
+ else           if (clazz.equals(Boolean.class) || clazz.equals(boolean.class)) {
+            value=getInputRowMeta().getBoolean(r,index);
+          }
+ else           if (clazz.equals(BigDecimal.class)) {
+            value=getInputRowMeta().getBigNumber(r,index);
+          }
+ else           if (clazz.equals((new byte[0]).getClass())) {
+            value=getInputRowMeta().getBinary(r,index);
+          }
+ else {
+            value=getInputRowMeta().getValueMeta(index).convertToNormalStorageType(r[index]);
+          }
+          values.put(parameterName,value);
+        }
+ else {
+          logBasic(BaseMessages.getString(PKG,"PentahoReportingOutput.Log.ParameterNotFoundInReport",parameterName,sourceFilename));
+        }
+      }
+    }
+switch (outputProcessorType) {
+case PDF:
+      PdfReportUtil.createPDF(report,targetFilename);
+    break;
+case CSV:
+  CSVReportUtil.createCSV(report,targetFilename);
+break;
+case Excel:
+ExcelReportUtil.createXLS(report,targetFilename);
+break;
+case StreamingHTML:
+HtmlReportUtil.createStreamHTML(report,targetFilename);
+break;
+case PagedHTML:
+HtmlReportUtil.createDirectoryHTML(report,targetFilename);
+break;
+case RTF:
+RTFReportUtil.createRTF(report,targetFilename);
+break;
+}
+ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(targetFilename,getTransMeta()),getTransMeta().getName(),getStepname());
+resultFile.setComment("This file was created with a Pentaho Reporting Output step");
+addResultFile(resultFile);
+}
+ catch (Exception e) {
+throw new KettleException(BaseMessages.getString(PKG,"PentahoReportingOutput.Exception.UnexpectedErrorRenderingReport",sourceFilename,targetFilename,outputProcessorType.getDescription()),e);
+}
+}
