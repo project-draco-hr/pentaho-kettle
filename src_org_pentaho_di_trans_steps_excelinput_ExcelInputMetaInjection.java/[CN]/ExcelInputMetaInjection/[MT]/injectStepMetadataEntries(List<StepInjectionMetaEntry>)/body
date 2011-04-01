@@ -1,5 +1,6 @@
 {
   List<ExcelInputField> excelInputFields=new ArrayList<ExcelInputField>();
+  List<ExcelInputSheet> sheets=new ArrayList<ExcelInputMetaInjection.ExcelInputSheet>();
   for (  StepInjectionMetaEntry lookFields : all) {
     Entry fieldsEntry=Entry.findEntry(lookFields.getKey());
     if (fieldsEntry != null) {
@@ -53,7 +54,49 @@ excelInputFields.add(inputField);
 }
 }
 }
+if (fieldsEntry == Entry.SHEETS) {
+for (StepInjectionMetaEntry lookField : lookFields.getDetails()) {
+Entry fieldEntry=Entry.findEntry(lookField.getKey());
+if (fieldEntry != null) {
+if (fieldEntry == Entry.SHEET) {
+String sheetName=null;
+int startCol=0;
+int startRow=0;
+List<StepInjectionMetaEntry> entries=lookField.getDetails();
+for (StepInjectionMetaEntry entry : entries) {
+Entry metaEntry=Entry.findEntry(entry.getKey());
+if (metaEntry != null) {
+String value=(String)entry.getValue();
+switch (metaEntry) {
+case SHEET_NAME:
+sheetName=value;
+break;
+case SHEET_START_ROW:
+startRow=Const.toInt(value,0);
+break;
+case SHEET_START_COL:
+startCol=Const.toInt(value,0);
+break;
+}
+}
+}
+sheets.add(new ExcelInputSheet(sheetName,startCol,startRow));
+}
+}
+}
+}
 }
 }
 meta.setField(excelInputFields.toArray(new ExcelInputField[excelInputFields.size()]));
+String[] sheetNames=new String[sheets.size()];
+int[] startCols=new int[sheets.size()];
+int[] startRows=new int[sheets.size()];
+for (int i=0; i < sheets.size(); i++) {
+sheetNames[i]=sheets.get(i).sheetName;
+startCols[i]=sheets.get(i).startCol;
+startRows[i]=sheets.get(i).startRow;
+}
+meta.setSheetName(sheetNames);
+meta.setStartColumn(startCols);
+meta.setStartRow(startRows);
 }
