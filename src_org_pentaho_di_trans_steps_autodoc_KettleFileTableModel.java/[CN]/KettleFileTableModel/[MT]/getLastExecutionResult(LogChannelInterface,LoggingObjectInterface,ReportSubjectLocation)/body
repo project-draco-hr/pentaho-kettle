@@ -1,0 +1,65 @@
+{
+  LogTableInterface logTable=null;
+  if (filename.isTransformation()) {
+    TransMeta transMeta=TransformationInformation.getInstance().getTransMeta(filename);
+    logTable=transMeta.getTransLogTable();
+  }
+ else {
+    JobMeta jobMeta=JobInformation.getInstance().getJobMeta(filename);
+    logTable=jobMeta.getJobLogTable();
+  }
+  if (logTable != null && logTable.isDefined()) {
+    DatabaseMeta dbMeta=logTable.getDatabaseMeta();
+    Database database=new Database(parentObject,dbMeta);
+    try {
+      database.connect();
+      String sql="SELECT ";
+      sql+=dbMeta.quoteField(logTable.getStatusField().getFieldName()) + ", ";
+      sql+=dbMeta.quoteField(logTable.getLogDateField().getFieldName()) + ", ";
+      sql+=dbMeta.quoteField(logTable.getErrorsField().getFieldName()) + "";
+      sql+=" FROM ";
+      sql+=dbMeta.getQuotedSchemaTableCombination(logTable.getSchemaName(),logTable.getTableName());
+      sql+=" ORDER BY " + dbMeta.quoteField(logTable.getLogDateField().getFieldName()) + " DESC";
+      RowMetaAndData oneRow=database.getOneRow(sql);
+      String status=oneRow.getString(0,"?");
+      Date date=oneRow.getDate(1,null);
+      Long nrErrors=oneRow.getInteger(2);
+      String evaluation;
+      if (status.equalsIgnoreCase(LogStatus.END.getStatus())) {
+        evaluation="Ended";
+      }
+ else       if (status.equalsIgnoreCase(LogStatus.START.getStatus())) {
+        evaluation="Started";
+      }
+ else       if (status.equalsIgnoreCase(LogStatus.STOP.getStatus())) {
+        evaluation="Stopped";
+      }
+ else       if (status.equalsIgnoreCase(LogStatus.RUNNING.getStatus())) {
+        evaluation="Running";
+      }
+ else       if (status.equalsIgnoreCase(LogStatus.PAUSED.getStatus())) {
+        evaluation="Paused";
+      }
+ else       if (status.equalsIgnoreCase(LogStatus.ERROR.getStatus())) {
+        evaluation="Failed";
+      }
+ else {
+        evaluation="Unknown";
+      }
+      if (nrErrors > 0) {
+        evaluation+=" with errors";
+      }
+ else {
+        evaluation+=" with success";
+      }
+      return evaluation + " at " + XMLHandler.date2string(date);
+    }
+ catch (    Exception e) {
+      log.logError("Unable to get logging information from log table" + logTable,e);
+    }
+ finally {
+      database.disconnect();
+    }
+  }
+  return null;
+}
