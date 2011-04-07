@@ -1,0 +1,43 @@
+{
+  Map<String,List<String>> nameMap=NamesUtil.getInstance().getMap();
+  if (structure instanceof Segment) {
+    Segment segment=(Segment)structure;
+    String names[]=segment.getNames();
+    for (int n=1; n <= segment.numFields(); n++) {
+      Type[] types=segment.getField(n);
+      for (int t=0; t < types.length; t++) {
+        int nrComponents=Terser.numComponents(types[t]);
+        for (int c=1; c <= nrComponents; c++) {
+          int nrSub=Terser.numSubComponents(types[t],c);
+          for (int sc=1; sc <= nrSub; sc++) {
+            String string=Terser.get(segment,n,t,c,sc);
+            String description="?";
+            List<String> list=nameMap.get(types[t].getName());
+            if (list != null && c - 1 < list.size()) {
+              description=list.get(c - 1);
+            }
+ else {
+            }
+            Group group=structure.getParent();
+            Group rootGroup=structure.getMessage();
+            String coordinates=n + "." + (t + 1)+ "."+ c+ "."+ sc;
+            HL7Value value=new HL7Value(message.getVersion(),rootGroup.getName(),group.getName(),structure.getName(),structureNumber,names[n - 1],coordinates,types[t].getName(),description,string);
+            values.add(value);
+          }
+        }
+      }
+    }
+  }
+ else   if (structure instanceof Group) {
+    Group group=(Group)structure;
+    String[] names=group.getNames();
+    for (int n=1; n <= names.length; n++) {
+      String name=names[n - 1];
+      Structure subStructure=group.get(name);
+      parseStructure(values,message,terser,subStructure,structureNumber + "." + n);
+    }
+  }
+ else {
+    throw new Exception("oops, not handled yet!");
+  }
+}
