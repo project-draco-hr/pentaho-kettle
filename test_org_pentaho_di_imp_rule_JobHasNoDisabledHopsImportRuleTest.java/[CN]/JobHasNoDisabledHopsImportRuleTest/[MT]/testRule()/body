@@ -1,0 +1,34 @@
+{
+  JobMeta jobMeta=new JobMeta();
+  JobEntryCopy lastCopy=null;
+  for (int i=0; i < 3; i++) {
+    JobEntrySpecial dummy=new JobEntrySpecial();
+    dummy.setDummy(true);
+    dummy.setName("dummy" + (i + 1));
+    JobEntryCopy copy=new JobEntryCopy(dummy);
+    copy.setLocation(50 + i * 50,50);
+    copy.setDrawn();
+    jobMeta.addJobEntry(copy);
+    if (lastCopy != null) {
+      JobHopMeta hop=new JobHopMeta(lastCopy,copy);
+      jobMeta.addJobHop(hop);
+    }
+    lastCopy=copy;
+  }
+  PluginRegistry registry=PluginRegistry.getInstance();
+  PluginInterface plugin=registry.findPluginWithId(ImportRulePluginType.class,"JobHasNoDisabledHops");
+  assertNotNull("The 'job has no disabled hops' rule could not be found in the plugin registry!",plugin);
+  JobHasNoDisabledHopsImportRule rule=(JobHasNoDisabledHopsImportRule)registry.loadClass(plugin);
+  assertNotNull("The 'job has no disabled hops' class could not be loaded by the plugin registry!",plugin);
+  rule.setEnabled(true);
+  List<ImportValidationFeedback> feedback=rule.verifyRule(jobMeta);
+  assertTrue("We didn't get any feedback from the 'job has no disabled hops'",!feedback.isEmpty());
+  assertTrue("An approval ruling was expected",feedback.get(0).getResultType() == ImportValidationResultType.APPROVAL);
+  jobMeta.getJobHop(0).setEnabled(false);
+  feedback=rule.verifyRule(jobMeta);
+  assertTrue("We didn't get any feedback from the 'job has no disabled hops'",!feedback.isEmpty());
+  assertTrue("An error ruling was expected",feedback.get(0).getResultType() == ImportValidationResultType.ERROR);
+  rule.setEnabled(false);
+  feedback=rule.verifyRule(jobMeta);
+  assertTrue("We didn't expect any feedback from the 'job has no disabled hops' while disabled",feedback.isEmpty());
+}
