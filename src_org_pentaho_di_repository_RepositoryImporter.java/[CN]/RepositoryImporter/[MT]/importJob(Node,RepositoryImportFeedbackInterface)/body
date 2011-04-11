@@ -2,6 +2,7 @@
   JobMeta jobMeta=new JobMeta(jobnode,rep,false,SpoonFactory.getInstance());
   replaceSharedObjects(jobMeta);
   feedback.setLabel(BaseMessages.getString(PKG,"RepositoryImporter.ImportJob.Label",Integer.toString(jobNumber),jobMeta.getName()));
+  validateImportedElement(jobMeta);
   String directoryPath=Const.NVL(XMLHandler.getTagValue(jobnode,"directory"),Const.FILE_SEPARATOR);
   if (jobDirOverride != null) {
     directoryPath=jobDirOverride;
@@ -21,11 +22,28 @@
     jobMeta.setRepositoryDirectory(targetDirectory);
     jobMeta.setObjectId(existintId);
     patchJobEntries(jobMeta);
-    rep.save(jobMeta,versionComment,null,overwrite);
-    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.JobSaved.Log",Integer.toString(jobNumber),jobMeta.getName()));
+    try {
+      if (jobMeta.getCreatedUser() == null || jobMeta.getCreatedUser().equals("-")) {
+        jobMeta.setCreatedDate(new Date());
+        if (rep.getUserInfo() != null) {
+          jobMeta.setCreatedUser(rep.getUserInfo().getLogin());
+        }
+ else {
+          jobMeta.setCreatedUser(null);
+        }
+      }
+      rep.save(jobMeta,versionComment,null,overwrite);
+      feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.JobSaved.Log",Integer.toString(jobNumber),jobMeta.getName()));
+    }
+ catch (    Exception e) {
+      feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ErrorSavingJob.Log",Integer.toString(jobNumber),jobMeta.getName(),Const.getStackTracker(e)));
+      if (!feedback.askContinueOnErrorQuestion(BaseMessages.getString(PKG,"RepositoryImporter.DoYouWantToContinue.Title"),BaseMessages.getString(PKG,"RepositoryImporter.DoYouWantToContinue.Message"))) {
+        return false;
+      }
+    }
   }
  else {
-    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ErrorSavingJob.Log",jobMeta.getName()));
+    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.SkippedExistingJob.Log",jobMeta.getName()));
   }
   return true;
 }
