@@ -1,0 +1,44 @@
+{
+  PluginRegistry registry=PluginRegistry.getInstance();
+  List<PluginInterface> plugins=registry.getPlugins(ImportRulePluginType.class);
+  for (  ImportRuleInterface rule : importRules.getRules()) {
+    if (rule.isUnique()) {
+      int removeIndex=-1;
+      for (int i=0; i < plugins.size(); i++) {
+        PluginInterface plugin=plugins.get(i);
+        if (Const.indexOfString(rule.getId(),plugin.getIds()) >= 0) {
+          removeIndex=i;
+          break;
+        }
+      }
+      if (removeIndex >= 0) {
+        plugins.remove(removeIndex);
+      }
+    }
+  }
+  if (plugins.size() > 0) {
+    String names[]=new String[plugins.size()];
+    for (int i=0; i < plugins.size(); i++) {
+      names[i]=plugins.get(i).getName() + " : " + plugins.get(i).getDescription();
+    }
+    EnterSelectionDialog esd=new EnterSelectionDialog(shell,names,"Select a rule","Select a new rule to add to the list:");
+    String name=esd.open();
+    if (name != null) {
+      try {
+        int index=Const.indexOfString(name,names);
+        PluginInterface plugin=plugins.get(index);
+        ImportRuleInterface rule=(ImportRuleInterface)registry.loadClass(plugin);
+        rule.setEnabled(true);
+        rule.setId(plugin.getIds()[0]);
+        ImportRules newRules=new ImportRules();
+        getInfo(newRules);
+        newRules.getRules().add(rule);
+        importRules=newRules;
+        getCompositesData();
+      }
+ catch (      Exception e) {
+        new ErrorDialog(shell,"Error","Error loading rule class",e);
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  JobMeta jobMeta=new JobMeta();
+  NotePadMeta note=new NotePadMeta("A note documenting the transformation",50,50,200,50);
+  jobMeta.addNote(note);
+  PluginRegistry registry=PluginRegistry.getInstance();
+  PluginInterface plugin=registry.findPluginWithId(ImportRulePluginType.class,"JobHasANote");
+  assertNotNull("The 'job has a note' rule could not be found in the plugin registry!",plugin);
+  JobHasANoteImportRule rule=(JobHasANoteImportRule)registry.loadClass(plugin);
+  assertNotNull("The 'job has a note' rule class could not be loaded by the plugin registry!",plugin);
+  rule.setEnabled(true);
+  List<ImportValidationFeedback> feedback=rule.verifyRule(jobMeta);
+  assertTrue("We didn't get any feedback from the 'job has a note'",!feedback.isEmpty());
+  assertTrue("An approval ruling was expected",feedback.get(0).getResultType() == ImportValidationResultType.APPROVAL);
+  jobMeta.removeNote(0);
+  feedback=rule.verifyRule(jobMeta);
+  assertTrue("We didn't get any feedback from the 'job has a note' rule",!feedback.isEmpty());
+  assertTrue("An error ruling was expected",feedback.get(0).getResultType() == ImportValidationResultType.ERROR);
+  rule.setEnabled(false);
+  feedback=rule.verifyRule(jobMeta);
+  assertTrue("We didn't expect any feedback from the 'job has no note' rule while disabled",feedback.isEmpty());
+}

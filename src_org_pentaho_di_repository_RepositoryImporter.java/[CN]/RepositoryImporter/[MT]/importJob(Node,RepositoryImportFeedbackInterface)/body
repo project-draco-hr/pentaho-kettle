@@ -2,13 +2,17 @@
   JobMeta jobMeta=new JobMeta(jobnode,rep,false,SpoonFactory.getInstance());
   replaceSharedObjects(jobMeta);
   feedback.setLabel(BaseMessages.getString(PKG,"RepositoryImporter.ImportJob.Label",Integer.toString(jobNumber),jobMeta.getName()));
-  validateImportedElement(jobMeta);
+  validateImportedElement(importRules,jobMeta);
   String directoryPath=Const.NVL(XMLHandler.getTagValue(jobnode,"directory"),Const.FILE_SEPARATOR);
   if (jobDirOverride != null) {
     directoryPath=jobDirOverride;
   }
   if (directoryPath.startsWith("/")) {
     directoryPath=directoryPath.substring(1);
+  }
+  if (limitDirs.size() > 0 && Const.indexOfString(directoryPath,limitDirs) < 0) {
+    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.SkippedJobNotPartOfLimitingDirectories.Log",jobMeta.getName()));
+    return true;
   }
   RepositoryDirectoryInterface targetDirectory=getTargetDirectory(directoryPath,jobDirOverride,feedback);
   ObjectId existintId=rep.getJobId(jobMeta.getName(),targetDirectory);

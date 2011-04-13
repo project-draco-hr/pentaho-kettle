@@ -1,0 +1,35 @@
+{
+  for (  TableItem item : table.getItems()) {
+    item.dispose();
+  }
+  table.clearAll();
+  compositesList=new ArrayList<ImportRuleCompositeInterface>();
+  for (  ImportRuleInterface rule : importRules.getRules()) {
+    try {
+      TableItem item=new TableItem(table,SWT.NONE);
+      item.setChecked(rule.isEnabled());
+      PluginRegistry registry=PluginRegistry.getInstance();
+      PluginInterface plugin=registry.getPlugin(ImportRulePluginType.class,rule);
+      item.setText(1,Const.NVL(plugin.getName(),rule.getClass().getName()));
+      ImportRuleCompositeInterface importRuleComposite=getImportRuleComposite(rule);
+      compositesList.add(importRuleComposite);
+      final Composite composite=importRuleComposite.getComposite(table,rule);
+      composite.layout(true,true);
+      final TableEditor editor=new TableEditor(table);
+      editor.grabHorizontal=true;
+      editor.grabVertical=true;
+      editor.setEditor(composite,item,2);
+      importRuleComposite.setCompositeData(rule);
+      item.addDisposeListener(new DisposeListener(){
+        public void widgetDisposed(        DisposeEvent event){
+          composite.dispose();
+        }
+      }
+);
+    }
+ catch (    Exception e) {
+      new ErrorDialog(shell,"Error","Error displaying rule options for rule: " + rule.toString(),e);
+      compositesList.add(null);
+    }
+  }
+}

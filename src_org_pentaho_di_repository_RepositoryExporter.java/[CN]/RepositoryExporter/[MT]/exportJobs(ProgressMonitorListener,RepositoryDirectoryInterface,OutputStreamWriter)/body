@@ -3,6 +3,7 @@
     ObjectId dirids[]=dirTree.getDirectoryIDs();
     System.out.println("Going through " + dirids.length + " directories in directory ["+ dirTree.getPath()+ "]");
     if (monitor != null)     monitor.subTask("Exporting the jobs...");
+    boolean continueOnError=true;
     for (int d=0; d < dirids.length && (monitor == null || (monitor != null && !monitor.isCanceled())); d++) {
       RepositoryDirectoryInterface repdir=dirTree.findDirectory(dirids[d]);
       String jobs[]=repository.getJobNames(dirids[d],false);
@@ -12,11 +13,22 @@
           System.out.println("Loading/Exporting job [" + repdir.getPath() + " : "+ jobs[i]+ "]");
           if (monitor != null)           monitor.subTask("Exporting job [" + jobs[i] + "]");
           convertFromFileRepository(jobMeta);
+          try {
+            RepositoryImporter.validateImportedElement(importRules,jobMeta);
+          }
+ catch (          KettleException ve) {
+            continueOnError=false;
+            throw (ve);
+          }
           writer.write(jobMeta.getXML() + Const.CR);
         }
  catch (        KettleException ke) {
-          log.logError("An error occurred reading job [" + jobs[i] + "] from directory ["+ repdir+ "] : "+ ke.getMessage());
-          log.logError("Job [" + jobs[i] + "] from directory ["+ repdir+ "] was not exported because of a loading error!");
+          if (continueOnError) {
+            log.logError("An error occurred reading job [" + jobs[i] + "] from directory ["+ repdir+ "] : ",ke);
+          }
+ else {
+            throw ke;
+          }
         }
       }
     }
