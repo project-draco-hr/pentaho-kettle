@@ -1,0 +1,121 @@
+{
+  getControls();
+  if (this.databaseMeta != null && this.databaseMeta != meta) {
+    meta.initializeVariablesFrom(this.databaseMeta);
+  }
+  meta.setName(connectionNameBox.getValue());
+  Object connection=connectionBox.getSelectedItem();
+  if (connection != null) {
+    meta.setDatabaseType((String)connection);
+  }
+  Object access=accessBox.getSelectedItem();
+  if (access != null) {
+    meta.setAccessType(DatabaseMeta.getAccessType((String)access));
+  }
+  getConnectionSpecificInfo(meta);
+  if (portNumberBox != null) {
+    meta.setDBPort(portNumberBox.getValue());
+  }
+  if (optionsParameterTree != null) {
+    Object[][] values=optionsParameterTree.getValues();
+    for (int i=0; i < values.length; i++) {
+      String parameter=(String)values[i][0];
+      String value=(String)values[i][1];
+      if (value == null) {
+        value="";
+      }
+      String dbType=meta.getPluginId();
+      if ((parameter != null) && (parameter.trim().length() > 0)) {
+        if (value.trim().length() <= 0) {
+          value=DatabaseMeta.EMPTY_OPTIONS_STRING;
+        }
+        meta.addExtraOption(dbType,parameter,value);
+      }
+    }
+  }
+  if (supportBooleanDataType != null) {
+    meta.setSupportsBooleanDataType(supportBooleanDataType.isChecked());
+  }
+  if (quoteIdentifiersCheck != null) {
+    meta.setQuoteAllFields(quoteIdentifiersCheck.isChecked());
+  }
+  if (lowerCaseIdentifiersCheck != null) {
+    meta.setForcingIdentifiersToLowerCase(lowerCaseIdentifiersCheck.isChecked());
+  }
+  if (upperCaseIdentifiersCheck != null) {
+    meta.setForcingIdentifiersToUpperCase(upperCaseIdentifiersCheck.isChecked());
+  }
+  if (preferredSchemaName != null) {
+    meta.setPreferredSchemaName(preferredSchemaName.getValue());
+  }
+  if (sqlBox != null) {
+    meta.setConnectSQL(sqlBox.getValue());
+  }
+  if (clusteringCheck != null) {
+    meta.setPartitioned(clusteringCheck.isChecked());
+  }
+  if ((clusterParameterTree != null) && (meta.isPartitioned())) {
+    Object[][] values=clusterParameterTree.getValues();
+    List<PartitionDatabaseMeta> pdms=new ArrayList<PartitionDatabaseMeta>();
+    for (int i=0; i < values.length; i++) {
+      String partitionId=(String)values[i][0];
+      if ((partitionId == null) || (partitionId.trim().length() <= 0)) {
+        continue;
+      }
+      String hostname=(String)values[i][1];
+      String port=(String)values[i][2];
+      String dbName=(String)values[i][3];
+      String username=(String)values[i][4];
+      String password=(String)values[i][5];
+      PartitionDatabaseMeta pdm=new PartitionDatabaseMeta(partitionId,hostname,port,dbName);
+      pdm.setUsername(username);
+      pdm.setPassword(password);
+      pdms.add(pdm);
+    }
+    PartitionDatabaseMeta[] pdmArray=new PartitionDatabaseMeta[pdms.size()];
+    meta.setPartitioningInformation(pdms.toArray(pdmArray));
+  }
+  if (poolingCheck != null) {
+    meta.setUsingConnectionPool(poolingCheck.isChecked());
+  }
+  if (meta.isUsingConnectionPool()) {
+    if (poolSizeBox != null) {
+      try {
+        int initialPoolSize=Integer.parseInt(poolSizeBox.getValue());
+        meta.setInitialPoolSize(initialPoolSize);
+      }
+ catch (      NumberFormatException e) {
+      }
+    }
+    if (maxPoolSizeBox != null) {
+      try {
+        int maxPoolSize=Integer.parseInt(maxPoolSizeBox.getValue());
+        meta.setMaximumPoolSize(maxPoolSize);
+      }
+ catch (      NumberFormatException e) {
+      }
+    }
+    if (poolParameterTree != null) {
+      Object[][] values=poolParameterTree.getValues();
+      Properties properties=new Properties();
+      for (int i=0; i < values.length; i++) {
+        boolean isChecked=false;
+        if (values[i][0] instanceof Boolean) {
+          isChecked=((Boolean)values[i][0]).booleanValue();
+        }
+ else {
+          isChecked=Boolean.valueOf((String)values[i][0]);
+        }
+        if (!isChecked) {
+          continue;
+        }
+        String parameter=(String)values[i][1];
+        String value=(String)values[i][2];
+        if ((parameter != null) && (parameter.trim().length() > 0) && (value != null)&& (value.trim().length() > 0)) {
+          properties.setProperty(parameter,value);
+        }
+      }
+      meta.setConnectionPoolingProperties(properties);
+    }
+  }
+}
