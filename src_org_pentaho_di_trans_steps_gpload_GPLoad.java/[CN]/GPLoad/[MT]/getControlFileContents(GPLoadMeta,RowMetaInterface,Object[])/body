@@ -1,54 +1,143 @@
 {
-  DatabaseMeta dm=meta.getDatabaseMeta();
-  StringBuffer contents=new StringBuffer(500);
-  contents.append("VERSION: 1.0.0.1").append(Const.CR);
-  contents.append("DATABASE: ").append(environmentSubstitute(dm.getDatabaseName())).append(Const.CR);
-  contents.append("USER: ").append(environmentSubstitute(dm.getUsername())).append(Const.CR);
-  contents.append("HOST: ").append(environmentSubstitute(dm.getHostname())).append(Const.CR);
-  contents.append("PORT: ").append(environmentSubstitute(dm.getDatabasePortNumberString())).append(Const.CR);
+  String tableFields[]=meta.getFieldTable();
+  boolean matchColumn[]=meta.getMatchColumn();
+  boolean updateColumn[]=meta.getUpdateColumn();
+  DatabaseMeta databaseMeta=meta.getDatabaseMeta();
+  String schemaName=meta.getSchemaName();
+  String targetTablename=meta.getTableName();
+  if (schemaName == null) {
+    schemaName="";
+  }
+  if (targetTablename == null) {
+    throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.TargetTableNameMissing"));
+  }
+  targetTablename=environmentSubstitute(targetTablename).trim();
+  if (Const.isEmpty(targetTablename)) {
+    throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.TargetTableNameMissing"));
+  }
+  targetTablename=databaseMeta.getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTableName()));
+  String loadAction=meta.getLoadAction();
+  if (loadAction.equalsIgnoreCase(GPLoadMeta.ACTION_MERGE) || loadAction.equalsIgnoreCase(GPLoadMeta.ACTION_UPDATE)) {
+    if (matchColumn == null) {
+      throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.MatchColumnsNeeded"));
+    }
+    if (!meta.hasMatchColumn()) {
+      throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.MatchColumnsNeeded"));
+    }
+    if (updateColumn == null) {
+      throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.UpdateColumnsNeeded"));
+    }
+    if (!meta.hasUpdateColumn()) {
+      throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.UpdateColumnsNeeded"));
+    }
+  }
+  String dataFilename=meta.getDataFile();
+  if (!Const.isEmpty(dataFilename)) {
+    dataFilename=environmentSubstitute(dataFilename).trim();
+  }
+  if (Const.isEmpty(dataFilename)) {
+    throw new KettleException(BaseMessages.getString(PKG,"GPload.Exception.DataFileMissing"));
+  }
+  String delimiter=meta.getDelimiter();
+  if (!Const.isEmpty(delimiter)) {
+    delimiter=environmentSubstitute(delimiter).trim();
+  }
+  if (Const.isEmpty(delimiter)) {
+    throw new KettleException(BaseMessages.getString(PKG,"GPload.Exception.DelimiterMissing"));
+  }
+  StringBuffer contents=new StringBuffer(1000);
+  contents.append(GPLoad.GPLOAD_YAML_VERSION).append(Const.CR);
+  contents.append("DATABASE: ").append(environmentSubstitute(databaseMeta.getDatabaseName())).append(Const.CR);
+  contents.append("USER: ").append(environmentSubstitute(databaseMeta.getUsername())).append(Const.CR);
+  contents.append("HOST: ").append(environmentSubstitute(databaseMeta.getHostname())).append(Const.CR);
+  contents.append("PORT: ").append(environmentSubstitute(databaseMeta.getDatabasePortNumberString())).append(Const.CR);
   contents.append("GPLOAD:").append(Const.CR);
-  contents.append("   INPUT:").append(Const.CR);
-  contents.append("    - SOURCE: ").append(Const.CR);
+  contents.append(GPLoad.INDENT).append("INPUT: ").append(Const.CR);
+  contents.append(GPLoad.INDENT).append("- SOURCE: ").append(Const.CR);
   String[] localHosts=meta.getLocalHosts();
   String stringLocalHosts=null;
-  if (localHosts.length > 0) {
+  if (!Const.isEmpty(localHosts)) {
     StringBuilder sbLocalHosts=new StringBuilder();
     String trimmedAndSubstitutedLocalHost;
     for (    String localHost : localHosts) {
       trimmedAndSubstitutedLocalHost=environmentSubstitute(localHost.trim());
       if (!Const.isEmpty(trimmedAndSubstitutedLocalHost)) {
-        sbLocalHosts.append("          - ").append(trimmedAndSubstitutedLocalHost).append(Const.CR);
+        sbLocalHosts.append(GPLoad.INDENT).append(GPLoad.INDENT).append(GPLoad.SPACE_PADDED_DASH).append(trimmedAndSubstitutedLocalHost).append(Const.CR);
       }
     }
     stringLocalHosts=sbLocalHosts.toString();
     if (!Const.isEmpty(stringLocalHosts)) {
-      contents.append("      - LOCAL_HOSTNAME: ").append(Const.CR).append(stringLocalHosts);
+      contents.append(GPLoad.INDENT).append("- LOCAL_HOSTNAME: ").append(Const.CR).append(stringLocalHosts);
     }
   }
-  if (!Const.isEmpty(meta.getMasterPort())) {
-    String substritutedAndTrimmedMasterPort=environmentSubstitute(meta.getMasterPort().trim());
-    if (!Const.isEmpty(substritutedAndTrimmedMasterPort)) {
-      contents.append("      - PORT: ").append(substritutedAndTrimmedMasterPort).append(Const.CR);
+  String masterPort=meta.getMasterPort();
+  if (!Const.isEmpty(masterPort)) {
+    masterPort=environmentSubstitute(meta.getMasterPort().trim());
+    if (!Const.isEmpty(masterPort)) {
+      contents.append(GPLoad.INDENT).append("- PORT: ").append(masterPort).append(Const.CR);
     }
   }
-  if (Const.isEmpty(stringLocalHosts)) {
-    String inputName="'" + environmentSubstitute(meta.getDataFile()) + "'";
-    contents.append("        FILE: ").append('[').append(inputName).append(']').append(Const.CR);
+  dataFilename=GPLoad.SINGLE_QUOTE + environmentSubstitute(dataFilename) + GPLoad.SINGLE_QUOTE;
+  contents.append(GPLoad.INDENT).append(GPLoad.INDENT).append("FILE: ").append(GPLoad.OPEN_BRACKET).append(dataFilename).append(GPLoad.CLOSE_BRACKET).append(Const.CR);
+  if (tableFields.length > 0) {
+    contents.append(GPLoad.INDENT).append("- COLUMNS: ").append(Const.CR);
+    for (    String columnName : tableFields) {
+      contents.append(GPLoad.INDENT).append(GPLoad.INDENT).append(GPLoad.SPACE_PADDED_DASH).append(databaseMeta.quoteField(columnName)).append(GPLoad.COLON).append(Const.CR);
+    }
+  }
+  contents.append(GPLoad.INDENT).append("- FORMAT: TEXT").append(Const.CR);
+  contents.append(GPLoad.INDENT).append("- DELIMITER: ").append(GPLoad.SINGLE_QUOTE).append(delimiter).append(GPLoad.SINGLE_QUOTE).append(Const.CR);
+  String enclosure=meta.getEnclosure();
+  if (enclosure != null) {
+    enclosure=environmentSubstitute(meta.getEnclosure());
   }
  else {
-    contents.append("        FILE: ").append(Const.CR).append("          - ").append(environmentSubstitute(meta.getDataFile())).append(Const.CR);
+    enclosure="";
   }
-  contents.append("    - FORMAT: TEXT").append(Const.CR);
-  contents.append("    - DELIMITER: '").append(environmentSubstitute(meta.getDelimiter())).append("'").append(Const.CR);
-  contents.append("    - QUOTE: '").append(environmentSubstitute(meta.getEnclosure())).append("'").append(Const.CR);
-  contents.append("    - HEADER: FALSE").append(Const.CR);
-  contents.append("    - ERROR_LIMIT: ").append(meta.getMaxErrors()).append(Const.CR);
-  if (!Const.isEmpty(meta.getErrorTableName())) {
-    contents.append("    - ERROR_TABLE: ").append(meta.getErrorTableName()).append(Const.CR);
+  contents.append(GPLoad.INDENT).append("- QUOTE: ").append(GPLoad.SINGLE_QUOTE).append(enclosure).append(GPLoad.SINGLE_QUOTE).append(Const.CR);
+  contents.append(GPLoad.INDENT).append("- HEADER: FALSE").append(Const.CR);
+  String maxErrors=meta.getMaxErrors();
+  if (maxErrors == null) {
+    maxErrors=GPLoadMeta.MAX_ERRORS_DEFAULT;
   }
-  contents.append("   OUTPUT:").append(Const.CR);
-  String tableName=dm.getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTableName()));
-  contents.append("    - TABLE: ").append(tableName).append(Const.CR);
-  contents.append("    - MODE: ").append(meta.getLoadAction()).append(Const.CR);
+ else {
+    maxErrors=environmentSubstitute(maxErrors);
+    try {
+      if (Integer.valueOf(maxErrors) < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.MaxErrorsInvalid"));
+      }
+    }
+ catch (    NumberFormatException nfe) {
+      throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.MaxErrorsInvalid"));
+    }
+  }
+  contents.append(GPLoad.INDENT).append("- ERROR_LIMIT: ").append(meta.getMaxErrors()).append(Const.CR);
+  String errorTableName=meta.getErrorTableName();
+  if (!Const.isEmpty(errorTableName)) {
+    errorTableName=environmentSubstitute(errorTableName).trim();
+    if (!Const.isEmpty(errorTableName)) {
+      contents.append(GPLoad.INDENT).append("- ERROR_TABLE: ").append(meta.getErrorTableName()).append(Const.CR);
+    }
+  }
+  contents.append(GPLoad.INDENT).append("OUTPUT:").append(Const.CR);
+  String tableName=databaseMeta.getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTableName()));
+  contents.append(GPLoad.INDENT).append("- TABLE: ").append(tableName).append(Const.CR);
+  contents.append(GPLoad.INDENT).append("- MODE: ").append(meta.getLoadAction()).append(Const.CR);
+  if (meta.hasMatchColumn()) {
+    contents.append(GPLoad.INDENT).append("- MATCH_COLUMNS: ").append(Const.CR);
+    for (int i=0; i < matchColumn.length; i++) {
+      if (matchColumn[i]) {
+        contents.append(GPLoad.INDENT).append(GPLoad.INDENT).append(GPLoad.SPACE_PADDED_DASH).append(databaseMeta.quoteField(tableFields[i])).append(Const.CR);
+      }
+    }
+  }
+  if (meta.hasUpdateColumn()) {
+    contents.append(GPLoad.INDENT).append("- UPDATE_COLUMNS: ").append(Const.CR);
+    for (int i=0; i < updateColumn.length; i++) {
+      if (updateColumn[i]) {
+        contents.append(GPLoad.INDENT).append(GPLoad.INDENT).append(GPLoad.SPACE_PADDED_DASH).append(databaseMeta.quoteField(tableFields[i])).append(Const.CR);
+      }
+    }
+  }
   return contents.toString();
 }
