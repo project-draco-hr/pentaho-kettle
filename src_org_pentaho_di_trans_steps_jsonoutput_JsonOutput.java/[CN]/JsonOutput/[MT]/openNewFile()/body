@@ -2,24 +2,29 @@
   if (data.writer != null)   return true;
   boolean retval=false;
   try {
-    String filename=buildFilename();
-    createParentFolder(filename);
-    if (meta.AddToResult()) {
-      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(filename,getTransMeta()),getTransMeta().getName(),getStepname());
-      resultFile.setComment(BaseMessages.getString(PKG,"JsonOutput.ResultFilenames.Comment"));
-      addResultFile(resultFile);
-    }
-    OutputStream outputStream;
-    OutputStream fos=KettleVFS.getOutputStream(filename,getTransMeta(),meta.isFileAppended());
-    outputStream=fos;
-    if (!Const.isEmpty(meta.getEncoding())) {
-      data.writer=new OutputStreamWriter(new BufferedOutputStream(outputStream,5000),environmentSubstitute(meta.getEncoding()));
+    if (meta.isServletOutput()) {
+      data.writer=getTrans().getServletPrintWriter();
     }
  else {
-      data.writer=new OutputStreamWriter(new BufferedOutputStream(outputStream,5000));
+      String filename=buildFilename();
+      createParentFolder(filename);
+      if (meta.AddToResult()) {
+        ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,KettleVFS.getFileObject(filename,getTransMeta()),getTransMeta().getName(),getStepname());
+        resultFile.setComment(BaseMessages.getString(PKG,"JsonOutput.ResultFilenames.Comment"));
+        addResultFile(resultFile);
+      }
+      OutputStream outputStream;
+      OutputStream fos=KettleVFS.getOutputStream(filename,getTransMeta(),meta.isFileAppended());
+      outputStream=fos;
+      if (!Const.isEmpty(meta.getEncoding())) {
+        data.writer=new OutputStreamWriter(new BufferedOutputStream(outputStream,5000),environmentSubstitute(meta.getEncoding()));
+      }
+ else {
+        data.writer=new OutputStreamWriter(new BufferedOutputStream(outputStream,5000));
+      }
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JsonOutput.FileOpened",filename));
+      data.splitnr++;
     }
-    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JsonOutput.FileOpened",filename));
-    data.splitnr++;
     retval=true;
   }
  catch (  Exception e) {
