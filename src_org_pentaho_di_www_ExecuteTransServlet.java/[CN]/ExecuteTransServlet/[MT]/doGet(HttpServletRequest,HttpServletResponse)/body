@@ -1,0 +1,52 @@
+{
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
+  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"ExecuteTransServlet.Log.ExecuteTransRequested"));
+  String repOption=request.getParameter("rep");
+  String userOption=request.getParameter("user");
+  String passOption=Encr.decryptPasswordOptionallyEncrypted(request.getParameter("pass"));
+  String transOption=request.getParameter("trans");
+  String levelOption=request.getParameter("level");
+  response.setStatus(HttpServletResponse.SC_OK);
+  PrintWriter out=response.getWriter();
+  try {
+    final Repository repository=openRepository(repOption,userOption,passOption);
+    final TransMeta transMeta=loadTransformation(repository,transOption);
+    TransExecutionConfiguration transExecutionConfiguration=new TransExecutionConfiguration();
+    LogLevel logLevel=LogLevel.getLogLevelForCode(levelOption);
+    transExecutionConfiguration.setLogLevel(logLevel);
+    TransConfiguration transConfiguration=new TransConfiguration(transMeta,transExecutionConfiguration);
+    String carteObjectId=UUID.randomUUID().toString();
+    SimpleLoggingObject servletLoggingObject=new SimpleLoggingObject(CONTEXT_PATH,LoggingObjectType.CARTE,null);
+    servletLoggingObject.setContainerObjectId(carteObjectId);
+    servletLoggingObject.setLogLevel(logLevel);
+    final Trans trans=new Trans(transMeta,servletLoggingObject);
+    trans.setRepository(repository);
+    trans.setSocketRepository(getSocketRepository());
+    getTransformationMap().addTransformation(transMeta.getName(),carteObjectId,trans,transConfiguration);
+    trans.setContainerObjectId(carteObjectId);
+    if (repository != null) {
+      trans.addTransListener(new TransAdapter(){
+        public void transFinished(        Trans trans){
+          repository.disconnect();
+        }
+      }
+);
+    }
+    trans.setServletPrintWriter(out);
+    try {
+      trans.prepareExecution(null);
+      trans.startThreads();
+      trans.waitUntilFinished();
+      out.flush();
+    }
+ catch (    Exception executionException) {
+      String logging=CentralLogStore.getAppender().getBuffer(trans.getLogChannelId(),false).toString();
+      throw new KettleException("Error executing transformation: " + logging,executionException);
+    }
+  }
+ catch (  Exception ex) {
+    out.println(new WebResult(WebResult.STRING_ERROR,BaseMessages.getString(PKG,"ExecuteTransServlet.Error.UnexpectedError",Const.CR + Const.getStackTracker(ex))));
+  }
+}
