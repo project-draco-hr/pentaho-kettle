@@ -11,18 +11,27 @@
     data.outputRowMeta=getInputRowMeta().clone();
     data.inputFieldsNr=data.outputRowMeta.size();
     meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
-    final int numFields=meta.getFieldInStream().length;
-    data.inStreamNrs=new int[numFields];
-    data.outStreamNrs=new String[numFields];
-    data.patterns=new Pattern[numFields];
-    data.replaceByString=new String[numFields];
-    for (int i=0; i < numFields; i++) {
+    data.numFields=meta.getFieldInStream().length;
+    data.inStreamNrs=new int[data.numFields];
+    data.outStreamNrs=new String[data.numFields];
+    data.patterns=new Pattern[data.numFields];
+    data.replaceByString=new String[data.numFields];
+    data.replaceFieldIndex=new int[data.numFields];
+    for (int i=0; i < data.numFields; i++) {
       data.inStreamNrs[i]=getInputRowMeta().indexOfValue(meta.getFieldInStream()[i]);
       if (data.inStreamNrs[i] < 0)       throw new KettleStepException(BaseMessages.getString(PKG,"ReplaceString.Exception.FieldRequired",meta.getFieldInStream()[i]));
       if (getInputRowMeta().getValueMeta(data.inStreamNrs[i]).getType() != ValueMeta.TYPE_STRING)       throw new KettleStepException(BaseMessages.getString(PKG,"ReplaceString.Exception.FieldTypeNotString",meta.getFieldInStream()[i]));
       data.outStreamNrs[i]=environmentSubstitute(meta.getFieldOutStream()[i]);
       data.patterns[i]=buildPattern(meta.getUseRegEx()[i] != ReplaceStringMeta.USE_REGEX_YES,meta.getCaseSensitive()[i] == ReplaceStringMeta.CASE_SENSITIVE_YES,meta.getWholeWord()[i] == ReplaceStringMeta.WHOLE_WORD_YES,environmentSubstitute(meta.getReplaceString()[i]));
-      data.replaceByString[i]=environmentSubstitute(meta.getReplaceByString()[i]);
+      String field=meta.getFieldReplaceByString()[i];
+      if (!Const.isEmpty(field)) {
+        data.replaceFieldIndex[i]=getInputRowMeta().indexOfValue(field);
+        if (data.replaceFieldIndex[i] < 0)         throw new KettleStepException(BaseMessages.getString(PKG,"ReplaceString.Exception.FieldRequired",field));
+      }
+ else {
+        data.replaceFieldIndex[i]=-1;
+        data.replaceByString[i]=environmentSubstitute(meta.getReplaceByString()[i]);
+      }
     }
   }
   try {
