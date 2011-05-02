@@ -1,8 +1,23 @@
 {
-  URL[] jarFiles=null;
+  ClassLoader classLoader=null;
   try {
-    jarFiles=prepareJarFiles(file);
-    KettleURLClassLoader classLoader=new KettleURLClassLoader(jarFiles,getClass().getClassLoader());
+    classLoader=classLoaderCache.get(file.toString());
+    if (classLoader == null) {
+      final URL[] jarFiles=prepareJarFiles(file);
+      classLoader=new KettleURLClassLoader(jarFiles,getClass().getClassLoader());
+      Runtime.getRuntime().addShutdownHook(new Thread(){
+        @Override public void run(){
+          try {
+            cleanupJarFiles(jarFiles);
+          }
+ catch (          Exception e) {
+            System.err.println("Error cleaning up temporary Talend jar file extracts: " + Const.getStackTracker(e));
+          }
+        }
+      }
+);
+      classLoaderCache.put(file.toString(),classLoader);
+    }
     Class<?> clazz=classLoader.loadClass(environmentSubstitute(getClassName()));
     Object jobObject=clazz.newInstance();
     Method runJob=clazz.getMethod("runJobInTOS",String[].class);
@@ -13,9 +28,6 @@
   }
  catch (  Exception e) {
     throw new KettleException(BaseMessages.getString(PKG,"JobEntryTalendJobExec.ERROR_0006_ExceptionExecutingTalenJob"),e);
-  }
- finally {
-    cleanupJarFiles(jarFiles);
   }
   return result;
 }
