@@ -1,0 +1,30 @@
+{
+  data.mappingTransMeta.setTransformationType(TransformationType.SingleThreaded);
+  data.mappingTrans=new Trans(data.mappingTransMeta,getTrans());
+  data.mappingTrans.getTransMeta().setUsingThreadPriorityManagment(false);
+  data.mappingTrans.setParentTrans(getTrans());
+  data.mappingTrans.setSafeModeEnabled(getTrans().isSafeModeEnabled());
+  data.mappingTrans.setMappingStepName(getStepname());
+  data.mappingTrans.setServletPrintWriter(getTrans().getServletPrintWriter());
+  data.mappingTrans.prepareExecution(null);
+  data.rowProducer=data.mappingTrans.addRowProducer(meta.getInjectStep(),0);
+  StepInterface retrieveStep=data.mappingTrans.getStepInterface(meta.getRetrieveStep(),0);
+  retrieveStep.addRowListener(new RowAdapter(){
+    @Override public void rowWrittenEvent(    RowMetaInterface rowMeta,    Object[] row) throws KettleStepException {
+      SingleThreader.this.putRow(rowMeta,row);
+    }
+  }
+);
+  data.mappingTrans.startThreads();
+  data.executor=new SingleThreadedTransExecutor(data.mappingTrans);
+  try {
+    boolean ok=data.executor.init();
+    if (!ok) {
+      throw new KettleException(BaseMessages.getString(PKG,"SingleThreader.Exception.UnableToInitSingleThreadedTransformation"));
+    }
+  }
+ catch (  KettleException e) {
+    throw new KettleException(BaseMessages.getString(PKG,"SingleThreader.Exception.UnableToPrepareExecutionOfMapping"),e);
+  }
+  getTrans().getActiveSubtransformations().put(getStepname(),data.mappingTrans);
+}

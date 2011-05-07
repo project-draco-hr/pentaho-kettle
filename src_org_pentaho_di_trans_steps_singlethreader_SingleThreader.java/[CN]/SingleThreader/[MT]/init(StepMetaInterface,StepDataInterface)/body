@@ -1,0 +1,34 @@
+{
+  meta=(SingleThreaderMeta)smi;
+  data=(SingleThreaderData)sdi;
+  if (super.init(smi,sdi)) {
+    try {
+      data.batchSize=Const.toInt(environmentSubstitute(meta.getBatchSize()),100);
+      meta.setRepository(getTransMeta().getRepository());
+      data.mappingTransMeta=SingleThreaderMeta.loadSingleThreadedTransMeta(meta,meta.getRepository(),this);
+      if (data.mappingTransMeta != null) {
+        String injectStepName=environmentSubstitute(meta.getInjectStep());
+        StepMeta injectStepMeta=data.mappingTransMeta.findStep(injectStepName);
+        if (injectStepMeta == null) {
+          logError("The inject step with name '" + injectStepName + "' couldn't be found in the sub-transformation");
+        }
+        String retrieveStepName=environmentSubstitute(meta.getRetrieveStep());
+        StepMeta retrieveStepMeta=data.mappingTransMeta.findStep(retrieveStepName);
+        if (retrieveStepMeta == null) {
+          logError("The retrieve step with name '" + retrieveStepName + "' couldn't be found in the sub-transformation");
+        }
+        prepareMappingExecution();
+        return true;
+      }
+ else {
+        logError("No valid mapping was specified!");
+        return false;
+      }
+    }
+ catch (    Exception e) {
+      logError("Unable to load the mapping transformation because of an error : " + e.toString());
+      logError(Const.getStackTracker(e));
+    }
+  }
+  return false;
+}
