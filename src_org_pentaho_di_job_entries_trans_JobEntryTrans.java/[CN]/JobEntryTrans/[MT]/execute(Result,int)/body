@@ -67,6 +67,19 @@ for (int idx=0; idx < args1.length; idx++) {
 args[idx]=environmentSubstitute(args1[idx]);
 }
 }
+RowMetaAndData resultRow=null;
+boolean first=true;
+List<RowMetaAndData> rows=new ArrayList<RowMetaAndData>(result.getRows());
+while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0) && !parentJob.isStopped()) {
+if (execPerRow) {
+result.getRows().clear();
+}
+if (rows != null && execPerRow) {
+resultRow=rows.get(iteration);
+}
+ else {
+resultRow=null;
+}
 NamedParams namedParam=new NamedParamsDefault();
 if (parameters != null) {
 for (int idx=0; idx < parameters.length; idx++) {
@@ -77,25 +90,16 @@ String value=Const.NVL(environmentSubstitute(parameterValues[idx]),"");
 namedParam.setParameterValue(parameters[idx],value);
 }
  else {
-namedParam.setParameterValue(parameters[idx],"");
+String value="";
+if (resultRow != null) {
+  value=resultRow.getString(parameterFieldNames[idx],"");
+}
+namedParam.setParameterValue(parameters[idx],value);
 }
 }
 }
-}
-RowMetaAndData resultRow=null;
-boolean first=true;
-List<RowMetaAndData> rows=new ArrayList<RowMetaAndData>(result.getRows());
-while ((first && !execPerRow) || (execPerRow && rows != null && iteration < rows.size() && result.getNrErrors() == 0) && !parentJob.isStopped()) {
-if (execPerRow) {
-result.getRows().clear();
 }
 first=false;
-if (rows != null && execPerRow) {
-resultRow=rows.get(iteration);
-}
- else {
-resultRow=null;
-}
 try {
 if (isDetailed()) logDetailed(BaseMessages.getString(PKG,"JobTrans.StartingTrans",getFilename(),getName(),getDescription()));
 transMeta.setPreviousResult(result);
