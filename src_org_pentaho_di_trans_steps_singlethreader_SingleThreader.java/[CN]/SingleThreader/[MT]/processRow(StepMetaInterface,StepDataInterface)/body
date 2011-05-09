@@ -11,16 +11,34 @@
   }
   if (first) {
     first=false;
+    data.fieldIndexes=new int[meta.getParameters().length];
+    for (int i=0; i < data.fieldIndexes.length; i++) {
+      data.fieldIndexes[i]=-1;
+      if (!Const.isEmpty(meta.getParameterFieldNames()[i])) {
+        data.fieldIndexes[i]=getInputRowMeta().indexOfValue(meta.getParameterFieldNames()[i]);
+        if (data.fieldIndexes[i] < 0) {
+          throw new KettleException(BaseMessages.getString(PKG,"SingleThreader.Exception.ParameterFieldNotFound",meta.getParameterFieldNames()[i]));
+        }
+      }
+    }
+    passParameters(getInputRowMeta(),row);
+    data.startTime=System.currentTimeMillis();
   }
   data.rowProducer.putRow(getInputRowMeta(),row);
   data.batchCount++;
-  if (data.batchCount > data.batchSize) {
+  boolean countWindow=data.batchSize > 0 && data.batchCount > data.batchSize;
+  boolean timeWindow=data.batchTime > 0 && (System.currentTimeMillis() - data.startTime) > data.batchTime;
+  if (countWindow || timeWindow) {
     data.batchCount=0;
+    if (meta.isPassingParametersEachBatch()) {
+      passParameters(getInputRowMeta(),row);
+    }
     boolean more=data.executor.oneIteration();
     if (!more) {
       setOutputDone();
       return false;
     }
+    data.startTime=System.currentTimeMillis();
   }
   return true;
 }
