@@ -3,6 +3,7 @@
   this.overwrite=overwrite;
   this.continueOnError=continueOnError;
   this.versionComment=versionComment;
+  referencingObjects=new ArrayList<RepositoryObject>();
   feedback.setLabel(BaseMessages.getString(PKG,"RepositoryImporter.ImportXML.Label"));
   try {
     loadSharedObjects();
@@ -18,6 +19,18 @@
       }
  catch (      Exception e) {
         feedback.showError(BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Message"),e);
+      }
+    }
+    for (    RepositoryObject ro : referencingObjects) {
+      if (ro.getObjectType() == RepositoryObjectType.TRANSFORMATION) {
+        TransMeta transMeta=rep.loadTransformation(ro.getObjectId(),null);
+        transMeta.lookupRepositoryReferences(rep);
+        rep.save(transMeta,"import object reference specification",null);
+      }
+      if (ro.getObjectType() == RepositoryObjectType.JOB) {
+        JobMeta jobMeta=rep.loadJob(ro.getObjectId(),null);
+        jobMeta.lookupRepositoryReferences(rep);
+        rep.save(jobMeta,"import object reference specification",null);
       }
     }
     feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ImportFinished.Log"));
