@@ -1,66 +1,88 @@
 {
-  result.setResult(false);
-  result.setNrErrors(1);
+  result.setResult(true);
+  result.setNrErrors(0);
   try {
-    if (variableName != null) {
-      for (int i=0; i < variableName.length && !parentJob.isStopped(); i++) {
-        String varname=variableName[i];
-        String value=variableValue[i];
-        if (replaceVars) {
-          varname=environmentSubstitute(varname);
-          value=environmentSubstitute(value);
-        }
-switch (getVariableType()[i]) {
-case VARIABLE_TYPE_JVM:
-{
-            System.setProperty(varname,value);
-            setVariable(varname,value);
-            Job parentJobTraverse=parentJob;
-            while (parentJobTraverse != null) {
-              parentJobTraverse.setVariable(varname,value);
-              parentJobTraverse=parentJobTraverse.getParentJob();
-            }
-          }
-        break;
-case VARIABLE_TYPE_ROOT_JOB:
-{
-        setVariable(varname,value);
-        Job rootJob=parentJob;
-        while (rootJob != null) {
-          rootJob.setVariable(varname,value);
-          rootJob=rootJob.getParentJob();
+    List<String> variables=new ArrayList<String>();
+    List<String> variableValues=new ArrayList<String>();
+    List<Integer> variableTypes=new ArrayList<Integer>();
+    String realFilename=environmentSubstitute(filename);
+    try {
+      if (!Const.isEmpty(realFilename)) {
+        Properties properties=new Properties();
+        properties.load(KettleVFS.getInputStream(realFilename));
+        for (        Object key : properties.keySet()) {
+          variables.add((String)key);
+          variableValues.add((String)properties.get(key));
+          variableTypes.add(fileVariableType);
         }
       }
-    break;
+    }
+ catch (    Exception e) {
+      throw new KettleException(BaseMessages.getString(PKG,"JobEntrySetVariables.Error.UnableReadPropertiesFile",realFilename));
+    }
+    for (int i=0; i < variableName.length; i++) {
+      variables.add(variableName[i]);
+      variableValues.add(variableValue[i]);
+      variableTypes.add(variableType[i]);
+    }
+    for (int i=0; i < variables.size(); i++) {
+      String varname=variables.get(i);
+      String value=variableValues.get(i);
+      int type=variableTypes.get(i);
+      if (replaceVars) {
+        varname=environmentSubstitute(varname);
+        value=environmentSubstitute(value);
+      }
+switch (type) {
+case VARIABLE_TYPE_JVM:
+{
+          System.setProperty(varname,value);
+          setVariable(varname,value);
+          Job parentJobTraverse=parentJob;
+          while (parentJobTraverse != null) {
+            parentJobTraverse.setVariable(varname,value);
+            parentJobTraverse=parentJobTraverse.getParentJob();
+          }
+        }
+      break;
+case VARIABLE_TYPE_ROOT_JOB:
+{
+      setVariable(varname,value);
+      Job rootJob=parentJob;
+      while (rootJob != null) {
+        rootJob.setVariable(varname,value);
+        rootJob=rootJob.getParentJob();
+      }
+    }
+  break;
 case VARIABLE_TYPE_CURRENT_JOB:
 {
-    setVariable(varname,value);
-    if (parentJob != null)     parentJob.setVariable(varname,value);
- else     throw new KettleJobException(BaseMessages.getString(PKG,"JobEntrySetVariables.Error.UnableSetVariableCurrentJob",varname));
-  }
+  setVariable(varname,value);
+  if (parentJob != null)   parentJob.setVariable(varname,value);
+ else   throw new KettleJobException(BaseMessages.getString(PKG,"JobEntrySetVariables.Error.UnableSetVariableCurrentJob",varname));
+}
 break;
 case VARIABLE_TYPE_PARENT_JOB:
 {
 setVariable(varname,value);
 if (parentJob != null) {
-  parentJob.setVariable(varname,value);
-  Job gpJob=parentJob.getParentJob();
-  if (gpJob != null)   gpJob.setVariable(varname,value);
- else   throw new KettleJobException(BaseMessages.getString(PKG,"JobEntrySetVariables.Error.UnableSetVariableParentJob",varname));
+parentJob.setVariable(varname,value);
+Job gpJob=parentJob.getParentJob();
+if (gpJob != null) gpJob.setVariable(varname,value);
+ else throw new KettleJobException(BaseMessages.getString(PKG,"JobEntrySetVariables.Error.UnableSetVariableParentJob",varname));
 }
  else {
-  throw new KettleJobException(BaseMessages.getString(PKG,"JobEntrySetVariables.Error.UnableSetVariableCurrentJob",varname));
+throw new KettleJobException(BaseMessages.getString(PKG,"JobEntrySetVariables.Error.UnableSetVariableCurrentJob",varname));
 }
 }
 break;
 }
-result.setResult(true);
-result.setNrErrors(0);
 if (log.isDetailed()) logDetailed(BaseMessages.getString(PKG,"JobEntrySetVariables.Log.SetVariableToValue",varname,value));
 }
 }
-}
  catch (Exception e) {
+result.setResult(false);
+result.setNrErrors(1);
 logError(BaseMessages.getString(PKG,"JobEntrySetVariables.UnExcpectedError",e.getMessage()));
 }
 return result;
