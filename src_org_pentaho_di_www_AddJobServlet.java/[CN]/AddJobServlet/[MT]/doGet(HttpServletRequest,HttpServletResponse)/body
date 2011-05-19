@@ -30,22 +30,27 @@
     jobMeta.setLogLevel(jobExecutionConfiguration.getLogLevel());
     jobMeta.setArguments(jobExecutionConfiguration.getArgumentStrings());
     jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
-    Map<String,String> params=jobExecutionConfiguration.getParams();
-    for (    String param : params.keySet()) {
-      String value=params.get(param);
-      jobMeta.setParameterValue(param,value);
-    }
     final Repository repository=jobConfiguration.getJobExecutionConfiguration().getRepository();
     String carteObjectId=UUID.randomUUID().toString();
     SimpleLoggingObject servletLoggingObject=new SimpleLoggingObject(CONTEXT_PATH,LoggingObjectType.CARTE,null);
     servletLoggingObject.setContainerObjectId(carteObjectId);
     servletLoggingObject.setLogLevel(jobExecutionConfiguration.getLogLevel());
     final Job job=new Job(repository,jobMeta,servletLoggingObject);
-    job.setSocketRepository(getSocketRepository());
-    getJobMap().addJob(job.getJobname(),carteObjectId,job,jobConfiguration);
     job.initializeVariablesFrom(null);
     job.getJobMeta().setInternalKettleVariables(job);
     job.injectVariables(jobConfiguration.getJobExecutionConfiguration().getVariables());
+    job.copyParametersFrom(jobMeta);
+    job.clearParameters();
+    String[] parameterNames=job.listParameters();
+    for (int idx=0; idx < parameterNames.length; idx++) {
+      String thisValue=jobExecutionConfiguration.getParams().get(parameterNames[idx]);
+      if (!Const.isEmpty(thisValue)) {
+        jobMeta.setParameterValue(parameterNames[idx],thisValue);
+      }
+    }
+    jobMeta.activateParameters();
+    job.setSocketRepository(getSocketRepository());
+    getJobMap().addJob(job.getJobname(),carteObjectId,job,jobConfiguration);
     if (repository != null) {
       job.addJobListener(new JobListener(){
         public void jobFinished(        Job job){
