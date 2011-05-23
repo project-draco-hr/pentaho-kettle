@@ -18,7 +18,7 @@
     }
   }
   for (  String targetStep : data.stepInjectionMap.keySet()) {
-    System.out.println("Handing step '" + targetStep + "' injection!");
+    if (log.isDetailed())     logDetailed("Handing step '" + targetStep + "' injection!");
     StepMetaInjectionInterface injectionInterface=data.stepInjectionMap.get(targetStep);
     List<StepInjectionMetaEntry> metadataEntries=injectionInterface.getStepInjectionMetadataEntries();
     List<StepInjectionMetaEntry> inject=new ArrayList<StepInjectionMetaEntry>();
@@ -66,29 +66,29 @@
                       setEntryValue(rowEntry,row,detailSource);
                     }
  else {
-                      System.out.println("No detail source found for key: " + rowEntry.getKey() + " and target step: "+ targetStep);
+                      if (log.isDetailed())                       logDetailed("No detail source found for key: " + rowEntry.getKey() + " and target step: "+ targetStep);
                     }
                   }
                 }
  catch (                Exception e) {
-                  e.printStackTrace();
+                  throw new KettleException("Unexpected error occurred while injecting metadata",e);
                 }
               }
-              System.out.println("injected entry: " + entry);
+              if (log.isDetailed())               logDetailed("injected entry: " + entry);
             }
           }
  else {
-            System.out.println("entry not found: " + target.getAttributeKey());
+            if (log.isDetailed())             logDetailed("entry not found: " + target.getAttributeKey());
           }
         }
  else {
-          System.out.println("No rows found for source step: " + source.getStepname());
+          if (log.isDetailed())           logDetailed("No rows found for source step: " + source.getStepname());
         }
       }
     }
     injectionInterface.injectStepMetadataEntries(inject);
   }
-  System.out.println(data.transMeta.getXML());
+  if (log.isDetailed())   logDetailed("XML of transformation after injection: " + data.transMeta.getXML());
   final Trans injectTrans=new Trans(data.transMeta,this);
   getTrans().addTransStoppedListener(new TransStoppedListener(){
     public void transStopped(    Trans parentTrans){
@@ -96,7 +96,20 @@
     }
   }
 );
-  injectTrans.execute(null);
+  injectTrans.prepareExecution(null);
+  if (!Const.isEmpty(meta.getSourceStepName())) {
+    StepInterface stepInterface=injectTrans.getStepInterface(meta.getSourceStepName(),0);
+    if (stepInterface == null) {
+      throw new KettleException("Unable to find step '" + meta.getSourceStepName() + "' to read from.");
+    }
+    stepInterface.addRowListener(new RowAdapter(){
+      @Override public void rowWrittenEvent(      RowMetaInterface rowMeta,      Object[] row) throws KettleStepException {
+        MetaInject.this.putRow(rowMeta,row);
+      }
+    }
+);
+  }
+  injectTrans.startThreads();
   while (!injectTrans.isFinished() && !injectTrans.isStopped()) {
     copyResult(injectTrans);
     try {
