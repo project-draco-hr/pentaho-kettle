@@ -1,20 +1,93 @@
 {
   trans.getTransMeta().clearCaches();
-  for (int x=0; x < steps.size(); x++) {
-    for (int y=0; y < steps.size() - 1; y++) {
-      StepMetaDataCombi one=steps.get(y);
-      StepMetaDataCombi two=steps.get(y + 1);
-      boolean before=trans.getTransMeta().findPrevious(one.stepMeta,two.stepMeta);
-      if (before) {
-        steps.set(y,two);
-        steps.set(y + 1,one);
+  boolean testing=true;
+  int stepsMinSize=0;
+  int stepsSize=steps.size();
+  int windowShrinkThreshold=(int)Math.round(stepsSize * 0.75);
+  int totalIterations=stepsSize * 2;
+  int actualIterations=0;
+  boolean isBefore=false;
+  boolean forwardChange=false;
+  boolean backwardChange=false;
+  boolean lastForwardChange=true;
+  boolean keepSortingForward=true;
+  StepMetaDataCombi one=null;
+  StepMetaDataCombi two=null;
+  StringBuilder tLogString=new StringBuilder();
+  tLogString.append("-------------------------------------------------------").append("\n");
+  tLogString.append("--SingleThreadedTransExecutor.sortSteps(cocktail)").append("\n");
+  tLogString.append("--Trans: ").append(trans.getName()).append("\n");
+  tLogString.append("-").append("\n");
+  long startTime=System.currentTimeMillis();
+  for (int x=0; x < totalIterations; x++) {
+    if (keepSortingForward) {
+      for (int y=stepsMinSize; y < stepsSize - 1; y++) {
+        one=steps.get(y);
+        two=steps.get(y + 1);
+        isBefore=trans.getTransMeta().findPrevious(one.stepMeta,two.stepMeta);
+        if (isBefore) {
+          steps.set(y,two);
+          steps.set(y + 1,one);
+          forwardChange=true;
+        }
       }
     }
+    for (int z=stepsSize - 1; z > stepsMinSize; z--) {
+      one=steps.get(z);
+      two=steps.get(z - 1);
+      isBefore=trans.getTransMeta().findPrevious(one.stepMeta,two.stepMeta);
+      if (!isBefore) {
+        steps.set(z,two);
+        steps.set(z - 1,one);
+        backwardChange=true;
+      }
+    }
+    if (x > windowShrinkThreshold && !forwardChange) {
+      stepsSize--;
+      if (stepsSize <= stepsMinSize) {
+        if (testing) {
+          tLogString.append(String.format("stepsMinSize:%s  stepsSize:%s",stepsMinSize,stepsSize));
+          tLogString.append("stepsSize is <= stepsMinSize.. exiting outer sort loop. index:" + x).append("\n");
+        }
+        break;
+      }
+    }
+    if (x > windowShrinkThreshold && !backwardChange) {
+      stepsMinSize++;
+      if (stepsMinSize >= stepsSize) {
+        if (testing) {
+          tLogString.append(String.format("stepsMinSize:%s  stepsSize:%s",stepsMinSize,stepsSize)).append("\n");
+          tLogString.append("stepsMinSize is >= stepsSize.. exiting outer sort loop. index:" + x).append("\n");
+        }
+        break;
+      }
+    }
+    actualIterations++;
+    if (!forwardChange && !backwardChange) {
+      if (testing) {
+        tLogString.append(String.format("existing outer loop because no change was detected going forward or backward. index:%s  min:%s  max:%s",x,stepsMinSize,stepsSize)).append("\n");
+      }
+      break;
+    }
+    if (keepSortingForward && x > 0 && !lastForwardChange && !forwardChange) {
+      keepSortingForward=false;
+    }
+    lastForwardChange=forwardChange;
+    forwardChange=false;
+    backwardChange=false;
   }
-  System.out.println("-------------------------------------------------------");
-  System.out.println("Steps after sort: ");
+  long endTime=System.currentTimeMillis();
+  long totalTime=(endTime - startTime);
+  tLogString.append("-------------------------------------------------------").append("\n");
+  tLogString.append("Steps sort time: " + totalTime + "ms").append("\n");
+  tLogString.append("Total iterations: " + actualIterations).append("\n");
+  tLogString.append("Step count: " + steps.size()).append("\n");
+  tLogString.append("Steps after sort: ").append("\n");
   for (  StepMetaDataCombi combi : steps) {
-    System.out.println(combi.step.toString());
+    tLogString.append(combi.step.getStepname()).append("\n");
   }
-  System.out.println("-------------------------------------------------------");
+  tLogString.append("-------------------------------------------------------").append("\n");
+  if (log.isDetailed()) {
+    log.logDetailed(tLogString.toString());
+  }
 }
