@@ -1,0 +1,147 @@
+{
+  boolean entrystatus=false;
+  FileObject sourcefilefolder=null;
+  FileObject destinationfilefolder=null;
+  FileObject movetofolderfolder=null;
+  FileObject Currentfile=null;
+  String realSourceFilefoldername=environmentSubstitute(sourcefilefoldername);
+  String realuserID=environmentSubstitute(userID);
+  String realDestinationFilefoldername=environmentSubstitute(destinationfilefoldername);
+  String realWildcard=environmentSubstitute(wildcard);
+  try {
+    sourcefilefolder=KettleVFS.getFileObject(realSourceFilefoldername);
+    destinationfilefolder=KettleVFS.getFileObject(realDestinationFilefoldername);
+    if (!Const.isEmpty(MoveToFolder))     movetofolderfolder=KettleVFS.getFileObject(MoveToFolder);
+    if (sourcefilefolder.exists()) {
+      if (CreateDestinationFolder(destinationfilefolder)) {
+        if (sourcefilefolder.getType().equals(FileType.FOLDER) && destination_is_a_file) {
+          logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.Forbidden"),BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.CanNotMoveFolderToFile",realSourceFilefoldername,realDestinationFilefoldername));
+          updateErrors();
+        }
+ else {
+          if (destinationfilefolder.getType().equals(FileType.FOLDER) && sourcefilefolder.getType().equals(FileType.FILE)) {
+            String shortfilename=sourcefilefolder.getName().getBaseName();
+            try {
+              shortfilename=getDestinationFilename(sourcefilefolder.getName().getBaseName());
+            }
+ catch (            Exception e) {
+              logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.GettingFilename",sourcefilefolder.getName().getBaseName(),e.toString()));
+              return entrystatus;
+            }
+            String destinationfilenamefull=destinationfilefolder.toString() + Const.FILE_SEPARATOR + shortfilename;
+            FileObject destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
+            entrystatus=EncryptFile(actionType,shortfilename,sourcefilefolder,realuserID,destinationfile,movetofolderfolder,parentJob,result);
+          }
+ else           if (sourcefilefolder.getType().equals(FileType.FILE) && destination_is_a_file) {
+            FileObject destinationfile=KettleVFS.getFileObject(realDestinationFilefoldername);
+            String shortfilename=destinationfile.getName().getBaseName();
+            try {
+              shortfilename=getDestinationFilename(destinationfile.getName().getBaseName());
+            }
+ catch (            Exception e) {
+              logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.GettingFilename",sourcefilefolder.getName().getBaseName(),e.toString()));
+              return entrystatus;
+            }
+            String destinationfilenamefull=destinationfilefolder.getParent().toString() + Const.FILE_SEPARATOR + shortfilename;
+            destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
+            entrystatus=EncryptFile(actionType,shortfilename,sourcefilefolder,realuserID,destinationfile,movetofolderfolder,parentJob,result);
+          }
+ else {
+            if (isDetailed()) {
+              logDetailed("  ");
+              logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FetchFolder",sourcefilefolder.toString()));
+            }
+            FileObject[] fileObjects=sourcefilefolder.findFiles(new AllFileSelector(){
+              public boolean traverseDescendents(              FileSelectInfo info){
+                return info.getDepth() == 0 || include_subfolders;
+              }
+              public boolean includeFile(              FileSelectInfo info){
+                FileObject fileObject=info.getFile();
+                try {
+                  if (fileObject == null)                   return false;
+                }
+ catch (                Exception ex) {
+                  return false;
+                }
+ finally {
+                  if (fileObject != null) {
+                    try {
+                      fileObject.close();
+                      fileObject=null;
+                    }
+ catch (                    IOException ex) {
+                    }
+                    ;
+                  }
+                }
+                return true;
+              }
+            }
+);
+            if (fileObjects != null) {
+              for (int j=0; j < fileObjects.length && !parentJob.isStopped(); j++) {
+                if (successConditionBroken) {
+                  if (!successConditionBrokenExit) {
+                    logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.SuccessConditionbroken","" + NrErrors));
+                    successConditionBrokenExit=true;
+                  }
+                  return false;
+                }
+                Currentfile=fileObjects[j];
+                if (!EncryptOneFile(actionType,Currentfile,sourcefilefolder,realuserID,realDestinationFilefoldername,realWildcard,parentJob,result,movetofolderfolder)) {
+                  updateErrors();
+                }
+              }
+            }
+          }
+        }
+        entrystatus=true;
+      }
+ else {
+        logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.DestinationFolderNotFound",realDestinationFilefoldername));
+      }
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.SourceFileNotExists",realSourceFilefoldername));
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.Exception.MoveProcess",realSourceFilefoldername.toString(),destinationfilefolder.toString(),e.getMessage()));
+    updateErrors();
+  }
+ finally {
+    if (sourcefilefolder != null) {
+      try {
+        sourcefilefolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (destinationfilefolder != null) {
+      try {
+        destinationfilefolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (Currentfile != null) {
+      try {
+        Currentfile.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+    if (movetofolderfolder != null) {
+      try {
+        movetofolderfolder.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return entrystatus;
+}

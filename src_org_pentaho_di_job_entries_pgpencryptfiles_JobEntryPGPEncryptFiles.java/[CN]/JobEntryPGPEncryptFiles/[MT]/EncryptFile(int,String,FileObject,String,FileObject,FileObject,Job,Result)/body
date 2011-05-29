@@ -1,0 +1,100 @@
+{
+  FileObject destinationfile=null;
+  boolean retval=false;
+  try {
+    if (!destinationfilename.exists()) {
+      doJob(actionType,sourcefilename,userID,destinationfilename);
+      if (isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileEncrypted",sourcefilename.getName().toString(),destinationfilename.getName().toString()));
+      if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))       addFileToResultFilenames(destinationfilename.toString(),result,parentJob);
+      updateSuccess();
+    }
+ else {
+      if (isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileExists",destinationfilename.toString()));
+      if (iffileexists.equals("overwrite_file")) {
+        doJob(actionType,sourcefilename,userID,destinationfilename);
+        if (isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileOverwrite",destinationfilename.getName().toString()));
+        if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))         addFileToResultFilenames(destinationfilename.toString(),result,parentJob);
+        updateSuccess();
+      }
+ else       if (iffileexists.equals("unique_name")) {
+        String short_filename=shortfilename;
+        try {
+          short_filename=getMoveDestinationFilename(short_filename,"ddMMyyyy_HHmmssSSS");
+        }
+ catch (        Exception e) {
+          logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.GettingFilename",short_filename));
+          return retval;
+        }
+        String movetofilenamefull=destinationfilename.getParent().toString() + Const.FILE_SEPARATOR + short_filename;
+        destinationfile=KettleVFS.getFileObject(movetofilenamefull);
+        doJob(actionType,sourcefilename,userID,destinationfilename);
+        if (isDetailed())         logDetailed(toString(),BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileEncrypted",sourcefilename.getName().toString(),destinationfile.getName().toString()));
+        if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))         addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+        updateSuccess();
+      }
+ else       if (iffileexists.equals("delete_file")) {
+        destinationfilename.delete();
+        if (isDetailed())         logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileDeleted",destinationfilename.getName().toString()));
+      }
+ else       if (iffileexists.equals("move_file")) {
+        String short_filename=shortfilename;
+        try {
+          short_filename=getMoveDestinationFilename(short_filename,null);
+        }
+ catch (        Exception e) {
+          logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.GettingFilename",short_filename));
+          return retval;
+        }
+        String movetofilenamefull=movetofolderfolder.toString() + Const.FILE_SEPARATOR + short_filename;
+        destinationfile=KettleVFS.getFileObject(movetofilenamefull);
+        if (!destinationfile.exists()) {
+          sourcefilename.moveTo(destinationfile);
+          if (isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileEncrypted",sourcefilename.getName().toString(),destinationfile.getName().toString()));
+          if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))           addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+        }
+ else {
+          if (ifmovedfileexists.equals("overwrite_file")) {
+            sourcefilename.moveTo(destinationfile);
+            if (isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileOverwrite",destinationfile.getName().toString()));
+            if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))             addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+            updateSuccess();
+          }
+ else           if (ifmovedfileexists.equals("unique_name")) {
+            SimpleDateFormat daf=new SimpleDateFormat();
+            Date now=new Date();
+            daf.applyPattern("ddMMyyyy_HHmmssSSS");
+            String dt=daf.format(now);
+            short_filename+="_" + dt;
+            String destinationfilenamefull=movetofolderfolder.toString() + Const.FILE_SEPARATOR + short_filename;
+            destinationfile=KettleVFS.getFileObject(destinationfilenamefull);
+            sourcefilename.moveTo(destinationfile);
+            if (isDetailed())             logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.FileEncrypted",destinationfile.getName().toString()));
+            if (add_result_filesname && !iffileexists.equals("fail") && !iffileexists.equals("do_nothing"))             addFileToResultFilenames(destinationfile.toString(),result,parentJob);
+            updateSuccess();
+          }
+ else           if (ifmovedfileexists.equals("fail")) {
+            updateErrors();
+          }
+        }
+      }
+ else       if (iffileexists.equals("fail")) {
+        updateErrors();
+      }
+    }
+  }
+ catch (  Exception e) {
+    updateErrors();
+    logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.Exception.MoveProcessError",sourcefilename.toString(),destinationfilename.toString(),e.getMessage()));
+  }
+ finally {
+    if (destinationfile != null) {
+      try {
+        destinationfile.close();
+      }
+ catch (      IOException ex) {
+      }
+      ;
+    }
+  }
+  return retval;
+}

@@ -1,0 +1,127 @@
+{
+  Result result=previousResult;
+  List<RowMetaAndData> rows=result.getRows();
+  RowMetaAndData resultRow=null;
+  result.setNrErrors(1);
+  result.setResult(false);
+  try {
+    NrErrors=0;
+    NrSuccess=0;
+    successConditionBroken=false;
+    successConditionBrokenExit=false;
+    limitFiles=Const.toInt(environmentSubstitute(getNrErrorsLessThan()),10);
+    if (include_subfolders) {
+      if (isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.IncludeSubFoldersOn"));
+    }
+    String MoveToFolder=environmentSubstitute(destinationFolder);
+    String vsourcefilefolder[]=source_filefolder;
+    String vuserid[]=userid;
+    String vdestinationfilefolder[]=destination_filefolder;
+    String vwildcard[]=wildcard;
+    if (iffileexists.equals("move_file")) {
+      if (Const.isEmpty(MoveToFolder)) {
+        logError(toString(),BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.Error.MoveToFolderMissing"));
+        return result;
+      }
+      FileObject folder=null;
+      try {
+        folder=KettleVFS.getFileObject(MoveToFolder);
+        if (!folder.exists()) {
+          if (isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.Error.FolderMissing",MoveToFolder));
+          if (create_move_to_folder) {
+            folder.createFolder();
+          }
+ else {
+            logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.Error.FolderMissing",MoveToFolder));
+            return result;
+          }
+        }
+        if (!folder.getType().equals(FileType.FOLDER)) {
+          logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.Error.NotFolder",MoveToFolder));
+          return result;
+        }
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.Error.GettingMoveToFolder",MoveToFolder,e.getMessage()));
+        return result;
+      }
+ finally {
+        if (folder != null) {
+          try {
+            folder.close();
+          }
+ catch (          IOException ex) {
+          }
+          ;
+        }
+      }
+    }
+    gpg=new GPG(environmentSubstitute(gpglocation),log);
+    if (arg_from_previous) {
+      if (isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.ArgFromPrevious.Found",(rows != null ? rows.size() : 0) + ""));
+    }
+    if (arg_from_previous && rows != null) {
+      for (int iteration=0; iteration < rows.size(); iteration++) {
+        if (successConditionBroken) {
+          if (!successConditionBrokenExit) {
+            logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.SuccessConditionbroken","" + NrErrors));
+            successConditionBrokenExit=true;
+          }
+          result.setNrErrors(NrErrors);
+          displayResults();
+          return result;
+        }
+        resultRow=rows.get(iteration);
+        int vactionType_previous=getActionTypeByCode(resultRow.getString(0,null));
+        String vsourcefilefolder_previous=resultRow.getString(1,null);
+        String vwildcard_previous=environmentSubstitute(resultRow.getString(2,null));
+        String vuserid_previous=resultRow.getString(3,null);
+        String vdestinationfilefolder_previous=resultRow.getString(4,null);
+        if (!Const.isEmpty(vsourcefilefolder_previous) && !Const.isEmpty(vdestinationfilefolder_previous)) {
+          if (isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.ProcessingRow",vsourcefilefolder_previous,vdestinationfilefolder_previous,vwildcard_previous));
+          if (!ProcessFileFolder(vactionType_previous,vsourcefilefolder_previous,vuserid_previous,vdestinationfilefolder_previous,vwildcard_previous,parentJob,result,MoveToFolder)) {
+            updateErrors();
+          }
+        }
+ else {
+          if (isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.IgnoringRow",vsourcefilefolder[iteration],vdestinationfilefolder[iteration],vwildcard[iteration]));
+        }
+      }
+    }
+ else     if (vsourcefilefolder != null && vdestinationfilefolder != null) {
+      for (int i=0; i < vsourcefilefolder.length && !parentJob.isStopped(); i++) {
+        if (successConditionBroken) {
+          if (!successConditionBrokenExit) {
+            logError(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Error.SuccessConditionbroken","" + NrErrors));
+            successConditionBrokenExit=true;
+          }
+          result.setNrErrors(NrErrors);
+          displayResults();
+          return result;
+        }
+        if (!Const.isEmpty(vsourcefilefolder[i]) && !Const.isEmpty(vdestinationfilefolder[i])) {
+          if (isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.ProcessingRow",vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i]));
+          if (!ProcessFileFolder(action_type[i],vsourcefilefolder[i],vuserid[i],vdestinationfilefolder[i],vwildcard[i],parentJob,result,MoveToFolder)) {
+            updateErrors();
+          }
+        }
+ else {
+          if (isDetailed())           logDetailed(BaseMessages.getString(PKG,"JobPGPEncryptFiles.Log.IgnoringRow",vsourcefilefolder[i],vdestinationfilefolder[i],vwildcard[i]));
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    updateErrors();
+    logError(BaseMessages.getString("JobPGPEncryptFiles.Error",e.getMessage()));
+  }
+ finally {
+    if (source_filefolder != null)     source_filefolder=null;
+    if (destination_filefolder != null)     destination_filefolder=null;
+  }
+  result.setNrErrors(NrErrors);
+  result.setNrLinesWritten(NrSuccess);
+  if (getSuccessStatus())   result.setResult(true);
+  displayResults();
+  return result;
+}

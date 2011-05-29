@@ -1,0 +1,58 @@
+{
+  Process p;
+  String command=getGpgExeFile() + " " + (fileMode ? "" : gnuPGCommand + " ")+ commandArgs;
+  if (log.isDebug()) {
+    log.logDebug(toString(),BaseMessages.getString(PKG,"GPG.RunningCommand",command));
+  }
+  String retval;
+  try {
+    p=Runtime.getRuntime().exec(command);
+  }
+ catch (  IOException io) {
+    throw new KettleException(BaseMessages.getString(PKG,"GPG.IOException"),io);
+  }
+  ProcessStreamReader psr_stdout=new ProcessStreamReader(p.getInputStream());
+  ProcessStreamReader psr_stderr=new ProcessStreamReader(p.getErrorStream());
+  psr_stdout.start();
+  psr_stderr.start();
+  if (inputStr != null) {
+    BufferedWriter out=new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));
+    try {
+      out.write(inputStr);
+    }
+ catch (    IOException io) {
+      throw new KettleException(BaseMessages.getString(PKG,"GPG.ExceptionWrite"),io);
+    }
+ finally {
+      if (out != null) {
+        try {
+          out.close();
+        }
+ catch (        Exception e) {
+        }
+        ;
+      }
+    }
+  }
+  try {
+    p.waitFor();
+    psr_stdout.join();
+    psr_stderr.join();
+  }
+ catch (  InterruptedException i) {
+    throw new KettleException(BaseMessages.getString(PKG,"GPG.ExceptionWait"),i);
+  }
+  try {
+    if (p.exitValue() != 0) {
+      throw new KettleException(BaseMessages.getString(PKG,"GPG.Exception.ExistStatus",psr_stderr.getString()));
+    }
+  }
+ catch (  IllegalThreadStateException itse) {
+    throw new KettleException(BaseMessages.getString(PKG,"GPG.ExceptionillegalThreadStateException"),itse);
+  }
+ finally {
+    p.destroy();
+  }
+  retval=psr_stdout.getString();
+  return retval;
+}
