@@ -1,0 +1,43 @@
+{
+  Result result=previousResult;
+  result.setResult(false);
+  result.setNrErrors(1);
+  FileObject file=null;
+  FileObject detachedSignature=null;
+  try {
+    String realFilename=environmentSubstitute(getFilename());
+    if (Const.isEmpty(realFilename)) {
+      logError(BaseMessages.getString(PKG,"JobPGPVerify.FilenameMissing"));
+      return result;
+    }
+    file=KettleVFS.getFileObject(realFilename);
+    GPG gpg=new GPG(environmentSubstitute(getGPGLocation()),log);
+    if (useDetachedfilename()) {
+      String signature=environmentSubstitute(getDetachedfilename());
+      if (Const.isEmpty(signature)) {
+        logError(BaseMessages.getString(PKG,"JobPGPVerify.DetachedSignatureMissing"));
+        return result;
+      }
+      detachedSignature=KettleVFS.getFileObject(signature);
+      gpg.verifyDetachedSignature(detachedSignature,file);
+    }
+ else {
+      gpg.verifySignature(file);
+    }
+    result.setNrErrors(0);
+    result.setResult(true);
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobPGPVerify.Error"),e);
+  }
+ finally {
+    try {
+      if (file != null)       file.close();
+      if (detachedSignature != null)       detachedSignature.close();
+    }
+ catch (    Exception e) {
+    }
+    ;
+  }
+  return result;
+}
