@@ -1,0 +1,34 @@
+{
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH))   return;
+  if (log.isDebug()) {
+    logDebug("List of ports for a server requested");
+  }
+  response.setStatus(HttpServletResponse.SC_OK);
+  String hostname=request.getParameter(PARAM_HOSTNAME);
+  boolean onlyOpen="Y".equalsIgnoreCase(request.getParameter(PARAM_ONLY_OPEN));
+  response.setContentType("text/html");
+  PrintStream out=new PrintStream(response.getOutputStream());
+  out.println("<HTML>");
+  out.println("<HEAD><TITLE>List of server sockets on server '" + hostname + "'</TITLE></HEAD>");
+  out.println("<BODY>");
+  out.println("<H1>Ports for host '" + hostname + "'</H1>");
+  Map<String,List<SocketPortAllocation>> portsMap=getTransformationMap().getHostServerSocketPortsMap();
+  List<SocketPortAllocation> allocations=portsMap.get(hostname);
+  if (allocations == null) {
+    out.println("No port allocations found for host '" + hostname + "'");
+    return;
+  }
+  out.println("Found " + allocations.size() + " ports for host '"+ hostname+ "'<p>");
+  for (  SocketPortAllocation allocation : allocations) {
+    if (!onlyOpen || (onlyOpen && allocation.isAllocated())) {
+      out.println(allocation.getPort() + " : Transformation=" + allocation.getTransformationName()+ ", "+ allocation.getSourceSlaveName()+ "/"+ allocation.getSourceStepName()+ "."+ allocation.getSourceStepCopy());
+      out.println(" --> " + allocation.getTargetSlaveName() + "/"+ allocation.getTargetStepName()+ "."+ allocation.getTargetStepCopy());
+      out.println(" id=" + allocation.getCarteObjectId() + ", allocated="+ allocation.isAllocated());
+      out.println(" time=" + allocation.getLastRequested());
+      out.println("<br>");
+    }
+  }
+  out.println("<p>");
+  out.println("</BODY>");
+  out.println("</HTML>");
+}
