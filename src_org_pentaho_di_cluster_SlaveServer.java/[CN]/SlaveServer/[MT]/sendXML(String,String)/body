@@ -1,17 +1,19 @@
 {
   byte[] content=xml.getBytes(Const.XML_ENCODING);
   PostMethod post=getSendByteArrayMethod(content,service);
-  HttpClient client=new HttpClient();
+  HttpClient client=SlaveConnectionManager.getInstance().createHttpClient();
   addCredentials(client);
   addProxy(client);
+  InputStream inputStream=null;
+  BufferedInputStream bufferedInputStream=null;
   try {
     int result=client.executeMethod(post);
     log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
-    InputStream inputStream=new BufferedInputStream(post.getResponseBodyAsStream(),1000);
+    inputStream=post.getResponseBodyAsStream();
+    bufferedInputStream=new BufferedInputStream(inputStream,1000);
     StringBuffer bodyBuffer=new StringBuffer();
     int c;
-    while ((c=inputStream.read()) != -1)     bodyBuffer.append((char)c);
-    inputStream.close();
+    while ((c=bufferedInputStream.read()) != -1)     bodyBuffer.append((char)c);
     String bodyTmp=bodyBuffer.toString();
 switch (result) {
 case 401:
@@ -30,6 +32,12 @@ log.logError(toString(),String.format("Exception sending message to service %s",
 throw e;
 }
  finally {
+if (bufferedInputStream != null) {
+bufferedInputStream.close();
+}
+if (inputStream != null) {
+inputStream.close();
+}
 post.releaseConnection();
 log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_SentXmlToService",service,environmentSubstitute(hostname)));
 }

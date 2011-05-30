@@ -1,18 +1,30 @@
 {
-  HttpClient client=new HttpClient();
+  HttpClient client=SlaveConnectionManager.getInstance().createHttpClient();
   addCredentials(client);
   addProxy(client);
   HttpMethod method=new GetMethod(constructUrl(service));
-  method.getParams().setSoTimeout(120000);
+  InputStream inputStream=null;
+  BufferedInputStream bufferedInputStream=null;
   try {
     int result=client.executeMethod(method);
     log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
-    String body=method.getResponseBodyAsString();
+    inputStream=method.getResponseBodyAsStream();
+    bufferedInputStream=new BufferedInputStream(inputStream,1000);
+    StringBuffer bodyBuffer=new StringBuffer();
+    int c;
+    while ((c=bufferedInputStream.read()) != -1)     bodyBuffer.append((char)c);
+    String body=bodyBuffer.toString();
     log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_FinishedReading",Integer.toString(body.getBytes().length)));
     log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",body));
     return body;
   }
   finally {
+    if (bufferedInputStream != null) {
+      bufferedInputStream.close();
+    }
+    if (inputStream != null) {
+      inputStream.close();
+    }
     method.releaseConnection();
     log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_ExecutedService",service,hostname));
   }

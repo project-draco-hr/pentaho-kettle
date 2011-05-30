@@ -13,17 +13,19 @@
     putMethod.setRequestEntity(entity);
     putMethod.setDoAuthentication(true);
     putMethod.addRequestHeader(new Header("Content-Type","binary/zip"));
-    HttpClient client=new HttpClient();
+    HttpClient client=SlaveConnectionManager.getInstance().createHttpClient();
     addCredentials(client);
     addProxy(client);
+    InputStream inputStream=null;
+    BufferedInputStream bufferedInputStream=null;
     try {
       int result=client.executeMethod(putMethod);
       log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
-      InputStream inputStream=new BufferedInputStream(putMethod.getResponseBodyAsStream(),1000);
+      inputStream=putMethod.getResponseBodyAsStream();
+      bufferedInputStream=new BufferedInputStream(inputStream,1000);
       StringBuffer bodyBuffer=new StringBuffer();
       int c;
-      while ((c=inputStream.read()) != -1)       bodyBuffer.append((char)c);
-      inputStream.close();
+      while ((c=bufferedInputStream.read()) != -1)       bodyBuffer.append((char)c);
       String bodyTmp=bodyBuffer.toString();
 switch (result) {
 case 401:
@@ -38,6 +40,12 @@ log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",body));
 return body;
 }
   finally {
+if (bufferedInputStream != null) {
+bufferedInputStream.close();
+}
+if (inputStream != null) {
+inputStream.close();
+}
 putMethod.releaseConnection();
 log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_SentExportToService",AddExportServlet.CONTEXT_PATH,environmentSubstitute(hostname)));
 }
