@@ -1,0 +1,51 @@
+{
+  meta=(PaloCellOutputMeta)smi;
+  data=(PaloCellOutputData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    this.logDebug("No More Rows.");
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    this.logBasic("First Row Analysis.");
+    data.indexes=new int[meta.getFields().size() + 1];
+    for (int i=0; i < data.indexes.length - 1; i++) {
+      data.indexes[i]=getInputRowMeta().indexOfValue(meta.getFields().get(i).getFieldName());
+    }
+    data.indexes[data.indexes.length - 1]=getInputRowMeta().indexOfValue(meta.getMeasure().getFieldName());
+    this.logBasic("First Row Ok.");
+    if (meta.getClearCube()) {
+      try {
+        data.helper.clearCube(meta.getCube());
+      }
+ catch (      Exception ex) {
+        throw new KettleException("Failed to clear Cube");
+      }
+    }
+  }
+  String row="";
+  try {
+    Object[] newRow=new Object[meta.getFields().size() + 1];
+    for (int i=0; i < data.indexes.length; i++) {
+      if (i == data.indexes.length - 1)       if (meta.getMeasureType().equals("Numeric"))       newRow[i]=getInputRowMeta().getNumber(r,data.indexes[i]);
+ else       newRow[i]=getInputRowMeta().getString(r,data.indexes[i]);
+ else       newRow[i]=getInputRowMeta().getString(r,data.indexes[i]);
+    }
+    List<Object[]> rows=new ArrayList<Object[]>();
+    rows.add(newRow);
+    try {
+      data.helper.addCells(meta.getCube(),rows);
+      incrementLinesOutput();
+    }
+ catch (    Exception ex) {
+      for (int k=0; k < newRow.length; k++)       row+=" " + getInputRowMeta().getString(r,k);
+      throw ex;
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException("Failed to add Cell Row: " + row,e);
+  }
+  return true;
+}

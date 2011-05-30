@@ -1,0 +1,36 @@
+{
+  PaloCellInputMeta oneMeta=new PaloCellInputMeta();
+  try {
+    getInfo(oneMeta);
+    if (oneMeta.getFields() == null || oneMeta.getFields().size() == 0) {
+      throw new KettleException("Fields must be defined to do a preview");
+    }
+ else {
+      for (      DimensionField field : oneMeta.getFields()) {
+        if (Const.isEmpty(field.getFieldType()))         throw new KettleException("All fields must have an output type to do the preview");
+      }
+    }
+  }
+ catch (  KettleException e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"RowGeneratorDialog.Illegal.Dialog.Settings.Title"),BaseMessages.getString(PKG,"RowGeneratorDialog.Illegal.Dialog.Settings.Message"),e);
+    return;
+  }
+  TransMeta previewMeta=TransPreviewFactory.generatePreviewTransformation(transMeta,oneMeta,textStepName.getText());
+  EnterNumberDialog numberDialog=new EnterNumberDialog(shell,500,BaseMessages.getString(PKG,"System.Dialog.EnterPreviewSize.Title"),BaseMessages.getString(PKG,"System.Dialog.EnterPreviewSize.Message"));
+  int previewSize=numberDialog.open();
+  if (previewSize > 0) {
+    TransPreviewProgressDialog progressDialog=new TransPreviewProgressDialog(shell,previewMeta,new String[]{textStepName.getText()},new int[]{previewSize});
+    progressDialog.open();
+    Trans trans=progressDialog.getTrans();
+    String loggingText=progressDialog.getLoggingText();
+    if (!progressDialog.isCancelled()) {
+      if (trans.getResult() != null && trans.getResult().getNrErrors() > 0) {
+        EnterTextDialog etd=new EnterTextDialog(shell,BaseMessages.getString(PKG,"System.Dialog.PreviewError.Title"),BaseMessages.getString(PKG,"System.Dialog.PreviewError.Message"),loggingText,true);
+        etd.setReadOnly();
+        etd.open();
+      }
+    }
+    PreviewRowsDialog prd=new PreviewRowsDialog(shell,transMeta,SWT.NONE,textStepName.getText(),progressDialog.getPreviewRowsMeta(textStepName.getText()),progressDialog.getPreviewRows(textStepName.getText()),loggingText);
+    prd.open();
+  }
+}

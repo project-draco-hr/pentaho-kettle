@@ -1,0 +1,45 @@
+{
+  this.logBasic("Getting row meta.");
+  final RowMetaInterface rowMeta=data.helper.getCellRowMeta(meta.getCube(),meta.getFields(),meta.getCubeMeasure());
+  this.logBasic("Number of fields:" + meta.getFields().size());
+  this.logBasic("Row Meta Size: " + rowMeta.size());
+  this.logBasic("Creating Listener.");
+  listener=new ListenerWithException(){
+    private boolean stop=false;
+    private boolean cancel=false;
+    public void oneMoreElement(    final Object element){
+      final Object[] row=(Object[])element;
+      try {
+        assert(rowMeta.size() != row.length);
+        incrementLinesInput();
+        putRow(rowMeta,row);
+      }
+ catch (      Exception ex) {
+        this.throwedException=ex;
+        this.cancel();
+      }
+    }
+    public void prepareElements(    final int maxNumberOfElements){
+    }
+    public void stop(){
+      this.stop=true;
+    }
+    public void resume(){
+      this.stop=false;
+    }
+    public boolean getStop(){
+      return stop;
+    }
+    public void cancel(){
+      this.cancel=true;
+    }
+    public boolean getCancel(){
+      return this.cancel;
+    }
+  }
+;
+  data.helper.getCells(meta.getCube(),rowMeta,listener);
+  if (listener.throwedException != null)   throw new KettleException("Failed to process some row",listener.throwedException);
+  setOutputDone();
+  return false;
+}
