@@ -17,11 +17,13 @@
       socket.connect(new InetSocketAddress(realHostname,portNumber),5000);
       connected=true;
       if (compressingStreams) {
-        inputStream=new DataInputStream(new BufferedInputStream(new GZIPInputStream(socket.getInputStream()),bufferSize));
+        gzipInputStream=new GZIPInputStream(socket.getInputStream());
+        bufferedInputStream=new BufferedInputStream(gzipInputStream,bufferSize);
       }
  else {
-        inputStream=new DataInputStream(new BufferedInputStream(socket.getInputStream(),bufferSize));
+        bufferedInputStream=new BufferedInputStream(socket.getInputStream(),bufferSize);
       }
+      inputStream=new DataInputStream(bufferedInputStream);
       lastException=null;
     }
  catch (    Exception e) {
@@ -90,19 +92,58 @@ catch (      Exception e) {
         baseStep.stopAll();
       }
  finally {
-        try {
-          if (socket != null) {
+        if (socket != null && !socket.isClosed() && !socket.isInputShutdown()) {
+          try {
             socket.shutdownInput();
-            socket.shutdownOutput();
-            socket.close();
-            baseStep.logDetailed("Closed connection to server socket to read rows from remote step on server " + realHostname + " port "+ portNumber+ " - Local port="+ socket.getLocalPort());
+          }
+ catch (          Exception e) {
+            baseStep.logError("Error shutting down input channel on client socket connection to remote step",e);
           }
         }
- catch (        IOException e) {
-          baseStep.logError("Error closing client socket connection to remote step",e);
-          baseStep.setErrors(1);
-          baseStep.stopAll();
+        if (socket != null && !socket.isClosed() && !socket.isOutputShutdown()) {
+          try {
+            socket.shutdownOutput();
+          }
+ catch (          Exception e) {
+            baseStep.logError("Error shutting down output channel on client socket connection to remote step",e);
+          }
         }
+        if (socket != null && !socket.isClosed()) {
+          try {
+            socket.close();
+          }
+ catch (          Exception e) {
+            baseStep.logError("Error shutting down client socket connection to remote step",e);
+          }
+        }
+        if (inputStream != null) {
+          try {
+            inputStream.close();
+          }
+ catch (          Exception e) {
+            baseStep.logError("Error closing input stream on socket connection to remote step",e);
+          }
+          inputStream=null;
+        }
+        if (bufferedInputStream != null) {
+          try {
+            bufferedInputStream.close();
+          }
+ catch (          Exception e) {
+            baseStep.logError("Error closing input stream on socket connection to remote step",e);
+          }
+        }
+        bufferedInputStream=null;
+        if (gzipInputStream != null) {
+          try {
+            gzipInputStream.close();
+          }
+ catch (          Exception e) {
+            baseStep.logError("Error closing input stream on socket connection to remote step",e);
+          }
+        }
+        gzipInputStream=null;
+        baseStep.logDetailed("Closed connection to server socket to read rows from remote step on server " + realHostname + " port "+ portNumber+ " - Local port="+ socket.getLocalPort());
       }
       rowSet.setDone();
     }

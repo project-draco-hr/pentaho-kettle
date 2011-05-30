@@ -8,11 +8,12 @@
         socket=serverSocket.accept();
         if (compressingStreams) {
           gzipOutputStream=new GZIPOutputStream(socket.getOutputStream(),50000);
-          outputStream=new DataOutputStream(new BufferedOutputStream(gzipOutputStream,bufferSize));
+          bufferedOutputStream=new BufferedOutputStream(gzipOutputStream,bufferSize);
         }
  else {
-          outputStream=new DataOutputStream(new BufferedOutputStream(socket.getOutputStream(),bufferSize));
+          bufferedOutputStream=new BufferedOutputStream(socket.getOutputStream(),bufferSize);
         }
+        outputStream=new DataOutputStream(bufferedOutputStream);
         baseStep.logBasic("Server socket accepted for port [" + port + "], reading from server "+ targetSlaveServerName);
         Object[] rowData=baseStep.getRowFrom(rowSet);
         if (rowData != null) {
@@ -41,17 +42,29 @@
       }
  finally {
         try {
-          if (socket != null) {
-            socket.shutdownInput();
-            socket.shutdownOutput();
-            socket.close();
-          }
+          socket.shutdownOutput();
         }
- catch (        IOException e) {
-          baseStep.logError("Error closing output socket to remote step",e);
-          baseStep.setErrors(1);
+ catch (        Exception e) {
+          baseStep.logError("Error shutting down output channel on the server socket of remote step",e);
+          baseStep.setErrors(1L);
           baseStep.stopAll();
         }
+        try {
+          outputStream.flush();
+          outputStream.close();
+          bufferedOutputStream.close();
+          if (gzipOutputStream != null) {
+            gzipOutputStream.close();
+          }
+        }
+ catch (        Exception e) {
+          baseStep.logError("Error shutting down output streams on the server socket of remote step",e);
+          baseStep.setErrors(1L);
+          baseStep.stopAll();
+        }
+        outputStream=null;
+        bufferedOutputStream=null;
+        gzipOutputStream=null;
       }
     }
   }
