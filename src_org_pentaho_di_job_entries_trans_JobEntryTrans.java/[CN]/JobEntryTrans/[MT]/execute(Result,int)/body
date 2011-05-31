@@ -201,11 +201,40 @@ executionConfiguration.setRepository(rep);
 executionConfiguration.setLogLevel(transLogLevel);
 executionConfiguration.setVariables(transMeta);
 executionConfiguration.setArgumentStrings(args);
-TransSplitter transSplitter=Trans.executeClustered(transMeta,executionConfiguration);
-long errors=Trans.monitorClusteredTransformation(log,transSplitter,parentJob);
-Result clusterResult=Trans.getClusteredTransformationResult(log,transSplitter,parentJob);
+TransSplitter transSplitter=null;
+long errors=0;
+try {
+transSplitter=Trans.executeClustered(transMeta,executionConfiguration);
+errors+=Trans.monitorClusteredTransformation(log,transSplitter,parentJob);
+}
+ catch (Exception e) {
+logError("Error during clustered execution. Cleaning up clustered execution.",e);
+errors++;
+if (transSplitter != null) {
+Trans.cleanupCluster(log,transSplitter);
+}
+ else {
+SlaveServer master=null;
+for (StepMeta stepMeta : transMeta.getSteps()) {
+  if (stepMeta.isClustered()) {
+    for (    SlaveServer slaveServer : stepMeta.getClusterSchema().getSlaveServers()) {
+      if (slaveServer.isMaster()) {
+        master=slaveServer;
+        break;
+      }
+    }
+  }
+}
+if (master != null) {
+  master.deAllocateServerSockets(transMeta.getName(),null);
+}
+}
+}
 result.clear();
+if (transSplitter != null) {
+Result clusterResult=Trans.getClusteredTransformationResult(log,transSplitter,parentJob);
 result.add(clusterResult);
+}
 result.setNrErrors(result.getNrErrors() + errors);
 }
  else if (remoteSlaveServer != null) {
