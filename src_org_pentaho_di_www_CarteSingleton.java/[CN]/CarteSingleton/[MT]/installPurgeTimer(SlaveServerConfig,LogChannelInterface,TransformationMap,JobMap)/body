@@ -23,9 +23,11 @@
               Trans trans=transformationMap.getTransformation(entry);
               if (trans != null && (trans.isFinished() || trans.isStopped()) && trans.getLogDate() != null) {
                 int diffInMinutes=(int)Math.floor((System.currentTimeMillis() - trans.getLogDate().getTime()) / 60000);
-                if (diffInMinutes >= config.getObjectTimeoutMinutes()) {
+                if (diffInMinutes >= objectTimeout) {
                   transformationMap.removeTransformation(entry);
-                  transformationMap.deallocateServerSocketPorts(entry);
+                  LoggingRegistry.getInstance().removeIncludingChildren(trans.getLogChannelId());
+                  CentralLogStore.discardLines(trans.getLogChannelId(),false);
+                  log.logMinimal("Cleaned up transformation " + entry.getName() + " with id "+ entry.getId()+ " from "+ trans.getLogDate()+ ", diff="+ diffInMinutes);
                 }
               }
             }
@@ -33,8 +35,9 @@
               Job job=jobMap.getJob(entry);
               if (job != null && (job.isFinished() || job.isStopped()) && job.getLogDate() != null) {
                 int diffInMinutes=(int)Math.floor((System.currentTimeMillis() - job.getLogDate().getTime()) / 60000);
-                if (diffInMinutes >= config.getObjectTimeoutMinutes()) {
+                if (diffInMinutes >= objectTimeout) {
                   jobMap.removeJob(entry);
+                  log.logMinimal("Cleaned up job " + entry.getName() + " with id "+ entry.getId()+ " from "+ job.getLogDate());
                 }
               }
             }
