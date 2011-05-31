@@ -1,0 +1,23 @@
+{
+  KettleEnvironment.init();
+  CentralLogStore.init(1000,5);
+  ClusterGenerator clusterGenerator=new ClusterGenerator();
+  try {
+    clusterGenerator.launchSlaveServers();
+    for (int i=0; i < 10000; i++) {
+      TransMeta transMeta=generateParallelFileReadOnMasterTransMeta(clusterGenerator);
+      TransExecutionConfiguration config=createClusteredTransExecutionConfiguration();
+      TransSplitter transSplitter=Trans.executeClustered(transMeta,config);
+      LogChannel logChannel=createLogChannel("cluster unit test <testParallelFileReadOnMaster>");
+      long nrErrors=Trans.monitorClusteredTransformation(logChannel,transSplitter,null,1);
+      assert(nrErrors == 0);
+      String result=loadFileContent(transMeta,"${java.io.tmpdir}/test-parallel-file-read-on-master-result.txt");
+      assert("100".equals(Const.trim(result)));
+      System.out.println("Finished iteration #" + (i + 1));
+    }
+  }
+  finally {
+    clusterGenerator.stopSlaveServers();
+    SlaveConnectionManager.getInstance().shutdown();
+  }
+}
