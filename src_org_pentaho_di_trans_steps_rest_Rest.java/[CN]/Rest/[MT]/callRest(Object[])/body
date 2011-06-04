@@ -29,37 +29,47 @@
         MultivaluedMapImpl queryParams=new MultivaluedMapImpl();
         String value=data.inputRowMeta.getString(rowData,data.indexOfParamFields[i]);
         queryParams.add(data.paramNames[i],value);
-        if (isDebug())         logDebug(BaseMessages.getString(PKG,"Rest.Log.BodyValue",data.paramNames[i],value));
+        if (isDebug())         logDebug(BaseMessages.getString(PKG,"Rest.Log.parameterValue",data.paramNames[i],value));
         webResource.queryParams(queryParams);
       }
     }
     ClientResponse response=null;
-    if (data.method.equals(RestMeta.HTTP_METHOD_GET)) {
-      response=webResource.get(ClientResponse.class);
+    String entityString="";
+    if (data.useBody) {
+      entityString=Const.NVL(data.inputRowMeta.getString(rowData,data.indexOfBodyField),"");
+      if (isDebug())       logDebug(BaseMessages.getString(PKG,"Rest.Log.BodyValue",entityString));
     }
- else     if (data.method.equals(RestMeta.HTTP_METHOD_POST)) {
-      response=webResource.post(ClientResponse.class);
-    }
- else     if (data.method.equals(RestMeta.HTTP_METHOD_PUT)) {
-      response=webResource.put(ClientResponse.class);
-    }
- else     if (data.method.equals(RestMeta.HTTP_METHOD_DELETE)) {
-      response=webResource.delete(ClientResponse.class);
-    }
- else     if (data.method.equals(RestMeta.HTTP_METHOD_HEAD)) {
-      response=webResource.head();
-    }
- else     if (data.method.equals(RestMeta.HTTP_METHOD_OPTIONS)) {
-      response=webResource.options(ClientResponse.class);
-    }
+    try {
+      if (data.method.equals(RestMeta.HTTP_METHOD_GET)) {
+        response=webResource.get(ClientResponse.class);
+      }
+ else       if (data.method.equals(RestMeta.HTTP_METHOD_POST)) {
+        response=webResource.type(data.mediaType).post(ClientResponse.class,entityString);
+      }
+ else       if (data.method.equals(RestMeta.HTTP_METHOD_PUT)) {
+        response=webResource.type(data.mediaType).put(ClientResponse.class,entityString);
+      }
+ else       if (data.method.equals(RestMeta.HTTP_METHOD_DELETE)) {
+        response=webResource.type(data.mediaType).delete(ClientResponse.class,entityString);
+      }
+ else       if (data.method.equals(RestMeta.HTTP_METHOD_HEAD)) {
+        response=webResource.head();
+      }
+ else       if (data.method.equals(RestMeta.HTTP_METHOD_OPTIONS)) {
+        response=webResource.options(ClientResponse.class);
+      }
  else {
-      throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.UnknownMethod",data.method));
+        throw new KettleException(BaseMessages.getString(PKG,"Rest.Error.UnknownMethod",data.method));
+      }
+    }
+ catch (    UniformInterfaceException u) {
+      response=u.getResponse();
     }
     long responseTime=System.currentTimeMillis() - startTime;
     if (isDetailed())     logDetailed(BaseMessages.getString(PKG,"Rest.Log.ResponseTime",String.valueOf(responseTime),data.realUrl));
-    String body=response.getEntity(String.class);
     int status=response.getStatus();
     if (isDebug())     logDebug(BaseMessages.getString(PKG,"Rest.Log.ResponseCode","" + status));
+    String body=response.getEntity(String.class);
     int returnFieldsOffset=data.inputRowMeta.size();
     if (!Const.isEmpty(data.resultFieldName)) {
       newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,body);
