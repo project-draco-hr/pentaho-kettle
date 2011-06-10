@@ -1,0 +1,32 @@
+{
+  meta=(GetSlaveSequenceMeta)smi;
+  data=(GetSlaveSequenceData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.sequence=data.slaveServer.getNextSlaveSequenceValue(meta.getSequenceName());
+    data.value=data.sequence.getValue();
+  }
+  if (log.isRowLevel())   logRowlevel(BaseMessages.getString(PKG,"GetSequence.Log.ReadRow") + getLinesRead() + " : "+ getInputRowMeta().getString(r));
+  try {
+    putRow(data.outputRowMeta,addSequence(getInputRowMeta(),r));
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"GetSequence.Log.WriteRow") + getLinesWritten() + " : "+ getInputRowMeta().getString(r));
+    if (checkFeedback(getLinesRead())) {
+      if (log.isBasic())       logBasic(BaseMessages.getString(PKG,"GetSequence.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  KettleException e) {
+    logError(BaseMessages.getString(PKG,"GetSequence.Log.ErrorInStep") + e.getMessage());
+    setErrors(1);
+    stopAll();
+    setOutputDone();
+    return false;
+  }
+  return true;
+}
