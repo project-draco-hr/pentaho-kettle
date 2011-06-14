@@ -7,8 +7,10 @@
     String seqField=databaseMeta.quoteField(sequenceNameField);
     String valField=databaseMeta.quoteField(valueField);
     boolean update=false;
-    String sql="SELECT " + valField + " FROM "+ schemaTable+ " WHERE "+ seqField+ " = '"+ name+ "'";
-    RowMetaAndData row=db.getOneRow(sql);
+    String sql="SELECT " + valField + " FROM "+ schemaTable+ " WHERE "+ seqField+ " = ?";
+    RowMetaAndData param=new RowMetaAndData();
+    param.addValue(seqField,ValueMetaInterface.TYPE_STRING,name);
+    RowMetaAndData row=db.getOneRow(sql,param.getRowMeta(),param.getData());
     long value;
     if (row != null && row.getData() != null) {
       update=true;
@@ -25,12 +27,18 @@
     }
     long maximum=value + incrementValue;
     if (update) {
-      sql="UPDATE " + schemaTable + " SET "+ valField+ "="+ maximum+ " WHERE "+ seqField+ "='"+ name+ "'";
+      sql="UPDATE " + schemaTable + " SET "+ valField+ "= ? WHERE "+ seqField+ "= ? ";
+      param=new RowMetaAndData();
+      param.addValue(valField,ValueMetaInterface.TYPE_INTEGER,Long.valueOf(maximum));
+      param.addValue(seqField,ValueMetaInterface.TYPE_STRING,name);
     }
  else {
-      sql="INSERT INTO " + schemaTable + "("+ seqField+ ", "+ maximum+ ") VALUES('"+ name+ "', "+ value+ ")";
+      sql="INSERT INTO " + schemaTable + "("+ seqField+ ", "+ valField+ ") VALUES( ? , ? )";
+      param=new RowMetaAndData();
+      param.addValue(seqField,ValueMetaInterface.TYPE_STRING,name);
+      param.addValue(valField,ValueMetaInterface.TYPE_INTEGER,Long.valueOf(maximum));
     }
-    db.execStatement(sql);
+    db.execStatement(sql,param.getRowMeta(),param.getData());
     return value;
   }
  catch (  Exception e) {
