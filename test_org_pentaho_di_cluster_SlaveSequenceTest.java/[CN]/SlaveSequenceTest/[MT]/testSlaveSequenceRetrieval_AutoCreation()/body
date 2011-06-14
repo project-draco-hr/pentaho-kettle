@@ -1,0 +1,51 @@
+{
+  init();
+  String SLAVE_SEQUENCE_NAME="test";
+  SlaveServerConfig slaveConfig=new SlaveServerConfig("localhost",8282,false);
+  slaveConfig.getSlaveServer().setUsername("cluster");
+  slaveConfig.getSlaveServer().setPassword("cluster");
+  String dbDir=System.getProperty("java.io.tmpdir") + "/" + UUID.randomUUID().toString()+ "-slaveSeqTest-H2-DB";
+  DatabaseMeta databaseMeta=new DatabaseMeta("H2","H2","Native",null,dbDir,null,null,null);
+  slaveConfig.getDatabases().add(databaseMeta);
+  String table="SLAVE_SEQUENCE";
+  String nameField="SEQ_NAME";
+  String valueField="SEQ_VALUE";
+  SlaveSequence slaveSequence=new SlaveSequence(SLAVE_SEQUENCE_NAME,1L,databaseMeta,null,table,nameField,valueField);
+  slaveConfig.setAutomaticCreationAllowed(true);
+  slaveConfig.setAutoSequence(slaveSequence);
+  Database db=new Database(loggingObject,databaseMeta);
+  db.connect();
+  db.execStatement("CREATE TABLE SLAVE_SEQUENCE(SEQ_NAME VARCHAR(100), SEQ_VALUE INTEGER);");
+  db.disconnect();
+  CarteLauncher carteLauncher=new CarteLauncher(slaveConfig);
+  Thread thread=new Thread(carteLauncher);
+  thread.start();
+  while (carteLauncher.getCarte() == null && !carteLauncher.isFailure()) {
+    Thread.sleep(100);
+  }
+  try {
+    long value=slaveConfig.getSlaveServer().getNextSlaveSequenceValue(SLAVE_SEQUENCE_NAME,1000);
+    assertEquals(1L,value);
+    value=slaveConfig.getSlaveServer().getNextSlaveSequenceValue(SLAVE_SEQUENCE_NAME,1000);
+    assertEquals(1001L,value);
+    value=slaveConfig.getSlaveServer().getNextSlaveSequenceValue("new sequence",1000);
+    assertEquals(1L,value);
+    value=slaveConfig.getSlaveServer().getNextSlaveSequenceValue("new sequence",1000);
+    assertEquals(1001L,value);
+    value=slaveConfig.getSlaveServer().getNextSlaveSequenceValue(SLAVE_SEQUENCE_NAME,1000);
+    assertEquals(2001L,value);
+  }
+ catch (  Exception e) {
+    fail("And error was thrown for retrieval of an unknown sequence, auto-creation expected");
+  }
+  carteLauncher.getCarte().getWebServer().stopServer();
+  File dir=new File(dbDir);
+  if (dir.exists()) {
+    for (    File child : dir.listFiles()) {
+      if (child.isFile()) {
+        child.delete();
+      }
+    }
+    dir.delete();
+  }
+}
