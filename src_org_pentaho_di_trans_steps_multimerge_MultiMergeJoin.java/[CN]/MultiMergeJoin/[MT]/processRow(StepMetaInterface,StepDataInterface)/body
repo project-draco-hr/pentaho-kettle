@@ -1,0 +1,181 @@
+{
+  meta=(MultiMergeJoinMeta)smi;
+  data=(MultiMergeJoinData)sdi;
+  if (first) {
+    first=false;
+    List<StreamInterface> infoStreams=meta.getStepIOMeta().getInfoStreams();
+    int streamSize=infoStreams.size();
+    data.rowSets=new RowSet[streamSize];
+    data.rows=new Object[streamSize][];
+    data.metas=new RowMetaInterface[streamSize];
+    data.rowLengths=new int[streamSize];
+    data.queue=new PriorityQueue<MultiMergeJoinData.QueueEntry>(streamSize,new MultiMergeJoinData.QueueComparator(data));
+    data.results=new ArrayList<List<Object[]>>(streamSize);
+    data.queueEntries=new MultiMergeJoinData.QueueEntry[streamSize];
+    data.drainIndices=new int[streamSize];
+    for (int i=0; i < streamSize; i++) {
+      data.queueEntries[i]=new MultiMergeJoinData.QueueEntry();
+      data.queueEntries[i].index=i;
+      data.results.add(new ArrayList<Object[]>());
+      data.rowSets[i]=findInputRowSet(infoStreams.get(i).getStepname());
+      if (data.rowSets[i] == null) {
+        throw new KettleException(BaseMessages.getString(PKG,"MultiMergeJoin.Exception.UnableToFindSpecifiedStep",infoStreams.get(0).getStepname()));
+      }
+      data.rows[i]=getRowFrom(data.rowSets[i]);
+      if (data.rows[i] == null) {
+        data.metas[i]=data.rowSets[i].getRowMeta();
+      }
+ else {
+        data.queueEntries[i].row=data.rows[i];
+        data.metas[i]=getTransMeta().getStepFields(infoStreams.get(i).getStepname());
+      }
+      data.rowLengths[i]=data.metas[i].size();
+    }
+    data.outputRowMeta=new RowMeta();
+    for (int i=0; i < streamSize; i++) {
+      data.outputRowMeta.mergeRowMeta(data.metas[i].clone());
+    }
+    data.keyNrs=new int[streamSize][];
+    for (int j=0; j < streamSize; j++) {
+      if (data.rows[j] != null) {
+        String[] keyFields=meta.getKeyFields()[j].split(",");
+        data.keyNrs[j]=new int[keyFields.length];
+        for (int i=0; i < keyFields.length; i++) {
+          data.keyNrs[j][i]=data.metas[j].indexOfValue(keyFields[i]);
+          if (data.keyNrs[j][i] < 0) {
+            String message=BaseMessages.getString(PKG,"MultiMergeJoin.Exception.UnableToFindFieldInReferenceStream",meta.getKeyFields()[i]);
+            logError(message);
+            throw new KettleStepException(message);
+          }
+        }
+        data.queue.add(data.queueEntries[j]);
+      }
+    }
+    data.dummy=new Object[streamSize][];
+    for (int i=0; i < streamSize; i++) {
+      data.dummy[i]=RowDataUtil.allocateRowData(data.metas[i].size());
+    }
+  }
+  if (log.isRowLevel()) {
+    String metaString=BaseMessages.getString(PKG,"MultiMergeJoin.Log.DataInfo",data.metas[0].getString(data.rows[0]) + "");
+    for (int i=1; i < data.metas.length; i++)     metaString+=data.metas[i].getString(data.rows[i]);
+    logRowlevel(metaString);
+  }
+  int streamSize=data.metas.length;
+  if (data.optional) {
+    if (data.queue.isEmpty()) {
+      setOutputDone();
+      return false;
+    }
+    MultiMergeJoinData.QueueEntry minEntry=data.queue.poll();
+    int drainSize=1;
+    data.rows[minEntry.index]=minEntry.row;
+    data.drainIndices[0]=minEntry.index;
+    MultiMergeJoinData.QueueComparator comparator=(MultiMergeJoinData.QueueComparator)data.queue.comparator();
+    while (!data.queue.isEmpty() && comparator.compare(data.queue.peek(),minEntry) == 0) {
+      MultiMergeJoinData.QueueEntry entry=data.queue.poll();
+      data.rows[entry.index]=entry.row;
+      data.drainIndices[drainSize++]=entry.index;
+    }
+    int index;
+    Object[] row=null;
+    for (int i=0; i < drainSize; i++) {
+      index=data.drainIndices[i];
+      data.results.get(index).add(data.rows[index]);
+      while (!isStopped() && ((row=getRowFrom(data.rowSets[index])) != null && data.metas[index].compare(data.rows[index],row,data.keyNrs[index]) == 0)) {
+        data.results.get(index).add(row);
+      }
+      if (isStopped())       return false;
+      if (row != null) {
+        data.queueEntries[index].row=row;
+        data.queue.add(data.queueEntries[index]);
+      }
+    }
+    for (int i=0; i < streamSize; i++) {
+      data.drainIndices[i]=0;
+      if (data.results.get(i).isEmpty())       data.results.get(i).add(data.dummy[i]);
+    }
+    int current=0;
+    while (true) {
+      for (int i=0; i < streamSize; i++) {
+        data.rows[i]=data.results.get(i).get(data.drainIndices[i]);
+      }
+      row=RowDataUtil.createResizedCopy(data.rows,data.rowLengths);
+      putRow(data.outputRowMeta,row);
+      while (++data.drainIndices[current] >= data.results.get(current).size()) {
+        data.drainIndices[current]=0;
+        if (++current >= streamSize)         break;
+      }
+      if (current >= streamSize)       break;
+      current=0;
+    }
+    for (int i=0; i < streamSize; i++) {
+      data.results.get(i).clear();
+    }
+  }
+ else {
+    if (data.queue.size() < streamSize) {
+      data.queue.clear();
+      for (int i=0; i < streamSize; i++)       while (data.rows[i] != null && !isStopped())       data.rows[i]=getRowFrom(data.rowSets[i]);
+      setOutputDone();
+      return false;
+    }
+    MultiMergeJoinData.QueueEntry minEntry=data.queue.poll();
+    int drainSize=1;
+    data.rows[minEntry.index]=minEntry.row;
+    data.drainIndices[0]=minEntry.index;
+    MultiMergeJoinData.QueueComparator comparator=(MultiMergeJoinData.QueueComparator)data.queue.comparator();
+    while (!data.queue.isEmpty() && comparator.compare(data.queue.peek(),minEntry) == 0) {
+      MultiMergeJoinData.QueueEntry entry=data.queue.poll();
+      data.rows[entry.index]=entry.row;
+      data.drainIndices[drainSize++]=entry.index;
+    }
+    Object[] row=null;
+    if (data.queue.isEmpty()) {
+      for (int i=0; i < streamSize; i++) {
+        data.results.get(i).add(data.rows[i]);
+        while (!isStopped() && ((row=getRowFrom(data.rowSets[i])) != null && data.metas[i].compare(data.rows[i],row,data.keyNrs[i]) == 0)) {
+          data.results.get(i).add(row);
+        }
+        if (isStopped())         return false;
+        if (row != null) {
+          data.queueEntries[i].row=row;
+          data.queue.add(data.queueEntries[i]);
+        }
+      }
+      for (int i=0; i < streamSize; i++) {
+        data.drainIndices[i]=0;
+      }
+      int current=0;
+      while (true) {
+        for (int i=0; i < streamSize; i++) {
+          data.rows[i]=data.results.get(i).get(data.drainIndices[i]);
+        }
+        row=RowDataUtil.createResizedCopy(data.rows,data.rowLengths);
+        putRow(data.outputRowMeta,row);
+        while (++data.drainIndices[current] >= data.results.get(current).size()) {
+          data.drainIndices[current]=0;
+          if (++current >= streamSize)           break;
+        }
+        if (current >= streamSize)         break;
+        current=0;
+      }
+      for (int i=0; i < streamSize; i++) {
+        data.results.get(i).clear();
+      }
+    }
+ else {
+      for (int i=0; i < drainSize; i++) {
+        int index=data.drainIndices[i];
+        while (!isStopped() && ((row=getRowFrom(data.rowSets[index])) != null && data.metas[index].compare(data.rows[index],row,data.keyNrs[index]) == 0)) {
+        }
+        if (isStopped() || row == null)         break;
+        data.queueEntries[index].row=row;
+        data.queue.add(data.queueEntries[index]);
+      }
+      if (isStopped())       return false;
+    }
+  }
+  if (checkFeedback(getLinesRead()))   logBasic(BaseMessages.getString(PKG,"MultiMergeJoin.LineNumber") + getLinesRead());
+  return true;
+}
