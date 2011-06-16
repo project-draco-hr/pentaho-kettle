@@ -31,7 +31,7 @@
     transMeta.addStep(fromstep);
     TransHopMeta hi=new TransHopMeta(injectorStep,fromstep);
     transMeta.addTransHop(hi);
-    long goldRowCounts[]={7,7,4,3,2,2,2,1,1};
+    int goldRowCounts[]={1,8,4,3,2,2,2,2,1};
     for (int commitSize=0; commitSize <= 8; commitSize++) {
       tom.setCommitSize(commitSize);
       Trans trans=new Trans(transMeta);
@@ -48,22 +48,10 @@
       }
       rp.finished();
       trans.waitUntilFinished();
-      String query="SELECT ts FROM " + target_table3 + " ORDER BY ts";
-      ResultSet rs=database.openQuery(query);
-      Timestamp last_ts=null;
-      int actual_commits=0;
-      while (rs.next()) {
-        Timestamp ts=rs.getTimestamp("ts");
-        if (last_ts == null || (!ts.equals(last_ts) && (ts.getTime() - last_ts.getTime() > 5))) {
-          actual_commits++;
-          last_ts=ts;
-        }
-      }
-      long expected_commits=goldRowCounts[commitSize];
-      if (expected_commits != actual_commits) {
-        fail("With commitSize=" + commitSize + " expected "+ expected_commits+ " commits but actually got "+ actual_commits);
-        ;
-      }
+      TableOutputData data=(TableOutputData)trans.findDataInterface(outputname);
+      int exp=goldRowCounts[commitSize];
+      int act=data.db.getNrExecutedCommits() - 1;
+      assertEquals("Incorrect number of commits with commitSize=" + commitSize + Const.CR,exp,act);
     }
     dropTable(database,target_table3);
   }
