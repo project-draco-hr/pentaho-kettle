@@ -1,4 +1,5 @@
 {
+  inputFields=new HashMap<String,Integer>();
   final Shell subShell=new Shell(shell,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN| SWT.MAX);
   final FormLayout formLayout=new FormLayout();
   formLayout.marginWidth=5;
@@ -6,6 +7,7 @@
   subShell.setLayout(formLayout);
   subShell.setSize(200,150);
   subShell.setText(BaseMessages.getString(PKG,"MultiMergeJoinMeta.JoinKeys"));
+  subShell.setImage(GUIResource.getInstance().getImageTransGraph());
   Label wlKeys=new Label(subShell,SWT.NONE);
   wlKeys.setText(BaseMessages.getString(PKG,"MultiMergeJoinDialog.Keys"));
   FormData fdlKeys=new FormData();
@@ -15,24 +17,45 @@
   wlKeys.setLayoutData(fdlKeys);
   String[] keys=keyValTextBox.getText().split(",");
   int nrKeyRows=(keys != null ? keys.length : 1);
-  ColumnInfo[] ciKeys=new ColumnInfo[]{new ColumnInfo(BaseMessages.getString(PKG,"MultiMergeJoinDialog.ColumnInfo.KeyField"),ColumnInfo.COLUMN_TYPE_TEXT,false)};
+  ciKeys=new ColumnInfo[]{new ColumnInfo(BaseMessages.getString(PKG,"MultiMergeJoinDialog.ColumnInfo.KeyField"),ColumnInfo.COLUMN_TYPE_CCOMBO,new String[]{""},false)};
   final TableView wKeys=new TableView(transMeta,subShell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI| SWT.V_SCROLL| SWT.H_SCROLL,ciKeys,nrKeyRows,lsMod,props);
   FormData fdKeys=new FormData();
   fdKeys.top=new FormAttachment(wlKeys,margin);
   fdKeys.left=new FormAttachment(0,0);
   fdKeys.bottom=new FormAttachment(100,-70);
-  fdKeys.right=new FormAttachment(50,-margin);
+  fdKeys.right=new FormAttachment(100,-margin);
   wKeys.setLayoutData(fdKeys);
+  final Runnable runnable=new Runnable(){
+    public void run(){
+      StepMeta stepMeta=transMeta.getStep(inputStreamIndex);
+      try {
+        if (stepMeta != null) {
+          prev=transMeta.getStepFields(stepMeta);
+          if (prev != null) {
+            for (int i=0; i < prev.size(); i++) {
+              inputFields.put(prev.getValueMeta(i).getName(),Integer.valueOf(i));
+            }
+            setComboBoxes();
+          }
+        }
+      }
+ catch (      KettleException e) {
+        logError(BaseMessages.getString(PKG,"System.Dialog.GetFieldsFailed.Message"));
+      }
+    }
+  }
+;
+  new Thread(runnable).start();
   Button getKeyButton=new Button(subShell,SWT.PUSH);
   getKeyButton.setText(BaseMessages.getString(PKG,"MultiMergeJoinDialog.KeyFields.Button"));
   FormData fdbKeys=new FormData();
   fdbKeys.top=new FormAttachment(wKeys,margin);
   fdbKeys.left=new FormAttachment(0,0);
-  fdbKeys.right=new FormAttachment(50,-margin);
+  fdbKeys.right=new FormAttachment(100,-margin);
   getKeyButton.setLayoutData(fdbKeys);
   getKeyButton.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
-      getKeys(wKeys,inputStreamIndex);
+      BaseStepDialog.getFieldsFromPrevious(prev,wKeys,1,new int[]{1},new int[]{},-1,-1,null);
     }
   }
 );
