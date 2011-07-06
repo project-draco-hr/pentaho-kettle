@@ -1,0 +1,93 @@
+{
+  meta=(SymmetricCryptoTransMeta)smi;
+  data=(SymmetricCryptoTransData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (Const.isEmpty(meta.getResultfieldname())) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.ErrorResultFieldMissing"));
+    }
+    if (Const.isEmpty(meta.getMessageFied())) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.MissingMessageField"));
+    }
+    data.indexOfMessage=getInputRowMeta().indexOfValue(meta.getMessageFied());
+    if (data.indexOfMessage < 0) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.CouldnotFindField",meta.getMessageFied()));
+    }
+    if (!meta.isSecretKeyInField()) {
+      String realSecretKey=environmentSubstitute(meta.getSecretKey());
+      if (Const.isEmpty(realSecretKey)) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.SecretKeyMissing"));
+      }
+      setSecretKey(realSecretKey);
+    }
+ else {
+      if (Const.isEmpty(meta.getSecretKeyField())) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.SecretKeyFieldMissing"));
+      }
+      data.indexOfSecretkeyField=getInputRowMeta().indexOfValue(meta.getSecretKeyField());
+      if (data.indexOfSecretkeyField < 0) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.CouldnotFindField",meta.getSecretKeyField()));
+      }
+    }
+  }
+  try {
+    Object realSecretKey;
+    if (meta.isSecretKeyInField()) {
+      if (meta.isReadKeyAsBinary()) {
+        realSecretKey=getInputRowMeta().getBinary(r,data.indexOfSecretkeyField);
+        if (realSecretKey == null) {
+          throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.SecretKeyMissing"));
+        }
+      }
+ else {
+        realSecretKey=getInputRowMeta().getString(r,data.indexOfSecretkeyField);
+        if (Const.isEmpty((String)realSecretKey)) {
+          throw new KettleStepException(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Exception.SecretKeyMissing"));
+        }
+      }
+      setSecretKey(realSecretKey);
+    }
+    Object result=null;
+    if (meta.getOperationType() == SymmetricCryptoTransMeta.OPERATION_TYPE_ENCRYPT) {
+      byte[] encrBytes=data.Crypt.encrDecryptData(getInputRowMeta().getBinary(r,data.indexOfMessage));
+      if (meta.isOutputResultAsBinary())       result=encrBytes;
+ else       result=new String(Hex.encodeHex((encrBytes)));
+    }
+ else {
+      String s=getInputRowMeta().getString(r,data.indexOfMessage);
+      byte[] dataBytes=Hex.decodeHex(s.toCharArray());
+      byte[] encrBytes=data.Crypt.encrDecryptData(dataBytes);
+      if (meta.isOutputResultAsBinary())       result=encrBytes;
+ else       result=new String(encrBytes);
+    }
+    Object[] outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),result);
+    putRow(data.outputRowMeta,outputRowData);
+  }
+ catch (  Exception e) {
+    boolean sendToErrorRow=false;
+    String errorMessage;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"SymmetricCryptoTrans.Log.ErrorInStepRunning"),e);
+      logError(Const.getStackTracker(e));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"EncDecr001");
+    }
+  }
+  return true;
+}

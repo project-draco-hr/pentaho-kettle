@@ -1,0 +1,55 @@
+{
+  Object[] row;
+  Object[] rowIn=null;
+  if (data.readsRows) {
+    rowIn=getRow();
+    if (rowIn == null) {
+      setOutputDone();
+      return false;
+    }
+    if (first) {
+      first=false;
+      data.prevNrField=getInputRowMeta().size();
+      data.outputRowMeta=getInputRowMeta().clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    }
+  }
+ else {
+    if (first) {
+      first=false;
+      data.outputRowMeta=new RowMeta();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    }
+  }
+  for (int i=0; i < data.nr && !isStopped(); i++) {
+    for (int j=0; j < data.secretKeyCount[i] && !isStopped(); j++) {
+      row=buildEmptyRow();
+      incrementLinesRead();
+      int index=0;
+      try {
+        if (meta.isOutputKeyInBinary()) {
+          row[index++]=data.cryptoTrans[i].generateKey(data.secretKeyLen[i]);
+        }
+ else {
+          row[index++]=data.cryptoTrans[i].generateKeyAsHex(data.secretKeyLen[i]);
+        }
+      }
+ catch (      CryptoException k) {
+        throw new KettleException(BaseMessages.getString(PKG,"SecretKeyGenerator.KeyGenerationError",i),k);
+      }
+      if (data.addAlgorithmOutput) {
+        row[index++]=meta.getAlgorithm()[i];
+      }
+      if (data.addSecretKeyLengthOutput) {
+        row[index++]=new Long(data.secretKeyLen[i]);
+      }
+      if (data.readsRows) {
+        row=RowDataUtil.addRowData(rowIn,data.prevNrField,row);
+      }
+      if (isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"SecretKeyGenerator.Log.ValueReturned",data.outputRowMeta.getString(row)));
+      putRow(data.outputRowMeta,row);
+    }
+  }
+  setOutputDone();
+  return false;
+}

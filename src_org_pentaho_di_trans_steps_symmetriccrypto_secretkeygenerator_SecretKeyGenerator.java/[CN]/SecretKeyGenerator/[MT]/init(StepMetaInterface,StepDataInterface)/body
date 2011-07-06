@@ -1,0 +1,55 @@
+{
+  meta=(SecretKeyGeneratorMeta)smi;
+  data=(SecretKeyGeneratorData)sdi;
+  if (super.init(smi,sdi)) {
+    if (Const.isEmpty(meta.getAlgorithm())) {
+      logError(BaseMessages.getString(PKG,"SecretKeyGenerator.Log.NoFieldSpecified"));
+      return false;
+    }
+    if (Const.isEmpty(meta.getSecretKeyFieldName())) {
+      logError(BaseMessages.getString(PKG,"SecretKeyGenerator.Log.secretKeyFieldMissing"));
+      return false;
+    }
+    data.nr=meta.getAlgorithm().length;
+    data.algorithm=new int[data.nr];
+    data.scheme=new String[data.nr];
+    data.secretKeyLen=new int[data.nr];
+    data.secretKeyCount=new int[data.nr];
+    for (int i=0; i < data.nr; i++) {
+      data.algorithm[i]=SymmetricCryptoMeta.getAlgorithmTypeFromCode(meta.getAlgorithm()[i]);
+      String len=environmentSubstitute(meta.getSecretKeyLength()[i]);
+      data.secretKeyLen[i]=Const.toInt(len,-1);
+      if (data.secretKeyLen[i] < 0) {
+        logError(BaseMessages.getString(PKG,"SecretKeyGenerator.Log.WrongLength",len,String.valueOf(i)));
+        return false;
+      }
+      String size=environmentSubstitute(meta.getSecretKeyCount()[i]);
+      data.secretKeyCount[i]=Const.toInt(size,-1);
+      if (data.secretKeyCount[i] < 0) {
+        logError(BaseMessages.getString(PKG,"SecretKeyGenerator.Log.WrongSize",size,String.valueOf(i)));
+        return false;
+      }
+      data.scheme[i]=environmentSubstitute(meta.getScheme()[i]);
+    }
+    data.readsRows=getStepMeta().getRemoteInputSteps().size() > 0;
+    List<StepMeta> previous=getTransMeta().findPreviousSteps(getStepMeta());
+    if (previous != null && previous.size() > 0) {
+      data.readsRows=true;
+    }
+    data.addAlgorithmOutput=!Const.isEmpty(meta.getAlgorithmFieldName());
+    data.addSecretKeyLengthOutput=!Const.isEmpty(meta.getSecretKeyLengthFieldName());
+    data.cryptoTrans=new SymmetricCrypto[data.nr];
+    for (int i=0; i < data.nr; i++) {
+      try {
+        SymmetricCryptoMeta cryptoTransMeta=new SymmetricCryptoMeta(meta.getAlgorithm()[i]);
+        data.cryptoTrans[i]=new SymmetricCrypto(cryptoTransMeta,data.scheme[i]);
+      }
+ catch (      Exception e) {
+        logError(BaseMessages.getString(PKG,"SecretKey.Init.Error"),e);
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
