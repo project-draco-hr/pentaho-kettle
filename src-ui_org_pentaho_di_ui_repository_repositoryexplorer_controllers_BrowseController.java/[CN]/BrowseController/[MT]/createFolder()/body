@@ -1,29 +1,37 @@
 {
-  Collection<UIRepositoryDirectory> directories=folderTree.getSelectedItems();
-  if (directories == null || directories.size() == 0) {
-    return;
-  }
-  UIRepositoryDirectory selectedFolder=directories.iterator().next();
-  XulPromptBox prompt=promptForName(null);
-  prompt.addDialogCallback(new XulDialogCallback<String>(){
-    public void onClose(    XulComponent component,    Status status,    String value){
-      newName=value;
+  try {
+    Collection<UIRepositoryDirectory> directories=folderTree.getSelectedItems();
+    if (directories == null || directories.size() == 0) {
+      return;
     }
-    public void onError(    XulComponent component,    Throwable err){
-      throw new RuntimeException(err);
+    UIRepositoryDirectory selectedFolder=directories.iterator().next();
+    XulPromptBox prompt=promptForName(null);
+    prompt.addDialogCallback(new XulDialogCallback<String>(){
+      public void onClose(      XulComponent component,      Status status,      String value){
+        newName=value;
+      }
+      public void onError(      XulComponent component,      Throwable err){
+        throw new RuntimeException(err);
+      }
     }
-  }
 );
-  prompt.open();
-  if (newName != null) {
-    if (selectedFolder == null) {
-      selectedFolder=repositoryDirectory;
+    prompt.open();
+    if (newName != null) {
+      if (selectedFolder == null) {
+        selectedFolder=repositoryDirectory;
+      }
+      UIRepositoryDirectory newDir=selectedFolder.createFolder(newName);
+      dirMap.put(newDir.getObjectId(),newDir);
+      directoryBinding.fireSourceChanged();
+      selectedItemsBinding.fireSourceChanged();
+      this.folderTree.setSelectedItems(Collections.singletonList(selectedFolder));
     }
-    UIRepositoryDirectory newDir=selectedFolder.createFolder(newName);
-    dirMap.put(newDir.getObjectId(),newDir);
-    directoryBinding.fireSourceChanged();
-    selectedItemsBinding.fireSourceChanged();
-    this.folderTree.setSelectedItems(Collections.singletonList(selectedFolder));
+    newName=null;
   }
-  newName=null;
+ catch (  Exception e) {
+    messageBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+    messageBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
+    messageBox.setMessage(BaseMessages.getString(PKG,e.getLocalizedMessage()));
+    messageBox.open();
+  }
 }
