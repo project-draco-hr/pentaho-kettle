@@ -4,6 +4,12 @@
     LDAPInputMeta meta=new LDAPInputMeta();
     getInfo(meta);
     connection=new LDAPConnection(log,transMeta.environmentSubstitute(meta.getHost()),Const.toInt(transMeta.environmentSubstitute(meta.getPort()),LDAPConnection.DEFAULT_PORT));
+    connection.setProtocol(LDAPConnection.getProtocolFromCode(meta.getProtocol()));
+    if (meta.isUseCertificate()) {
+      connection.setTrustStorePath(meta.getTrustStorePath());
+      connection.setTrustStorePassword(meta.getTrustStorePassword());
+      connection.trustAllCertificates(meta.isTrustAllCertificates());
+    }
     if (wusingAuthentication.getSelection()) {
       connection.connect(transMeta.environmentSubstitute(meta.getUserName()),Encr.decryptPasswordOptionallyEncrypted(transMeta.environmentSubstitute(meta.getPassword())));
     }
@@ -16,10 +22,7 @@
     mb.open();
   }
  catch (  Exception e) {
-    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.NOK",e.getMessage()));
-    mb.setText(BaseMessages.getString(PKG,"LDAPInputDialog.Connected.Title.Error"));
-    mb.open();
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"LDAPInputDialog.Connected.Title.Error"),BaseMessages.getString(PKG,"LDAPInputDialog.Connected.NOK"),e);
   }
  finally {
     if (connection != null) {
