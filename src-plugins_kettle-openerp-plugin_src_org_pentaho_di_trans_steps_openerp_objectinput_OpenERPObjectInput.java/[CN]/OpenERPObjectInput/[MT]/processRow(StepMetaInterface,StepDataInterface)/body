@@ -1,0 +1,52 @@
+{
+  this.logBasic("Getting Field Row Meta.");
+  this.logBasic("Getting Rows.");
+  if (first == true) {
+    try {
+      final RowMetaInterface rowMeta=data.helper.getFieldRowMeta(meta.getMappings());
+      ArrayList<FieldMapping> allFields=data.helper.getDefaultFieldMappings(meta.getObjectName());
+      Object[][] filter=new Object[meta.getFilterList().size()][3];
+      for (int i=0; i < meta.getFilterList().size(); i++) {
+        ReadFilter filterItem=meta.getFilterList().get(i);
+        filter[i][0]=filterItem.field_name;
+        filter[i][1]=filterItem.operator;
+        FieldMapping fld=null;
+        for (int j=0; j < allFields.size(); j++)         if (allFields.get(j).source_field.equals(filterItem.field_name) && allFields.get(j).source_index <= 0) {
+          fld=allFields.get(j);
+          break;
+        }
+        if (fld == null)         filter[i][2]=filterItem.value;
+ else         if (fld.target_field_type == ValueMetaInterface.TYPE_BOOLEAN) {
+          if (filterItem.value.equals("1") || filterItem.value.equalsIgnoreCase("yes") || filterItem.value.equalsIgnoreCase("y"))           filter[i][2]=true;
+ else           filter[i][2]=Boolean.parseBoolean(filterItem.value);
+        }
+ else         if (fld.target_field_type == ValueMetaInterface.TYPE_NUMBER)         filter[i][2]=Double.parseDouble(filterItem.value);
+ else         if (fld.target_field_type == ValueMetaInterface.TYPE_INTEGER)         filter[i][2]=Integer.parseInt(filterItem.value);
+ else         filter[i][2]=filterItem.value;
+        this.logBasic("Setting filter: [" + filter[i][0].toString() + ","+ filter[i][1].toString()+ ","+ filter[i][2].toString()+ "]");
+      }
+      data.helper.getObjectData(meta.getObjectName(),filter,meta.getReadBatchSize(),meta.getMappings(),new RowsReadListener(){
+        @Override public void rowsRead(        RowCollection rows){
+          for (          Row row : rows) {
+            try {
+              putRow(row,rowMeta);
+            }
+ catch (            KettleStepException e) {
+              logError("An error occurred, processing will be stopped: " + e.getMessage());
+              setErrors(1);
+              stopAll();
+            }
+            incrementLinesInput();
+          }
+        }
+      }
+);
+    }
+ catch (    Exception e) {
+      throw new KettleException(e.getMessage());
+    }
+  }
+  this.logBasic("Process Ended.");
+  setOutputDone();
+  return false;
+}
