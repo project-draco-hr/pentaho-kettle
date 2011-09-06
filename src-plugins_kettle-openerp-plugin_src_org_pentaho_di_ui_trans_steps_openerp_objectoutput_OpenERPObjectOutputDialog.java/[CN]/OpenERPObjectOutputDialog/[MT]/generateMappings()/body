@@ -1,0 +1,60 @@
+{
+  String[] sourceFields=getSteamFieldsNames(true);
+  if (sourceFields == null)   return;
+  String[] targetFields=getModelFieldNames(true);
+  if (targetFields == null)   return;
+  List<String> sourceFieldList=Arrays.asList(sourceFields);
+  List<String> targetFieldsList=Arrays.asList(targetFields);
+  List<SourceToTargetMapping> mappings=new ArrayList<SourceToTargetMapping>();
+  StringBuffer missingSourceFields=new StringBuffer();
+  StringBuffer missingTargetFields=new StringBuffer();
+  int nrFields=tableViewFieldMappings.nrNonEmpty();
+  for (int i=0; i < nrFields; i++) {
+    TableItem item=tableViewFieldMappings.getNonEmpty(i);
+    String source=item.getText(2);
+    String target=item.getText(1);
+    int sourceIndex=sourceFieldList.indexOf(source);
+    if (sourceIndex < 0) {
+      missingSourceFields.append(Const.CR + "   " + source+ " --> "+ target);
+    }
+    int targetIndex=targetFieldsList.indexOf(target);
+    if (targetIndex < 0) {
+      missingTargetFields.append(Const.CR + "   " + source+ " --> "+ target);
+    }
+    if (sourceIndex < 0 || targetIndex < 0) {
+      continue;
+    }
+    SourceToTargetMapping mapping=new SourceToTargetMapping(sourceIndex,targetIndex);
+    mappings.add(mapping);
+  }
+  if (missingSourceFields.length() > 0 || missingTargetFields.length() > 0) {
+    String message="";
+    if (missingSourceFields.length() > 0) {
+      message+=BaseMessages.getString(PKG,"OpenERPObjectOutputDialog.DoMapping.SomeSourceFieldsNotFound",missingSourceFields.toString()) + Const.CR;
+    }
+    if (missingTargetFields.length() > 0) {
+      message+=BaseMessages.getString(PKG,"OpenERPObjectOutputDialog.DoMapping.SomeTargetFieldsNotFound",missingSourceFields.toString()) + Const.CR;
+    }
+    message+=Const.CR;
+    message+=BaseMessages.getString(PKG,"OpenERPObjectOutputDialog.DoMapping.SomeFieldsNotFoundContinue") + Const.CR;
+    MessageDialog.setDefaultImage(GUIResource.getInstance().getImageSpoon());
+    boolean goOn=MessageDialog.openConfirm(shell,BaseMessages.getString(PKG,"OpenERPObjectOutputDialog.DoMapping.SomeFieldsNotFoundTitle"),message);
+    if (!goOn) {
+      return;
+    }
+  }
+  EnterMappingDialog d=new EnterMappingDialog(this.shell,sourceFields,targetFields,mappings);
+  mappings=d.open();
+  if (mappings != null) {
+    tableViewFieldMappings.table.removeAll();
+    tableViewFieldMappings.table.setItemCount(mappings.size());
+    for (int i=0; i < mappings.size(); i++) {
+      SourceToTargetMapping mapping=(SourceToTargetMapping)mappings.get(i);
+      TableItem item=tableViewFieldMappings.table.getItem(i);
+      item.setText(2,sourceFields[mapping.getSourcePosition()]);
+      item.setText(1,targetFields[mapping.getTargetPosition()]);
+    }
+    tableViewFieldMappings.setRowNums();
+    tableViewFieldMappings.optWidth(true);
+  }
+}

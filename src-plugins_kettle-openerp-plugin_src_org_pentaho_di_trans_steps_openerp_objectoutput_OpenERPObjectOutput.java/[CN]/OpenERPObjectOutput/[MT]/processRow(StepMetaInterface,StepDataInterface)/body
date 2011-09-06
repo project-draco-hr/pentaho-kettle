@@ -1,0 +1,38 @@
+{
+  Object[] inputRow=getRow();
+  if (inputRow == null) {
+    try {
+      CommitBatch();
+    }
+ catch (    Exception e) {
+      throw new KettleException("Failed to commit batch: ",e);
+    }
+    this.logDebug("No More Rows.");
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    try {
+      prepareFieldList();
+    }
+ catch (    Exception e) {
+      throw new KettleException("Failed to initialize step ",e);
+    }
+    first=false;
+    data.batchRows.clear();
+  }
+  String row="";
+  try {
+    Object[] newRow=new Object[fieldList.length];
+    if (this.index[0] == -1)     newRow[0]=0;
+ else     newRow[0]=inputRow[this.index[0]];
+    for (int i=1; i < fieldList.length; i++)     newRow[i]=inputRow[this.index[i]];
+    newRow=data.helper.fixImportDataTypes(meta.getModelName(),fieldList,fieldCache,newRow);
+    data.batchRows.add(newRow);
+    if (data.batchRows.size() == meta.getCommitBatchSize())     CommitBatch();
+  }
+ catch (  Exception e) {
+    throw new KettleException("Failed to commit batch: " + row,e);
+  }
+  return true;
+}
