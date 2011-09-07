@@ -1,0 +1,46 @@
+{
+  KettleEnvironment.init();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("Test optimization level exception handling");
+  PluginRegistry registry=PluginRegistry.getInstance();
+  String injectorStepname="injector step";
+  InjectorMeta im=new InjectorMeta();
+  String injectorPid=registry.getPluginId(StepPluginType.class,im);
+  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,(StepMetaInterface)im);
+  transMeta.addStep(injectorStep);
+  String javaScriptStepname="javascript step";
+  ScriptValuesMetaMod scriptValuesMetaMod=new ScriptValuesMetaMod();
+  ScriptValuesScript[] js=new ScriptValuesScript[]{new ScriptValuesScript(ScriptValuesScript.TRANSFORM_SCRIPT,"script","var str = string;\n" + "var bool = LuhnCheck(str);")};
+  scriptValuesMetaMod.setJSScripts(js);
+  scriptValuesMetaMod.setFieldname(new String[]{"bool"});
+  scriptValuesMetaMod.setRename(new String[]{""});
+  scriptValuesMetaMod.setType(new int[]{ValueMetaInterface.TYPE_BOOLEAN});
+  scriptValuesMetaMod.setLength(new int[]{-1});
+  scriptValuesMetaMod.setPrecision(new int[]{-1});
+  scriptValuesMetaMod.setReplace(new boolean[]{false});
+  scriptValuesMetaMod.setCompatible(false);
+  scriptValuesMetaMod.setOptimizationLevel(optimizationLevel);
+  String javaScriptStepPid=registry.getPluginId(StepPluginType.class,scriptValuesMetaMod);
+  StepMeta javaScriptStep=new StepMeta(javaScriptStepPid,javaScriptStepname,(StepMetaInterface)scriptValuesMetaMod);
+  String dummyStepname="dummy step";
+  DummyTransMeta dm=new DummyTransMeta();
+  String dummyPid=registry.getPluginId(StepPluginType.class,dm);
+  StepMeta dummyStep=new StepMeta(dummyPid,dummyStepname,(StepMetaInterface)dm);
+  transMeta.addStep(dummyStep);
+  TransHopMeta hi2=new TransHopMeta(javaScriptStep,dummyStep);
+  transMeta.addTransHop(hi2);
+  JavaScriptSpecialTest javaScriptSpecialTest=new JavaScriptSpecialTest();
+  List<RowMetaAndData> inputList=javaScriptSpecialTest.createData1();
+  List<CheckResultInterface> remarks=new ArrayList<CheckResultInterface>();
+  String[] input=new String[]{injectorStepname};
+  String[] output=new String[]{};
+  Iterator<RowMetaAndData> it=inputList.iterator();
+  if (it.hasNext()) {
+    RowMetaAndData rowMetaAndData=(RowMetaAndData)it.next();
+    scriptValuesMetaMod.check(remarks,transMeta,javaScriptStep,rowMetaAndData.getRowMeta(),input,output,null);
+  }
+ else {
+    fail("No data in the inputList");
+  }
+  return remarks;
+}

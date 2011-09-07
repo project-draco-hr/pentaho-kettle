@@ -22,19 +22,22 @@
         data.replaceIndex[i]=-1;
       }
     }
-    int optimizationLevel=9;
-    String optLevel=getVariable("ScriptMod.Optimization.Level");
-    if (!Const.isEmpty(optLevel)) {
-      String adjustedOptLevel=environmentSubstitute(optLevel);
-      try {
-        optimizationLevel=Integer.parseInt(adjustedOptLevel);
+    data.cx=ContextFactory.getGlobal().enterContext();
+    try {
+      String optimizationLevelAsString=environmentSubstitute(meta.getOptimizationLevel());
+      if (!Const.isEmpty(optimizationLevelAsString)) {
+        data.cx.setOptimizationLevel(Integer.parseInt(optimizationLevelAsString.trim()));
       }
- catch (      Exception ex) {
-        throw new KettleStepException(ex);
+ else {
+        data.cx.setOptimizationLevel(Integer.parseInt(ScriptValuesMetaMod.OPTIMIZATION_LEVEL_DEFAULT));
       }
     }
-    data.cx=ContextFactory.getGlobal().enterContext();
-    data.cx.setOptimizationLevel(optimizationLevel);
+ catch (    NumberFormatException nfe) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"ScriptValuesMetaMod.Exception.NumberFormatException",environmentSubstitute(meta.getOptimizationLevel())));
+    }
+catch (    IllegalArgumentException iae) {
+      throw new KettleException(iae.getMessage());
+    }
     data.scope=data.cx.initStandardObjects(null,false);
     bFirstRun=true;
     Scriptable jsvalue=Context.toObject(this,data.scope);
