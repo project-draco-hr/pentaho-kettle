@@ -14,10 +14,11 @@
   if (first) {
     try {
       prepareFieldList();
-      if (index[0] == -1 && meta.getKeyLookups().size() > 0) {
+      if (idIndex == -1 && meta.getKeyLookups().size() > 0) {
         prepareReadParameters();
         prepareCache();
       }
+      rowFields=openerERPAdapter.getFields(meta.getModelFields());
     }
  catch (    Exception e) {
       throw new KettleException("Failed to initialize step ",e);
@@ -27,15 +28,14 @@
   }
   String row="";
   try {
-    Object[] newRow=new Object[fieldList.length];
-    if (index[0] >= 0)     newRow[0]=inputRow[this.index[0]];
+    Row newRow=openerERPAdapter.getNewRow(rowFields);
+    if (idIndex >= 0)     newRow.put("id",inputRow[idIndex]);
  else {
       String combinedKey="";
       for (      int i : readRowIndex)       combinedKey+=SEPARATOR + (inputRow[i] == null ? "" : inputRow[i]);
-      if (filterRowCache.containsKey(combinedKey))       newRow[0]=filterRowCache.get(combinedKey);
+      if (filterRowCache.containsKey(combinedKey))       newRow.put("id",filterRowCache.get(combinedKey));
     }
-    for (int i=1; i < fieldList.length; i++)     newRow[i]=inputRow[this.index[i]];
-    newRow=data.helper.fixImportDataTypes(meta.getModelName(),fieldList,fieldCache,newRow);
+    for (int i=0; i < meta.getModelFields().length; i++)     newRow.put(meta.getModelFields()[i],inputRow[this.index[i]]);
     data.batchRows.add(newRow);
     if (data.batchRows.size() == meta.getCommitBatchSize())     CommitBatch();
   }
