@@ -1,0 +1,94 @@
+{
+  buf.append(' ');
+  if (value == null) {
+    buf.append("NULL ");
+    return;
+  }
+  if (value instanceof Blob) {
+    Blob blob=(Blob)value;
+    value=blob.getBytes(1,(int)blob.length());
+  }
+ else   if (value instanceof Clob) {
+    Clob clob=(Clob)value;
+    value=clob.getSubString(1,(int)clob.length());
+  }
+  if (value instanceof DateTime) {
+    buf.append('\'');
+    buf.append(value);
+    buf.append('\'');
+  }
+ else   if (value instanceof byte[]) {
+    byte[] bytes=(byte[])value;
+    int len=bytes.length;
+    if (len >= 0) {
+      buf.append('0').append('x');
+      if (len == 0) {
+        buf.append('0').append('0');
+      }
+ else {
+        for (int i=0; i < len; i++) {
+          int b1=bytes[i] & 0xFF;
+          buf.append(hex[b1 >> 4]);
+          buf.append(hex[b1 & 0x0F]);
+        }
+      }
+    }
+  }
+ else   if (value instanceof String) {
+    String tmp=(String)value;
+    int len=tmp.length();
+    if (isUnicode) {
+      buf.append('N');
+    }
+    buf.append('\'');
+    for (int i=0; i < len; i++) {
+      char c=tmp.charAt(i);
+      if (c == '\'') {
+        buf.append('\'');
+      }
+      buf.append(c);
+    }
+    buf.append('\'');
+  }
+ else   if (value instanceof java.sql.Date) {
+    DateTime dt=new DateTime((java.sql.Date)value);
+    buf.append('\'');
+    buf.append(dt);
+    buf.append('\'');
+  }
+ else   if (value instanceof java.sql.Time) {
+    DateTime dt=new DateTime((java.sql.Time)value);
+    buf.append('\'');
+    buf.append(dt);
+    buf.append('\'');
+  }
+ else   if (value instanceof java.sql.Timestamp) {
+    DateTime dt=new DateTime((java.sql.Timestamp)value);
+    buf.append('\'');
+    buf.append(dt);
+    buf.append('\'');
+  }
+ else   if (value instanceof Boolean) {
+    buf.append(((Boolean)value).booleanValue() ? '1' : '0');
+  }
+ else   if (value instanceof BigDecimal) {
+    String tmp=value.toString();
+    int maxlen=connection.getMaxPrecision();
+    if (tmp.charAt(0) == '-') {
+      maxlen++;
+    }
+    if (tmp.indexOf('.') >= 0) {
+      maxlen++;
+    }
+    if (tmp.length() > maxlen) {
+      buf.append(tmp.substring(0,maxlen));
+    }
+ else {
+      buf.append(tmp);
+    }
+  }
+ else {
+    buf.append(value.toString());
+  }
+  buf.append(' ');
+}

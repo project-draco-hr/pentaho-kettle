@@ -1,0 +1,43 @@
+{
+  try {
+    start--;
+    if (start < 0) {
+      throw new SQLException(Messages.get("error.blobclob.badpos"),"HY090");
+    }
+    if (start >= this.length) {
+      throw new SQLException(Messages.get("error.blobclob.badposlen"),"HY090");
+    }
+    if (pattern == null) {
+      throw new SQLException(Messages.get("error.blob.badpattern"),"HY009");
+    }
+    if (pattern.length == 0 || length == 0 || pattern.length > length) {
+      return -1;
+    }
+    int limit=(int)length - pattern.length;
+    if (blobFile == null) {
+      for (int i=(int)start; i <= limit; i++) {
+        int p;
+        for (p=0; p < pattern.length && buffer[i + p] == pattern[p]; p++)         ;
+        if (p == pattern.length) {
+          return i + 1;
+        }
+      }
+    }
+ else {
+      open();
+      for (int i=(int)start; i <= limit; i++) {
+        int p;
+        for (p=0; p < pattern.length && read(i + p) == (pattern[p] & 0xFF); p++)         ;
+        if (p == pattern.length) {
+          close();
+          return i + 1;
+        }
+      }
+      close();
+    }
+    return -1;
+  }
+ catch (  IOException e) {
+    throw new SQLException(Messages.get("error.generic.ioerror",e.getMessage()),"HY000");
+  }
+}

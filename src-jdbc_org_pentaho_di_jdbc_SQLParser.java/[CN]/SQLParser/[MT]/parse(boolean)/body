@@ -1,0 +1,73 @@
+{
+  boolean isSelect=false;
+  boolean isModified=false;
+  boolean isSlowScan=true;
+  try {
+    while (s < len) {
+      final char c=in[s];
+switch (c) {
+case '{':
+        escape();
+      isModified=true;
+    break;
+case '[':
+case '"':
+case '\'':
+  copyString();
+break;
+case '?':
+copyParam(null,d);
+break;
+case '/':
+if (s + 1 < len && in[s + 1] == '*') {
+skipMultiComments();
+}
+ else {
+out[d++]=c;
+s++;
+}
+break;
+case '-':
+if (s + 1 < len && in[s + 1] == '-') {
+skipSingleComments();
+}
+ else {
+out[d++]=c;
+s++;
+}
+break;
+default :
+if (isSlowScan && Character.isLetter(c)) {
+if (keyWord == null) {
+keyWord=copyKeyWord();
+if ("select".equals(keyWord)) {
+isSelect=true;
+}
+isSlowScan=extractTable && isSelect;
+break;
+}
+if (extractTable && isSelect) {
+String sqlWord=copyKeyWord();
+if ("from".equals(sqlWord)) {
+isSlowScan=false;
+tableName=getTableName();
+}
+break;
+}
+}
+out[d++]=c;
+s++;
+break;
+}
+}
+String result[]=new String[4];
+result[0]=(isModified) ? new String(out,0,d) : sql;
+result[1]=procName;
+result[2]=(keyWord == null) ? "" : keyWord;
+result[3]=tableName;
+return result;
+}
+ catch (IndexOutOfBoundsException e) {
+throw new SQLException(Messages.get("error.parsesql.missing",String.valueOf(terminator)),"22025");
+}
+}
