@@ -13,6 +13,8 @@
   }
   if (first) {
     try {
+      data.outputRowMeta=getInputRowMeta().clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
       prepareFieldList();
       if (idIndex == -1 && meta.getKeyLookups().size() > 0) {
         prepareReadParameters();
@@ -24,20 +26,33 @@
       throw new KettleException("Failed to initialize step ",e);
     }
     first=false;
-    data.batchRows.clear();
+    data.updateBatchRows.clear();
   }
+  Object[] outputRow=new Object[data.outputRowMeta.size()];
+  for (int i=0; i < getInputRowMeta().size(); i++)   outputRow[i]=inputRow[i];
   String row="";
   try {
-    Row newRow=openerERPAdapter.getNewRow(rowFields);
-    if (idIndex >= 0)     newRow.put("id",inputRow[idIndex]);
+    Row updateRow=openerERPAdapter.getNewRow(rowFields);
+    if (idIndex >= 0)     updateRow.put("id",inputRow[idIndex]);
  else {
       String combinedKey="";
       for (      int i : readRowIndex)       combinedKey+=SEPARATOR + (inputRow[i] == null ? "" : inputRow[i]);
-      if (filterRowCache.containsKey(combinedKey))       newRow.put("id",filterRowCache.get(combinedKey));
+      if (filterRowCache.containsKey(combinedKey))       updateRow.put("id",filterRowCache.get(combinedKey));
+ else       updateRow.put("id",0);
     }
-    for (int i=0; i < meta.getModelFields().length; i++)     newRow.put(meta.getModelFields()[i],inputRow[this.index[i]]);
-    data.batchRows.add(newRow);
-    if (data.batchRows.size() == meta.getCommitBatchSize())     CommitBatch();
+    for (int i=0; i < meta.getModelFields().length; i++)     updateRow.put(meta.getModelFields()[i],inputRow[this.index[i]]);
+    if (meta.getOutputIDField() && updateRow.getID() == 0) {
+      openerERPAdapter.createObject(updateRow);
+      outputRow[data.outputRowMeta.indexOfValue(meta.getOutputIDFieldName())]=Long.parseLong(updateRow.get("id").toString());
+      incrementLinesOutput();
+      putRow(data.outputRowMeta,outputRow);
+    }
+ else {
+      if (meta.getOutputIDField())       outputRow[data.outputRowMeta.indexOfValue(meta.getOutputIDFieldName())]=Long.parseLong(updateRow.get("id").toString());
+      data.updateBatchRows.add(updateRow);
+      data.outputBatchRows.add(outputRow);
+      if (data.updateBatchRows.size() == meta.getCommitBatchSize())       CommitBatch();
+    }
   }
  catch (  Exception e) {
     throw new KettleException("Failed to commit batch: " + row,e);
