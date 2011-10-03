@@ -1,0 +1,89 @@
+{
+  String localrealZipfilename=KettleVFS.getFilename(data.zipFile);
+  boolean updateZip=false;
+  byte[] buffer=null;
+  OutputStream dest=null;
+  BufferedOutputStream buff=null;
+  ZipOutputStream out=null;
+  InputStream in=null;
+  ZipInputStream zin=null;
+  ZipEntry entry=null;
+  File tempFile=null;
+  HashSet<String> fileSet=new HashSet<String>();
+  try {
+    updateZip=(data.zipFile.exists() && meta.isOverwriteZipEntry());
+    if (updateZip) {
+      File fileZip=getFile(localrealZipfilename);
+      tempFile=File.createTempFile(fileZip.getName(),null);
+      tempFile.delete();
+      updateZip=fileZip.renameTo(tempFile);
+    }
+    buffer=new byte[18024];
+    dest=KettleVFS.getOutputStream(localrealZipfilename,false);
+    buff=new BufferedOutputStream(dest);
+    out=new ZipOutputStream(buff);
+    if (updateZip) {
+      zin=new ZipInputStream(new FileInputStream(tempFile));
+      entry=zin.getNextEntry();
+      while (entry != null) {
+        String name=entry.getName();
+        if (!fileSet.contains(name)) {
+          out.putNextEntry(new ZipEntry(name));
+          int len;
+          while ((len=zin.read(buffer)) > 0) {
+            out.write(buffer,0,len);
+          }
+          fileSet.add(name);
+        }
+        entry=zin.getNextEntry();
+      }
+      zin.close();
+    }
+    out.setMethod(ZipOutputStream.DEFLATED);
+    out.setLevel(Deflater.BEST_COMPRESSION);
+    in=KettleVFS.getInputStream(data.sourceFile);
+    String relativeName=data.sourceFile.getName().getBaseName();
+    if (meta.isKeepSouceFolder()) {
+      relativeName=KettleVFS.getFilename(data.sourceFile);
+      if (data.baseFolder != null) {
+        data.baseFolder+=Const.FILE_SEPARATOR;
+        relativeName=relativeName.replace(data.baseFolder,"");
+      }
+    }
+    if (!fileSet.contains(relativeName)) {
+      out.putNextEntry(new ZipEntry(relativeName));
+      int len;
+      while ((len=in.read(buffer)) > 0) {
+        out.write(buffer,0,len);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"ZipFile.ErrorCreatingZip"),e);
+  }
+ finally {
+    try {
+      if (in != null) {
+        in.close();
+      }
+      if (out != null) {
+        out.flush();
+        out.closeEntry();
+        out.close();
+      }
+      if (buff != null) {
+        buff.close();
+      }
+      if (dest != null) {
+        dest.close();
+      }
+      if (tempFile != null) {
+        tempFile.delete();
+      }
+      fileSet=null;
+    }
+ catch (    Exception e) {
+    }
+    ;
+  }
+}
