@@ -1,0 +1,78 @@
+{
+  log.logBasic(BaseMessages.getString(PKG,"JobEntrySendNagiosPassiveCheck.Started",serverName));
+  Result result=previousResult;
+  result.setNrErrors(1);
+  result.setResult(false);
+  String realServername=environmentSubstitute(serverName);
+  String realPassword=environmentSubstitute(password);
+  int realPort=Const.toInt(environmentSubstitute(port),DEFAULT_PORT);
+  int realResponseTimeOut=Const.toInt(environmentSubstitute(responseTimeOut),DEFAULT_RESPONSE_TIME_OUT);
+  int realConnectionTimeOut=Const.toInt(environmentSubstitute(connectionTimeOut),DEFAULT_CONNECTION_TIME_OUT);
+  String realSenderServerName=environmentSubstitute(senderServerName);
+  String realSenderServiceName=environmentSubstitute(senderServiceName);
+  try {
+    if (Const.isEmpty(realServername)) {
+      throw new KettleException(BaseMessages.getString(PKG,"JobSendNagiosPassiveCheck.Error.TargetServerMissing"));
+    }
+    String realMessageString=environmentSubstitute(message);
+    if (Const.isEmpty(realMessageString)) {
+      throw new KettleException(BaseMessages.getString(PKG,"JobSendNagiosPassiveCheck.Error.MessageMissing"));
+    }
+    Level level=Level.UNKNOWN;
+switch (getLevel()) {
+case LEVEL_TYPE_OK:
+      level=Level.OK;
+    break;
+case LEVEL_TYPE_CRITICAL:
+  level=Level.CRITICAL;
+break;
+case LEVEL_TYPE_WARNING:
+level=Level.WARNING;
+break;
+default :
+break;
+}
+Encryption encr=Encryption.NONE;
+switch (getEncryptionMode()) {
+case ENCRYPTION_MODE_TRIPLEDES:
+encr=Encryption.TRIPLE_DES;
+break;
+case ENCRYPTION_MODE_XOR:
+encr=Encryption.XOR;
+break;
+default :
+break;
+}
+NagiosSettingsBuilder ns=new NagiosSettingsBuilder();
+ns.withNagiosHost(realServername);
+ns.withPort(realPort);
+ns.withConnectionTimeout(realConnectionTimeOut);
+ns.withResponseTimeout(realResponseTimeOut);
+ns.withEncryption(encr);
+if (Const.isEmpty(realPassword)) {
+ns.withPassword(realPassword);
+}
+ else {
+ns.withNoPassword();
+}
+NagiosSettings settings=ns.create();
+MessagePayloadBuilder pb=new MessagePayloadBuilder();
+if (!Const.isEmpty(realSenderServerName)) {
+pb.withHostname(realSenderServerName);
+}
+pb.withLevel(level);
+if (!Const.isEmpty(realSenderServiceName)) {
+pb.withServiceName(realSenderServiceName);
+}
+pb.withMessage(realMessageString);
+MessagePayload payload=pb.create();
+NagiosPassiveCheckSender sender=new NagiosPassiveCheckSender(settings);
+sender.send(payload);
+result.setNrErrors(0);
+result.setResult(true);
+}
+ catch (Exception e) {
+log.logError(toString(),BaseMessages.getString(PKG,"JobEntrySendNagiosPassiveCheck.ErrorGetting",e.toString()));
+}
+return result;
+}
