@@ -1,6 +1,6 @@
 {
   lifeListeners=new HashSet<LifecycleListener>();
-  PluginRegistry registry=PluginRegistry.getInstance();
+  final PluginRegistry registry=PluginRegistry.getInstance();
   List<PluginInterface> plugins=registry.getPlugins(LifecyclePluginType.class);
   for (  PluginInterface plugin : plugins) {
     try {
@@ -10,4 +10,31 @@
       LogChannel.GENERAL.logError("Unexpected error loading class for plugin " + plugin.getName(),e);
     }
   }
+  registry.addPluginListener(LifecyclePluginType.class,new PluginTypeListener(){
+    public void pluginAdded(    Object serviceObject){
+      LifecycleListener listener=null;
+      try {
+        listener=(LifecycleListener)PluginRegistry.getInstance().loadClass((PluginInterface)serviceObject);
+      }
+ catch (      KettlePluginException e) {
+        e.printStackTrace();
+        return;
+      }
+      lifeListeners.add(listener);
+      if (started) {
+        try {
+          listener.onStart(handler);
+        }
+ catch (        LifecycleException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    public void pluginRemoved(    Object serviceObject){
+      lifeListeners.remove(serviceObject);
+    }
+    public void pluginChanged(    Object serviceObject){
+    }
+  }
+);
 }

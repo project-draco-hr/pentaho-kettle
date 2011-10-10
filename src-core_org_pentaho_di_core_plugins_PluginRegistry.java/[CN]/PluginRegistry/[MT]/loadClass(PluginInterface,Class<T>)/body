@@ -2,72 +2,77 @@
   if (plugin == null) {
     throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.NoValidStepOrPlugin.PLUGINREGISTRY001"));
   }
-  String className=plugin.getClassMap().get(pluginClass);
-  if (className == null) {
-    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.NoValidClassRequested.PLUGINREGISTRY002",pluginClass.getName()));
+  if (plugin instanceof ClassLoadingPluginInterface) {
+    return ((ClassLoadingPluginInterface)plugin).loadClass(pluginClass);
   }
-  try {
-    Class<? extends T> cl=null;
-    if (plugin.isNativePlugin()) {
-      cl=(Class<? extends T>)Class.forName(className);
+ else {
+    String className=plugin.getClassMap().get(pluginClass);
+    if (className == null) {
+      throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.NoValidClassRequested.PLUGINREGISTRY002",pluginClass.getName()));
     }
- else {
-      List<String> jarfiles=plugin.getLibraries();
-      URL urls[]=new URL[jarfiles.size()];
-      for (int i=0; i < jarfiles.size(); i++) {
-        File jarfile=new File(jarfiles.get(i));
-        urls[i]=new URL(URLDecoder.decode(jarfile.toURI().toURL().toString(),"UTF-8"));
-      }
-      ClassLoader classLoader=getClass().getClassLoader();
-      URLClassLoader ucl=null;
-      if (plugin.isSeparateClassLoaderNeeded()) {
-        ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+    try {
+      Class<? extends T> cl=null;
+      if (plugin.isNativePlugin()) {
+        cl=(Class<? extends T>)Class.forName(className);
       }
  else {
-        Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
-        if (classLoaders == null) {
-          classLoaders=new HashMap<PluginInterface,URLClassLoader>();
-          classLoaderMap.put(plugin.getPluginType(),classLoaders);
+        List<String> jarfiles=plugin.getLibraries();
+        URL urls[]=new URL[jarfiles.size()];
+        for (int i=0; i < jarfiles.size(); i++) {
+          File jarfile=new File(jarfiles.get(i));
+          urls[i]=new URL(URLDecoder.decode(jarfile.toURI().toURL().toString(),"UTF-8"));
+        }
+        ClassLoader classLoader=getClass().getClassLoader();
+        URLClassLoader ucl=null;
+        if (plugin.isSeparateClassLoaderNeeded()) {
+          ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
         }
  else {
-          ucl=classLoaders.get(plugin);
-        }
-        if (ucl == null) {
-          if (plugin.getPluginDirectory() != null) {
-            ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
-            if (ucl == null) {
-              ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
-              classLoaders.put(plugin,ucl);
-              folderBasedClassLoaderMap.put(plugin.getPluginDirectory().toString(),ucl);
-            }
+          Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
+          if (classLoaders == null) {
+            classLoaders=new HashMap<PluginInterface,URLClassLoader>();
+            classLoaderMap.put(plugin.getPluginType(),classLoaders);
           }
  else {
             ucl=classLoaders.get(plugin);
-            if (ucl == null) {
-              ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
-              classLoaders.put(plugin,ucl);
+          }
+          if (ucl == null) {
+            if (plugin.getPluginDirectory() != null) {
+              ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
+              if (ucl == null) {
+                ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+                classLoaders.put(plugin,ucl);
+                folderBasedClassLoaderMap.put(plugin.getPluginDirectory().toString(),ucl);
+              }
+            }
+ else {
+              ucl=classLoaders.get(plugin);
+              if (ucl == null) {
+                ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+                classLoaders.put(plugin,ucl);
+              }
             }
           }
         }
+        cl=(Class<? extends T>)ucl.loadClass(className);
       }
-      cl=(Class<? extends T>)ucl.loadClass(className);
+      return cl.newInstance();
     }
-    return cl.newInstance();
-  }
- catch (  ClassNotFoundException e) {
-    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.ClassNotFound.PLUGINREGISTRY003"),e);
-  }
-catch (  InstantiationException e) {
-    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.UnableToInstantiateClass.PLUGINREGISTRY004"),e);
-  }
-catch (  IllegalAccessException e) {
-    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.IllegalAccessToClass.PLUGINREGISTRY005"),e);
-  }
-catch (  MalformedURLException e) {
-    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.MalformedURL.PLUGINREGISTRY006"),e);
-  }
-catch (  Throwable e) {
-    e.printStackTrace();
-    throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.UnExpectedErrorLoadingClass.PLUGINREGISTRY007"),e);
+ catch (    ClassNotFoundException e) {
+      throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.ClassNotFound.PLUGINREGISTRY003"),e);
+    }
+catch (    InstantiationException e) {
+      throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.UnableToInstantiateClass.PLUGINREGISTRY004"),e);
+    }
+catch (    IllegalAccessException e) {
+      throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.IllegalAccessToClass.PLUGINREGISTRY005"),e);
+    }
+catch (    MalformedURLException e) {
+      throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.MalformedURL.PLUGINREGISTRY006"),e);
+    }
+catch (    Throwable e) {
+      e.printStackTrace();
+      throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.UnExpectedErrorLoadingClass.PLUGINREGISTRY007"),e);
+    }
   }
 }

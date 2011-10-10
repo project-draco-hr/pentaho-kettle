@@ -1,0 +1,52 @@
+{
+  this.stepMeta=stepMeta;
+  this.stepDataInterface=stepDataInterface;
+  this.stepname=stepMeta.getName();
+  this.socketRepository=trans.getSocketRepository();
+  if (stepMeta.getName() == null) {
+    throw new RuntimeException("A step in transformation [" + transMeta.toString() + "] doesn't have a name.  A step should always have a name to identify it by.");
+  }
+  log=new LogChannel(this,trans);
+  logLevel=log.getLogLevel();
+  first=true;
+  clusteredPartitioningFirst=true;
+  running=new AtomicBoolean(false);
+  stopped=new AtomicBoolean(false);
+  paused=new AtomicBoolean(false);
+  init=false;
+synchronized (statusCountersLock) {
+    linesRead=0L;
+    linesWritten=0L;
+    linesUpdated=0L;
+    linesSkipped=0L;
+    linesRejected=0L;
+    linesInput=0L;
+    linesOutput=0L;
+  }
+  inputRowSets=null;
+  outputRowSets=null;
+  nextSteps=null;
+  terminator=stepMeta.hasTerminator();
+  if (terminator) {
+    terminator_rows=new ArrayList<Object[]>();
+  }
+ else {
+    terminator_rows=null;
+  }
+  start_time=null;
+  stop_time=null;
+  distributed=stepMeta.isDistributes();
+  if (distributed)   if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"BaseStep.Log.DistributionActivated"));
+ else   if (log.isDetailed())   logDetailed(BaseMessages.getString(PKG,"BaseStep.Log.DistributionDeactivated"));
+  rowListeners=new ArrayList<RowListener>();
+  resultFiles=new Hashtable<String,ResultFile>();
+  repartitioning=StepPartitioningMeta.PARTITIONING_METHOD_NONE;
+  partitionTargets=new Hashtable<String,BlockingRowSet>();
+  serverSockets=new ArrayList<ServerSocket>();
+  checkTransRunning=false;
+  blockPointer=0;
+  stepListeners=new ArrayList<StepListener>();
+  dispatch();
+  upperBufferBoundary=(int)(transMeta.getSizeRowset() * 0.99);
+  lowerBufferBoundary=(int)(transMeta.getSizeRowset() * 0.01);
+}
