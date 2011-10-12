@@ -1,6 +1,6 @@
 {
   result.setEntryNr(nr);
-  Log4jFileAppender appender=null;
+  LogChannelFileWriter logChannelFileWriter=null;
   LogLevel jobLogLevel=parentJob.getLogLevel();
   if (setLogfile) {
     String realLogFilename=environmentSubstitute(getLogFilename());
@@ -16,16 +16,16 @@
       return result;
     }
     try {
-      appender=LogWriter.createFileAppender(realLogFilename,true,setAppendLogfile);
+      logChannelFileWriter=new LogChannelFileWriter(this.getLogChannelId(),KettleVFS.getFileObject(realLogFilename),setAppendLogfile);
+      logChannelFileWriter.startLogging();
     }
  catch (    KettleException e) {
-      logError("Unable to open file appender for file [" + getLogFilename() + "] : "+ e.toString());
+      logError("Unable to open log file [" + getLogFilename() + "] : ");
       logError(Const.getStackTracker(e));
       result.setNrErrors(1);
       result.setResult(false);
       return result;
     }
-    LogWriter.getInstance().addAppender(appender);
     jobLogLevel=logFileLevel;
   }
   SlaveServer remoteSlaveServer=null;
@@ -326,11 +326,17 @@ result.setResult(false);
 result.setNrErrors(1L);
 }
 if (setLogfile) {
-if (appender != null) {
-LogWriter.getInstance().removeAppender(appender);
-appender.close();
-ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,appender.getFile(),parentJob.getJobname(),getName());
+if (logChannelFileWriter != null) {
+logChannelFileWriter.stopLogging();
+ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,logChannelFileWriter.getLogFile(),parentJob.getJobname(),getName());
 result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
+if (logChannelFileWriter.getException() != null) {
+logError("Unable to open log file [" + getLogFilename() + "] : ");
+logError(Const.getStackTracker(logChannelFileWriter.getException()));
+result.setNrErrors(1);
+result.setResult(false);
+return result;
+}
 }
 }
 if (result.getNrErrors() > 0) {
