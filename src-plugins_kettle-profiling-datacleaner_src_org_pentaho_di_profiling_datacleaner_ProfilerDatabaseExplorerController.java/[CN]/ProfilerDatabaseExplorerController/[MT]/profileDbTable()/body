@@ -1,35 +1,64 @@
 {
-  getDbController();
-  this.dbExplorerController.close();
-  final DatabaseMeta dbMeta=this.dbExplorerController.getDatabaseMeta();
-  final String tableName=this.dbExplorerController.getSelectedTable();
-  final String schemaName=this.dbExplorerController.getSelectedSchema();
-  System.out.println("Database: " + dbMeta.getName());
-  System.out.println("Table: " + dbMeta.getQuotedSchemaTableCombination(schemaName,tableName));
-  System.out.println("Database: " + dbMeta.getName());
-  BootstrapOptions bootstrapOptions=new BootstrapOptions(){
-    public Datastore getSingleDatastore(    DatastoreCatalog catalog){
-      try {
-        return new JdbcDatastore(dbMeta.getName(),dbMeta.getURL(),dbMeta.getDriverClass(),dbMeta.getUsername(),dbMeta.getPassword());
+  final Spoon spoon=((Spoon)SpoonFactory.getInstance());
+  try {
+    getDbController();
+    dbExplorerController.close();
+    final DatabaseMeta dbMeta=dbExplorerController.getDatabaseMeta();
+    final String tableName=dbExplorerController.getSelectedTable();
+    final String schemaName=dbExplorerController.getSelectedSchema();
+    final String schemaTable=dbMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+    final BootstrapOptions bootstrapOptions=new BootstrapOptions(){
+      public Datastore getSingleDatastore(      DatastoreCatalog catalog){
+        try {
+          return new JdbcDatastore(dbMeta.getName(),dbMeta.getURL(),dbMeta.getDriverClass(),dbMeta.getUsername(),dbMeta.getPassword());
+        }
+ catch (        KettleDatabaseException e) {
+          throw new RuntimeException(e);
+        }
       }
- catch (      KettleDatabaseException e) {
-        throw new RuntimeException(e);
+      public Image getWelcomeImage(){
+        return null;
+      }
+      @Override public boolean isSingleDatastoreMode(){
+        return true;
+      }
+      @Override public boolean isCommandLineMode(){
+        return false;
+      }
+      @Override public ExitActionListener getExitActionListener(){
+        return null;
+      }
+      @Override public CliArguments getCommandLineArguments(){
+        return null;
+      }
+      @Override public void initializeSingleDatastoreJob(      AnalysisJobBuilder analysisJobBuilder,      DataContext dataContext){
+        Column[] customerColumns=dataContext.getTableByQualifiedLabel(schemaTable).getColumns();
+        analysisJobBuilder.addSourceColumns(customerColumns);
+        List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.NUMBER);
+        if (!numberColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
+        }
+        List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.DATE);
+        if (!dateColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
+        }
+        List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.BOOLEAN);
+        if (!booleanColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
+        }
+        List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.STRING);
+        if (!stringColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
+        }
       }
     }
-    @Override public boolean isSingleDatastoreMode(){
-      return true;
-    }
-    @Override public boolean isCommandLineMode(){
-      return false;
-    }
-    @Override public ExitActionListener getExitActionListener(){
-      return null;
-    }
-    @Override public CliArguments getCommandLineArguments(){
-      return null;
-    }
-  }
 ;
-  Bootstrap bootstrap=new Bootstrap(bootstrapOptions);
-  bootstrap.run();
+    Bootstrap bootstrap=new Bootstrap(bootstrapOptions);
+    bootstrap.run();
+  }
+ catch (  final Exception ex) {
+    new ErrorDialog(spoon.getShell(),"Error","unexpected error occurred",ex);
+  }
+ finally {
+  }
 }

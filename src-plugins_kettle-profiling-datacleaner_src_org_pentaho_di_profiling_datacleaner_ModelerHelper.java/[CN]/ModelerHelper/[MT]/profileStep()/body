@@ -1,21 +1,22 @@
 {
-  Spoon spoon=((Spoon)SpoonFactory.getInstance());
-  final TransMeta transMeta=spoon.getActiveTransformation();
-  if (transMeta == null || spoon.getActiveTransGraph() == null) {
-    return;
-  }
-  if (transMeta.hasChanged()) {
-    MessageBox box=new MessageBox(spoon.getShell(),SWT.ICON_ERROR | SWT.CLOSE);
-    box.setText("Save first...");
-    box.setMessage("Please save your transformation first.  To run the profiling job, we need to run the transformation.");
-    box.open();
-    return;
-  }
-  StepMeta stepMeta=spoon.getActiveTransGraph().getCurrentStep();
-  if (stepMeta == null) {
-    return;
-  }
+  final Spoon spoon=((Spoon)SpoonFactory.getInstance());
   try {
+    final TransMeta transMeta=spoon.getActiveTransformation();
+    if (transMeta == null || spoon.getActiveTransGraph() == null) {
+      return;
+    }
+    if (transMeta.hasChanged()) {
+      MessageBox box=new MessageBox(spoon.getShell(),SWT.ICON_ERROR | SWT.CLOSE);
+      box.setText("Save first...");
+      box.setMessage("Please save your transformation first.  To run the profiling job, we need to run the transformation.");
+      box.open();
+      return;
+    }
+    StepMeta stepMeta=spoon.getActiveTransGraph().getCurrentStep();
+    if (stepMeta == null) {
+      return;
+    }
+    final String schemaTable=stepMeta.getName();
     final String url;
     final String driverClass;
     if (!Const.isEmpty(transMeta.getFilename())) {
@@ -31,6 +32,9 @@
       return;
     }
     BootstrapOptions bootstrapOptions=new BootstrapOptions(){
+      public Image getWelcomeImage(){
+        return null;
+      }
       public Datastore getSingleDatastore(      DatastoreCatalog catalog){
         return new JdbcDatastore(transMeta.getName(),url,driverClass,"","");
       }
@@ -46,12 +50,34 @@
       @Override public CliArguments getCommandLineArguments(){
         return null;
       }
+      @Override public void initializeSingleDatastoreJob(      AnalysisJobBuilder analysisJobBuilder,      DataContext dataContext){
+        Column[] customerColumns=dataContext.getTableByQualifiedLabel(schemaTable).getColumns();
+        analysisJobBuilder.addSourceColumns(customerColumns);
+        List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.NUMBER);
+        if (!numberColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
+        }
+        List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.DATE);
+        if (!dateColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
+        }
+        List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.BOOLEAN);
+        if (!booleanColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
+        }
+        List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.STRING);
+        if (!stringColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
+        }
+      }
     }
 ;
     Bootstrap bootstrap=new Bootstrap(bootstrapOptions);
     bootstrap.run();
   }
- catch (  Exception e) {
-    new ErrorDialog(spoon.getShell(),"Error","Error profiling:",e);
+ catch (  final Exception e) {
+    new ErrorDialog(spoon.getShell(),"Error","unexpected error occurred",e);
+  }
+ finally {
   }
 }
