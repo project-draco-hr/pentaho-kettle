@@ -1,0 +1,30 @@
+{
+  File transSamplesFolder=new File("samples/transformations/");
+  String[] files=transSamplesFolder.list(new FilenameFilter(){
+    public boolean accept(    File dir,    String name){
+      return name.endsWith(".ktr");
+    }
+  }
+);
+  Arrays.sort(files);
+  for (  String file : files) {
+    String transFilename=transSamplesFolder.getAbsolutePath() + "/" + file;
+    System.out.println("Storing/Loading/validating transformation '" + transFilename + "'");
+    TransMeta transMeta=new TransMeta(transFilename);
+    if (Const.isEmpty(transMeta.getName())) {
+      transMeta.setName(Const.createName(file));
+    }
+    transMeta.setRepositoryDirectory(samplesDirectory);
+    repository.save(transMeta,"unit testing");
+    assertNotNull(transMeta.getObjectId());
+    TransMeta repTransMeta=repository.loadTransformation(transMeta.getObjectId(),null);
+    String oneXml=repTransMeta.getXML();
+    repository.save(transMeta,"unit testing");
+    repTransMeta=repository.loadTransformation(transMeta.getObjectId(),null);
+    String twoXml=repTransMeta.getXML();
+    assertEquals(oneXml,twoXml);
+  }
+  System.out.println("Stored " + files.length + " transformation samples in folder "+ samplesDirectory.getPath());
+  String[] transformationNames=repository.getTransformationNames(samplesDirectory.getObjectId(),false);
+  assertEquals(files.length,transformationNames.length);
+}

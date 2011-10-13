@@ -1,0 +1,37 @@
+{
+  KettleEnvironment.init();
+  String filename=File.createTempFile("kdrtest","").getAbsolutePath();
+  System.out.println("Using file '" + filename + "' as a H2 database repository");
+  try {
+    DatabaseMeta databaseMeta=new DatabaseMeta("H2Repo","H2","JDBC",null,filename,null,null,null);
+    repositoryMeta=new KettleDatabaseRepositoryMeta("KettleDatabaseRepository","H2Repo","H2 Repository",databaseMeta);
+    repository=new KettleDatabaseRepository();
+    repository.init(repositoryMeta);
+    repository.connectionDelegate.connect(true,true);
+    KettleDatabaseRepositoryCreationHelper helper=new KettleDatabaseRepositoryCreationHelper(repository);
+    helper.createRepositorySchema(null,false,new ArrayList<String>(),false);
+    repository.disconnect();
+    repository.connect("admin","admin");
+    assertTrue(repository.isConnected());
+    tree=repository.loadRepositoryDirectoryTree();
+    assertNotNull(tree);
+    RepositoryDirectoryInterface fooDirectory=repository.createRepositoryDirectory(tree,"foo");
+    RepositoryDirectoryInterface barDirectory=repository.createRepositoryDirectory(fooDirectory,"bar");
+    RepositoryDirectoryInterface samplesDirectory=repository.createRepositoryDirectory(fooDirectory,"samples");
+    RepositoryDirectoryInterface checkBar=tree.findDirectory("/foo/bar");
+    assertNotNull(checkBar);
+    assertTrue(checkBar.equals(barDirectory));
+    verifyTransformationSamples(samplesDirectory);
+    verifyJobSamples(samplesDirectory);
+    repository.disconnect();
+    assertFalse(repository.isConnected());
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    throw new KettleException("Error during database repository unit testing",e);
+  }
+ finally {
+    assertTrue(new File(filename + ".h2.db").delete());
+    assertTrue(new File(filename + ".trace.db").delete());
+  }
+}

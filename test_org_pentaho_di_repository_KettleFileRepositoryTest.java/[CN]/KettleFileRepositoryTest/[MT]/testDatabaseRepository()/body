@@ -1,0 +1,35 @@
+{
+  KettleEnvironment.init();
+  String dirName=System.getProperty("java.io.tmpdir") + "/" + UUID.randomUUID();
+  File dirFile=new File(dirName);
+  if (!dirFile.mkdir()) {
+    throw new KettleException("bad luck, directory '" + dirName + "' already exists and can't be used to put a file repository in it.");
+  }
+  System.out.println("Using folder '" + dirName + "' to store a file repository in.");
+  try {
+    repositoryMeta=new KettleFileRepositoryMeta("KettleFileRepository","FileRep","File repository",dirName);
+    repository=new KettleFileRepository();
+    repository.init(repositoryMeta);
+    repository.connect(null,null);
+    assertTrue(repository.isConnected());
+    tree=repository.loadRepositoryDirectoryTree();
+    assertNotNull(tree);
+    RepositoryDirectoryInterface fooDirectory=repository.createRepositoryDirectory(tree,"foo");
+    RepositoryDirectoryInterface barDirectory=repository.createRepositoryDirectory(fooDirectory,"bar");
+    RepositoryDirectoryInterface samplesDirectory=repository.createRepositoryDirectory(fooDirectory,"samples");
+    RepositoryDirectoryInterface checkBar=tree.findDirectory("/foo/bar");
+    assertNotNull(checkBar);
+    assertTrue(checkBar.equals(barDirectory));
+    verifyTransformationSamples(samplesDirectory);
+    verifyJobSamples(samplesDirectory);
+    repository.disconnect();
+    assertFalse(repository.isConnected());
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    throw new KettleException("Error during database repository unit testing",e);
+  }
+ finally {
+    FileUtils.deleteDirectory(dirFile);
+  }
+}

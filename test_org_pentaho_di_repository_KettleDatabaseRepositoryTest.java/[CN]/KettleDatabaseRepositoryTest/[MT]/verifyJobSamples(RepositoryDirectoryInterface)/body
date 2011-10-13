@@ -1,0 +1,39 @@
+{
+  FileObject jobSamplesFolder=KettleVFS.getFileObject("samples/jobs/");
+  FileObject[] files=jobSamplesFolder.findFiles(new FileSelector(){
+    @Override public boolean traverseDescendents(    FileSelectInfo arg0) throws Exception {
+      return true;
+    }
+    @Override public boolean includeFile(    FileSelectInfo info) throws Exception {
+      return info.getFile().getName().getExtension().equalsIgnoreCase("kjb");
+    }
+  }
+);
+  List<FileObject> filesList=Arrays.asList(files);
+  Collections.sort(filesList,new Comparator<FileObject>(){
+    @Override public int compare(    FileObject o1,    FileObject o2){
+      return o1.getName().getPath().compareTo(o2.getName().getPath());
+    }
+  }
+);
+  for (  FileObject file : filesList) {
+    String jobFilename=file.getName().getPath();
+    System.out.println("Storing/Loading/validating job '" + jobFilename + "'");
+    JobMeta jobMeta=new JobMeta(jobFilename,repository);
+    if (Const.isEmpty(jobMeta.getName())) {
+      jobMeta.setName(Const.createName(file.getName().getBaseName()));
+    }
+    jobMeta.setRepositoryDirectory(samplesDirectory);
+    repository.save(jobMeta,"unit testing");
+    assertNotNull(jobMeta.getObjectId());
+    JobMeta repJobMeta=repository.loadJob(jobMeta.getObjectId(),null);
+    String oneXml=repJobMeta.getXML();
+    repository.save(jobMeta,"unit testing");
+    repJobMeta=repository.loadJob(jobMeta.getObjectId(),null);
+    String twoXml=repJobMeta.getXML();
+    assertEquals(oneXml,twoXml);
+  }
+  System.out.println("Stored " + files.length + " job samples in folder "+ samplesDirectory.getPath());
+  String[] jobNames=repository.getJobNames(samplesDirectory.getObjectId(),false);
+  assertEquals(files.length,jobNames.length);
+}
