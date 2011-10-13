@@ -2,15 +2,19 @@
   Result result=previousResult;
   result.setNrErrors(1);
   result.setResult(false);
-  String realdestinationFolder=environmentSubstitute(getDestinationFolder());
+  boolean deleteFile=getAction().equals("delete");
+  String realdestinationFolder=null;
+  if (!deleteFile) {
+    realdestinationFolder=environmentSubstitute(getDestinationFolder());
+    if (!CreateDestinationFolder(realdestinationFolder)) {
+      return result;
+    }
+  }
   if (!Const.isEmpty(wildcard)) {
     wildcardPattern=Pattern.compile(environmentSubstitute(wildcard));
   }
   if (!Const.isEmpty(wildcardexclude)) {
     wildcardExcludePattern=Pattern.compile(environmentSubstitute(wildcardexclude));
-  }
-  if (!CreateDestinationFolder(realdestinationFolder)) {
-    return result;
   }
   if (previousResult != null) {
     NrErrors=0;
@@ -34,7 +38,7 @@
           file=resultFile.getFile();
           if (file != null && file.exists()) {
             if (!specifywildcard || (CheckFileWildcard(file.getName().getBaseName(),wildcardPattern,true) && !CheckFileWildcard(file.getName().getBaseName(),wildcardExcludePattern,false) && specifywildcard)) {
-              if (!processFile(file,realdestinationFolder,result,parentJob)) {
+              if (!processFile(file,realdestinationFolder,result,parentJob,deleteFile)) {
                 updateErrors();
               }
             }
