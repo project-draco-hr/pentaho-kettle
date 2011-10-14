@@ -2,7 +2,7 @@
   this.logBasic("Getting Dimension Row Meta.");
   final RowMetaInterface rowMeta=data.helper.getDimensionRowMeta(meta.getDimension(),meta.getLevels(),meta.getBaseElementsOnly());
   this.logBasic("Getting Dimension Rows.");
-  final List<Object[]> rows=data.helper.getDimensionRows(meta.getDimension(),rowMeta,meta.getBaseElementsOnly(),new PaloHelper.Listener(){
+  listener=new ListenerWithException(){
     public void resume(){
     }
     public void stop(){
@@ -18,13 +18,21 @@
       return false;
     }
     public void oneMoreElement(    Object element){
+      final Object[] row=(Object[])element;
+      try {
+        assert(rowMeta.size() != row.length);
+        incrementLinesInput();
+        putRow(rowMeta,row);
+      }
+ catch (      Exception ex) {
+        this.throwedException=ex;
+        this.cancel();
+      }
     }
   }
-);
-  for (  Object[] row : rows) {
-    putRow(rowMeta,row);
-    incrementLinesInput();
-  }
+;
+  data.helper.getDimensionRows(meta.getDimension(),rowMeta,meta.getBaseElementsOnly(),listener);
+  if (listener.throwedException != null)   throw new KettleException("Failed to fetch some row",listener.throwedException);
   this.logBasic("Process Ended.");
   setOutputDone();
   return false;
