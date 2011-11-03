@@ -1,0 +1,264 @@
+{
+  long nrErrors=0L;
+  long nrLeftErrors=0L;
+  long nrRightErrors=0L;
+  long nrInnerErrors=0L;
+  long nrRecordsReference=0L;
+  long nrRecordsCompare=0L;
+  Object[] result=new Object[6];
+  if (Const.isEmpty(referenceTable)) {
+    Object[] errorRowData=constructErrorRow(rowMeta,r,null,null,null);
+    putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Exception.NoReferenceTableDefined"),null,"TAC008");
+    nrErrors++;
+    ;
+  }
+  if (Const.isEmpty(compareTable)) {
+    Object[] errorRowData=constructErrorRow(rowMeta,r,null,null,null);
+    putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Exception.NoCompareTableDefined"),null,"TAC008");
+    nrErrors++;
+    ;
+  }
+  String refSchemaTable=meta.getReferenceConnection().getQuotedSchemaTableCombination(referenceSchema,referenceTable);
+  String cmpSchemaTable=meta.getCompareConnection().getQuotedSchemaTableCombination(compareSchema,compareTable);
+  if (Const.isEmpty(keyFields)) {
+    Object[] errorRowData=constructErrorRow(rowMeta,r,null,null,null);
+    putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Exception.NoKeyFieldsDefined",refSchemaTable,cmpSchemaTable),null,"TAC007");
+    nrErrors++;
+    ;
+  }
+  if (nrErrors > 0) {
+    result[0]=Long.valueOf(nrErrors);
+    return result;
+  }
+  String[] keys=keyFields.split(",");
+  for (int i=0; i < keys.length; i++) {
+    keys[i]=Kjube.trim(keys[i]);
+  }
+  String[] excluded=Const.isEmpty(excludeFields) ? new String[0] : excludeFields.split(",");
+  for (int i=0; i < excluded.length; i++) {
+    excluded[i]=Kjube.trim(excluded[i]);
+  }
+  try {
+    RowMetaInterface refFields=data.referenceDb.getTableFields(refSchemaTable);
+    RowMetaInterface cmpFields=data.compareDb.getTableFields(cmpSchemaTable);
+    for (    String field : excluded) {
+      if (refFields.indexOfValue(field) >= 0) {
+        refFields.removeValueMeta(field);
+      }
+      if (cmpFields.indexOfValue(field) >= 0) {
+        cmpFields.removeValueMeta(field);
+      }
+    }
+    if (refFields.size() != cmpFields.size()) {
+      Object[] errorRowData=constructErrorRow(rowMeta,r,null,null,null);
+      putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.NumberOfFieldsIsDifferent",refSchemaTable,Integer.toString(refFields.size()),cmpSchemaTable,Integer.toString(cmpFields.size())),null,"TAC001");
+      nrErrors++;
+    }
+ else {
+      for (      String key : keys) {
+        if (refFields.indexOfValue(key) < 0) {
+          if (getStepMeta().isDoingErrorHandling()) {
+            Object[] errorRowData=constructErrorRow(rowMeta,r,null,null,null);
+            putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.KeyFieldWasNotFoundInReferenceTable",key,refSchemaTable),null,"TAC002");
+          }
+          nrErrors++;
+        }
+      }
+      for (      String key : keys) {
+        if (cmpFields.indexOfValue(key) < 0) {
+          if (getStepMeta().isDoingErrorHandling()) {
+            Object[] errorRowData=constructErrorRow(rowMeta,r,null,null,null);
+            putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.KeyFieldWasNotFoundInCompareTable",key,refSchemaTable),null,"TAC003");
+          }
+          nrErrors++;
+        }
+      }
+      if (nrErrors > 0) {
+        result[0]=Long.valueOf(nrErrors);
+        return result;
+      }
+      RowMetaInterface keyRowMeta=new RowMeta();
+      RowMetaInterface valueRowMeta=new RowMeta();
+      int keyNrs[]=new int[keys.length];
+      String refSql="SELECT ";
+      String cmpSql="SELECT ";
+      for (int i=0; i < keys.length; i++) {
+        if (i > 0) {
+          refSql+=", ";
+          cmpSql+=", ";
+        }
+        keyNrs[i]=i;
+        refSql+=meta.getReferenceConnection().quoteField(keys[i]);
+        cmpSql+=meta.getReferenceConnection().quoteField(keys[i]);
+      }
+      int[] valueNrs=new int[refFields.size() - keys.length];
+      int valueNr=keys.length;
+      int valueIndex=0;
+      for (int i=0; i < refFields.getFieldNames().length; i++) {
+        String field=refFields.getFieldNames()[i];
+        if (Const.indexOfString(field,keys) < 0) {
+          refSql+=", " + meta.getReferenceConnection().quoteField(field);
+          valueRowMeta.addValueMeta(refFields.searchValueMeta(field));
+          valueNrs[valueIndex++]=valueNr++;
+        }
+      }
+      for (      String field : cmpFields.getFieldNames()) {
+        if (Const.indexOfString(field,keys) < 0) {
+          cmpSql+=", " + meta.getCompareConnection().quoteField(field);
+        }
+      }
+      refSql+=" FROM " + refSchemaTable + " ORDER BY ";
+      cmpSql+=" FROM " + cmpSchemaTable + " ORDER BY ";
+      for (int i=0; i < keys.length; i++) {
+        if (i > 0) {
+          refSql+=", ";
+          cmpSql+=", ";
+        }
+        refSql+=meta.getReferenceConnection().quoteField(keys[i]);
+        cmpSql+=meta.getReferenceConnection().quoteField(keys[i]);
+      }
+      ResultSet refSet=data.referenceDb.openQuery(refSql);
+      ResultSet cmpSet=data.compareDb.openQuery(cmpSql);
+      RowMetaInterface oneMeta=null, twoMeta=null;
+      Object[] one=data.referenceDb.getRow(refSet);
+      if (one != null) {
+        incrementLinesInput();
+        if (oneMeta == null) {
+          oneMeta=data.referenceDb.getReturnRowMeta();
+          for (int i=0; i < keys.length; i++) {
+            keyRowMeta.addValueMeta(oneMeta.searchValueMeta(keys[i]));
+          }
+        }
+      }
+      Object[] two=data.compareDb.getRow(cmpSet);
+      if (two != null) {
+        incrementLinesInput();
+        if (twoMeta == null) {
+          twoMeta=data.compareDb.getReturnRowMeta();
+          if (keyRowMeta.isEmpty()) {
+            for (int i=0; i < keys.length; i++) {
+              keyRowMeta.addValueMeta(twoMeta.searchValueMeta(keys[i]));
+            }
+          }
+        }
+      }
+      if (one != null) {
+        nrRecordsReference++;
+      }
+      if (two != null) {
+        nrRecordsCompare++;
+      }
+      do {
+        if (one == null && two != null) {
+          if (getStepMeta().isDoingErrorHandling()) {
+            String keyDesc=getKeyDesc(keyRowMeta,keyNrs,two);
+            Object[] errorRowData=constructErrorRow(rowMeta,r,keyDesc,null,null);
+            putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.RecordNotInReferenceFoundInCompareTable",cmpSchemaTable,keyRowMeta.getString(two)),null,"TAC004");
+          }
+          nrErrors++;
+          nrRightErrors++;
+          two=data.compareDb.getRow(cmpSet);
+          if (two != null) {
+            nrRecordsCompare++;
+          }
+        }
+ else         if (one != null && two == null) {
+          if (getStepMeta().isDoingErrorHandling()) {
+            String keyDesc=getKeyDesc(keyRowMeta,keyNrs,one);
+            Object[] errorRowData=constructErrorRow(rowMeta,r,keyDesc,null,null);
+            putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.RecordInReferenceNotFoundInCompareTable",refSchemaTable,keyRowMeta.getString(one)),null,"TAC005");
+          }
+          nrErrors++;
+          nrLeftErrors++;
+          one=data.referenceDb.getRow(refSet);
+          if (one != null) {
+            nrRecordsCompare++;
+          }
+        }
+ else {
+          if (one != null && two != null) {
+            int compare=oneMeta.compare(one,two,keyNrs);
+            if (compare == 0) {
+              int compareValues=oneMeta.compare(one,two,valueNrs);
+              if (compareValues == 0) {
+              }
+ else {
+                if (getStepMeta().isDoingErrorHandling()) {
+                  for (                  int idx : valueNrs) {
+                    ValueMetaInterface valueMeta=oneMeta.getValueMeta(idx);
+                    Object oneData=one[idx];
+                    Object twoData=two[idx];
+                    int cmp=valueMeta.compare(oneData,twoData);
+                    if (cmp != 0) {
+                      String keyDesc=getKeyDesc(keyRowMeta,keyNrs,one);
+                      String quote=valueMeta.isString() ? "'" : "";
+                      String referenceData=quote + valueMeta.getString(oneData) + quote;
+                      String compareData=quote + valueMeta.getString(twoData) + quote;
+                      Object[] errorRowData=constructErrorRow(rowMeta,r,keyDesc,referenceData,compareData);
+                      putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.CompareRowIsDifferentFromReference"),valueMeta.getName(),"TAC006");
+                    }
+                  }
+                }
+                nrErrors++;
+                nrInnerErrors++;
+              }
+              one=data.referenceDb.getRow(refSet);
+              if (one != null) {
+                nrRecordsReference++;
+              }
+              two=data.compareDb.getRow(cmpSet);
+              if (two != null) {
+                nrRecordsCompare++;
+              }
+            }
+ else {
+              if (compare < 0) {
+                if (getStepMeta().isDoingErrorHandling()) {
+                  String keyDesc=getKeyDesc(keyRowMeta,keyNrs,two);
+                  Object[] errorRowData=constructErrorRow(rowMeta,r,keyDesc,null,null);
+                  putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.RecordNotInReferenceFoundInCompareTable",cmpSchemaTable,keyRowMeta.getString(two)),null,"TAC004");
+                }
+                nrErrors++;
+                nrRightErrors++;
+                one=data.referenceDb.getRow(refSet);
+                if (one != null) {
+                  nrRecordsReference++;
+                }
+              }
+ else {
+                if (getStepMeta().isDoingErrorHandling()) {
+                  String keyDesc=getKeyDesc(keyRowMeta,keyNrs,one);
+                  Object[] errorRowData=constructErrorRow(rowMeta,r,keyDesc,null,null);
+                  putError(data.errorRowMeta,errorRowData,1,BaseMessages.getString(PKG,"TableCompare.Error.RecordInReferenceNotFoundInCompareTable",refSchemaTable,keyRowMeta.getString(one)),null,"TAC005");
+                }
+                nrErrors++;
+                nrLeftErrors++;
+                two=data.compareDb.getRow(cmpSet);
+                if (two != null) {
+                  nrRecordsCompare++;
+                }
+              }
+            }
+          }
+        }
+      }
+ while ((one != null || two != null) && !isStopped());
+      refSet.close();
+      cmpSet.close();
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"TableCompare.Exception.UnexpectedErrorComparingTables",refSchemaTable,cmpSchemaTable),e);
+  }
+  int index=0;
+  result[index++]=Long.valueOf(nrErrors);
+  result[index++]=Long.valueOf(nrRecordsReference);
+  result[index++]=Long.valueOf(nrRecordsCompare);
+  result[index++]=Long.valueOf(nrLeftErrors);
+  result[index++]=Long.valueOf(nrInnerErrors);
+  result[index++]=Long.valueOf(nrRightErrors);
+  r[data.keyDescIndex]=null;
+  r[data.valueReferenceIndex]=null;
+  r[data.valueCompareIndex]=null;
+  return result;
+}
