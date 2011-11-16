@@ -1,0 +1,48 @@
+{
+  gc.setAntialias(true);
+  Point center=new Point(area.x / 2,area.y / 2);
+  gc.setBackground(EColor.BACKGROUND);
+  gc.setForeground(EColor.BLACK);
+  gc.fillRectangle(0,0,area.x,area.y);
+  List<LogicalTable> tableList=new ArrayList<LogicalTable>();
+  tableList.addAll(logicalModel.getLogicalTables());
+  LogicalTable fact=null;
+  for (  LogicalTable logicalTable : tableList) {
+    if (TableType.FACT == ConceptUtil.getTableType(logicalTable)) {
+      fact=logicalTable;
+    }
+  }
+  if (fact != null) {
+    tableList.remove(fact);
+  }
+  int maxWidth=Integer.MIN_VALUE;
+  for (  LogicalTable table : tableList) {
+    String name=table.getName(locale);
+    if (!Const.isEmpty(name)) {
+      Point p=gc.textExtent(name);
+      if (p.x > maxWidth)       maxWidth=p.x;
+    }
+  }
+  List<TablePoint> points=new ArrayList<TablePoint>();
+  if (fact != null) {
+    points.add(new TablePoint(fact,center));
+  }
+  if (!tableList.isEmpty()) {
+    List<TablePoint> dimPoints=getCirclePoints(center,center.x - maxWidth / 2 - 20,center.y - 20,tableList);
+    points.addAll(dimPoints);
+  }
+  for (  LogicalRelationship rel : logicalRelationships) {
+    LogicalTable fromTable=rel.getFromTable();
+    LogicalTable toTable=rel.getToTable();
+    Point from=findPointOfTable(points,fromTable);
+    Point to=findPointOfTable(points,toTable);
+    if (from != null && to != null) {
+      gc.drawLine(from.x,from.y,to.x,to.y);
+    }
+  }
+  for (  TablePoint tablePoint : points) {
+    LogicalTable table=tablePoint.logicalTable;
+    Point point=tablePoint.point;
+    drawCircleName(point,table);
+  }
+}

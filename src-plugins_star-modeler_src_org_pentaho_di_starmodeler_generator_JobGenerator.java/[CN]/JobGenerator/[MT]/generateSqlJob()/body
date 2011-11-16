@@ -1,0 +1,111 @@
+{
+  DatabaseMeta databaseMeta=findTargetDatabaseMeta();
+  Database db=new Database(Spoon.loggingObject,databaseMeta);
+  try {
+    db.connect();
+    JobMeta jobMeta=new JobMeta();
+    jobMeta.setName("Create tables for '" + ConceptUtil.getName(domain,locale) + "'");
+    jobMeta.setDescription(ConceptUtil.getDescription(domain,locale));
+    jobMeta.addDatabase(databaseMeta);
+    Point location=new Point(GRAPH_LEFT,GRAPH_TOP);
+    JobEntryCopy startEntry=JobMeta.createStartEntry();
+    startEntry.setLocation(location.x,location.y);
+    startEntry.setDrawn();
+    jobMeta.addJobEntry(startEntry);
+    JobEntryCopy lastEntry=startEntry;
+    nextLocation(location);
+    List<LogicalTable> tables=getUniqueLogicalTables();
+    for (    LogicalTable logicalTable : tables) {
+      String phTable=ConceptUtil.getString(logicalTable,DefaultIDs.LOGICAL_TABLE_PHYSICAL_TABLE_NAME);
+      String tableName=ConceptUtil.getName(logicalTable,locale);
+      String tableDescription=ConceptUtil.getDescription(logicalTable,locale);
+      TableType tableType=ConceptUtil.getTableType(logicalTable);
+      DimensionType dimensionType=ConceptUtil.getDimensionType(logicalTable);
+      boolean isFact=tableType == TableType.FACT;
+      boolean isDimension=tableType == TableType.DIMENSION;
+      boolean isJunk=isDimension && dimensionType == DimensionType.JUNK_DIMENSION;
+      JobEntrySQL sqlEntry=new JobEntrySQL(phTable);
+      sqlEntry.setDatabase(databaseMeta);
+      String schemaTable=databaseMeta.getQuotedSchemaTableCombination(null,phTable);
+      String phKeyField=null;
+      LogicalColumn keyColumn=null;
+      if (isDimension) {
+        keyColumn=ConceptUtil.findLogicalColumn(logicalTable,AttributeType.TECHNICAL_KEY);
+      }
+      if (keyColumn != null) {
+        phKeyField=ConceptUtil.getString(keyColumn,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
+      }
+      RowMetaInterface fields=getRowForLogicalTable(databaseMeta,logicalTable);
+      String sql=db.getCreateTableStatement(schemaTable,fields,phKeyField,databaseMeta.supportsAutoinc() && !isFact,null,true);
+      if (keyColumn != null) {
+        ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,keyColumn);
+        String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_"+ phKeyField.toUpperCase());
+        String indexSql=db.getCreateIndexStatement(schemaTable,indexName,new String[]{keyValueMeta.getName()},true,false,true,true);
+        sql+=Const.CR + indexSql;
+      }
+      if (isFact) {
+        List<LogicalColumn> fks=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.TECHNICAL_KEY);
+        for (        LogicalColumn fk : fks) {
+          ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,fk);
+          String phColumn=ConceptUtil.getString(fk,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
+          if (!Const.isEmpty(phColumn)) {
+            String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_"+ phColumn.toUpperCase());
+            String indexSql=db.getCreateIndexStatement(schemaTable,indexName,new String[]{keyValueMeta.getName()},true,false,true,true);
+            sql+=Const.CR + indexSql;
+          }
+        }
+      }
+      if (isDimension) {
+        List<LogicalColumn> naturalKeys=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.NATURAL_KEY);
+        if (!naturalKeys.isEmpty()) {
+          String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_LOOKUP");
+          String[] fieldNames=new String[naturalKeys.size()];
+          for (int i=0; i < fieldNames.length; i++) {
+            ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,naturalKeys.get(i));
+            fieldNames[i]=keyValueMeta.getName();
+          }
+          String indexSql=db.getCreateIndexStatement(schemaTable,indexName,fieldNames,false,false,false,true);
+          sql+=Const.CR + indexSql;
+        }
+      }
+      if (isJunk) {
+        List<LogicalColumn> attributes=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.ATTRIBUTE);
+        if (!attributes.isEmpty()) {
+          String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_LOOKUP");
+          String[] fieldNames=new String[attributes.size()];
+          for (int i=0; i < fieldNames.length; i++) {
+            ValueMetaInterface attrValueMeta=getValueForLogicalColumn(databaseMeta,attributes.get(i));
+            fieldNames[i]=attrValueMeta.getName();
+          }
+          String indexSql=db.getCreateIndexStatement(schemaTable,indexName,fieldNames,false,false,false,true);
+          sql+=Const.CR + indexSql;
+        }
+      }
+      sqlEntry.setSQL(sql);
+      sqlEntry.setDescription("Generated based on logical table '" + tableName + "'"+ Const.CR+ Const.CR+ Const.NVL(tableDescription,""));
+      JobEntryCopy sqlCopy=new JobEntryCopy(sqlEntry);
+      sqlCopy.setLocation(location.x,location.y);
+      sqlCopy.setDrawn();
+      nextLocation(location);
+      jobMeta.addJobEntry(sqlCopy);
+      JobHopMeta jobHop=new JobHopMeta(lastEntry,sqlCopy);
+      jobHop.setEnabled();
+      jobHop.setConditional();
+      jobHop.setEvaluation(true);
+      if (lastEntry.isStart()) {
+        jobHop.setUnconditional();
+      }
+      jobMeta.addJobHop(jobHop);
+      lastEntry=sqlCopy;
+    }
+    return jobMeta;
+  }
+ catch (  Exception e) {
+    throw new KettleException("There was an error during the generation of the SQL job",e);
+  }
+ finally {
+    if (db != null) {
+      db.disconnect();
+    }
+  }
+}

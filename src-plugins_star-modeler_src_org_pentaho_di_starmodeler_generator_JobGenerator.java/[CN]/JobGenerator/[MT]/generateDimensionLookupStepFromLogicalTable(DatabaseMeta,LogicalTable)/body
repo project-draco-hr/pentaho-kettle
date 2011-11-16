@@ -1,0 +1,71 @@
+{
+  String name=ConceptUtil.getName(logicalTable,locale);
+  String description=ConceptUtil.getDescription(logicalTable,locale);
+  String phTable=ConceptUtil.getString(logicalTable,DefaultIDs.LOGICAL_TABLE_PHYSICAL_TABLE_NAME);
+  String schemaTable=databaseMeta.getQuotedSchemaTableCombination(null,Const.NVL(phTable,name));
+  DimensionLookupMeta meta=new DimensionLookupMeta();
+  meta.setDatabaseMeta(databaseMeta);
+  meta.setSchemaName(null);
+  meta.setTableName(schemaTable);
+  meta.setAutoIncrement(databaseMeta.supportsAutoinc());
+  meta.setCacheSize(5000);
+  meta.setCommitSize(500);
+  meta.setUpdate(true);
+  LogicalColumn keyColumn=ConceptUtil.findLogicalColumn(logicalTable,AttributeType.TECHNICAL_KEY);
+  ;
+  if (keyColumn != null) {
+    ValueMetaInterface keyValue=getValueForLogicalColumn(databaseMeta,keyColumn);
+    meta.setKeyField(keyValue.getName());
+  }
+  List<LogicalColumn> naturalKeys=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.NATURAL_KEY);
+  meta.setKeyLookup(new String[naturalKeys.size()]);
+  meta.setKeyStream(new String[naturalKeys.size()]);
+  for (int i=0; i < naturalKeys.size(); i++) {
+    LogicalColumn logicalColumn=naturalKeys.get(i);
+    ValueMetaInterface valueMeta=getValueForLogicalColumn(databaseMeta,logicalColumn);
+    meta.getKeyLookup()[i]=valueMeta.getName();
+    meta.getKeyStream()[i]=valueMeta.getName();
+  }
+  List<LogicalColumn> attributes=new ArrayList<LogicalColumn>();
+  for (  LogicalColumn logicalColumn : logicalTable.getLogicalColumns()) {
+    AttributeType attributeType=ConceptUtil.getAttributeType(logicalColumn);
+    if (attributeType.isAttribute()) {
+      attributes.add(logicalColumn);
+    }
+  }
+  meta.setFieldLookup(new String[attributes.size()]);
+  meta.setFieldStream(new String[attributes.size()]);
+  meta.setFieldUpdate(new int[attributes.size()]);
+  for (int i=0; i < attributes.size(); i++) {
+    LogicalColumn logicalColumn=attributes.get(i);
+    AttributeType attributeType=ConceptUtil.getAttributeType(logicalColumn);
+    ValueMetaInterface valueMeta=getValueForLogicalColumn(databaseMeta,logicalColumn);
+    meta.getFieldLookup()[i]=valueMeta.getName();
+    meta.getFieldStream()[i]=valueMeta.getName();
+    if (attributeType == AttributeType.ATTRIBUTE_OVERWRITE) {
+      meta.getFieldUpdate()[i]=DimensionLookupMeta.TYPE_UPDATE_DIM_PUNCHTHROUGH;
+    }
+ else {
+      meta.getFieldUpdate()[i]=DimensionLookupMeta.TYPE_UPDATE_DIM_INSERT;
+    }
+  }
+  LogicalColumn versionColumn=ConceptUtil.findLogicalColumn(logicalTable,AttributeType.VERSION_FIELD);
+  if (versionColumn != null) {
+    String phName=ConceptUtil.getString(versionColumn,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
+    meta.setVersionField(phName);
+  }
+  LogicalColumn startRangeColumn=ConceptUtil.findLogicalColumn(logicalTable,AttributeType.DATE_START);
+  if (startRangeColumn != null) {
+    String phName=ConceptUtil.getString(startRangeColumn,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
+    meta.setDateFrom(phName);
+  }
+  LogicalColumn endRangeColumn=ConceptUtil.findLogicalColumn(logicalTable,AttributeType.DATE_END);
+  if (endRangeColumn != null) {
+    String phName=ConceptUtil.getString(endRangeColumn,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
+    meta.setDateTo(phName);
+  }
+  StepMeta stepMeta=new StepMeta(name,meta);
+  stepMeta.drawStep();
+  stepMeta.setDescription(description);
+  return stepMeta;
+}

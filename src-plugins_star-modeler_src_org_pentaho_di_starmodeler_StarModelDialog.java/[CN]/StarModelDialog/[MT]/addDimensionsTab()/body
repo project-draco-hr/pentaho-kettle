@@ -1,0 +1,108 @@
+{
+  wDimensionsTab=new CTabItem(wTabFolder,SWT.NONE);
+  wDimensionsTab.setText(BaseMessages.getString(PKG,"StarModelDialog.DimensionsTab.Label"));
+  FormLayout dimensionsLayout=new FormLayout();
+  dimensionsLayout.marginWidth=Const.MARGIN;
+  dimensionsLayout.marginHeight=Const.MARGIN;
+  Composite wDimensionsComp=new Composite(wTabFolder,SWT.NONE);
+  props.setLook(wDimensionsComp);
+  wDimensionsComp.setLayout(dimensionsLayout);
+  Label wlTables=new Label(wDimensionsComp,SWT.RIGHT);
+  wlTables.setText(BaseMessages.getString(PKG,"StarModelDialog.Tables.Label"));
+  props.setLook(wlTables);
+  FormData fdlAttributes=new FormData();
+  fdlAttributes.left=new FormAttachment(0,0);
+  fdlAttributes.top=new FormAttachment(0,0);
+  wlTables.setLayoutData(fdlAttributes);
+  Button newTableButton=new Button(wDimensionsComp,SWT.PUSH);
+  newTableButton.setText(BaseMessages.getString(PKG,"StarModelDialog.Button.NewTable"));
+  newTableButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      if (newTable(shell,logicalModel)) {
+        refreshTablesList();
+      }
+    }
+  }
+);
+  Button copyTableButton=new Button(wDimensionsComp,SWT.PUSH);
+  copyTableButton.setText(BaseMessages.getString(PKG,"StarModelDialog.Button.CopyTable"));
+  copyTableButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      if (wTablesList.getSelectionIndex() < 0)       return;
+      TableItem item=wTablesList.table.getSelection()[0];
+      String tableName=item.getText(1);
+      if (copyTable(shell,logicalModel,tableName)) {
+        refreshTablesList();
+      }
+    }
+  }
+);
+  Button editTableButton=new Button(wDimensionsComp,SWT.PUSH);
+  editTableButton.setText(BaseMessages.getString(PKG,"StarModelDialog.Button.EditTable"));
+  editTableButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      if (wTablesList.getSelectionIndex() < 0)       return;
+      TableItem item=wTablesList.table.getSelection()[0];
+      String tableName=item.getText(1);
+      if (editTable(tableName)) {
+        refreshTablesList();
+      }
+    }
+  }
+);
+  Button delTableButton=new Button(wDimensionsComp,SWT.PUSH);
+  delTableButton.setText(BaseMessages.getString(PKG,"StarModelDialog.Button.DeleteTable"));
+  delTableButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      if (wTablesList.getSelectionIndex() < 0)       return;
+      TableItem item=wTablesList.table.getSelection()[0];
+      String tableName=item.getText(1);
+      if (deleteTable(tableName)) {
+        refreshTablesList();
+      }
+    }
+  }
+);
+  BaseStepDialog.positionBottomButtons(wDimensionsComp,new Button[]{newTableButton,copyTableButton,editTableButton,delTableButton},margin,null);
+  final int FieldsRows=logicalModel.getLogicalTables().size();
+  List<DatabaseMeta> sharedDatabases=new ArrayList<DatabaseMeta>();
+  try {
+    SharedObjects sharedObjects=new SharedObjects();
+    for (    SharedObjectInterface sharedObject : sharedObjects.getObjectsMap().values()) {
+      if (sharedObject instanceof DatabaseMeta) {
+        sharedDatabases.add((DatabaseMeta)sharedObject);
+      }
+    }
+  }
+ catch (  Exception e) {
+    LogChannel.GENERAL.logError("Unable to load shared objects",e);
+  }
+  ColumnInfo[] colinf=new ColumnInfo[]{new ColumnInfo(BaseMessages.getString(PKG,"StarModelDialog.ColumnInfo.Name.Label"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"StarModelDialog.ColumnInfo.Description.Label"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"StarModelDialog.ColumnInfo.TableType.Label"),ColumnInfo.COLUMN_TYPE_TEXT,false,true)};
+  wTablesList=new TableView(new Variables(),wDimensionsComp,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,FieldsRows,null,props);
+  FormData fdTablesList=new FormData();
+  fdTablesList.left=new FormAttachment(0,0);
+  fdTablesList.top=new FormAttachment(wlTables,margin);
+  fdTablesList.right=new FormAttachment(100,0);
+  fdTablesList.bottom=new FormAttachment(newTableButton,-margin);
+  wTablesList.setLayoutData(fdTablesList);
+  wTablesList.setReadonly(true);
+  wTablesList.table.addSelectionListener(new SelectionAdapter(){
+    @Override public void widgetDefaultSelected(    SelectionEvent e){
+      if (wTablesList.getSelectionIndex() < 0)       return;
+      TableItem item=wTablesList.table.getSelection()[0];
+      String tableName=item.getText(1);
+      if (editTable(tableName)) {
+        refreshTablesList();
+      }
+    }
+  }
+);
+  FormData fdTablesComp=new FormData();
+  fdTablesComp.left=new FormAttachment(0,0);
+  fdTablesComp.top=new FormAttachment(0,0);
+  fdTablesComp.right=new FormAttachment(100,0);
+  fdTablesComp.bottom=new FormAttachment(100,0);
+  wDimensionsComp.setLayoutData(fdTablesComp);
+  wDimensionsComp.layout();
+  wDimensionsTab.setControl(wDimensionsComp);
+}

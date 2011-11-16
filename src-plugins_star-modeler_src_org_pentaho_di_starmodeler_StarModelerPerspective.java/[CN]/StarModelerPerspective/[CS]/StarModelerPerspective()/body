@@ -1,0 +1,37 @@
+{
+  String perspectiveSrc="org/pentaho/di/starmodeler/xul/perspective.xul";
+  try {
+    SwtXulLoader loader=new SwtXulLoader();
+    loader.registerClassLoader(getClass().getClassLoader());
+    Spoon.getInstance().addFileListener(this);
+    container=loader.loadXul(perspectiveSrc,new PDIMessages(this.getClass()));
+    runner=new SwtXulRunner();
+    runner.addContainer(container);
+    runner.initialize();
+    document=container.getDocumentRoot();
+    container.addEventHandler(this);
+    tabs=(XulTabs)document.getElementById("tabs");
+    panels=(XulTabpanels)document.getElementById("tabpanels");
+    tabbox=(XulTabbox)tabs.getParent();
+    BindingFactory bf=new DefaultBindingFactory();
+    setDefaultExtension("star");
+    bf.setDocument(document);
+    bf.createBinding(tabbox,"selectedIndex",this,"selectedMeta",new BindingConvertor<Integer,EngineMetaInterface>(){
+      public EngineMetaInterface sourceToTarget(      Integer value){
+        return metas.get(tabs.getTabByIndex(value));
+      }
+      public Integer targetToSource(      EngineMetaInterface value){
+        for (        XulTab tab : metas.keySet()) {
+          if (metas.get(tab) == value) {
+            return tab.getParent().getChildNodes().indexOf(tab);
+          }
+        }
+        return -1;
+      }
+    }
+);
+  }
+ catch (  Exception e) {
+    logger.logError("Error initializing perspective",e);
+  }
+}

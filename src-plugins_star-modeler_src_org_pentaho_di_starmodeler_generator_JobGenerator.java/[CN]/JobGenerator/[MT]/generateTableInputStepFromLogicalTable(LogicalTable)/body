@@ -1,0 +1,49 @@
+{
+  String name=ConceptUtil.getName(logicalTable,locale);
+  String description=ConceptUtil.getDescription(logicalTable,locale);
+  TableInputMeta meta=new TableInputMeta();
+  DatabaseMeta sourceDatabaseMeta=null;
+  String sourceTable=null;
+  List<String> sourceColumns=new ArrayList<String>();
+  for (  LogicalColumn column : logicalTable.getLogicalColumns()) {
+    String phDb=ConceptUtil.getString(column,DefaultIDs.LOGICAL_COLUMN_SOURCE_DB);
+    String phTable=ConceptUtil.getString(column,DefaultIDs.LOGICAL_COLUMN_SOURCE_TABLE);
+    String phCol=ConceptUtil.getString(column,DefaultIDs.LOGICAL_COLUMN_SOURCE_COLUMN);
+    if (!Const.isEmpty(phDb) && sourceDatabaseMeta == null) {
+      sourceDatabaseMeta=DatabaseMeta.findDatabase(databases,phDb);
+    }
+    if (!Const.isEmpty(phTable)) {
+      sourceTable=phDb;
+    }
+    if (!Const.isEmpty(phCol)) {
+      sourceColumns.add(phCol);
+    }
+  }
+  String sql="SELECT * FROM --< Source query for dimension '" + name + "'";
+  meta.setDatabaseMeta(sourceDatabaseMeta);
+  if (sourceDatabaseMeta != null && !Const.isEmpty(sourceTable)) {
+    sql="SELECT ";
+    if (sourceColumns.isEmpty()) {
+      sql+=" * ";
+    }
+ else {
+      sql+=Const.CR;
+    }
+    boolean first=true;
+    for (    String sourceColumn : sourceColumns) {
+      if (first) {
+        first=false;
+      }
+ else {
+        sql+="      , ";
+      }
+      sql+=sourceDatabaseMeta.quoteField(sourceColumn) + Const.CR;
+    }
+    sql+="FROM " + sourceDatabaseMeta.getQuotedSchemaTableCombination(null,sourceTable);
+  }
+  meta.setSQL(sql);
+  StepMeta stepMeta=new StepMeta("Source data for '" + name + "'",meta);
+  stepMeta.drawStep();
+  stepMeta.setDescription("Reads data for '" + name + "' : "+ description);
+  return stepMeta;
+}

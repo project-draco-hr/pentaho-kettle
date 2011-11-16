@@ -1,0 +1,33 @@
+{
+  String name=ConceptUtil.getName(logicalTable,locale);
+  String description=ConceptUtil.getDescription(logicalTable,locale);
+  String phTable=ConceptUtil.getString(logicalTable,DefaultIDs.LOGICAL_TABLE_PHYSICAL_TABLE_NAME);
+  String schemaTable=databaseMeta.getQuotedSchemaTableCombination(null,Const.NVL(phTable,name));
+  CombinationLookupMeta meta=new CombinationLookupMeta();
+  meta.setDatabaseMeta(databaseMeta);
+  meta.setSchemaName(null);
+  meta.setTablename(schemaTable);
+  meta.setUseAutoinc(databaseMeta.supportsAutoinc());
+  meta.setCacheSize(5000);
+  meta.setCommitSize(500);
+  meta.setReplaceFields(true);
+  LogicalColumn keyColumn=ConceptUtil.findLogicalColumn(logicalTable,AttributeType.TECHNICAL_KEY);
+  ;
+  if (keyColumn != null) {
+    ValueMetaInterface keyValue=getValueForLogicalColumn(databaseMeta,keyColumn);
+    meta.setTechnicalKeyField(keyValue.getName());
+  }
+  List<LogicalColumn> attributes=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.ATTRIBUTE);
+  meta.setKeyLookup(new String[attributes.size()]);
+  meta.setKeyField(new String[attributes.size()]);
+  for (int i=0; i < attributes.size(); i++) {
+    LogicalColumn logicalColumn=attributes.get(i);
+    ValueMetaInterface valueMeta=getValueForLogicalColumn(databaseMeta,logicalColumn);
+    meta.getKeyLookup()[i]=valueMeta.getName();
+    meta.getKeyField()[i]=valueMeta.getName();
+  }
+  StepMeta stepMeta=new StepMeta(name,meta);
+  stepMeta.drawStep();
+  stepMeta.setDescription(description);
+  return stepMeta;
+}

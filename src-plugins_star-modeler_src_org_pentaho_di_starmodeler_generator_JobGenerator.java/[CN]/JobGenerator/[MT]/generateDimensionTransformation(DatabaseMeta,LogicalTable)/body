@@ -1,0 +1,30 @@
+{
+  TransMeta transMeta=new TransMeta();
+  String tableName=ConceptUtil.getName(logicalTable,locale);
+  String tableDescription=ConceptUtil.getDescription(logicalTable,locale);
+  DimensionType dimensionType=ConceptUtil.getDimensionType(logicalTable);
+  transMeta.setName("Update dimension '" + tableName + "'");
+  transMeta.setDescription(tableDescription);
+  transMeta.addDatabase(databaseMeta);
+  Point location=new Point(GRAPH_LEFT,GRAPH_TOP);
+  StepMeta inputStep=generateTableInputStepFromLogicalTable(logicalTable);
+  DatabaseMeta sourceDatabaseMeta=((TableInputMeta)inputStep.getStepMetaInterface()).getDatabaseMeta();
+  if (sourceDatabaseMeta != null)   transMeta.addOrReplaceDatabase(sourceDatabaseMeta);
+  inputStep.setLocation(location.x,location.y);
+  nextLocation(location);
+  transMeta.addStep(inputStep);
+  StepMeta lastStep=inputStep;
+  StepMeta dimensionStep;
+  if (dimensionType == DimensionType.SLOWLY_CHANGING_DIMENSION) {
+    dimensionStep=generateDimensionLookupStepFromLogicalTable(databaseMeta,logicalTable);
+  }
+ else {
+    dimensionStep=generateCombinationLookupStepFromLogicalTable(databaseMeta,logicalTable);
+  }
+  dimensionStep.setLocation(location.x,location.y);
+  nextLocation(location);
+  transMeta.addStep(dimensionStep);
+  TransHopMeta transHop=new TransHopMeta(lastStep,dimensionStep);
+  transMeta.addTransHop(transHop);
+  return transMeta;
+}
