@@ -23,42 +23,61 @@
         logError(BaseMessages.getString(PKG,"ExecSQL.Log.ErrorFindingField") + meta.getArguments()[i] + "]");
         throw new KettleStepException(BaseMessages.getString(PKG,"ExecSQL.Exception.CouldNotFindField",meta.getArguments()[i]));
       }
+      if (meta.isParams()) {
+        if (i == 0) {
+          System.out.println("---------------------------->");
+          data.paramsMeta=new RowMeta();
+        }
+        data.paramsMeta.addValueMeta(getInputRowMeta().getValueMeta(data.argumentIndexes[i]));
+      }
     }
-    data.markerPositions=new ArrayList<Integer>();
-    int len=data.sql.length();
-    int pos=len - 1;
-    while (pos >= 0) {
-      if (data.sql.charAt(pos) == '?')       data.markerPositions.add(Integer.valueOf(pos));
-      pos--;
+    if (!meta.isParams()) {
+      data.markerPositions=new ArrayList<Integer>();
+      int len=data.sql.length();
+      int pos=len - 1;
+      while (pos >= 0) {
+        if (data.sql.charAt(pos) == '?')         data.markerPositions.add(Integer.valueOf(pos));
+        pos--;
+      }
     }
   }
   String sql;
-  int numMarkers=data.markerPositions.size();
-  if (numMarkers > 0) {
-    StringBuffer buf=new StringBuffer(data.sql);
-    for (int i=0; i < numMarkers; i++) {
-      int index=data.argumentIndexes[data.markerPositions.size() - i - 1];
-      ValueMetaInterface valueMeta=getInputRowMeta().getValueMeta(index);
-      Object valueData=row[index];
-      int pos=data.markerPositions.get(i);
-      String replaceValue=valueMeta.getString(valueData);
-      replaceValue=Const.NVL(replaceValue,"");
-      buf.replace(pos,pos + 1,replaceValue);
+  Object[] paramsData=null;
+  if (meta.isParams()) {
+    paramsData=new Object[data.argumentIndexes.length];
+    sql=this.data.sql;
+    for (int i=0; i < this.data.argumentIndexes.length; i++) {
+      paramsData[i]=row[data.argumentIndexes[i]];
     }
-    sql=buf.toString();
   }
  else {
-    sql=data.sql;
+    int numMarkers=data.markerPositions.size();
+    if (numMarkers > 0) {
+      StringBuffer buf=new StringBuffer(data.sql);
+      for (int i=0; i < numMarkers; i++) {
+        int index=data.argumentIndexes[data.markerPositions.size() - i - 1];
+        ValueMetaInterface valueMeta=getInputRowMeta().getValueMeta(index);
+        Object valueData=row[index];
+        int pos=data.markerPositions.get(i);
+        String replaceValue=valueMeta.getString(valueData);
+        replaceValue=Const.NVL(replaceValue,"");
+        buf.replace(pos,pos + 1,replaceValue);
+      }
+      sql=buf.toString();
+    }
+ else {
+      sql=data.sql;
+    }
   }
   if (log.isRowLevel())   logRowlevel(BaseMessages.getString(PKG,"ExecSQL.Log.ExecutingSQLScript") + Const.CR + sql);
   boolean sendToErrorRow=false;
   String errorMessage=null;
   try {
     if (meta.isSingleStatement()) {
-      data.result=data.db.execStatement(sql);
+      data.result=data.db.execStatement(sql,data.paramsMeta,paramsData);
     }
  else {
-      data.result=data.db.execStatements(sql);
+      data.result=data.db.execStatements(sql,data.paramsMeta,paramsData);
     }
     RowMetaAndData add=getResultRow(data.result,meta.getUpdateField(),meta.getInsertField(),meta.getDeleteField(),meta.getReadField());
     row=RowDataUtil.addRowData(row,getInputRowMeta().size(),add.getData());
