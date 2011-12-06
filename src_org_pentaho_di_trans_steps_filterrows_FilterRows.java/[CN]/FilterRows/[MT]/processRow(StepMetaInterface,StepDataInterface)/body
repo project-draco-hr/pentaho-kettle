@@ -13,13 +13,23 @@
     meta.getFields(getInputRowMeta(),getStepname(),null,null,this);
     if (data.chosesTargetSteps) {
       List<StreamInterface> targetStreams=meta.getStepIOMeta().getTargetStreams();
-      data.trueRowSet=findOutputRowSet(getStepname(),getCopy(),targetStreams.get(0).getStepname(),0);
-      if (data.trueRowSet == null) {
-        throw new KettleException(BaseMessages.getString(PKG,"FilterRows.Log.TargetStepInvalid",targetStreams.get(0).getStepname()));
+      if (!Const.isEmpty(targetStreams.get(0).getStepname())) {
+        data.trueRowSet=findOutputRowSet(getStepname(),getCopy(),targetStreams.get(0).getStepname(),0);
+        if (data.trueRowSet == null) {
+          throw new KettleException(BaseMessages.getString(PKG,"FilterRows.Log.TargetStepInvalid",targetStreams.get(0).getStepname()));
+        }
       }
-      data.falseRowSet=findOutputRowSet(getStepname(),getCopy(),targetStreams.get(1).getStepname(),0);
-      if (data.falseRowSet == null) {
-        throw new KettleException(BaseMessages.getString(PKG,"FilterRows.Log.TargetStepInvalid",targetStreams.get(1).getStepname()));
+ else {
+        data.trueRowSet=null;
+      }
+      if (!Const.isEmpty(targetStreams.get(1).getStepname())) {
+        data.falseRowSet=findOutputRowSet(getStepname(),getCopy(),targetStreams.get(1).getStepname(),0);
+        if (data.falseRowSet == null) {
+          throw new KettleException(BaseMessages.getString(PKG,"FilterRows.Log.TargetStepInvalid",targetStreams.get(1).getStepname()));
+        }
+      }
+ else {
+        data.falseRowSet=null;
       }
     }
   }
@@ -31,12 +41,16 @@
   }
  else {
     if (keep) {
-      if (log.isRowLevel())       logRowlevel("Sending row to true  :" + data.trueStepname + " : "+ getInputRowMeta().getString(r));
-      putRowTo(data.outputRowMeta,r,data.trueRowSet);
+      if (data.trueRowSet != null) {
+        if (log.isRowLevel())         logRowlevel("Sending row to true  :" + data.trueStepname + " : "+ getInputRowMeta().getString(r));
+        putRowTo(data.outputRowMeta,r,data.trueRowSet);
+      }
     }
  else {
-      if (log.isRowLevel())       logRowlevel("Sending row to false :" + data.falseStepname + " : "+ getInputRowMeta().getString(r));
-      putRowTo(data.outputRowMeta,r,data.falseRowSet);
+      if (data.falseRowSet != null) {
+        if (log.isRowLevel())         logRowlevel("Sending row to false :" + data.falseStepname + " : "+ getInputRowMeta().getString(r));
+        putRowTo(data.outputRowMeta,r,data.falseRowSet);
+      }
     }
   }
   if (checkFeedback(getLinesRead())) {
