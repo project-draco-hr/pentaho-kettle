@@ -4,15 +4,37 @@
       data.fr=KettleVFS.getInputStream(data.file);
       byte buf[]=new byte[8192];
       int n;
+      boolean prevCR=false;
       while ((n=data.fr.read(buf)) != -1) {
         for (int i=0; i < n; i++) {
-          if (buf[i] == data.separator) {
-            data.rownr++;
+          data.foundData=true;
+          if (meta.getRowSeparatorFormat().equals("CRLF")) {
+            if (buf[i] == '\r' || buf[i] == '\n') {
+              if (buf[i] == '\r') {
+                prevCR=true;
+              }
+ else               if (buf[i] == '\n') {
+                if (prevCR) {
+                  data.rownr++;
+                  data.foundData=false;
+                  prevCR=false;
+                }
+              }
+            }
+ else {
+              prevCR=false;
+            }
+          }
+ else {
+            if (buf[i] == data.separator) {
+              data.rownr++;
+              data.foundData=false;
+            }
           }
         }
       }
     }
-    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"GetFilesRowsCount.Log.RowsInFile",data.file.toString(),"" + data.rownr));
+    if (isDetailed())     logDetailed(BaseMessages.getString(PKG,"GetFilesRowsCount.Log.RowsInFile",data.file.toString(),"" + data.rownr));
   }
  catch (  Exception e) {
     throw new KettleException(e);
