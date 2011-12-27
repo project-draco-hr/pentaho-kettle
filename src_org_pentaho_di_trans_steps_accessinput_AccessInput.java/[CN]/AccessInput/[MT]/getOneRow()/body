@@ -17,81 +17,57 @@
   Object[] r=buildEmptyRow();
   if (meta.isFileField())   System.arraycopy(data.readrow,0,r,0,data.readrow.length);
   try {
-    for (int i=0; i < meta.getInputFields().length; i++) {
+    for (int i=0; i < data.nrFields; i++) {
       AccessInputField field=meta.getInputFields()[i];
-      Object obj=data.rw.get(environmentSubstitute(field.getColumn()));
-      if (obj instanceof Date && field.getType() == ValueMetaInterface.TYPE_DATE || obj instanceof byte[] && field.getType() == ValueMetaInterface.TYPE_BINARY) {
-        r[data.totalpreviousfields + i]=obj;
-      }
- else {
-        String value=null;
-        if (obj != null) {
-          value=String.valueOf(obj);
+      Object obj=data.rw.get(field.getColumn());
+      r[data.totalpreviousfields + i]=convert(obj,field,i);
+      if (field.isRepeated()) {
+        if (data.previousRow != null && obj == null) {
+          r[data.totalpreviousfields + i]=data.previousRow[data.totalpreviousfields + i];
         }
-switch (field.getTrimType()) {
-case AccessInputField.TYPE_TRIM_LEFT:
-          value=Const.ltrim(value);
-        break;
-case AccessInputField.TYPE_TRIM_RIGHT:
-      value=Const.rtrim(value);
-    break;
-case AccessInputField.TYPE_TRIM_BOTH:
-  value=Const.trim(value);
-break;
-default :
-break;
-}
-ValueMetaInterface targetValueMeta=data.outputRowMeta.getValueMeta(data.totalpreviousfields + i);
-ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(data.totalpreviousfields + i);
-r[data.totalpreviousfields + i]=targetValueMeta.convertData(sourceValueMeta,value);
-}
-if (field.isRepeated()) {
-if (data.previousRow != null && obj == null) {
-r[data.totalpreviousfields + i]=data.previousRow[data.totalpreviousfields + i];
-}
-}
-}
-int rowIndex=data.totalpreviousfields + meta.getInputFields().length;
-if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
-r[rowIndex++]=AccessInputMeta.getFilename(data.file);
-}
-if (meta.includeTablename() && !Const.isEmpty(data.t.getName())) {
-r[rowIndex++]=data.t.getName();
-}
-if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
-r[rowIndex++]=new Long(data.rownr);
-}
-if (meta.getShortFileNameField() != null && meta.getShortFileNameField().length() > 0) {
-r[rowIndex++]=data.shortFilename;
-}
-if (meta.getExtensionField() != null && meta.getExtensionField().length() > 0) {
-r[rowIndex++]=data.extension;
-}
-if (meta.getPathField() != null && meta.getPathField().length() > 0) {
-r[rowIndex++]=data.path;
-}
-if (meta.getSizeField() != null && meta.getSizeField().length() > 0) {
-r[rowIndex++]=new Long(data.size);
-}
-if (meta.isHiddenField() != null && meta.isHiddenField().length() > 0) {
-r[rowIndex++]=new Boolean(data.hidden);
-}
-if (meta.getLastModificationDateField() != null && meta.getLastModificationDateField().length() > 0) {
-r[rowIndex++]=data.lastModificationDateTime;
-}
-if (meta.getUriField() != null && meta.getUriField().length() > 0) {
-r[rowIndex++]=data.uriName;
-}
-if (meta.getRootUriField() != null && meta.getRootUriField().length() > 0) {
-r[rowIndex++]=data.rootUriName;
-}
-RowMetaInterface irow=getInputRowMeta();
-data.previousRow=irow == null ? r : (Object[])irow.cloneRow(r);
-incrementLinesInput();
-data.rownr++;
-}
- catch (Exception e) {
-throw new KettleException(BaseMessages.getString(PKG,"AccessInput.Error.ErrorReadingFile"),e);
-}
-return r;
+      }
+    }
+    int rowIndex=data.totalpreviousfields + meta.getInputFields().length;
+    if (meta.includeFilename() && !Const.isEmpty(meta.getFilenameField())) {
+      r[rowIndex++]=AccessInputMeta.getFilename(data.file);
+    }
+    if (meta.includeTablename() && !Const.isEmpty(data.t.getName())) {
+      r[rowIndex++]=data.t.getName();
+    }
+    if (meta.includeRowNumber() && !Const.isEmpty(meta.getRowNumberField())) {
+      r[rowIndex++]=new Long(data.rownr);
+    }
+    if (meta.getShortFileNameField() != null && meta.getShortFileNameField().length() > 0) {
+      r[rowIndex++]=data.shortFilename;
+    }
+    if (meta.getExtensionField() != null && meta.getExtensionField().length() > 0) {
+      r[rowIndex++]=data.extension;
+    }
+    if (meta.getPathField() != null && meta.getPathField().length() > 0) {
+      r[rowIndex++]=data.path;
+    }
+    if (meta.getSizeField() != null && meta.getSizeField().length() > 0) {
+      r[rowIndex++]=new Long(data.size);
+    }
+    if (meta.isHiddenField() != null && meta.isHiddenField().length() > 0) {
+      r[rowIndex++]=new Boolean(data.hidden);
+    }
+    if (meta.getLastModificationDateField() != null && meta.getLastModificationDateField().length() > 0) {
+      r[rowIndex++]=data.lastModificationDateTime;
+    }
+    if (meta.getUriField() != null && meta.getUriField().length() > 0) {
+      r[rowIndex++]=data.uriName;
+    }
+    if (meta.getRootUriField() != null && meta.getRootUriField().length() > 0) {
+      r[rowIndex++]=data.rootUriName;
+    }
+    RowMetaInterface irow=getInputRowMeta();
+    data.previousRow=irow == null ? r : (Object[])irow.cloneRow(r);
+    incrementLinesInput();
+    data.rownr++;
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"AccessInput.Error.ErrorReadingFile"),e);
+  }
+  return r;
 }
