@@ -1,8 +1,15 @@
 {
   try {
+    byte[] delimiter;
+    if (meta.isUseSSV()) {
+      delimiter=data.getBytes(";");
+    }
+ else {
+      delimiter=data.separator;
+    }
     for (int i=0; i < data.keynrs.length; i++) {
       if (i > 0) {
-        data.fifoStream.write(data.separator);
+        data.fifoStream.write(delimiter);
       }
       int index=data.keynrs[i];
       ValueMetaInterface valueMeta=rowMeta.getValueMeta(index);
@@ -15,8 +22,27 @@
           data.fifoStream.write(value);
         }
  else {
+          if (meta.isUseStandardConversion()) {
+            if (valueMeta.isDate()) {
+              valueMeta.setConversionMask("yyyy-MM-dd HH:mm:ss.SSS");
+            }
+ else             if (valueMeta.isNumber()) {
+              valueMeta.setDecimalSymbol(".");
+              valueMeta.setGroupingSymbol("");
+            }
+          }
           String string=valueMeta.getString(valueData);
           if (string != null) {
+            if (meta.isUseSSV()) {
+              if (valueMeta.isString()) {
+                string=string.replaceAll("\"","\\\\\"");
+                string=string.replaceAll("\\n","\\\n");
+                string=string.replaceAll("\\r","\\\r");
+              }
+ else {
+              }
+              string='"' + string + '"';
+            }
             byte[] value=data.getBytes(string);
             data.fifoStream.write(value);
           }
