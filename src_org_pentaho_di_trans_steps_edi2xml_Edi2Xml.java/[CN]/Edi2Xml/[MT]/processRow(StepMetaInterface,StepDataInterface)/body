@@ -1,0 +1,102 @@
+{
+  meta=(Edi2XmlMeta)smi;
+  data=(Edi2XmlData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  String inputValue="";
+  if (first) {
+    first=false;
+    data.inputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    data.outputRowMeta=(RowMetaInterface)getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    String realInputField=environmentSubstitute(meta.getInputField());
+    String realOutputField=environmentSubstitute(meta.getOutputField());
+    data.inputFieldIndex=getInputRowMeta().indexOfValue(realInputField);
+    int numErrors=0;
+    if (data.inputFieldIndex < 0) {
+      logError(BaseMessages.getString(PKG,"Edi2Xml.Log.CouldNotFindInputField",realInputField));
+      numErrors++;
+    }
+    if (!data.inputRowMeta.getValueMeta(data.inputFieldIndex).isString()) {
+      logError(BaseMessages.getString(PKG,"Edi2Xml.Log.InputFieldIsNotAString",realInputField));
+      numErrors++;
+    }
+    if (numErrors > 0) {
+      setErrors(numErrors);
+      stopAll();
+      return false;
+    }
+    data.inputMeta=data.inputRowMeta.getValueMeta(data.inputFieldIndex);
+    if (Const.isEmpty(meta.getOutputField())) {
+      data.outputMeta=data.outputRowMeta.getValueMeta(data.inputFieldIndex);
+      data.outputFieldIndex=data.inputFieldIndex;
+    }
+ else {
+      data.outputMeta=data.outputRowMeta.searchValueMeta(realOutputField);
+      data.outputFieldIndex=data.outputRowMeta.size() - 1;
+    }
+    inputValue=Const.NVL(data.inputMeta.getString(r[data.inputFieldIndex]),"");
+    lexer=new FastSimpleGenericEdifactDirectXMLLexer(new ANTLRStringStream(inputValue));
+    tokens=new CommonTokenStream(lexer);
+    parser=new FastSimpleGenericEdifactDirectXMLParser(tokens);
+  }
+ else {
+    inputValue=Const.NVL(data.inputMeta.getString(r[data.inputFieldIndex]),"");
+    lexer.setCharStream(new ANTLRStringStream(inputValue));
+    tokens.setTokenSource(lexer);
+    parser.setTokenStream(tokens);
+  }
+  try {
+    parser.edifact();
+    r=RowDataUtil.resizeArray(r,data.outputRowMeta.size());
+    r[data.outputFieldIndex]=parser.buf.toString();
+    putRow(data.outputRowMeta,r);
+  }
+ catch (  MismatchedTokenException e) {
+    StringBuilder errorMessage=new StringBuilder(180);
+    errorMessage.append("error parsing edi on line " + e.line + " position "+ e.charPositionInLine);
+    errorMessage.append(": expecting " + ((e.expecting > -1) ? parser.getTokenNames()[e.expecting] : "<UNKNOWN>") + " but found ");
+    errorMessage.append((e.token.getType() >= 0) ? parser.getTokenNames()[e.token.getType()] : "<EOF>");
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(getInputRowMeta(),r,1L,errorMessage.toString(),environmentSubstitute(meta.getInputField()),"MALFORMED_EDI");
+    }
+ else {
+      logError(errorMessage.toString());
+      String errorline="<UNKNOWN>";
+      try {
+        errorline=inputValue.split("\\r?\\n")[e.line - 1];
+      }
+ catch (      Exception ee) {
+      }
+      logError("Problem line: " + errorline);
+      logError(StringUtils.leftPad("^",e.charPositionInLine + "Problem line: ".length() + 1));
+      throw new KettleException(e);
+    }
+  }
+catch (  RecognitionException e) {
+    StringBuilder errorMessage=new StringBuilder(180);
+    errorMessage.append("error parsing edi on line ").append(e.line).append(" position ").append(e.charPositionInLine).append(". ").append(e.toString());
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(getInputRowMeta(),r,1L,errorMessage.toString(),environmentSubstitute(meta.getInputField()),"MALFORMED_EDI");
+    }
+ else {
+      logError(errorMessage.toString());
+      String errorline="<UNKNOWN>";
+      try {
+        errorline=inputValue.split("\\r?\\n")[e.line - 1];
+      }
+ catch (      Exception ee) {
+      }
+      logError("Problem line: " + errorline);
+      logError(StringUtils.leftPad("^",e.charPositionInLine + "Problem line: ".length() + 1));
+      throw new KettleException(e);
+    }
+  }
+  if (checkFeedback(getLinesRead())) {
+    logBasic("Linenr " + getLinesRead());
+  }
+  return true;
+}
