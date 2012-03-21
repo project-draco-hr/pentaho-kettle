@@ -7,58 +7,76 @@
     final String tableName=dbExplorerController.getSelectedTable();
     final String schemaName=dbExplorerController.getSelectedSchema();
     final String schemaTable=dbMeta.getQuotedSchemaTableCombination(schemaName,tableName);
-    final BootstrapOptions bootstrapOptions=new BootstrapOptions(){
-      public Datastore getSingleDatastore(      DatastoreCatalog catalog){
-        try {
-          return new JdbcDatastore(dbMeta.getName(),dbMeta.getURL(),dbMeta.getDriverClass(),dbMeta.getUsername(),dbMeta.getPassword(),false);
-        }
- catch (        KettleDatabaseException e) {
-          throw new RuntimeException(e);
+    AnalyzerBeansConfiguration abc=new AnalyzerBeansConfigurationImpl();
+    AnalysisJobBuilder analysisJobBuilder=new AnalysisJobBuilder(abc);
+    Datastore datastore=new JdbcDatastore(dbMeta.getName(),dbMeta.getURL(),dbMeta.getDriverClass(),dbMeta.getUsername(),dbMeta.getPassword(),false);
+    analysisJobBuilder.setDatastore(datastore);
+    DatastoreConnection connection=null;
+    try {
+      connection=datastore.openConnection();
+      DataContext dataContext=connection.getDataContext();
+      Column[] customerColumns=dataContext.getTableByQualifiedLabel(schemaTable).getColumns();
+      analysisJobBuilder.addSourceColumns(customerColumns);
+      List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(Number.class);
+      if (!numberColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
+      }
+      List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(Date.class);
+      if (!dateColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
+      }
+      List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(Boolean.class);
+      if (!booleanColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
+      }
+      List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(String.class);
+      if (!stringColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
+      }
+      final FileObject jobFile=KettleVFS.createTempFile("datacleaner-job",".xml",System.getProperty("java.io.tmpdir"),new Variables());
+      OutputStream jobOutputStream=null;
+      try {
+        jobOutputStream=KettleVFS.getOutputStream(jobFile,false);
+        new JaxbJobWriter(abc).write(analysisJobBuilder.toAnalysisJob(),jobOutputStream);
+        jobOutputStream.close();
+      }
+  finally {
+        if (jobOutputStream != null) {
+          jobOutputStream.close();
         }
       }
-      public Image getWelcomeImage(){
-        return null;
+      String confXml=generateConfXml(dbMeta.getName(),schemaTable,dbMeta.getURL(),dbMeta.getDriverClass(),dbMeta.getUsername(),dbMeta.getPassword());
+      final FileObject confFile=KettleVFS.createTempFile("datacleaner-conf",".xml",System.getProperty("java.io.tmpdir"),new Variables());
+      OutputStream confOutputStream=null;
+      try {
+        confOutputStream=KettleVFS.getOutputStream(confFile,false);
+        confOutputStream.write(confXml.getBytes(Const.XML_ENCODING));
+        confOutputStream.close();
       }
-      @Override public boolean isSingleDatastoreMode(){
-        return true;
-      }
-      @Override public boolean isCommandLineMode(){
-        return false;
-      }
-      @Override public ExitActionListener getExitActionListener(){
-        return null;
-      }
-      @Override public CliArguments getCommandLineArguments(){
-        return null;
-      }
-      @Override public void initializeSingleDatastoreJob(      AnalysisJobBuilder analysisJobBuilder,      DataContext dataContext){
-        Column[] customerColumns=dataContext.getTableByQualifiedLabel(schemaTable).getColumns();
-        analysisJobBuilder.addSourceColumns(customerColumns);
-        List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.NUMBER);
-        if (!numberColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
+  finally {
+        if (confOutputStream != null) {
+          confOutputStream.close();
         }
-        List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.DATE);
-        if (!dateColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
+      }
+      Spoon.getInstance().getDisplay().syncExec(new Runnable(){
+        public void run(){
+          new Thread(){
+            public void run(){
+              ModelerHelper.launchDataCleaner(KettleVFS.getFilename(confFile),KettleVFS.getFilename(jobFile),dbMeta.getName(),null);
+            }
+          }
+.start();
         }
-        List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.BOOLEAN);
-        if (!booleanColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
-        }
-        List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.STRING);
-        if (!stringColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
-        }
+      }
+);
+    }
+  finally {
+      if (connection != null) {
+        connection.close();
       }
     }
-;
-    Bootstrap bootstrap=new Bootstrap(bootstrapOptions);
-    bootstrap.run();
   }
  catch (  final Exception ex) {
     new ErrorDialog(spoon.getShell(),"Error","unexpected error occurred",ex);
-  }
- finally {
   }
 }

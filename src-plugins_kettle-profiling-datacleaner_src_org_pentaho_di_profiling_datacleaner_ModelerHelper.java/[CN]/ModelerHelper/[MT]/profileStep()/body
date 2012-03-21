@@ -5,75 +5,104 @@
     if (transMeta == null || spoon.getActiveTransGraph() == null) {
       return;
     }
-    if (transMeta.hasChanged()) {
-      MessageBox box=new MessageBox(spoon.getShell(),SWT.ICON_ERROR | SWT.CLOSE);
-      box.setText("Save first...");
-      box.setMessage("Please save your transformation first.  To run the profiling job, we need to run the transformation.");
-      box.open();
-      return;
-    }
     StepMeta stepMeta=spoon.getActiveTransGraph().getCurrentStep();
     if (stepMeta == null) {
       return;
     }
-    final String schemaTable=stepMeta.getName();
-    final String url;
-    final String driverClass;
-    if (!Const.isEmpty(transMeta.getFilename())) {
-      String filename=KettleVFS.getFileObject(transMeta.getFilename()).toString();
-      url="jdbc:kettle:" + filename;
-      driverClass="org.pentaho.di.jdbc.KettleDriver";
+    TransExecutionConfiguration executionConfiguration=spoon.getTransPreviewExecutionConfiguration();
+    TransExecutionConfigurationDialog tecd=new TransExecutionConfigurationDialog(spoon.getShell(),executionConfiguration,transMeta);
+    if (!tecd.open())     return;
+    String[] args=null;
+    Map<String,String> arguments=executionConfiguration.getArguments();
+    if (arguments != null) {
+      args=convertArguments(arguments);
     }
- else {
-      MessageBox box=new MessageBox(spoon.getShell(),SWT.ICON_ERROR | SWT.CLOSE);
-      box.setText("TODO");
-      box.setMessage("Ask the developers to implement profiling a transformation stored in a repository (lazy bunch, you might need to bribe them!).");
-      box.open();
-      return;
+    transMeta.injectVariables(executionConfiguration.getVariables());
+    Map<String,String> paramMap=executionConfiguration.getParams();
+    Set<String> keys=paramMap.keySet();
+    for (    String key : keys) {
+      transMeta.setParameterValue(key,Const.NVL(paramMap.get(key),""));
     }
-    BootstrapOptions bootstrapOptions=new BootstrapOptions(){
-      public Image getWelcomeImage(){
-        return null;
+    transMeta.activateParameters();
+    if (executionConfiguration.isClearingLog()) {
+      spoon.getActiveTransGraph().transLogDelegate.clearLog();
+    }
+    Trans trans=new Trans(transMeta,Spoon.loggingObject);
+    trans.prepareExecution(executionConfiguration.getArgumentStrings());
+    trans.setSafeModeEnabled(executionConfiguration.isSafeModeEnabled());
+    trans.setPreview(true);
+    trans.prepareExecution(args);
+    trans.setRepository(spoon.rep);
+    final DataCleanerKettleFileWriter writer=new DataCleanerKettleFileWriter(trans,stepMeta);
+    writer.run();
+    AnalyzerBeansConfiguration abc=new AnalyzerBeansConfigurationImpl();
+    AnalysisJobBuilder analysisJobBuilder=new AnalysisJobBuilder(abc);
+    Datastore datastore=new KettleDatastore(transMeta.getName(),stepMeta.getName(),transMeta.getStepFields(stepMeta));
+    analysisJobBuilder.setDatastore(datastore);
+    DatastoreConnection connection=null;
+    try {
+      connection=datastore.openConnection();
+      DataContext dataContext=connection.getDataContext();
+      Column[] customerColumns=dataContext.getTableByQualifiedLabel(stepMeta.getName()).getColumns();
+      analysisJobBuilder.addSourceColumns(customerColumns);
+      List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(Number.class);
+      if (!numberColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
       }
-      public Datastore getSingleDatastore(      DatastoreCatalog catalog){
-        return new JdbcDatastore(transMeta.getName(),url,driverClass);
+      List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(Date.class);
+      if (!dateColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
       }
-      @Override public boolean isSingleDatastoreMode(){
-        return true;
+      List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(Boolean.class);
+      if (!booleanColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
       }
-      @Override public boolean isCommandLineMode(){
-        return false;
+      List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(String.class);
+      if (!stringColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
       }
-      @Override public ExitActionListener getExitActionListener(){
-        return null;
+      final FileObject jobFile=KettleVFS.createTempFile("datacleaner-job",".xml",System.getProperty("java.io.tmpdir"),new Variables());
+      OutputStream jobOutputStream=null;
+      try {
+        jobOutputStream=KettleVFS.getOutputStream(jobFile,false);
+        new JaxbJobWriter(abc).write(analysisJobBuilder.toAnalysisJob(),jobOutputStream);
+        jobOutputStream.close();
       }
-      @Override public CliArguments getCommandLineArguments(){
-        return null;
-      }
-      @Override public void initializeSingleDatastoreJob(      AnalysisJobBuilder analysisJobBuilder,      DataContext dataContext){
-        Column[] customerColumns=dataContext.getTableByQualifiedLabel(schemaTable).getColumns();
-        analysisJobBuilder.addSourceColumns(customerColumns);
-        List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.NUMBER);
-        if (!numberColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
+  finally {
+        if (jobOutputStream != null) {
+          jobOutputStream.close();
         }
-        List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.DATE);
-        if (!dateColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
+      }
+      String confXml=generateConfXml(transMeta.getName(),stepMeta.getName(),writer.getFilename());
+      final FileObject confFile=KettleVFS.createTempFile("datacleaner-conf",".xml",System.getProperty("java.io.tmpdir"),new Variables());
+      OutputStream confOutputStream=null;
+      try {
+        confOutputStream=KettleVFS.getOutputStream(confFile,false);
+        confOutputStream.write(confXml.getBytes(Const.XML_ENCODING));
+        confOutputStream.close();
+      }
+  finally {
+        if (confOutputStream != null) {
+          confOutputStream.close();
         }
-        List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.BOOLEAN);
-        if (!booleanColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
+      }
+      Spoon.getInstance().getDisplay().syncExec(new Runnable(){
+        public void run(){
+          new Thread(){
+            public void run(){
+              launchDataCleaner(KettleVFS.getFilename(confFile),KettleVFS.getFilename(jobFile),transMeta.getName(),writer.getFilename());
+            }
+          }
+.start();
         }
-        List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(DataTypeFamily.STRING);
-        if (!stringColumns.isEmpty()) {
-          analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
-        }
+      }
+);
+    }
+  finally {
+      if (connection != null) {
+        connection.close();
       }
     }
-;
-    Bootstrap bootstrap=new Bootstrap(bootstrapOptions);
-    bootstrap.run();
   }
  catch (  final Exception e) {
     new ErrorDialog(spoon.getShell(),"Error","unexpected error occurred",e);

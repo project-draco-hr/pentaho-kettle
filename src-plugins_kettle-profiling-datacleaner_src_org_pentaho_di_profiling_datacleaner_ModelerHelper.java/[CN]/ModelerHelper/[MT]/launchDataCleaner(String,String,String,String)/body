@@ -1,0 +1,65 @@
+{
+  LogChannelInterface log=Spoon.getInstance().getLog();
+  try {
+    String pluginPath;
+    try {
+      pluginPath=System.getProperty("DATACLEANER_HOME");
+      if (Const.isEmpty(pluginPath)) {
+        PluginInterface spoonPlugin=PluginRegistry.getInstance().findPluginWithId(SpoonPluginType.class,"SpoonDataCleaner");
+        pluginPath=KettleVFS.getFilename(KettleVFS.getFileObject(spoonPlugin.getPluginDirectory().toString()));
+        pluginPath+="/DataCleaner";
+      }
+    }
+ catch (    Exception e) {
+      throw new XulException("Unable to determine location of the spoon profile plugin.  It is needed to know where DataCleaner is installed.");
+    }
+    log.logBasic("DataCleaner plugin path = '" + pluginPath + "'");
+    List<String> cmds=new ArrayList<String>();
+    cmds.add(System.getProperty("java.home") + "/bin/java");
+    cmds.add("-cp");
+    cmds.add(pluginPath + "/DataCleaner.jar" + File.pathSeparator+ pluginPath+ "/datacleaner-kettle-plugin.jar"+ File.pathSeparator+ pluginPath+ "/lib/kettle-core.jar");
+    cmds.add("-Ddatacleaner.ui.visible=true");
+    cmds.add("-Ddatacleaner.embed.client=Kettle");
+    cmds.add("-DDATACLEANER_HOME=" + pluginPath);
+    cmds.add("org.eobjects.datacleaner.Main");
+    if (!Const.isEmpty(confFile)) {
+      cmds.add("-conf");
+      cmds.add(confFile);
+    }
+    if (!Const.isEmpty(jobFile)) {
+      cmds.add("-job");
+      cmds.add(jobFile);
+    }
+    if (!Const.isEmpty(datastore)) {
+      cmds.add("-ds");
+      cmds.add(datastore);
+    }
+    StringBuilder commandString=new StringBuilder();
+    for (    String cmd : cmds)     commandString.append(cmd).append(" ");
+    log.logBasic("DataCleaner launch commands : " + commandString);
+    ProcessBuilder processBuilder=new ProcessBuilder(cmds);
+    processBuilder.environment().put("DATACLEANER_HOME",pluginPath);
+    Process process=processBuilder.start();
+    ProcessStreamReader psrStdout=new ProcessStreamReader(process.getInputStream());
+    ProcessStreamReader psrStderr=new ProcessStreamReader(process.getErrorStream());
+    psrStdout.start();
+    psrStderr.start();
+    process.waitFor();
+    psrStdout.join();
+    psrStderr.join();
+    Spoon.getInstance().getLog().logBasic(psrStdout.getString());
+    Spoon.getInstance().getLog().logError(psrStderr.getString());
+    if (!Const.isEmpty(confFile)) {
+      new File(confFile).delete();
+    }
+    if (!Const.isEmpty(jobFile)) {
+      new File(jobFile).delete();
+    }
+    if (!Const.isEmpty(dataFile)) {
+      new File(dataFile).delete();
+    }
+  }
+ catch (  Throwable e) {
+    new ErrorDialog(Spoon.getInstance().getShell(),"Error launching DataCleaner","There was an unexpected error launching DataCleaner",e);
+  }
+}
