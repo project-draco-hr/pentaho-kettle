@@ -1,0 +1,22 @@
+{
+  FileObject tempFile=KettleVFS.createTempFile("datacleaner",".kettlestream",System.getProperty("java.io.tmpdir"));
+  filename=KettleVFS.getFilename(tempFile);
+  outputStream=new DataOutputStream(KettleVFS.getOutputStream(tempFile,false));
+  log.logBasic("DataCleaner temp file created: " + filename);
+  RowMetaInterface rowMeta=transMeta.getStepFields(stepMeta);
+  log.logBasic("Opened an output stream to DataCleaner.");
+  outputStream.writeUTF(transMeta.getName());
+  log.logBasic("wrote the transformation name.");
+  outputStream.writeUTF(stepMeta.getName());
+  log.logBasic("wrote the step name.");
+  rowMeta.writeMeta(outputStream);
+  log.logBasic("Wrote the row metadata");
+  List<StepInterface> steps=trans.findBaseSteps(stepMeta.getName());
+  StepInterface step=steps.get(0);
+  step.addRowListener(this);
+  log.logBasic("Added the row listener to step: " + step.toString());
+  trans.startThreads();
+  log.logBasic("Started the transformation to profile... waiting until the transformation has finished");
+  trans.waitUntilFinished();
+  log.logBasic("The transformation to profile finished.");
+}
