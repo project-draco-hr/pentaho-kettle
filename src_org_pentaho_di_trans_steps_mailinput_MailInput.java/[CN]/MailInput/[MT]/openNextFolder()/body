@@ -45,6 +45,8 @@
         data.folders=getFolders(foldername);
       }
     }
+    data.start=parseIntWithSubstitute(meta.getStart());
+    data.end=parseIntWithSubstitute(meta.getEnd());
     data.folder=data.folders[data.folderenr];
     data.folderenr++;
     if (!data.usePOP && !Const.isEmpty(data.folder)) {
@@ -53,8 +55,16 @@
  else {
       data.mailConn.openFolder(false);
     }
-    data.mailConn.retrieveMessages();
-    data.messagesCount=data.mailConn.getMessagesCount();
+    if (meta.useBatch()) {
+      data.folderIterator=new BatchFolderIterator(data.mailConn.getFolder(),meta.getBatchSize(),data.start,data.end);
+      if (data.mailConn.getSearchTerm() != null) {
+        data.folderIterator=new SearchEnabledFolderIterator(data.folderIterator,data.mailConn.getSearchTerm());
+      }
+    }
+ else {
+      data.mailConn.retrieveMessages();
+      data.folderIterator=new ArrayIterator<Message>(data.mailConn.getMessages());
+    }
     if (isDebug())     logDebug(BaseMessages.getString(PKG,"MailInput.Log.MessagesInFolder",data.folder,data.messagesCount));
   }
  catch (  Exception e) {

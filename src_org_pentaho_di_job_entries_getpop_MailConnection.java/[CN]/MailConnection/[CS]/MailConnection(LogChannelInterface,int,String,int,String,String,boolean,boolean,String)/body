@@ -28,8 +28,12 @@
       this.prop.setProperty("mail.pop3s.rsetbeforequit","true");
       this.prop.setProperty("mail.pop3.rsetbeforequit","true");
     }
-    String protocolString=(protocol == MailConnectionMeta.PROTOCOL_POP3) ? "pop3" : "imap";
-    if (usessl) {
+ else     if (protocol == MailConnectionMeta.PROTOCOL_MBOX) {
+      this.prop.setProperty("mstor.mbox.metadataStrategy","none");
+      this.prop.setProperty("mstor.cache.disabled","true");
+    }
+    String protocolString=(protocol == MailConnectionMeta.PROTOCOL_POP3) ? "pop3" : protocol == MailConnectionMeta.PROTOCOL_MBOX ? "mstor" : "imap";
+    if (usessl && protocol != MailConnectionMeta.PROTOCOL_MBOX) {
       this.prop.setProperty("mail." + protocolString + ".socketFactory.class","javax.net.ssl.SSLSocketFactory");
       this.prop.setProperty("mail." + protocolString + ".socketFactory.fallback","false");
       this.prop.setProperty("mail." + protocolString + ".port","" + port);
@@ -46,7 +50,12 @@
  else {
       this.session=Session.getInstance(this.prop,null);
       this.session.setDebug(log.isDebug());
-      this.store=this.session.getStore(protocolString);
+      if (protocol == MailConnectionMeta.PROTOCOL_MBOX) {
+        this.store=this.session.getStore(new URLName(protocolString + ":" + server));
+      }
+ else {
+        this.store=this.session.getStore(protocolString);
+      }
     }
     if (log.isDetailed())     log.logDetailed(BaseMessages.getString(PKG,"JobGetMailsFromPOP.NewConnectionDefined"));
   }
