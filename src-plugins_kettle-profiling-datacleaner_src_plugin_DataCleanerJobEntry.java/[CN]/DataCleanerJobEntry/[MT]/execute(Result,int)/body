@@ -1,0 +1,39 @@
+{
+  final List<String> commands=new ArrayList<String>();
+  final String executableFilePath=environmentSubstitute(configuration.getExecutableFile());
+  final File executableFile=new File(executableFilePath);
+  commands.add(executableFilePath);
+  commands.add("-job");
+  commands.add(environmentSubstitute(configuration.getJobFile()));
+  commands.add("-ot");
+  commands.add(configuration.getOutputType().toString());
+  commands.add("-of");
+  commands.add(environmentSubstitute(configuration.getOutputFile()));
+  final ProcessBuilder processBuilder=new ProcessBuilder(commands);
+  processBuilder.directory(executableFile.getParentFile());
+  processBuilder.redirectErrorStream(true);
+  try {
+    final Process process=processBuilder.start();
+    if (log.isBasic()) {
+      InputStream inputStream=process.getInputStream();
+      try {
+        BufferedReader reader=new BufferedReader(new InputStreamReader(inputStream));
+        for (String line=reader.readLine(); line != null; line=reader.readLine()) {
+          logBasic("DataCleaner: " + line);
+        }
+      }
+  finally {
+        inputStream.close();
+      }
+    }
+    int exitCode=process.waitFor();
+    result.setExitStatus(exitCode);
+    result.setResult(true);
+  }
+ catch (  Exception e) {
+    logError("Error occurred while executing DataCleaner job",e);
+    result.setResult(false);
+    throw new KettleException(e);
+  }
+  return result;
+}
