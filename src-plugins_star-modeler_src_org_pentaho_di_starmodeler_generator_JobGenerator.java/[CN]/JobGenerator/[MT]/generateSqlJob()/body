@@ -36,55 +36,49 @@
         phKeyField=ConceptUtil.getString(keyColumn,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
       }
       RowMetaInterface fields=getRowForLogicalTable(databaseMeta,logicalTable);
-      String sql;
-      if (db.checkTableExists(schemaTable)) {
-        sql=db.getAlterTableStatement(schemaTable,fields,phKeyField,databaseMeta.supportsAutoinc() && !isFact,null,true);
+      String sql=db.getCreateTableStatement(schemaTable,fields,phKeyField,databaseMeta.supportsAutoinc() && !isFact,null,true);
+      if (keyColumn != null) {
+        ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,keyColumn);
+        String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_"+ phKeyField.toUpperCase());
+        String indexSql=db.getCreateIndexStatement(schemaTable,indexName,new String[]{keyValueMeta.getName()},true,false,true,true);
+        sql+=Const.CR + indexSql;
       }
- else {
-        sql=db.getCreateTableStatement(schemaTable,fields,phKeyField,databaseMeta.supportsAutoinc() && !isFact,null,true);
-        if (keyColumn != null) {
-          ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,keyColumn);
-          String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_"+ phKeyField.toUpperCase());
-          String indexSql=db.getCreateIndexStatement(schemaTable,indexName,new String[]{keyValueMeta.getName()},true,false,true,true);
+      if (isFact) {
+        List<LogicalColumn> fks=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.TECHNICAL_KEY);
+        for (        LogicalColumn fk : fks) {
+          ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,fk);
+          String phColumn=ConceptUtil.getString(fk,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
+          if (!Const.isEmpty(phColumn)) {
+            String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_"+ phColumn.toUpperCase());
+            String indexSql=db.getCreateIndexStatement(schemaTable,indexName,new String[]{keyValueMeta.getName()},true,false,true,true);
+            sql+=Const.CR + indexSql;
+          }
+        }
+      }
+      if (isDimension) {
+        List<LogicalColumn> naturalKeys=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.NATURAL_KEY);
+        if (!naturalKeys.isEmpty()) {
+          String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_LOOKUP");
+          String[] fieldNames=new String[naturalKeys.size()];
+          for (int i=0; i < fieldNames.length; i++) {
+            ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,naturalKeys.get(i));
+            fieldNames[i]=keyValueMeta.getName();
+          }
+          String indexSql=db.getCreateIndexStatement(schemaTable,indexName,fieldNames,false,false,false,true);
           sql+=Const.CR + indexSql;
         }
-        if (isFact) {
-          List<LogicalColumn> fks=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.TECHNICAL_KEY);
-          for (          LogicalColumn fk : fks) {
-            ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,fk);
-            String phColumn=ConceptUtil.getString(fk,DefaultIDs.LOGICAL_COLUMN_PHYSICAL_COLUMN_NAME);
-            if (!Const.isEmpty(phColumn)) {
-              String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_"+ phColumn.toUpperCase());
-              String indexSql=db.getCreateIndexStatement(schemaTable,indexName,new String[]{keyValueMeta.getName()},true,false,true,true);
-              sql+=Const.CR + indexSql;
-            }
+      }
+      if (isJunk) {
+        List<LogicalColumn> attributes=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.ATTRIBUTE);
+        if (!attributes.isEmpty()) {
+          String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_LOOKUP");
+          String[] fieldNames=new String[attributes.size()];
+          for (int i=0; i < fieldNames.length; i++) {
+            ValueMetaInterface attrValueMeta=getValueForLogicalColumn(databaseMeta,attributes.get(i));
+            fieldNames[i]=attrValueMeta.getName();
           }
-        }
-        if (isDimension) {
-          List<LogicalColumn> naturalKeys=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.NATURAL_KEY);
-          if (!naturalKeys.isEmpty()) {
-            String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_LOOKUP");
-            String[] fieldNames=new String[naturalKeys.size()];
-            for (int i=0; i < fieldNames.length; i++) {
-              ValueMetaInterface keyValueMeta=getValueForLogicalColumn(databaseMeta,naturalKeys.get(i));
-              fieldNames[i]=keyValueMeta.getName();
-            }
-            String indexSql=db.getCreateIndexStatement(schemaTable,indexName,fieldNames,false,false,false,true);
-            sql+=Const.CR + indexSql;
-          }
-        }
-        if (isJunk) {
-          List<LogicalColumn> attributes=ConceptUtil.findLogicalColumns(logicalTable,AttributeType.ATTRIBUTE);
-          if (!attributes.isEmpty()) {
-            String indexName=databaseMeta.quoteField("IDX_" + phTable.replace(" ","_").toUpperCase() + "_LOOKUP");
-            String[] fieldNames=new String[attributes.size()];
-            for (int i=0; i < fieldNames.length; i++) {
-              ValueMetaInterface attrValueMeta=getValueForLogicalColumn(databaseMeta,attributes.get(i));
-              fieldNames[i]=attrValueMeta.getName();
-            }
-            String indexSql=db.getCreateIndexStatement(schemaTable,indexName,fieldNames,false,false,false,true);
-            sql+=Const.CR + indexSql;
-          }
+          String indexSql=db.getCreateIndexStatement(schemaTable,indexName,fieldNames,false,false,false,true);
+          sql+=Const.CR + indexSql;
         }
       }
       sqlEntry.setSQL(sql);
