@@ -363,6 +363,7 @@
       }
  else       if (e.keyCode == SWT.ESC) {
         text.dispose();
+        table.setFocus();
       }
     }
   }
@@ -371,7 +372,7 @@
     public void keyPressed(    KeyEvent e){
       boolean right=false;
       boolean left=false;
-      if (e.character == SWT.CR || e.keyCode == SWT.TAB || left || right) {
+      if (e.keyCode == SWT.CR || e.keyCode == SWT.TAB || left || right) {
         if (activeTableItem == null)         return;
         applyComboChange(activeTableItem,activeTableRow,activeTableColumn);
         String after_edit[]=getItemText(activeTableItem);
@@ -403,9 +404,15 @@
         if (sel) {
           edit(activeTableRow,activeTableColumn);
         }
+        table.setFocus();
       }
  else       if (e.keyCode == SWT.ESC) {
+        if (activeTableItem != null) {
+          activeTableItem.setText(activeTableColumn,before_edit[activeTableColumn - 1]);
+        }
         combo.dispose();
+        table.setFocus();
+        e.doit=false;
       }
     }
   }
@@ -420,12 +427,13 @@
         selectionStart=activeTableRow;
       }
       previous_shift=shift;
-      if (!readonly && e.keyCode == SWT.ARROW_DOWN && ((e.stateMask & SWT.MOD1) != 0)) {
+      boolean ctrl=((e.stateMask & SWT.MOD1) != 0);
+      if (!readonly && e.keyCode == SWT.ARROW_DOWN && ctrl) {
         moveRows(+1);
         e.doit=false;
         return;
       }
-      if (!readonly && e.keyCode == SWT.ARROW_UP && ((e.stateMask & SWT.MOD1) != 0)) {
+      if (!readonly && e.keyCode == SWT.ARROW_UP && ctrl) {
         moveRows(-1);
         e.doit=false;
         return;
@@ -434,26 +442,30 @@
         activeTableRow++;
         if (activeTableRow >= maxrows)         activeTableRow=maxrows - 1;
         selectRows(selectionStart,activeTableRow);
-        table.showItem(activeTableItem);
+        table.showItem(table.getItem(activeTableRow));
+        e.doit=false;
         return;
       }
       if (e.keyCode == SWT.ARROW_UP && shift) {
         activeTableRow--;
         if (activeTableRow < 0)         activeTableRow=0;
         selectRows(activeTableRow,selectionStart);
-        table.showItem(activeTableItem);
+        table.showItem(table.getItem(activeTableRow));
+        e.doit=false;
         return;
       }
       if (e.keyCode == SWT.HOME && shift) {
         activeTableRow=0;
         selectRows(selectionStart,activeTableRow);
         table.showItem(activeTableItem);
+        e.doit=false;
         return;
       }
       if (e.keyCode == SWT.END && shift) {
         activeTableRow=maxrows;
         selectRows(selectionStart,activeTableRow);
         table.showItem(activeTableItem);
+        e.doit=false;
         return;
       }
       if ((e.keyCode == SWT.ARROW_DOWN && !shift) || (e.keyCode == SWT.ARROW_UP && !shift) || (e.keyCode == SWT.HOME && !shift)|| (e.keyCode == SWT.END && !shift)) {
@@ -485,56 +497,71 @@ break;
 setPosition(activeTableRow,activeTableColumn);
 table.deselectAll();
 table.select(activeTableRow);
+table.showItem(table.getItem(activeTableRow));
+e.doit=false;
 return;
 }
-if (e.character == 'a' && ((e.stateMask & SWT.MOD1) != 0)) {
+if (e.keyCode == 'a' && ctrl) {
+e.doit=false;
 selectAll();
 return;
 }
 if (e.keyCode == SWT.ESC) {
+e.doit=false;
 unselectAll();
 selectRows(activeTableRow,activeTableRow);
+setFocus();
 return;
 }
-if (e.character == 'c' && ((e.stateMask & SWT.MOD1) != 0)) {
+if (e.keyCode == 'c' && ctrl) {
+e.doit=false;
 clipSelected();
 return;
 }
-if (!readonly && e.character == 'k' && ((e.stateMask & SWT.MOD1) != 0)) {
+if (!readonly && e.keyCode == 'k' && ctrl) {
+e.doit=false;
 keepSelected();
 return;
 }
-if (!readonly && e.character == 'x' && ((e.stateMask & SWT.MOD1) != 0)) {
+if (!readonly && e.keyCode == 'x' && ctrl) {
+e.doit=false;
 cutSelected();
 return;
 }
-if (!readonly && e.character == 'v' && ((e.stateMask & SWT.MOD1) != 0)) {
+if (!readonly && e.keyCode == 'v' && ctrl) {
+e.doit=false;
 pasteSelected();
 return;
 }
 if (e.keyCode == SWT.F3) {
+e.doit=false;
 optWidth(true);
 return;
 }
 if (!readonly && e.keyCode == SWT.DEL) {
+e.doit=false;
 delSelected();
 return;
 }
 if (e.keyCode == SWT.F4) {
+e.doit=false;
 optWidth(false);
 return;
 }
-if (e.character == 'y' && ((e.stateMask & SWT.MOD1) != 0)) {
+if (e.keyCode == 'y' && ctrl) {
+e.doit=false;
 redoAction();
 return;
 }
-if (e.character == 'z' && ((e.stateMask & SWT.MOD1) != 0)) {
+if (e.keyCode == 'z' && ctrl) {
+e.doit=false;
 undoAction();
 return;
 }
 if (e.keyCode == SWT.CR || e.keyCode == SWT.ARROW_RIGHT || e.keyCode == SWT.TAB) {
 activeTableColumn=1;
 edit(activeTableRow,activeTableColumn);
+e.doit=false;
 return;
 }
 if (activeTableColumn > 0) {
@@ -546,6 +573,7 @@ if (text_char) {
 extra_char=e.character;
 select_text=false;
 }
+e.doit=false;
 edit(activeTableRow,activeTableColumn,select_text,extra_char);
 }
 if (e.character == SWT.TAB) {
@@ -568,6 +596,7 @@ TableItem item=new TableItem(table,SWT.NONE,activeTableRow);
 item.setText(1,"");
 setRowNums();
 }
+e.doit=false;
 edit(activeTableRow,activeTableColumn);
 }
 }
