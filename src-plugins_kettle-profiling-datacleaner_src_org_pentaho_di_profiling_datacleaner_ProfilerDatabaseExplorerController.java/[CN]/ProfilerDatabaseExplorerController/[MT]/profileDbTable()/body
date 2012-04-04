@@ -15,37 +15,50 @@
     try {
       connection=datastore.openConnection();
       DataContext dataContext=connection.getDataContext();
-      Column[] customerColumns=dataContext.getTableByQualifiedLabel(schemaTable).getColumns();
-      analysisJobBuilder.addSourceColumns(customerColumns);
-      List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(Number.class);
-      if (!numberColumns.isEmpty()) {
-        analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
-      }
-      List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(Date.class);
-      if (!dateColumns.isEmpty()) {
-        analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
-      }
-      List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(Boolean.class);
-      if (!booleanColumns.isEmpty()) {
-        analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
-      }
-      List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(String.class);
-      if (!stringColumns.isEmpty()) {
-        analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
-      }
-      final FileObject jobFile=KettleVFS.createTempFile("datacleaner-job",".xml",System.getProperty("java.io.tmpdir"),new Variables());
-      OutputStream jobOutputStream=null;
-      try {
-        jobOutputStream=KettleVFS.getOutputStream(jobFile,false);
-        new JaxbJobWriter(abc).write(analysisJobBuilder.toAnalysisJob(),jobOutputStream);
-        jobOutputStream.close();
-      }
-  finally {
-        if (jobOutputStream != null) {
-          jobOutputStream.close();
+      Table table=dataContext.getTableByQualifiedLabel(schemaTable);
+      if (table == null) {
+        Schema schema=dataContext.getSchemaByName(schemaName);
+        if (schema != null) {
+          table=schema.getTableByName(tableName);
         }
       }
-      String confXml=generateConfXml(dbMeta.getName(),schemaTable,dbMeta.getURL(),dbMeta.getDriverClass(),dbMeta.getUsername(),dbMeta.getPassword());
+      final FileObject jobFile;
+      if (table == null) {
+        jobFile=null;
+      }
+ else {
+        Column[] customerColumns=table.getColumns();
+        analysisJobBuilder.addSourceColumns(customerColumns);
+        List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(Number.class);
+        if (!numberColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
+        }
+        List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(Date.class);
+        if (!dateColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
+        }
+        List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(Boolean.class);
+        if (!booleanColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
+        }
+        List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(String.class);
+        if (!stringColumns.isEmpty()) {
+          analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
+        }
+        jobFile=KettleVFS.createTempFile("datacleaner-job",".xml",System.getProperty("java.io.tmpdir"),new Variables());
+        OutputStream jobOutputStream=null;
+        try {
+          jobOutputStream=KettleVFS.getOutputStream(jobFile,false);
+          new JaxbJobWriter(abc).write(analysisJobBuilder.toAnalysisJob(),jobOutputStream);
+          jobOutputStream.close();
+        }
+  finally {
+          if (jobOutputStream != null) {
+            jobOutputStream.close();
+          }
+        }
+      }
+      String confXml=generateConfXml(dbMeta.getName(),dbMeta.getURL(),dbMeta.getDriverClass(),dbMeta.getUsername(),dbMeta.getPassword());
       final FileObject confFile=KettleVFS.createTempFile("datacleaner-conf",".xml",System.getProperty("java.io.tmpdir"),new Variables());
       OutputStream confOutputStream=null;
       try {
@@ -62,7 +75,14 @@
         public void run(){
           new Thread(){
             public void run(){
-              ModelerHelper.launchDataCleaner(KettleVFS.getFilename(confFile),KettleVFS.getFilename(jobFile),dbMeta.getName(),null);
+              final String jobFileName;
+              if (jobFile == null) {
+                jobFileName=null;
+              }
+ else {
+                jobFileName=KettleVFS.getFilename(jobFile);
+              }
+              ModelerHelper.launchDataCleaner(KettleVFS.getFilename(confFile),jobFileName,dbMeta.getName(),null);
             }
           }
 .start();
