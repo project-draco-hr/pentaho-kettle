@@ -1,0 +1,109 @@
+{
+  meta=(SFTPPutMeta)smi;
+  data=(SFTPPutData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    String sourceFilenameFieldName=environmentSubstitute(meta.getSourceFileNameFieldName());
+    if (Const.isEmpty(sourceFilenameFieldName)) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.SourceFileNameFieldMissing"));
+    }
+    data.indexOfSourceFileFieldName=getInputRowMeta().indexOfValue(sourceFilenameFieldName);
+    if (data.indexOfSourceFileFieldName < -1) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.CanNotFindField",sourceFilenameFieldName));
+    }
+    String remoteFoldernameFieldName=environmentSubstitute(meta.getRemoteDirectoryFieldName());
+    if (Const.isEmpty(remoteFoldernameFieldName)) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.RemoteFolderNameFieldMissing"));
+    }
+    data.indexOfRemoteDirectory=getInputRowMeta().indexOfValue(remoteFoldernameFieldName);
+    if (data.indexOfRemoteDirectory < -1) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.CanNotFindField",remoteFoldernameFieldName));
+    }
+    if (meta.getAfterFTPS() == JobEntrySFTPPUT.AFTER_FTPSPUT_MOVE) {
+      String realDestinationFoldernameFieldName=environmentSubstitute(meta.getDestinationFolderFieldName());
+      if (Const.isEmpty(realDestinationFoldernameFieldName)) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Log.DestinatFolderNameFieldNameMissing"));
+      }
+      data.indexOfMoveToFolderFieldName=getInputRowMeta().indexOfValue(realDestinationFoldernameFieldName);
+      if (data.indexOfMoveToFolderFieldName < -1) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.CanNotFindField",realDestinationFoldernameFieldName));
+      }
+    }
+  }
+  String sourceData=getInputRowMeta().getString(r,data.indexOfSourceFileFieldName);
+  InputStream inputStream=null;
+  FileObject destinationFolder=null;
+  FileObject file=null;
+  try {
+    if (Const.isEmpty(sourceData)) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.SourceDataEmpty"));
+    }
+    if (meta.isInputStream()) {
+      inputStream=new ByteArrayInputStream(sourceData.getBytes());
+    }
+ else {
+      file=KettleVFS.getFileObject(sourceData);
+      if (!file.exists()) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.CanNotFindField",sourceData));
+      }
+      inputStream=KettleVFS.getInputStream(file);
+    }
+    if (meta.getAfterFTPS() == JobEntrySFTPPUT.AFTER_FTPSPUT_MOVE) {
+      String realDestationFolder=getInputRowMeta().getString(r,data.indexOfMoveToFolderFieldName);
+      if (Const.isEmpty(realDestationFolder)) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.MoveToDestinationFolderIsEmpty"));
+      }
+      destinationFolder=KettleVFS.getFileObject(realDestationFolder);
+      if (!destinationFolder.exists()) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.CanNotFindFolder",realDestationFolder));
+      }
+    }
+    setSFTPDirectory(getInputRowMeta().getString(r,data.indexOfRemoteDirectory));
+    String destinationFilename=file.getName().getBaseName();
+    data.sftpclient.put(inputStream,destinationFilename);
+    finishTheJob(file,sourceData,destinationFolder);
+    putRow(getInputRowMeta(),r);
+    if (checkFeedback(getLinesRead())) {
+      if (isDetailed())       logDetailed(BaseMessages.getString(PKG,"SFTPPut.Log.LineNumber") + getLinesRead());
+    }
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"SFTPPut.Log.ErrorInStep"),e);
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"SFTPPUT001");
+    }
+  }
+ finally {
+    try {
+      if (destinationFolder != null) {
+        destinationFolder.close();
+      }
+      if (file != null) {
+        file.close();
+      }
+      if (inputStream != null) {
+        inputStream.close();
+      }
+    }
+ catch (    Exception e) {
+    }
+  }
+  return true;
+}
