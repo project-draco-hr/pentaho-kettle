@@ -37,17 +37,29 @@
   if (r != null) {
     rowCount++;
     try {
-      String[] newRow=new String[data.indexes.length];
+      ConsolidationElement parent=null;
       for (int i=0; i < data.indexes.length; i++) {
-        if (i % 2 == 1 && data.indexes[i] < 0)         newRow[i]="1";
- else         newRow[i]=(r[data.indexes[i]] == null ? null : r[data.indexes[i]].toString());
         if (i % 2 == 0) {
           if (r[data.indexes[i]] == null)           continue;
           data.elementNamesBatch.add(r[data.indexes[i]].toString());
         }
+ else {
+          double consolidation_factor=1;
+          if (data.indexes[i] >= 0)           consolidation_factor=Double.parseDouble((r[data.indexes[i]] == null ? 0 : r[data.indexes[i]]).toString());
+          ConsolidationElement child=null;
+          if (r[data.indexes[i - 1]] != null) {
+            String elementName=r[data.indexes[i - 1]].toString();
+            if (!this.consolidations.hasConsolidationElement(elementName)) {
+              child=new ConsolidationElement(elementName);
+              this.consolidations.add(child);
+            }
+ else             child=this.consolidations.getConsolidationElement(elementName);
+            if (parent != null)             parent.addChild(child,consolidation_factor);
+          }
+          parent=child;
+        }
       }
       if (data.elementNamesBatch.size() % 100 == 0)       commitBatch();
-      this.currentTransformationRows.add(newRow);
     }
  catch (    Exception e) {
       throw new KettleException("Failed to add row to the row buffer",e);
@@ -59,17 +71,9 @@
       data.helper.clearDimensionCache();
       data.helper.loadDimensionCache(meta.getDimension(),meta.getEnableElementCache(),meta.getPreloadElementCache());
       this.logBasic("All rows have been added. Looking for consolidations");
-      this.logDebug("Read rows:" + this.currentTransformationRows.size());
-      DimensionGroupingCollection newDimension=data.helper.getDimensionGroupings(meta.getDimension(),this.currentTransformationRows);
-      if (newDimension == null || newDimension.size() == 0) {
-        this.logBasic("No consolidations to update.");
-      }
- else {
-        this.logBasic("Consolidations Ok");
-        this.logBasic("Updating consolidations for Dimension" + meta.getDimension());
-        data.helper.addDimensionConsolidations(meta.getDimension(),newDimension);
-        this.logBasic("Consolidations updated.");
-      }
+      this.logBasic("Updating consolidations for Dimension" + meta.getDimension());
+      data.helper.addDimensionConsolidations(meta.getDimension(),this.consolidations);
+      this.logBasic("Consolidations updated.");
       setOutputDone();
       return false;
     }
