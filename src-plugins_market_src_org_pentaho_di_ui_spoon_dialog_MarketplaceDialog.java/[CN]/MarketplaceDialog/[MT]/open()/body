@@ -1,0 +1,149 @@
+{
+  Shell parent=getParent();
+  Display display=parent.getDisplay();
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX| SWT.MIN);
+  props.setLook(shell);
+  shell.setImage(GUIResource.getInstance().getImageSpoon());
+  FormLayout formLayout=new FormLayout();
+  formLayout.marginWidth=Const.FORM_MARGIN;
+  formLayout.marginHeight=Const.FORM_MARGIN;
+  shell.setLayout(formLayout);
+  shell.setText("PDI Marketplace");
+  shell.setImage(GUIResource.getInstance().getImageLogoSmall());
+  margin=Const.MARGIN;
+  middle=props.getMiddlePct();
+  wlMarketplaces=new Label(shell,SWT.NONE);
+  wlMarketplaces.setText("Detected plugins");
+  props.setLook(wlMarketplaces);
+  FormData fdlMarketplaces=new FormData();
+  fdlMarketplaces.left=new FormAttachment(0,0);
+  fdlMarketplaces.top=new FormAttachment(0,margin);
+  wlMarketplaces.setLayoutData(fdlMarketplaces);
+  bar=new ExpandBar(shell,SWT.V_SCROLL | SWT.H_SCROLL);
+  FormData fdBar=new FormData();
+  fdBar.left=new FormAttachment(0,0);
+  fdBar.top=new FormAttachment(wlMarketplaces,margin);
+  fdBar.right=new FormAttachment(100,0);
+  fdBar.bottom=new FormAttachment(100,-50);
+  bar.setLayoutData(fdBar);
+  MarketEntries marketEntries=new MarketEntries();
+  for (  final MarketEntry marketEntry : marketEntries) {
+    Composite composite=new Composite(bar,SWT.NONE);
+    FormLayout layout=new FormLayout();
+    layout.marginHeight=margin;
+    layout.marginWidth=margin;
+    composite.setLayout(layout);
+    props.setLook(composite);
+    Control lastControl=null;
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.ID.label"),lastControl);
+    lastControl=addRightLabel(composite,Const.NVL(marketEntry.getId(),""),lastControl);
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Name.label"),lastControl);
+    lastControl=addRightLabel(composite,Const.NVL(marketEntry.getName(),""),lastControl);
+    if (!Const.isEmpty(marketEntry.getDescription())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Description.label"),lastControl);
+      lastControl=addRightLabel(composite,marketEntry.getDescription(),lastControl);
+    }
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.PackageURL.label"),lastControl);
+    lastControl=addRightURL(composite,marketEntry.getPackageUrl(),lastControl);
+    if (!Const.isEmpty(marketEntry.getDocumentationUrl())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Documentation.label"),lastControl);
+      lastControl=addRightURL(composite,marketEntry.getDocumentationUrl(),lastControl);
+    }
+    if (!Const.isEmpty(marketEntry.getCasesUrl())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.CaseTracking.label"),lastControl);
+      lastControl=addRightURL(composite,marketEntry.getCasesUrl(),lastControl);
+    }
+    if (!Const.isEmpty(marketEntry.getSourceUrl())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SourceCode.label"),lastControl);
+      lastControl=addRightURL(composite,marketEntry.getSourceUrl(),lastControl);
+    }
+    if (!Const.isEmpty(marketEntry.getLicenseName())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.License.label"),lastControl);
+      lastControl=addRightLabel(composite,Const.NVL(marketEntry.getLicenseName(),""),lastControl);
+    }
+    if (!Const.isEmpty(marketEntry.getLicenseText())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.LicenseDetails.label"),lastControl);
+      lastControl=addRightLabel(composite,Const.NVL(marketEntry.getLicenseText(),""),lastControl);
+    }
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SupportLevel.label"),lastControl);
+    lastControl=addRightLabel(composite,marketEntry.getSupportLevel().getDescription(),lastControl);
+    if (!Const.isEmpty(marketEntry.getSupportMessage())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SupportMessage.label"),lastControl);
+      lastControl=addRightLabel(composite,marketEntry.getSupportMessage(),lastControl);
+    }
+    if (!Const.isEmpty(marketEntry.getSupportUrl())) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SupportURL.label"),lastControl);
+      lastControl=addRightURL(composite,marketEntry.getSupportUrl(),lastControl);
+    }
+    final Button button=new Button(composite,SWT.PUSH);
+    final ExpandItem expandItem=new ExpandItem(bar,SWT.NONE,0);
+    setButtonLabel(button,Market.isInstalled(marketEntry.getName()));
+    button.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        try {
+          Market.installUninstall(marketEntry,Market.isInstalled(marketEntry.getName()));
+          setButtonLabel(button,Market.isInstalled(marketEntry.getName()));
+          setPluginName(expandItem,marketEntry.getName(),Market.isInstalled(marketEntry.getName()));
+        }
+ catch (        KettleException ke) {
+          new ErrorDialog(Spoon.getInstance().getShell(),BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+        }
+      }
+    }
+);
+    FormData fdButton=new FormData();
+    fdButton.top=new FormAttachment(lastControl,4 * margin);
+    fdButton.left=new FormAttachment(middle,margin);
+    button.setLayoutData(fdButton);
+    Label wlName=new Label(composite,SWT.LEFT);
+    props.setLook(wlName);
+    wlName.setText("Name:");
+    FormData fdlName=new FormData();
+    fdlName.top=new FormAttachment(0,0);
+    fdlName.left=new FormAttachment(0,0);
+    fdlName.right=new FormAttachment(middle,0);
+    wlName.setLayoutData(fdlName);
+    setPluginName(expandItem,marketEntry.getName(),Market.isInstalled(marketEntry.getName()));
+    expandItem.setHeight(composite.computeSize(SWT.DEFAULT,SWT.DEFAULT).y);
+    expandItem.setControl(composite);
+    Image image;
+switch (marketEntry.getType()) {
+case Step:
+      image=GUIResource.getInstance().getImageTransGraph();
+    break;
+case JobEntry:
+  image=GUIResource.getInstance().getImageTransGraph();
+break;
+case SpoonPlugin:
+image=GUIResource.getInstance().getImageTransGraph();
+break;
+case Database:
+image=GUIResource.getInstance().getImageConnection();
+break;
+default :
+image=GUIResource.getInstance().getImageSpoon();
+break;
+}
+expandItem.setImage(image);
+}
+wClose=new Button(shell,SWT.PUSH);
+wClose.setText(BaseMessages.getString(MARKET_PKG,"System.Button.Close"));
+wClose.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent e){
+dispose();
+}
+}
+);
+BaseStepDialog.positionBottomButtons(shell,new Button[]{wClose},margin,null);
+shell.addShellListener(new ShellAdapter(){
+public void shellClosed(ShellEvent e){
+dispose();
+}
+}
+);
+BaseStepDialog.setSize(shell);
+shell.open();
+while (!shell.isDisposed()) {
+if (!display.readAndDispatch()) display.sleep();
+}
+}

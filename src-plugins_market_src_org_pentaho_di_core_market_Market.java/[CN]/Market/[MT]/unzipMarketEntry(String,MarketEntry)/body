@@ -1,0 +1,46 @@
+{
+  InputStream inputStream=KettleVFS.getInputStream(marketEntry.getPackageUrl());
+  ZipInputStream zis=new ZipInputStream(inputStream);
+  ZipEntry zipEntry=null;
+  try {
+    zipEntry=zis.getNextEntry();
+  }
+ catch (  IOException ioe) {
+    throw new KettleException(ioe);
+  }
+  byte[] buffer=new byte[1024];
+  int bytesRead=0;
+  FileOutputStream fos=null;
+  while (zipEntry != null) {
+    try {
+      File file=new File(folderName + File.separator + zipEntry.getName());
+      if (zipEntry.isDirectory()) {
+        file.mkdirs();
+      }
+ else {
+        file.getParentFile().mkdirs();
+        fos=new FileOutputStream(file);
+        while ((bytesRead=zis.read(buffer)) != -1) {
+          fos.write(buffer,0,bytesRead);
+        }
+      }
+      zipEntry=zis.getNextEntry();
+    }
+ catch (    FileNotFoundException fnfe) {
+      throw new KettleException(fnfe);
+    }
+catch (    IOException ioe) {
+      throw new KettleException(ioe);
+    }
+ finally {
+      if (fos != null) {
+        try {
+          fos.close();
+        }
+ catch (        IOException e) {
+        }
+      }
+    }
+  }
+  refreshSpoon();
+}
