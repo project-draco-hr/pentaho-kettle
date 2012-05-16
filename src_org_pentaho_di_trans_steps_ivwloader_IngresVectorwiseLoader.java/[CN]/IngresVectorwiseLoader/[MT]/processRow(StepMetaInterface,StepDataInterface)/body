@@ -16,6 +16,21 @@
       for (int i=0; i < data.keynrs.length; i++) {
         data.keynrs[i]=getInputRowMeta().indexOfValue(meta.getFieldStream()[i]);
       }
+      data.bulkRowMeta=getInputRowMeta().clone();
+      if (meta.isUseStandardConversion()) {
+        for (int i=0; i < data.bulkRowMeta.size(); i++) {
+          ValueMetaInterface valueMeta=data.bulkRowMeta.getValueMeta(i);
+          if (valueMeta.isStorageNormal()) {
+            if (valueMeta.isDate()) {
+              valueMeta.setConversionMask("yyyy-MM-dd HH:mm:ss");
+            }
+ else             if (valueMeta.isNumeric()) {
+              valueMeta.setDecimalSymbol(".");
+              valueMeta.setGroupingSymbol("");
+            }
+          }
+        }
+      }
       execute(meta);
       data.fileChannel=data.fifoOpener.getFileChannel();
       data.byteBuffer=ByteBuffer.allocate(data.bufferSize);
@@ -23,7 +38,7 @@
     if (!checkSqlProcessRunning(data.sqlProcess)) {
       throw new Exception("Ingres SQL process has stopped");
     }
-    writeRowToBulk(getInputRowMeta(),r);
+    writeRowToBulk(data.bulkRowMeta,r);
     putRow(getInputRowMeta(),r);
     incrementLinesOutput();
     if (checkFeedback(getLinesOutput()))     logBasic(BaseMessages.getString(PKG,"IngresVectorwiseLoader.Log.LineNumber") + getLinesOutput());
