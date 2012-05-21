@@ -20,6 +20,7 @@
   int realproxyport=Const.toInt(environmentSubstitute(proxyPort),0);
   String realkeyFilename=environmentSubstitute(keyFilename);
   String realkeyPass=environmentSubstitute(keyFilePass);
+  String sourceFolder="";
   if (isDetailed())   logDetailed(BaseMessages.getString(PKG,"JobEntryFTPDelete.Start"));
   if (copyprevious && rows.size() == 0) {
     if (isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobEntryFTPDelete.ArgsFromPreviousNothing"));
@@ -64,18 +65,27 @@
     }
  else     if (protocol.equals(PROTOCOL_SSH)) {
       SSHConnect(realservername,realserverpassword,realserverport,realUsername,realPassword,realproxyhost,realproxyusername,realproxypassword,realproxyport,realkeyFilename,realkeyPass);
-      String sourceFolder=".";
+      sourceFolder=".";
       if (realFtpDirectory != null)       sourceFolder=realFtpDirectory + "/";
  else       sourceFolder="./";
       Vector<SFTPv3DirectoryEntry> vfilelist=sshclient.ls(sourceFolder);
-      int i=0;
       if (vfilelist != null) {
-        filelist=new String[vfilelist.size()];
+        int fileCount=0;
         Iterator<SFTPv3DirectoryEntry> iterator=vfilelist.iterator();
         while (iterator.hasNext()) {
           SFTPv3DirectoryEntry dirEntry=iterator.next();
           if (dirEntry != null && !dirEntry.filename.equals(".") && !dirEntry.filename.equals("..") && !isDirectory(sshclient,sourceFolder + dirEntry.filename)) {
-            filelist[i++]=dirEntry.filename;
+            fileCount++;
+          }
+        }
+        filelist=new String[fileCount];
+        iterator=vfilelist.iterator();
+        int i=0;
+        while (iterator.hasNext()) {
+          SFTPv3DirectoryEntry dirEntry=iterator.next();
+          if (dirEntry != null && !dirEntry.filename.equals(".") && !dirEntry.filename.equals("..") && !isDirectory(sshclient,sourceFolder + dirEntry.filename)) {
+            filelist[i]=dirEntry.filename;
+            i++;
           }
         }
       }
@@ -129,7 +139,7 @@
             sftpclient.delete(filelist[i]);
           }
  else           if (protocol.equals(PROTOCOL_SSH)) {
-            sshclient.rm(filelist[i]);
+            sshclient.rm(sourceFolder + filelist[i]);
           }
           if (isDetailed())           logDetailed("JobEntryFTPDelete.RemotefileDeleted",filelist[i]);
           updateDeletedFiles();
