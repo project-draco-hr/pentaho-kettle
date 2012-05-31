@@ -44,19 +44,40 @@ switch (repartitioning) {
 case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
 {
       if (distributed) {
-        RowSet rs=outputRowSets.get(currentOutputRowSetNr);
-        if (isUsingThreadPriorityManagment() && !rs.isDone() && rs.size() >= upperBufferBoundary && !isStopped()) {
-          try {
-            Thread.sleep(0,1);
+        if (loadBalancing) {
+          RowSet rs=outputRowSets.get(currentOutputRowSetNr);
+          for (int i=0; i < outputRowSets.size(); i++) {
+            if (rs.size() >= upperBufferBoundary) {
+              currentOutputRowSetNr++;
+              if (currentOutputRowSetNr >= outputRowSets.size())               currentOutputRowSetNr=0;
+              rs=outputRowSets.get(currentOutputRowSetNr);
+            }
+ else {
+              break;
+            }
           }
- catch (          InterruptedException e) {
+          while (!rs.putRow(rowMeta,row) && !isStopped())           ;
+          incrementLinesWritten();
+          if (outputRowSets.size() > 1) {
+            currentOutputRowSetNr++;
+            if (currentOutputRowSetNr >= outputRowSets.size())             currentOutputRowSetNr=0;
           }
         }
-        while (!rs.putRow(rowMeta,row) && !isStopped())         ;
-        incrementLinesWritten();
-        if (outputRowSets.size() > 1) {
-          currentOutputRowSetNr++;
-          if (currentOutputRowSetNr >= outputRowSets.size())           currentOutputRowSetNr=0;
+ else {
+          RowSet rs=outputRowSets.get(currentOutputRowSetNr);
+          if (isUsingThreadPriorityManagment() && !rs.isDone() && rs.size() >= upperBufferBoundary && !isStopped()) {
+            try {
+              Thread.sleep(0,1);
+            }
+ catch (            InterruptedException e) {
+            }
+          }
+          while (!rs.putRow(rowMeta,row) && !isStopped())           ;
+          incrementLinesWritten();
+          if (outputRowSets.size() > 1) {
+            currentOutputRowSetNr++;
+            if (currentOutputRowSetNr >= outputRowSets.size())             currentOutputRowSetNr=0;
+          }
         }
       }
  else {
