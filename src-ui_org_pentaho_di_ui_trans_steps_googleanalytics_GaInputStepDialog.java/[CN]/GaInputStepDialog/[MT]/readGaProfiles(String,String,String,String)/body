@@ -1,17 +1,19 @@
 {
   String email=transMeta.environmentSubstitute(emailText);
   String pass=transMeta.environmentSubstitute(passwordText);
+  String key=transMeta.environmentSubstitute(apiKey);
   AnalyticsService analyticsService=new AnalyticsService(transMeta.environmentSubstitute(appName));
   try {
     analyticsService.setUserCredentials(email,pass);
-    URL q=new URL(GaInputStepMeta.GA_ACCOUNTS_URL);
-    AccountFeed accountFeed=analyticsService.getFeed(q,AccountFeed.class);
-    ArrayList<String> profileNames=new ArrayList<String>(5);
+    URL q=new URL(GaInputStepMeta.GA_MANAGEMENT_URL + "/accounts/~all/webproperties/~all/profiles?key=" + key);
+    ManagementFeed profilesFeed=analyticsService.getFeed(q,ManagementFeed.class);
+    ArrayList<String> profileNames=new ArrayList<String>(10);
     profileTableIds.clear();
-    for (    AccountEntry entry : accountFeed.getEntries()) {
-      String profileName=entry.getTableId().getValue() + " - profile: " + entry.getTitle().getPlainText()+ " ["+ entry.getProperty("ga:accountName")+ "]";
+    for (    ManagementEntry entry : profilesFeed.getEntries()) {
+      String tableId=entry.getProperty("dxp:tableId");
+      String profileName=tableId + " - profile: " + entry.getProperty("ga:profileName");
       profileNames.add(profileName);
-      profileTableIds.put(profileName,entry.getTableId().getValue());
+      profileTableIds.put(profileName,tableId);
     }
     wGaProfile.setItems(profileNames.toArray(new String[0]));
     if (profileNames.size() > 0) {
