@@ -7,27 +7,48 @@
       sb.append(sqlexec);
     }
  catch (    KettleFileException ex) {
-      throw new KettleException("Error retrieving 'sql' command string",ex);
+      throw new KettleException("Error retrieving command string",ex);
     }
   }
  else {
-    if (isDetailed())     logDetailed("sql defaults to system path");
-    sb.append("sql");
+    if (meta.isUsingVwload()) {
+      if (isDetailed())       logDetailed("vwload defaults to system path");
+      sb.append("vwload");
+    }
+ else {
+      if (isDetailed())       logDetailed("sql defaults to system path");
+      sb.append("sql");
+    }
   }
   DatabaseMeta dm=meta.getDatabaseMeta();
   if (dm != null) {
-    String dnName=environmentSubstitute(Const.NVL(dm.getDatabaseName(),""));
-    String passWord=Encr.decryptPasswordOptionallyEncrypted(environmentSubstitute(Const.NVL(dm.getDatabaseInterface().getPassword(),"")));
-    if (meta.isUseDynamicVNode()) {
-      String port=environmentSubstitute(Const.NVL(dm.getDatabasePortNumberString(),"")).replace("7","");
-      String userName=environmentSubstitute(Const.NVL(dm.getDatabaseInterface().getUsername(),""));
-      String hostName=environmentSubstitute(Const.NVL(dm.getDatabaseInterface().getHostname(),""));
-      sb.append(" @").append(hostName).append(",").append(port).append("[").append(userName).append(",").append(passWord).append("]::").append(dnName);
+    String databaseName=environmentSubstitute(Const.NVL(dm.getDatabaseName(),""));
+    String password=Encr.decryptPasswordOptionallyEncrypted(environmentSubstitute(Const.NVL(dm.getDatabaseInterface().getPassword(),"")));
+    String port=environmentSubstitute(Const.NVL(dm.getDatabasePortNumberString(),"")).replace("7","");
+    String username=environmentSubstitute(Const.NVL(dm.getDatabaseInterface().getUsername(),""));
+    String hostname=environmentSubstitute(Const.NVL(dm.getDatabaseInterface().getHostname(),""));
+    String schemaTable=dm.getQuotedSchemaTableCombination(null,environmentSubstitute(meta.getTablename()));
+    String encoding=environmentSubstitute(Const.NVL(meta.getEncoding(),""));
+    String fifoFile=Const.optionallyQuoteStringByOS(environmentSubstitute(Const.NVL(meta.getFifoFileName(),"")));
+    if (meta.isUsingVwload()) {
+      sb.append(" -u ").append(username);
+      sb.append(" -P ").append(password);
+      sb.append(" -f ").append(meta.getDelimiter()).append("");
+      sb.append(" -t ").append(schemaTable);
+      if (!Const.isEmpty(encoding)) {
+        sb.append(" -C ").append(encoding);
+      }
+      sb.append(" ").append(databaseName);
+      sb.append(" ").append(fifoFile);
+      log.logBasic("vwload command: " + sb.toString());
+    }
+ else     if (meta.isUseDynamicVNode()) {
+      sb.append(" @").append(hostname).append(",").append(port).append("[").append(username).append(",").append(password).append("]::").append(databaseName);
     }
  else {
-      sb.append(" ").append(dnName);
+      sb.append(" ").append(databaseName);
       if (meta.isUseAuthentication()) {
-        sb.append("-P").append(passWord);
+        sb.append("-P").append(password);
       }
     }
   }

@@ -17,6 +17,22 @@
     data.byteBuffer=null;
     String bufferSizeString=environmentSubstitute(meta.getBufferSize());
     data.bufferSize=Const.isEmpty(bufferSizeString) ? 5000 : Const.toInt(bufferSizeString,5000);
+    if (meta.isTruncatingTable() && meta.getDatabaseMeta() != null) {
+      Database db=new Database(this,meta.getDatabaseMeta());
+      try {
+        db.connect();
+        db.execStatement("CALL VECTORWISE( COMBINE '" + data.schemaTable + " - "+ data.schemaTable+ "' )");
+        db.execStatement("CALL VECTORWISE( COMBINE '" + data.schemaTable + " - "+ data.schemaTable+ "' )");
+        log.logDetailed("Table " + data.schemaTable + " was truncated using a 'combine' statement.");
+      }
+ catch (      Exception e) {
+        log.logError("Error truncating table",e);
+        return false;
+      }
+ finally {
+        db.disconnect();
+      }
+    }
     return true;
   }
   return false;
