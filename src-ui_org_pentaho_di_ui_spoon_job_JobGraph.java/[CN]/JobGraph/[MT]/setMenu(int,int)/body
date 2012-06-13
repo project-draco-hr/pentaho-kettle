@@ -11,17 +11,30 @@
       int sels=selection.size();
       XulMenuitem item=(XulMenuitem)doc.getElementById("job-graph-entry-newhop");
       item.setDisabled(sels < 2);
-      item=(XulMenuitem)doc.getElementById("job-graph-entry-launch");
-      if (jobEntry.isTransformation()) {
-        item.setDisabled(false);
-        item.setLabel(BaseMessages.getString(PKG,"JobGraph.PopupMenu.JobEntry.LaunchSpoon"));
+      XulMenupopup launchMenu=(XulMenupopup)doc.getElementById("job-graph-entry-launch-popup");
+      String[] referencedObjects=jobEntry.getEntry().getReferencedObjectDescriptions();
+      boolean[] enabledObjects=jobEntry.getEntry().isReferencedObjectEnabled();
+      launchMenu.setDisabled(Const.isEmpty(referencedObjects));
+      List<XulComponent> childNodes=launchMenu.getChildNodes();
+      for (      XulComponent childNode : childNodes) {
+        item.removeChild(childNode);
       }
- else       if (jobEntry.isJob()) {
-        item.setDisabled(false);
-        item.setLabel(BaseMessages.getString(PKG,"JobGraph.PopupMenu.JobEntry.LaunchChef"));
-      }
- else {
-        item.setDisabled(true);
+      if (!Const.isEmpty(referencedObjects)) {
+        for (int i=0; i < referencedObjects.length; i++) {
+          String referencedObject=referencedObjects[i];
+          XulMenuitem child=new SwtMenuitem(launchMenu,xulDomContainer,referencedObject,i);
+          child.setLabel(referencedObject);
+          child.setDisabled(!enabledObjects[i]);
+          launchMenu.addChild(child);
+          MenuItem swtItem=(MenuItem)child.getManagedObject();
+          final int index=i;
+          swtItem.addSelectionListener(new SelectionAdapter(){
+            public void widgetSelected(            SelectionEvent event){
+              loadReferencedObject(jobEntry,index);
+            }
+          }
+);
+        }
       }
       item=(XulMenuitem)doc.getElementById("job-graph-entry-align-snap");
       item.setAcceltext("ALT-HOME");

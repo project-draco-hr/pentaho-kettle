@@ -1,0 +1,33 @@
+{
+  String kettleServletsXmlFile=Const.XML_FILE_KETTLE_SERVLETS;
+  String alternative=System.getProperty(Const.KETTLE_CORE_SERVLETS_FILE,null);
+  if (!Const.isEmpty(alternative)) {
+    kettleServletsXmlFile=alternative;
+  }
+  try {
+    InputStream inputStream=getClass().getResourceAsStream(kettleServletsXmlFile);
+    if (inputStream == null) {
+      inputStream=getClass().getResourceAsStream("/" + kettleServletsXmlFile);
+    }
+    if (inputStream == null && !Const.isEmpty(alternative)) {
+      try {
+        inputStream=new FileInputStream(kettleServletsXmlFile);
+      }
+ catch (      Exception e) {
+        throw new KettlePluginException("Unable to load native servlet plugins '" + kettleServletsXmlFile + "'",e);
+      }
+    }
+    if (inputStream == null) {
+      throw new KettlePluginException("Unable to find native servlets definition file: '" + kettleServletsXmlFile + "'");
+    }
+    Document document=XMLHandler.loadXMLFile(inputStream,null,true,false);
+    Node servletsNode=XMLHandler.getSubNode(document,"servlets");
+    List<Node> servletNodes=XMLHandler.getNodes(servletsNode,"servlet");
+    for (    Node servletNode : servletNodes) {
+      registerPluginFromXmlResource(servletNode,null,this.getClass(),true,null);
+    }
+  }
+ catch (  KettleXMLException e) {
+    throw new KettlePluginException("Unable to read the kettle servlets XML config file: '" + kettleServletsXmlFile + "'",e);
+  }
+}

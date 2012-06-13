@@ -45,23 +45,17 @@ case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
 {
       if (distributed) {
         if (loadBalancing) {
-          RowSet rs=outputRowSets.get(currentOutputRowSetNr);
+          int smallestSize=Integer.MAX_VALUE;
           for (int i=0; i < outputRowSets.size(); i++) {
-            if (rs.size() >= upperBufferBoundary) {
-              currentOutputRowSetNr++;
-              if (currentOutputRowSetNr >= outputRowSets.size())               currentOutputRowSetNr=0;
-              rs=outputRowSets.get(currentOutputRowSetNr);
-            }
- else {
-              break;
+            RowSet candidate=outputRowSets.get(i);
+            if (candidate.size() < smallestSize) {
+              currentOutputRowSetNr=i;
+              smallestSize=candidate.size();
             }
           }
+          RowSet rs=outputRowSets.get(currentOutputRowSetNr);
           while (!rs.putRow(rowMeta,row) && !isStopped())           ;
           incrementLinesWritten();
-          if (outputRowSets.size() > 1) {
-            currentOutputRowSetNr++;
-            if (currentOutputRowSetNr >= outputRowSets.size())             currentOutputRowSetNr=0;
-          }
         }
  else {
           RowSet rs=outputRowSets.get(currentOutputRowSetNr);

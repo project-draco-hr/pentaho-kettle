@@ -12,13 +12,30 @@
         Document doc=getXulDomContainer().getDocumentRoot();
         XulMenuitem item=(XulMenuitem)doc.getElementById("trans-graph-entry-newhop");
         item.setDisabled(sels != 2);
-        item=(XulMenuitem)doc.getElementById("trans-graph-entry-open-mapping");
-        item.setDisabled(!stepMeta.isMapping() && !stepMeta.isSingleThreader() && !stepMeta.isEtlMetaInject()&& !stepMeta.isJobExecutor());
-        if (stepMeta.isJobExecutor()) {
-          item.setLabel(BaseMessages.getString(PKG,"TransGraph.PopupMenu.OpenJob"));
+        XulMenupopup launchMenu=(XulMenupopup)doc.getElementById("trans-graph-entry-launch-popup");
+        String[] referencedObjects=stepMeta.getStepMetaInterface().getReferencedObjectDescriptions();
+        boolean[] enabledObjects=stepMeta.getStepMetaInterface().isReferencedObjectEnabled();
+        launchMenu.setDisabled(Const.isEmpty(referencedObjects));
+        List<XulComponent> childNodes=launchMenu.getChildNodes();
+        for (        XulComponent childNode : childNodes) {
+          item.removeChild(childNode);
         }
- else {
-          item.setLabel(BaseMessages.getString(PKG,"TransGraph.PopupMenu.OpenMapping"));
+        if (!Const.isEmpty(referencedObjects)) {
+          for (int i=0; i < referencedObjects.length; i++) {
+            String referencedObject=referencedObjects[i];
+            XulMenuitem child=new SwtMenuitem(launchMenu,xulDomContainer,referencedObject,i);
+            child.setLabel(referencedObject);
+            child.setDisabled(!enabledObjects[i]);
+            launchMenu.addChild(child);
+            MenuItem swtItem=(MenuItem)child.getManagedObject();
+            final int index=i;
+            swtItem.addSelectionListener(new SelectionAdapter(){
+              public void widgetSelected(              SelectionEvent event){
+                openMapping(stepMeta,index);
+              }
+            }
+);
+          }
         }
         item=(XulMenuitem)doc.getElementById("trans-graph-entry-align-snap");
         item.setAcceltext("ALT-HOME");
