@@ -1,0 +1,62 @@
+{
+  meta=(PGPDecryptStreamMeta)smi;
+  data=(PGPDecryptStreamData)sdi;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  try {
+    if (first) {
+      first=false;
+      data.previousRowMeta=getInputRowMeta().clone();
+      data.NrPrevFields=data.previousRowMeta.size();
+      data.outputRowMeta=data.previousRowMeta;
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+      if (Const.isEmpty(meta.getStreamField())) {
+        throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.DataStreamFieldMissing"));
+      }
+      data.passPhrase=environmentSubstitute(meta.getPassphrase());
+      if (Const.isEmpty(data.passPhrase)) {
+        throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.PassphraseMissing"));
+      }
+      if (data.indexOfField < 0) {
+        data.indexOfField=data.previousRowMeta.indexOfValue(meta.getStreamField());
+        if (data.indexOfField < 0) {
+          throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Exception.CouldnotFindField",meta.getStreamField()));
+        }
+      }
+    }
+    Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    for (int i=0; i < data.NrPrevFields; i++) {
+      outputRow[i]=r[i];
+    }
+    String encryptedData=data.previousRowMeta.getString(r,data.indexOfField);
+    if (Const.isEmpty(encryptedData)) {
+      throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.DataToDecryptEmpty"));
+    }
+    String decryptedData=data.gpg.decrypt(encryptedData,data.passPhrase);
+    outputRow[data.NrPrevFields]=decryptedData;
+    putRow(data.outputRowMeta,outputRow);
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"PGPDecryptStream.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"PGPDecryptStream.ErrorInStepRunning") + e.getMessage());
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,meta.getResultFieldName(),"PGPDecryptStreamO01");
+    }
+  }
+  return true;
+}
