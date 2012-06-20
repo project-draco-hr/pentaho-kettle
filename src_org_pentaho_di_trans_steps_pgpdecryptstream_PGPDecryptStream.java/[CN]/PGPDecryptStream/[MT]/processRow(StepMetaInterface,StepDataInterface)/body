@@ -18,9 +18,21 @@
       if (Const.isEmpty(meta.getStreamField())) {
         throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.DataStreamFieldMissing"));
       }
-      data.passPhrase=environmentSubstitute(meta.getPassphrase());
-      if (Const.isEmpty(data.passPhrase)) {
-        throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.PassphraseMissing"));
+      if (meta.isPassphraseFromField()) {
+        String fieldname=meta.getPassphraseFieldName();
+        if (Const.isEmpty(fieldname)) {
+          throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.PassphraseFieldMissing"));
+        }
+        data.indexOfPassphraseField=data.previousRowMeta.indexOfValue(fieldname);
+        if (data.indexOfPassphraseField < 0) {
+          throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Exception.CouldnotFindField",fieldname));
+        }
+      }
+ else {
+        data.passPhrase=Encr.decryptPasswordOptionallyEncrypted(environmentSubstitute(meta.getPassphrase()));
+        if (Const.isEmpty(data.passPhrase)) {
+          throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.PassphraseMissing"));
+        }
       }
       if (data.indexOfField < 0) {
         data.indexOfField=data.previousRowMeta.indexOfValue(meta.getStreamField());
@@ -32,6 +44,12 @@
     Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
     for (int i=0; i < data.NrPrevFields; i++) {
       outputRow[i]=r[i];
+    }
+    if (meta.isPassphraseFromField()) {
+      data.passPhrase=data.previousRowMeta.getString(r,data.indexOfPassphraseField);
+      if (Const.isEmpty(data.passPhrase)) {
+        throw new KettleException(BaseMessages.getString(PKG,"PGPDecryptStream.Error.PassphraseMissing"));
+      }
     }
     String encryptedData=data.previousRowMeta.getString(r,data.indexOfField);
     if (Const.isEmpty(encryptedData)) {

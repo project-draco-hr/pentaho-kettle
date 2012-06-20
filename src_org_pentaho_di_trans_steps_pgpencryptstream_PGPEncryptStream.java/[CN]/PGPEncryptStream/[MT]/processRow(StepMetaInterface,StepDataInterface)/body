@@ -18,9 +18,21 @@
       if (Const.isEmpty(meta.getStreamField())) {
         throw new KettleException(BaseMessages.getString(PKG,"PGPEncryptStream.Error.DataStreamFieldMissing"));
       }
-      data.keyName=environmentSubstitute(meta.getKeyName());
-      if (Const.isEmpty(data.keyName)) {
-        throw new KettleException(BaseMessages.getString(PKG,"PGPEncryptStream.Error.KeyNameMissing"));
+      if (meta.isKeynameInField()) {
+        String keyField=meta.getKeynameFieldName();
+        if (Const.isEmpty(keyField)) {
+          throw new KettleException(BaseMessages.getString(PKG,"PGPEncryptStream.Error.KeyNameFieldMissing"));
+        }
+        data.indexOfKeyName=data.previousRowMeta.indexOfValue(keyField);
+        if (data.indexOfKeyName < 0) {
+          throw new KettleException(BaseMessages.getString(PKG,"PGPEncryptStream.Exception.CouldnotFindField",meta.getStreamField()));
+        }
+      }
+ else {
+        data.keyName=environmentSubstitute(meta.getKeyName());
+        if (Const.isEmpty(data.keyName)) {
+          throw new KettleException(BaseMessages.getString(PKG,"PGPEncryptStream.Error.KeyNameMissing"));
+        }
       }
       if (data.indexOfField < 0) {
         data.indexOfField=data.previousRowMeta.indexOfValue(meta.getStreamField());
@@ -32,6 +44,12 @@
     Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
     for (int i=0; i < data.NrPrevFields; i++) {
       outputRow[i]=r[i];
+    }
+    if (meta.isKeynameInField()) {
+      data.keyName=data.previousRowMeta.getString(r,data.indexOfKeyName);
+      if (Const.isEmpty(data.keyName)) {
+        throw new KettleException(BaseMessages.getString(PKG,"PGPEncryptStream.Error.KeyNameMissing"));
+      }
     }
     String dataToEncrypt=data.previousRowMeta.getString(r,data.indexOfField);
     if (Const.isEmpty(dataToEncrypt)) {
