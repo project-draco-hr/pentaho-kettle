@@ -1,35 +1,42 @@
 {
   InputStream inputStream=null;
+  BufferedImage image=null;
   try {
-    BufferedImage image=ImageIO.read(new File(fileName));
+    image=ImageIO.read(new File(fileName));
     if (image == null) {
       image=ImageIO.read(new File("/" + fileName));
     }
-    if (image == null) {
+  }
+ catch (  IIOException iioe) {
+  }
+catch (  IOException ioe) {
+  }
+  if (image == null) {
+    try {
       inputStream=getClass().getResourceAsStream(fileName);
       if (inputStream == null) {
         inputStream=getClass().getResourceAsStream("/" + fileName);
       }
       if (inputStream == null) {
-        throw new KettleException("Unable to load image from file : '" + fileName + "'");
+        throw new KettleException("Unable to load image from classpath : '" + fileName + "'");
       }
       image=ImageIO.read(inputStream);
     }
-    WaitingImageObserver observer=new WaitingImageObserver(image);
-    observer.waitImageLoaded();
-    return image;
-  }
- catch (  Throwable e) {
-    throw new KettleException("Unable to load image from file : '" + fileName + "'",e);
-  }
+ catch (    IOException ioe) {
+      throw new KettleException("Unable to close image reading stream",ioe);
+    }
  finally {
-    if (inputStream != null) {
-      try {
-        inputStream.close();
-      }
- catch (      IOException e) {
-        throw new KettleException("Unable to close image reading stream",e);
+      if (inputStream != null) {
+        try {
+          inputStream.close();
+        }
+ catch (        IOException e) {
+          throw new KettleException("Unable to close image reading stream",e);
+        }
       }
     }
   }
+  WaitingImageObserver observer=new WaitingImageObserver(image);
+  observer.waitImageLoaded();
+  return image;
 }
