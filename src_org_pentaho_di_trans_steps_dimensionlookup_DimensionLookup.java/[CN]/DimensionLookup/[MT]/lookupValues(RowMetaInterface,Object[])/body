@@ -115,12 +115,42 @@ int cmp;
 boolean insert=false;
 boolean identical=true;
 boolean punch=false;
+if (columnLookupArray == null) {
+columnLookupArray=new int[meta.getFieldStream().length];
+for (int i=0; i < columnLookupArray.length; i++) {
+columnLookupArray[i]=-1;
+}
+}
+int returnRowColNum=-1;
+String findColumn=null;
 for (int i=0; i < meta.getFieldStream().length; i++) {
 if (data.fieldnrs[i] >= 0) {
 ValueMetaInterface v1=data.outputRowMeta.getValueMeta(data.fieldnrs[i]);
 Object valueData1=row[data.fieldnrs[i]];
-ValueMetaInterface v2=data.returnRowMeta.getValueMeta(i + 2);
-Object valueData2=returnRow[i + 2];
+findColumn=meta.getFieldLookup()[i];
+ValueMetaInterface v2=null;
+Object valueData2=null;
+returnRowColNum=columnLookupArray[i];
+if (returnRowColNum == -1) {
+for (int j=2; j < data.returnRowMeta.size(); j++) {
+v2=data.returnRowMeta.getValueMeta(j);
+if ((v2.getName() != null) && (v2.getName().equals(findColumn))) {
+  columnLookupArray[i]=j;
+  valueData2=returnRow[j];
+  break;
+}
+ else {
+  v2=null;
+}
+}
+}
+ else {
+v2=data.returnRowMeta.getValueMeta(returnRowColNum);
+valueData2=returnRow[returnRowColNum];
+}
+if (v2 == null) {
+throw new KettleStepException(BaseMessages.getString(PKG,"DimensionLookup.Exception.ErrorDetectedInComparingFields"));
+}
 try {
 cmp=v1.compare(valueData1,v2,valueData2);
 }
