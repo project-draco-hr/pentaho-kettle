@@ -1,22 +1,28 @@
 {
-  if (!Const.isEmpty(group)) {
-    this.connectionGroup=group;
-    this.partitionId=partitionId;
-    DatabaseConnectionMap map=DatabaseConnectionMap.getInstance();
-    Database lookup=map.getDatabase(group,partitionId,this);
-    if (lookup == null) {
-      normalConnect(partitionId);
-      opened++;
-      copy=opened;
-      map.storeDatabase(group,partitionId,this);
+  try {
+    log.snap(Metrics.METRIC_DATABASE_CONNECT_START,databaseMeta.getName());
+    if (!Const.isEmpty(group)) {
+      this.connectionGroup=group;
+      this.partitionId=partitionId;
+      DatabaseConnectionMap map=DatabaseConnectionMap.getInstance();
+      Database lookup=map.getDatabase(group,partitionId,this);
+      if (lookup == null) {
+        normalConnect(partitionId);
+        opened++;
+        copy=opened;
+        map.storeDatabase(group,partitionId,this);
+      }
+ else {
+        connection=lookup.getConnection();
+        lookup.setOpened(lookup.getOpened() + 1);
+        copy=lookup.getOpened();
+      }
     }
  else {
-      connection=lookup.getConnection();
-      lookup.setOpened(lookup.getOpened() + 1);
-      copy=lookup.getOpened();
+      normalConnect(partitionId);
     }
   }
- else {
-    normalConnect(partitionId);
+  finally {
+    log.snap(Metrics.METRIC_DATABASE_CONNECT_START,databaseMeta.getName());
   }
 }

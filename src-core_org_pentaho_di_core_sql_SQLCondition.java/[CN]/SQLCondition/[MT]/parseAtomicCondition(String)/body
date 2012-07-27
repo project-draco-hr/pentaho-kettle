@@ -1,0 +1,49 @@
+{
+  List<String> strings=splitConditionClause(clause);
+  if (strings.size() > 3) {
+    throw new KettleSQLException("Unfortunately support for conditions is still very rudimentary, only 1 simple condition is supported [" + clause + "]");
+  }
+  String left=strings.get(0);
+  if (selectFields != null) {
+    for (    SQLField field : selectFields.getFields()) {
+      if (field.getExpression().equalsIgnoreCase(left)) {
+        if (!Const.isEmpty(field.getAlias())) {
+          left=field.getAlias();
+        }
+        break;
+      }
+    }
+  }
+  String operatorString=strings.get(1);
+  String right=strings.get(2);
+  ValueMetaAndData value=null;
+  int function=Condition.getFunction(operatorString);
+  if (function == Condition.FUNC_IN_LIST) {
+    String trimmed=Const.trim(right);
+    String partClause=trimmed.substring(1,trimmed.length() - 1);
+    List<String> parts=SQLUtil.splitClause(partClause,',','\'');
+    StringBuilder valueString=new StringBuilder();
+    for (    String part : parts) {
+      part=Const.trim(part);
+      if (valueString.length() > 0) {
+        valueString.append(";");
+      }
+      if (part.startsWith("'") && part.endsWith("'")) {
+        valueString.append(part.substring(1,part.length() - 1));
+      }
+ else {
+        valueString.append(part);
+      }
+    }
+    value=new ValueMetaAndData(new ValueMeta("constant-in-list",ValueMetaInterface.TYPE_STRING),valueString.toString());
+  }
+ else {
+    value=extractConstant(right);
+  }
+  if (value != null) {
+    return new Condition(left,function,null,value);
+  }
+ else {
+    return new Condition(left,function,right,null);
+  }
+}

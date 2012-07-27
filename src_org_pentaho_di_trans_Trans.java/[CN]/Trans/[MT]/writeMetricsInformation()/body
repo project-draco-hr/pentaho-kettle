@@ -1,0 +1,48 @@
+{
+  System.out.println(MetricsUtil.getDuration(log.getLogChannelId(),Metrics.METRIC_PLUGIN_REGISTRY_REGISTER_EXTENSIONS_START.getDescription()).get(0));
+  System.out.println(MetricsUtil.getDuration(log.getLogChannelId(),Metrics.METRIC_PLUGIN_REGISTRY_PLUGIN_REGISTRATION_START.getDescription()).get(0));
+  long total=0;
+  for (  MetricsDuration duration : MetricsUtil.getDuration(log.getLogChannelId(),Metrics.METRIC_PLUGIN_REGISTRY_PLUGIN_TYPE_REGISTRATION_START.getDescription())) {
+    total+=duration.getDuration();
+    System.out.println("   - " + duration.toString() + "  Total="+ total);
+  }
+  Database db=null;
+  MetricsLogTable metricsLogTable=transMeta.getMetricsLogTable();
+  try {
+    db=new Database(this,metricsLogTable.getDatabaseMeta());
+    db.shareVariablesWith(this);
+    db.connect();
+    db.setCommit(logCommitSize);
+    List<String> logChannelIds=LoggingRegistry.getInstance().getLogChannelChildren(getLogChannelId());
+    for (    String logChannelId : logChannelIds) {
+      Deque<MetricsSnapshotInterface> snapshotList=MetricsRegistry.getInstance().getSnapshotLists().get(logChannelId);
+      if (snapshotList != null) {
+synchronized (snapshotList) {
+          Iterator<MetricsSnapshotInterface> iterator=snapshotList.iterator();
+          while (iterator.hasNext()) {
+            MetricsSnapshotInterface snapshot=iterator.next();
+            db.writeLogRecord(metricsLogTable,LogStatus.START,new LoggingMetric(batchId,snapshot),null);
+          }
+        }
+      }
+      Map<String,MetricsSnapshotInterface> snapshotMap=MetricsRegistry.getInstance().getSnapshotMaps().get(logChannelId);
+      if (snapshotMap != null) {
+synchronized (snapshotMap) {
+          Iterator<MetricsSnapshotInterface> iterator=snapshotMap.values().iterator();
+          while (iterator.hasNext()) {
+            MetricsSnapshotInterface snapshot=iterator.next();
+            db.writeLogRecord(metricsLogTable,LogStatus.START,new LoggingMetric(batchId,snapshot),null);
+          }
+        }
+      }
+    }
+    db.cleanupLogRecords(metricsLogTable);
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.UnableToWriteMetricsInformationToLogTable"),e);
+  }
+ finally {
+    if (!db.isAutoCommit())     db.commit(true);
+    db.disconnect();
+  }
+}

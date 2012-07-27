@@ -1,0 +1,30 @@
+{
+  Map<String,MetricsSnapshotInterface> last=new HashMap<String,MetricsSnapshotInterface>();
+  Map<String,MetricsDuration> map=new HashMap<String,MetricsDuration>();
+  Deque<MetricsSnapshotInterface> metrics=MetricsRegistry.getInstance().getSnapshotList(logChannelId);
+  Iterator<MetricsSnapshotInterface> iterator=metrics.iterator();
+  while (iterator.hasNext()) {
+    MetricsSnapshotInterface snapshot=iterator.next();
+    String key=snapshot.getMetric().getDescription() + (snapshot.getSubject() == null ? "" : (" - " + snapshot.getSubject()));
+    MetricsSnapshotInterface lastSnapshot=last.get(key);
+    if (lastSnapshot == null) {
+      lastSnapshot=snapshot;
+    }
+ else {
+      MetricsInterface metric=lastSnapshot.getMetric();
+      if (metric.getType() == MetricsSnapshotType.START && metric.getType() == MetricsSnapshotType.STOP) {
+        long extraDuration=snapshot.getDate().getTime() - lastSnapshot.getDate().getTime();
+        MetricsDuration metricsDuration=map.get(key);
+        if (metricsDuration == null) {
+          metricsDuration=new MetricsDuration(lastSnapshot.getDate(),metric.getDescription(),lastSnapshot.getSubject(),logChannelId,extraDuration);
+        }
+ else {
+          metricsDuration.setDuration(metricsDuration.getDuration() + extraDuration);
+          metricsDuration.incrementCount();
+        }
+      }
+    }
+    last.put(key,lastSnapshot);
+  }
+  return new ArrayList<MetricsDuration>(map.values());
+}

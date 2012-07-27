@@ -1,33 +1,36 @@
 {
   ResultSet res;
-  String debug="Start";
   try {
-    debug="OQ Set values";
+    log.snap(Metrics.METRIC_DATABASE_OPEN_QUERY_START,databaseMeta.getName());
+    log.snap(Metrics.METRIC_DATABASE_SQL_VALUES_START,databaseMeta.getName());
     setValues(params,data,ps);
+    log.snap(Metrics.METRIC_DATABASE_SQL_VALUES_STOP,databaseMeta.getName());
     if (canWeSetFetchSize(ps)) {
-      debug="OQ Set fetchsize";
       int fs=Const.FETCH_SIZE <= ps.getMaxRows() ? ps.getMaxRows() : Const.FETCH_SIZE;
-      if (databaseMeta.getDatabaseInterface() instanceof MySQLDatabaseMeta && databaseMeta.isStreamingResults()) {
+      if (databaseMeta.isMySQLVariant() && databaseMeta.isStreamingResults() && getDatabaseMetaData().getDriverMajorVersion() == 3) {
         ps.setFetchSize(Integer.MIN_VALUE);
       }
  else {
         ps.setFetchSize(fs);
       }
-      debug="OQ Set fetch direction";
       ps.setFetchDirection(ResultSet.FETCH_FORWARD);
     }
-    debug="OQ Set max rows";
     if (rowlimit > 0 && databaseMeta.supportsSetMaxRows())     ps.setMaxRows(rowlimit);
-    debug="OQ exec query";
+    log.snap(Metrics.METRIC_DATABASE_EXECUTE_SQL_START,databaseMeta.getName());
     res=ps.executeQuery();
-    debug="OQ getRowInfo()";
-    rowMeta=getRowInfo(res.getMetaData(),databaseMeta.getDatabaseInterface() instanceof MySQLDatabaseMeta,false);
+    log.snap(Metrics.METRIC_DATABASE_EXECUTE_SQL_STOP,databaseMeta.getName());
+    log.snap(Metrics.METRIC_DATABASE_GET_ROW_META_START,databaseMeta.getName());
+    rowMeta=getRowInfo(res.getMetaData(),databaseMeta.isMySQLVariant(),false);
+    log.snap(Metrics.METRIC_DATABASE_GET_ROW_META_STOP,databaseMeta.getName());
   }
  catch (  SQLException ex) {
-    throw new KettleDatabaseException("ERROR executing query in part[" + debug + "]",ex);
+    throw new KettleDatabaseException("ERROR executing query",ex);
   }
 catch (  Exception e) {
-    throw new KettleDatabaseException("ERROR executing query in part[" + debug + "]",e);
+    throw new KettleDatabaseException("ERROR executing query",e);
+  }
+ finally {
+    log.snap(Metrics.METRIC_DATABASE_OPEN_QUERY_STOP,databaseMeta.getName());
   }
   return res;
 }

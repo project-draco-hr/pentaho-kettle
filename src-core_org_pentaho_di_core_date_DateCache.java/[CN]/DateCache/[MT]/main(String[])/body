@@ -1,0 +1,52 @@
+{
+  final String dateFormatString="yyyy/MM/dd";
+  final int startYear=1890;
+  final int endYear=2012;
+  long start=System.currentTimeMillis();
+  DateCache dateCache=new DateCache();
+  dateCache.populate(dateFormatString,startYear + 5,endYear);
+  long end=System.currentTimeMillis();
+  System.out.println("Creating cache of " + dateCache.getSize() + " dates : "+ (end - start)+ " ms");
+  SimpleDateFormat dateFormat=new SimpleDateFormat(dateFormatString);
+  final int size=10000000;
+  List<String> randomDates=new ArrayList<String>(size);
+  for (int i=0; i < size; i++) {
+    Calendar cal=Calendar.getInstance();
+    int rndYear=startYear + (int)Math.round(Math.random() * (endYear - startYear));
+    int rndDay=(int)Math.round(Math.random() * 365);
+    cal.set(Calendar.YEAR,rndYear);
+    cal.set(Calendar.DAY_OF_YEAR,rndDay);
+    String dateString=dateFormat.format(cal.getTime());
+    randomDates.add(dateString);
+  }
+  start=System.currentTimeMillis();
+  for (  String randomDate : randomDates) {
+    dateFormat.parse(randomDate);
+  }
+  end=System.currentTimeMillis();
+  System.out.println("Parsing " + size + " dates : "+ (end - start)+ " ms");
+  int retries=0;
+  start=System.currentTimeMillis();
+  for (  String randomDate : randomDates) {
+    Date date=dateCache.lookupDate(randomDate);
+    if (date == null) {
+      dateFormat.parse(randomDate);
+      retries++;
+    }
+  }
+  end=System.currentTimeMillis();
+  System.out.println("Looking up " + size + " dates : "+ (end - start)+ " ms  ("+ retries+ " retries)");
+  dateCache=new DateCache();
+  retries=0;
+  start=System.currentTimeMillis();
+  for (  String randomDate : randomDates) {
+    Date date=dateCache.lookupDate(randomDate);
+    if (date == null) {
+      date=dateFormat.parse(randomDate);
+      dateCache.addDate(randomDate,date);
+      retries++;
+    }
+  }
+  end=System.currentTimeMillis();
+  System.out.println("Looking up " + size + " dates with incremental cache population: "+ (end - start)+ " ms  ("+ retries+ " misses)");
+}

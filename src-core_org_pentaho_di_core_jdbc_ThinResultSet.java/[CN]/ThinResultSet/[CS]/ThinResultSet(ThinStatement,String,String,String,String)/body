@@ -1,0 +1,53 @@
+{
+  this.statement=statement;
+  this.connection=(ThinConnection)statement.getConnection();
+  rowNumber=0;
+  stopped=new AtomicBoolean(false);
+  try {
+    HttpClient client=null;
+    try {
+      client=SlaveConnectionManager.getInstance().createHttpClient();
+      client.getHttpConnectionManager().getParams().setConnectionTimeout(0);
+      client.getHttpConnectionManager().getParams().setSoTimeout(0);
+      HttpUtil.addCredentials(client,new Variables(),connection.getHostname(),connection.getPort(),connection.getWebAppName(),connection.getUsername(),connection.getPassword());
+      HttpUtil.addProxy(client,new Variables(),connection.getHostname(),connection.getProxyHostname(),connection.getProxyPort(),connection.getNonProxyHosts());
+      method=new GetMethod(urlString);
+      method.setDoAuthentication(true);
+      method.addRequestHeader(new Header("Content-Type","binary/jdbc"));
+      method.addRequestHeader(new Header("SQL",sql));
+      method.addRequestHeader(new Header("MaxRows",Integer.toString(statement.getMaxRows())));
+      method.getParams().setParameter("http.socket.timeout",new Integer(0));
+      for (      String arg : connection.getArguments().keySet()) {
+        String value=connection.getArguments().get(arg);
+        method.addRequestHeader(new Header(arg,value));
+      }
+      int result=client.executeMethod(method);
+      if (result == 500) {
+        String response=getErrorString(method.getResponseBodyAsStream());
+        throw new KettleException("Error 500 reading data from slave server: " + response);
+      }
+      if (result == 401) {
+        String response=getErrorString(method.getResponseBodyAsStream());
+        throw new KettleException("Access denied error 401 received while attempting to read data from server: " + response);
+      }
+      if (result != 200) {
+        String response=getErrorString(method.getResponseBodyAsStream());
+        throw new KettleException("Error received while attempting to read data from server: " + response);
+      }
+      dataInputStream=new DataInputStream(method.getResponseBodyAsStream());
+      serviceName=dataInputStream.readUTF();
+      serviceTransName=dataInputStream.readUTF();
+      serviceObjectId=dataInputStream.readUTF();
+      sqlTransName=dataInputStream.readUTF();
+      sqlObjectId=dataInputStream.readUTF();
+      rowMeta=new RowMeta(dataInputStream);
+    }
+ catch (    KettleEOFException eof) {
+      close();
+    }
+  }
+ catch (  Exception e) {
+    LogChannel.GENERAL.logError("Error opening resultset",e);
+    throw new SQLException("Unable to get open query for SQL: " + sql,e);
+  }
+}

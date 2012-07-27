@@ -1,0 +1,46 @@
+{
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName(SqlTransExecutor.calculateTransname(sql,false));
+  xLocation=50;
+  StepMeta injectorStep=generateInjectorStep();
+  transMeta.addStep(injectorStep);
+  injectorStepName=injectorStep.getName();
+  StepMeta lastStep=injectorStep;
+  List<SQLField> iifFields=sql.getSelectFields().getIifFunctionFields();
+  for (  SQLField iifField : iifFields) {
+    lastStep=generateIifStep(iifField,transMeta,lastStep);
+  }
+  if (sql.getWhereCondition() != null && !sql.getWhereCondition().isEmpty()) {
+    StepMeta filterStep=generateFilterStep(sql.getWhereCondition().getCondition(),false);
+    lastStep=addToTrans(filterStep,transMeta,lastStep);
+  }
+  List<SQLField> fields=sql.getSelectFields().getFields();
+  if ((sql.getGroupFields() != null && !sql.getGroupFields().isEmpty()) || (fields.size() == 1 && fields.get(0).isCountStar())) {
+    StepMeta groupStep=generateGroupByStep();
+    lastStep=addToTrans(groupStep,transMeta,lastStep);
+  }
+  if (!sql.getSelectFields().hasAggregates() && sql.getSelectFields().getRegularFields().size() > 0) {
+    StepMeta selectStep=generateSelectStep();
+    lastStep=addToTrans(selectStep,transMeta,lastStep);
+  }
+  if (sql.getHavingCondition() != null && !sql.getHavingCondition().isEmpty()) {
+    StepMeta filterStep=generateFilterStep(sql.getHavingCondition().getCondition(),true);
+    lastStep=addToTrans(filterStep,transMeta,lastStep);
+  }
+  if (sql.getSelectFields().isDistinct()) {
+    StepMeta filterStep=generateUniqueStep();
+    lastStep=addToTrans(filterStep,transMeta,lastStep);
+  }
+  if (sql.getOrderFields() != null && !sql.getOrderFields().isEmpty()) {
+    StepMeta sortStep=generateSortStep();
+    lastStep=addToTrans(sortStep,transMeta,lastStep);
+  }
+  if (rowLimit > 0) {
+    StepMeta sampleStep=generateSampleStep();
+    lastStep=addToTrans(sampleStep,transMeta,lastStep);
+  }
+  StepMeta resultStep=generateResultStep();
+  resultStepName=resultStep.getName();
+  lastStep=addToTrans(resultStep,transMeta,lastStep);
+  return transMeta;
+}

@@ -1,28 +1,34 @@
 {
-  String sql;
-  String table=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
-  sql="DELETE FROM " + table + Const.CR;
-  sql+="WHERE ";
-  for (int i=0; i < codes.length; i++) {
-    if (i != 0)     sql+="AND   ";
-    sql+=codes[i];
-    if ("BETWEEN".equalsIgnoreCase(condition[i])) {
-      sql+=" BETWEEN ? AND ? ";
-    }
- else     if ("IS NULL".equalsIgnoreCase(condition[i]) || "IS NOT NULL".equalsIgnoreCase(condition[i])) {
-      sql+=" " + condition[i] + " ";
-    }
- else {
-      sql+=" " + condition[i] + " ? ";
-    }
-  }
   try {
-    if (log.isDetailed())     log.logDetailed("Setting update preparedStatement to [" + sql + "]");
-    prepStatementUpdate=connection.prepareStatement(databaseMeta.stripCR(sql));
+    log.snap(Metrics.METRIC_DATABASE_PREPARE_DELETE_START,databaseMeta.getName());
+    String sql;
+    String table=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+    sql="DELETE FROM " + table + Const.CR;
+    sql+="WHERE ";
+    for (int i=0; i < codes.length; i++) {
+      if (i != 0)       sql+="AND   ";
+      sql+=codes[i];
+      if ("BETWEEN".equalsIgnoreCase(condition[i])) {
+        sql+=" BETWEEN ? AND ? ";
+      }
+ else       if ("IS NULL".equalsIgnoreCase(condition[i]) || "IS NOT NULL".equalsIgnoreCase(condition[i])) {
+        sql+=" " + condition[i] + " ";
+      }
+ else {
+        sql+=" " + condition[i] + " ? ";
+      }
+    }
+    try {
+      if (log.isDetailed())       log.logDetailed("Setting update preparedStatement to [" + sql + "]");
+      prepStatementUpdate=connection.prepareStatement(databaseMeta.stripCR(sql));
+    }
+ catch (    SQLException ex) {
+      printSQLException(ex);
+      return false;
+    }
+    return true;
   }
- catch (  SQLException ex) {
-    printSQLException(ex);
-    return false;
+  finally {
+    log.snap(Metrics.METRIC_DATABASE_PREPARE_DELETE_STOP,databaseMeta.getName());
   }
-  return true;
 }

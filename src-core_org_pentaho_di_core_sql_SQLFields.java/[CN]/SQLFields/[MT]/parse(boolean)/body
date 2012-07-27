@@ -1,0 +1,36 @@
+{
+  if (Const.isEmpty(fieldsClause))   return;
+  if (fieldsClause.startsWith("DISTINCT ")) {
+    distinct=true;
+    fieldsClause=fieldsClause.substring("DISTINCT ".length());
+  }
+  List<String> strings=new ArrayList<String>();
+  int startIndex=0;
+  for (int index=0; index < fieldsClause.length(); index++) {
+    index=SQL.skipChars(fieldsClause,index,'"','\'','(');
+    if (index >= fieldsClause.length()) {
+      strings.add(fieldsClause.substring(startIndex));
+      startIndex=-1;
+      break;
+    }
+    if (fieldsClause.charAt(index) == ',') {
+      strings.add(fieldsClause.substring(startIndex,index));
+      startIndex=index + 1;
+    }
+  }
+  if (startIndex >= 0) {
+    strings.add(fieldsClause.substring(startIndex));
+  }
+  fields.clear();
+  for (  String string : strings) {
+    String fieldString=Const.trim(string);
+    if ("*".equals(fieldString)) {
+      for (      ValueMetaInterface valueMeta : serviceFields.getValueMetaList()) {
+        fields.add(new SQLField(valueMeta.getName(),serviceFields,orderClause,selectFields));
+      }
+    }
+ else {
+      fields.add(new SQLField(fieldString,serviceFields,orderClause,selectFields));
+    }
+  }
+}
