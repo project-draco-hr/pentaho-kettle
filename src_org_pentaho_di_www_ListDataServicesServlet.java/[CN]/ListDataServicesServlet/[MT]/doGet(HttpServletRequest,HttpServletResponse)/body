@@ -2,14 +2,27 @@
   if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
     return;
   }
-  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"GetStatusServlet.StatusRequested"));
+  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"LisDataServicesServlet.ListRequested"));
   response.setStatus(HttpServletResponse.SC_OK);
+  Map<String,String> parameters=TransDataServlet.getParametersFromRequestHeader(request);
   response.setContentType("text/xml");
   response.getWriter().println(XMLHandler.getXMLHeader());
   response.getWriter().println(XMLHandler.openTag(XML_TAG_SERVICES));
   for (  TransDataService service : transformationMap.getSlaveServerConfig().getServicesMap().values()) {
     response.getWriter().println(XMLHandler.openTag(XML_TAG_SERVICE));
     response.getWriter().println(XMLHandler.addTagValue("name",service.getName()));
+    try {
+      TransMeta transMeta=new TransMeta(service.getFileName());
+      for (      String name : parameters.keySet()) {
+        transMeta.setParameterValue(name,parameters.get(name));
+      }
+      transMeta.activateParameters();
+      RowMetaInterface serviceFields=transMeta.getStepFields(service.getServiceStepName());
+      response.getWriter().println(serviceFields.getMetaXML());
+    }
+ catch (    Exception e) {
+      log.logError("Unable to get fields for service " + service.getName() + ", transformation: "+ service.getFileName());
+    }
     response.getWriter().println(XMLHandler.closeTag(XML_TAG_SERVICE));
   }
   response.getWriter().println(XMLHandler.closeTag(XML_TAG_SERVICES));
