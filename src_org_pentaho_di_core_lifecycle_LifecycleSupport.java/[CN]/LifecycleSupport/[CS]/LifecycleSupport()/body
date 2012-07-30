@@ -1,15 +1,7 @@
 {
-  lifeListeners=Collections.synchronizedSet(new HashSet<LifecycleListener>());
+  lifeListeners=Collections.synchronizedSet(loadPlugins(LifecyclePluginType.class,LifecycleListener.class));
+  kettleLifecycleListeners=Collections.synchronizedSet(loadPlugins(KettleLifecyclePluginType.class,KettleLifecycleListener.class));
   final PluginRegistry registry=PluginRegistry.getInstance();
-  List<PluginInterface> plugins=registry.getPlugins(LifecyclePluginType.class);
-  for (  PluginInterface plugin : plugins) {
-    try {
-      lifeListeners.add(registry.loadClass(plugin,LifecycleListener.class));
-    }
- catch (    KettleException e) {
-      LogChannel.GENERAL.logError("Unexpected error loading class for plugin " + plugin.getName(),e);
-    }
-  }
   registry.addPluginListener(LifecyclePluginType.class,new PluginTypeListener(){
     public void pluginAdded(    Object serviceObject){
       LifecycleListener listener=null;
@@ -21,14 +13,6 @@
         return;
       }
       lifeListeners.add(listener);
-      if (KettleEnvironment.isInitialized()) {
-        try {
-          listener.onEnvironmentInit();
-        }
- catch (        LifecycleException e) {
-          e.printStackTrace();
-        }
-      }
       if (started) {
         try {
           listener.onStart(handler);
@@ -42,6 +26,34 @@
       lifeListeners.remove(serviceObject);
     }
     public void pluginChanged(    Object serviceObject){
+    }
+  }
+);
+  registry.addPluginListener(KettleLifecyclePluginType.class,new PluginTypeListener(){
+    @Override public void pluginAdded(    Object serviceObject){
+      KettleLifecycleListener listener=null;
+      try {
+        listener=(KettleLifecycleListener)registry.loadClass((PluginInterface)serviceObject);
+      }
+ catch (      KettlePluginException e) {
+        e.printStackTrace();
+        return;
+      }
+      kettleLifecycleListeners.add(listener);
+      if (KettleEnvironment.isInitialized()) {
+        try {
+          listener.onEnvironmentInit();
+        }
+ catch (        LifecycleException ex) {
+          String message=BaseMessages.getString(PKG,"LifecycleSupport.ErrorInvokingKettleLifecycleListener",listener);
+          LogChannel.GENERAL.logError(message,ex);
+        }
+      }
+    }
+    @Override public void pluginRemoved(    Object serviceObject){
+      kettleLifecycleListeners.remove(serviceObject);
+    }
+    @Override public void pluginChanged(    Object serviceObject){
     }
   }
 );
