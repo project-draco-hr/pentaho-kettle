@@ -1,0 +1,47 @@
+{
+  MemoryGroupByMeta meta=new MemoryGroupByMeta();
+  meta.allocate(groupFields.size(),aggFields.size());
+  for (int i=0; i < groupFields.size(); i++) {
+    SQLField field=groupFields.get(i);
+    meta.getGroupField()[i]=field.getField();
+  }
+  for (int i=0; i < aggFields.size(); i++) {
+    SQLField field=aggFields.get(i);
+    meta.getAggregateField()[i]=Const.NVL(field.getAlias(),field.getField());
+    meta.getSubjectField()[i]=Const.NVL(field.getAlias(),field.getField());
+    int agg=0;
+switch (field.getAggregation()) {
+case SUM:
+      agg=MemoryGroupByMeta.TYPE_GROUP_SUM;
+    break;
+case MIN:
+  agg=MemoryGroupByMeta.TYPE_GROUP_MIN;
+break;
+case MAX:
+agg=MemoryGroupByMeta.TYPE_GROUP_MAX;
+break;
+case COUNT:
+if (field.isCountStar()) {
+agg=MemoryGroupByMeta.TYPE_GROUP_COUNT_ANY;
+}
+ else if (field.isCountDistinct()) {
+agg=MemoryGroupByMeta.TYPE_GROUP_COUNT_DISTINCT;
+}
+ else {
+agg=MemoryGroupByMeta.TYPE_GROUP_COUNT_ALL;
+}
+break;
+case AVG:
+agg=MemoryGroupByMeta.TYPE_GROUP_AVERAGE;
+break;
+default :
+throw new KettleException("Unhandled aggregation method [" + field.getAggregation() + "]");
+}
+meta.getAggregateType()[i]=agg;
+}
+StepMeta stepMeta=new StepMeta("Group by",meta);
+stepMeta.setLocation(xLocation,50);
+xLocation+=100;
+stepMeta.setDraw(true);
+return stepMeta;
+}

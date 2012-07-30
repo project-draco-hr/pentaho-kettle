@@ -2,10 +2,21 @@
   TransMeta transMeta=new TransMeta();
   transMeta.setName(SqlTransExecutor.calculateTransname(sql,false));
   xLocation=50;
-  StepMeta injectorStep=generateInjectorStep();
-  transMeta.addStep(injectorStep);
-  injectorStepName=injectorStep.getName();
-  StepMeta lastStep=injectorStep;
+  StepMeta firstStep;
+  if (Const.isEmpty(sql.getServiceName()) || "dual".equalsIgnoreCase(sql.getServiceName())) {
+    firstStep=generateEmptyRowStep();
+  }
+ else {
+    firstStep=generateInjectorStep();
+  }
+  transMeta.addStep(firstStep);
+  injectorStepName=firstStep.getName();
+  StepMeta lastStep=firstStep;
+  List<SQLField> constFields=sql.getSelectFields().getConstantFields();
+  if (!constFields.isEmpty()) {
+    StepMeta constStep=generateConstStep(constFields);
+    lastStep=addToTrans(constStep,transMeta,lastStep);
+  }
   List<SQLField> iifFields=sql.getSelectFields().getIifFunctionFields();
   for (  SQLField iifField : iifFields) {
     lastStep=generateIifStep(iifField,transMeta,lastStep);
@@ -14,9 +25,10 @@
     StepMeta filterStep=generateFilterStep(sql.getWhereCondition().getCondition(),false);
     lastStep=addToTrans(filterStep,transMeta,lastStep);
   }
-  List<SQLField> fields=sql.getSelectFields().getFields();
-  if ((sql.getGroupFields() != null && !sql.getGroupFields().isEmpty()) || (fields.size() == 1 && fields.get(0).isCountStar())) {
-    StepMeta groupStep=generateGroupByStep();
+  List<SQLField> aggFields=sql.getSelectFields().getAggregateFields();
+  List<SQLField> groupFields=sql.getGroupFields().getFields();
+  if (aggFields.size() > 0 || groupFields.size() > 0) {
+    StepMeta groupStep=generateGroupByStep(aggFields,groupFields);
     lastStep=addToTrans(groupStep,transMeta,lastStep);
   }
   if (!sql.getSelectFields().hasAggregates() && sql.getSelectFields().getRegularFields().size() > 0) {
