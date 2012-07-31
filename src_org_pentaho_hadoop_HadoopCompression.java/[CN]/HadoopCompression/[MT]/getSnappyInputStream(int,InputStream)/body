@@ -2,20 +2,7 @@
   if (!isHadoopSnappyAvailable()) {
     throw new Exception("Hadoop-snappy does not seem to be available");
   }
-  Object snappyCodec=Class.forName(SNAPPY_CODEC_CLASS).newInstance();
-  Class<?> confClass=Class.forName("org.apache.hadoop.conf.Configuration").newInstance().getClass();
-  Class<?>[] paramClass=new Class[1];
-  paramClass[0]=confClass;
-  Object newConf=Class.forName("org.apache.hadoop.conf.Configuration").newInstance();
-  Object[] args=new Object[2];
-  args[0]=IO_COMPRESSION_CODEC_SNAPPY_BUFFERSIZE_KEY;
-  args[1]="" + bufferSize;
-  Method cm=confClass.getMethod("set",new Class[]{String.class,String.class});
-  cm.invoke(newConf,args);
-  Method m=snappyCodec.getClass().getMethod("setConf",paramClass);
-  m.invoke(snappyCodec,newConf);
-  paramClass[0]=Class.forName("java.io.InputStream");
-  m=snappyCodec.getClass().getMethod("createInputStream",paramClass);
-  Object result=m.invoke(snappyCodec,in);
-  return (InputStream)result;
+  Object snappyShim=getActiveSnappyShim();
+  Method getSnappyInputStream=snappyShim.getClass().getMethod("getSnappyInputStream",int.class,InputStream.class);
+  return (InputStream)getSnappyInputStream.invoke(snappyShim,bufferSize,in);
 }
