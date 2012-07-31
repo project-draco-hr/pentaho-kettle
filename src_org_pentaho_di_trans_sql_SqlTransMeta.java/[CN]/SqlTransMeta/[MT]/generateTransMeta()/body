@@ -26,14 +26,20 @@
     lastStep=addToTrans(filterStep,transMeta,lastStep);
   }
   List<SQLField> aggFields=sql.getSelectFields().getAggregateFields();
+  if (sql.getHavingCondition() != null) {
+    List<SQLField> havingFields=sql.getHavingCondition().extractHavingFields(sql.getSelectFields().getFields(),aggFields,transMeta.getStepFields(lastStep));
+    aggFields.addAll(havingFields);
+  }
   List<SQLField> groupFields=sql.getGroupFields().getFields();
   if (aggFields.size() > 0 || groupFields.size() > 0) {
     StepMeta groupStep=generateGroupByStep(aggFields,groupFields);
     lastStep=addToTrans(groupStep,transMeta,lastStep);
   }
-  if (!sql.getSelectFields().hasAggregates() && sql.getSelectFields().getRegularFields().size() > 0) {
-    StepMeta selectStep=generateSelectStep();
-    lastStep=addToTrans(selectStep,transMeta,lastStep);
+  if (sql.getOrderFields() != null) {
+    iifFields=sql.getOrderFields().getIifFunctionFields();
+    for (    SQLField iifField : iifFields) {
+      lastStep=generateIifStep(iifField,transMeta,lastStep);
+    }
   }
   if (sql.getHavingCondition() != null && !sql.getHavingCondition().isEmpty()) {
     StepMeta filterStep=generateFilterStep(sql.getHavingCondition().getCondition(),true);
@@ -44,8 +50,12 @@
     lastStep=addToTrans(filterStep,transMeta,lastStep);
   }
   if (sql.getOrderFields() != null && !sql.getOrderFields().isEmpty()) {
-    StepMeta sortStep=generateSortStep();
+    StepMeta sortStep=generateSortStep(transMeta,lastStep);
     lastStep=addToTrans(sortStep,transMeta,lastStep);
+  }
+  if (!sql.getSelectFields().hasAggregates() && sql.getSelectFields().getRegularFields().size() > 0) {
+    StepMeta selectStep=generateSelectStep();
+    lastStep=addToTrans(selectStep,transMeta,lastStep);
   }
   if (rowLimit > 0) {
     StepMeta sampleStep=generateSampleStep();
