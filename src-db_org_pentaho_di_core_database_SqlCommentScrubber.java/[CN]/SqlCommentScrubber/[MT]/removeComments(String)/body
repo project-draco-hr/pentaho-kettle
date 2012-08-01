@@ -1,0 +1,113 @@
+{
+  if (text == null)   return null;
+  StringBuffer queryWithoutComments=new StringBuffer();
+  boolean blkComment=false;
+  boolean lineComment=false;
+  boolean inString=false;
+  StringReader buffer=new StringReader(text);
+  int ch;
+  char currentStringChar=(char)QUOTE_CHARS[0];
+  boolean done=false;
+  try {
+    while (!done) {
+switch (ch=buffer.read()) {
+case EOF:
+{
+          done=true;
+          break;
+        }
+case '\'':
+case '"':
+{
+        if (!lineComment && !blkComment) {
+          char cch=(char)ch;
+          if (inString) {
+            if (currentStringChar == cch) {
+              inString=false;
+            }
+          }
+ else {
+            inString=true;
+            currentStringChar=cch;
+          }
+          queryWithoutComments.append(cch);
+        }
+        break;
+      }
+case '/':
+{
+      if (!lineComment) {
+        ch=buffer.read();
+        if ((ch == '*') && (!blkComment) && (!inString)) {
+          blkComment=true;
+        }
+ else {
+          if (!blkComment) {
+            queryWithoutComments.append('/');
+            queryWithoutComments.append((char)ch);
+          }
+        }
+      }
+      break;
+    }
+case '*':
+{
+    if (blkComment) {
+      ch=buffer.read();
+      if (ch == '/') {
+        blkComment=false;
+      }
+    }
+ else {
+      if (!lineComment)       queryWithoutComments.append('*');
+    }
+    break;
+  }
+case '-':
+{
+  if (!blkComment && !lineComment) {
+    ch=buffer.read();
+    if (ch == '-' && !inString) {
+      lineComment=true;
+    }
+ else {
+      queryWithoutComments.append('-');
+      queryWithoutComments.append((char)ch);
+      if (isQuoteChar(ch)) {
+        char cch=(char)ch;
+        if (inString) {
+          if (currentStringChar == cch) {
+            inString=false;
+          }
+        }
+ else {
+          inString=true;
+          currentStringChar=cch;
+        }
+      }
+    }
+  }
+  break;
+}
+case EOL:
+{
+if (!blkComment && !lineComment) {
+  queryWithoutComments.append((char)ch);
+}
+lineComment=false;
+break;
+}
+default :
+{
+if (!blkComment && !lineComment) {
+queryWithoutComments.append((char)ch);
+}
+break;
+}
+}
+}
+}
+ catch (IOException e) {
+}
+return queryWithoutComments.toString();
+}
