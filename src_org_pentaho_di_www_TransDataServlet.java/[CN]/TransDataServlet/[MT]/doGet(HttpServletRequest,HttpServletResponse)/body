@@ -23,12 +23,14 @@
     dos.writeUTF(genContainerObjectId);
     final AtomicBoolean firstRow=new AtomicBoolean(true);
     final AtomicInteger rowCounter=new AtomicInteger(0);
+    final AtomicBoolean wroteRowMeta=new AtomicBoolean(false);
     executor.executeQuery(new RowAdapter(){
       @Override public void rowWrittenEvent(      RowMetaInterface rowMeta,      Object[] row) throws KettleStepException {
         try {
           if (firstRow.get()) {
             firstRow.set(false);
             rowMeta.writeMeta(dos);
+            wroteRowMeta.set(true);
           }
           rowMeta.writeData(dos,row);
           if (maxRows > 0 && rowCounter.incrementAndGet() > maxRows) {
@@ -66,11 +68,9 @@
       }
     }
     executor.waitUntilFinished();
-    Trans trans=executor.getGenTrans();
-    Result result=executor.getGenTrans().getResult();
-    if (result.getNrErrors() > 0) {
-      String logText=CentralLogStore.getAppender().getBuffer(trans.getLogChannelId(),false).toString();
-      throw new KettleException("Error executing transformation, log:" + Const.CR + logText);
+    if (!wroteRowMeta.get()) {
+      RowMetaInterface stepFields=executor.getGenTransMeta().getStepFields(executor.getResultStepName());
+      stepFields.writeMeta(dos);
     }
   }
  catch (  Exception e) {
