@@ -2,6 +2,24 @@
   meta=(ExecSQLRowMeta)smi;
   data=(ExecSQLRowData)sdi;
   if (log.isBasic())   logBasic(BaseMessages.getString(PKG,"ExecSQLRow.Log.FinishingReadingQuery"));
-  if (data.db != null)   data.db.disconnect();
+  if (data.db != null) {
+    try {
+      if (!data.db.isAutoCommit()) {
+        if (getErrors() == 0) {
+          data.db.commit();
+        }
+ else {
+          data.db.rollback();
+        }
+      }
+    }
+ catch (    KettleDatabaseException e) {
+      logError(BaseMessages.getString(PKG,"Update.Log.UnableToCommitUpdateConnection") + data.db + "] :"+ e.toString());
+      setErrors(1);
+    }
+ finally {
+      data.db.disconnect();
+    }
+  }
   super.dispose(smi,sdi);
 }
