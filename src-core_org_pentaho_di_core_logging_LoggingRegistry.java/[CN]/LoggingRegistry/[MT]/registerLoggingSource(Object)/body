@@ -8,25 +8,37 @@
   String logChannelId=UUID.randomUUID().toString();
   loggingSource.setLogChannelId(logChannelId);
   map.put(logChannelId,loggingSource);
+  if (loggingSource.getParent() != null) {
+    String parentLogChannelId=loggingSource.getParent().getLogChannelId();
+    List<String> parentChildren=childrenMap.get(parentLogChannelId);
+    if (parentChildren == null) {
+      parentChildren=new ArrayList<String>();
+      childrenMap.put(parentLogChannelId,parentChildren);
+    }
+    parentChildren.add(logChannelId);
+  }
   lastModificationTime=new Date();
   loggingSource.setRegistrationDate(lastModificationTime);
-  if (maxSize > 0 && map.size() > maxSize) {
-    if (map.size() > maxSize + 250) {
-      List<LoggingObjectInterface> all=new ArrayList<LoggingObjectInterface>(map.values());
-      Collections.sort(all,new Comparator<LoggingObjectInterface>(){
-        @Override public int compare(        LoggingObjectInterface o1,        LoggingObjectInterface o2){
-          if (o1 == null && o2 != null)           return -1;
-          if (o1 != null && o2 == null)           return 1;
-          if (o1 == null && o2 == null)           return 0;
-          return o1.getRegistrationDate().compareTo(o2.getRegistrationDate());
-        }
-      }
-);
-      for (int i=0; i < 250; i++) {
-        LoggingObjectInterface toRemove=all.get(i);
-        map.remove(toRemove.getLogChannelId());
+  if (maxSize > 0 && map.size() > maxSize + 1000) {
+    long cleanStart=System.currentTimeMillis();
+    List<LoggingObjectInterface> all=new ArrayList<LoggingObjectInterface>(map.values());
+    Collections.sort(all,new Comparator<LoggingObjectInterface>(){
+      @Override public int compare(      LoggingObjectInterface o1,      LoggingObjectInterface o2){
+        if (o1 == null && o2 != null)         return -1;
+        if (o1 != null && o2 == null)         return 1;
+        if (o1 == null && o2 == null)         return 0;
+        return o1.getRegistrationDate().compareTo(o2.getRegistrationDate());
       }
     }
+);
+    for (int i=0; i < 1000; i++) {
+      LoggingObjectInterface toRemove=all.get(i);
+      map.remove(toRemove.getLogChannelId());
+      childrenMap.remove(toRemove.getLogChannelId());
+    }
+    long cleanEnd=System.currentTimeMillis();
+    LogChannel.GENERAL.snap(Metrics.METRIC_LOGGING_REGISTRY_CLEAN_TIME,cleanEnd - cleanStart);
+    LogChannel.GENERAL.snap(Metrics.METRIC_LOGGING_REGISTRY_CLEAN_COUNT);
   }
   return logChannelId;
 }

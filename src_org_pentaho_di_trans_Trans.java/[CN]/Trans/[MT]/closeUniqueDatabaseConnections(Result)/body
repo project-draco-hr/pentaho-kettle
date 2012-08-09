@@ -1,42 +1,44 @@
 {
   DatabaseConnectionMap map=DatabaseConnectionMap.getInstance();
-  List<Database> databaseList=new ArrayList<Database>(map.getMap().values());
-  for (  Database database : databaseList) {
-    if (database.getConnectionGroup().equals(getThreadName())) {
-      try {
-        if (result.getNrErrors() > 0) {
-          try {
-            database.rollback(true);
-            log.logBasic(BaseMessages.getString(PKG,"Trans.Exception.TransactionsRolledBackOnConnection",database.toString()));
-          }
- catch (          Exception e) {
-            throw new KettleDatabaseException(BaseMessages.getString(PKG,"Trans.Exception.ErrorRollingBackUniqueConnection",database.toString()),e);
-          }
-        }
- else {
-          try {
-            database.commit(true);
-            log.logBasic(BaseMessages.getString(PKG,"Trans.Exception.TransactionsCommittedOnConnection",database.toString()));
-          }
- catch (          Exception e) {
-            throw new KettleDatabaseException(BaseMessages.getString(PKG,"Trans.Exception.ErrorCommittingUniqueConnection",database.toString()),e);
-          }
-        }
-      }
- catch (      Exception e) {
-        log.logError(BaseMessages.getString(PKG,"Trans.Exception.ErrorHandlingTransformationTransaction",database.toString()),e);
-        result.setNrErrors(result.getNrErrors() + 1);
-      }
- finally {
+synchronized (map) {
+    List<Database> databaseList=new ArrayList<Database>(map.getMap().values());
+    for (    Database database : databaseList) {
+      if (database.getConnectionGroup().equals(getThreadName())) {
         try {
-          database.closeConnectionOnly();
+          if (result.getNrErrors() > 0) {
+            try {
+              database.rollback(true);
+              log.logBasic(BaseMessages.getString(PKG,"Trans.Exception.TransactionsRolledBackOnConnection",database.toString()));
+            }
+ catch (            Exception e) {
+              throw new KettleDatabaseException(BaseMessages.getString(PKG,"Trans.Exception.ErrorRollingBackUniqueConnection",database.toString()),e);
+            }
+          }
+ else {
+            try {
+              database.commit(true);
+              log.logBasic(BaseMessages.getString(PKG,"Trans.Exception.TransactionsCommittedOnConnection",database.toString()));
+            }
+ catch (            Exception e) {
+              throw new KettleDatabaseException(BaseMessages.getString(PKG,"Trans.Exception.ErrorCommittingUniqueConnection",database.toString()),e);
+            }
+          }
         }
  catch (        Exception e) {
           log.logError(BaseMessages.getString(PKG,"Trans.Exception.ErrorHandlingTransformationTransaction",database.toString()),e);
           result.setNrErrors(result.getNrErrors() + 1);
         }
  finally {
-          map.removeConnection(database.getConnectionGroup(),database.getPartitionId(),database);
+          try {
+            database.closeConnectionOnly();
+          }
+ catch (          Exception e) {
+            log.logError(BaseMessages.getString(PKG,"Trans.Exception.ErrorHandlingTransformationTransaction",database.toString()),e);
+            result.setNrErrors(result.getNrErrors() + 1);
+          }
+ finally {
+            map.removeConnection(database.getConnectionGroup(),database.getPartitionId(),database);
+          }
         }
       }
     }

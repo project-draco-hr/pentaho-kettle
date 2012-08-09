@@ -1,30 +1,20 @@
 {
-  List<String> list=new ArrayList<String>();
-  Iterator<LoggingObjectInterface> mapIterator=map.values().iterator();
-  while (mapIterator.hasNext()) {
-    LoggingObjectInterface loggingObject=mapIterator.next();
-    if (loggingObject.getLogChannelId().equals(parentLogChannelId)) {
-      continue;
+  long getStart=System.currentTimeMillis();
+synchronized (childrenMap) {
+    List<String> list=childrenMap.get(parentLogChannelId);
+    if (list == null) {
+      list=new ArrayList<String>();
+      children.add(parentLogChannelId);
+      return list;
     }
-    LoggingObjectInterface parent=loggingObject.getParent();
-    if (parent != null && parent.getLogChannelId() != null) {
-      if (parent.getLogChannelId().equals(parentLogChannelId)) {
-        String childId=loggingObject.getLogChannelId();
-        if (!list.contains(childId)) {
-          list.add(childId);
-        }
-      }
+    Iterator<String> kids=list.iterator();
+    while (kids.hasNext()) {
+      String logChannelId=kids.next();
+      getLogChannelChildren(children,logChannelId);
     }
   }
-  for (  String childId : new ArrayList<String>(list)) {
-    getLogChannelChildren(list,childId);
-  }
-  Iterator<String> listIterator=list.iterator();
-  while (listIterator.hasNext()) {
-    String id=listIterator.next();
-    if (!children.contains(id)) {
-      children.add(id);
-    }
-  }
+  long getStop=System.currentTimeMillis();
+  LogChannel.GENERAL.snap(Metrics.METRIC_LOGGING_REGISTRY_GET_CHILDREN_TIME,getStop - getStart);
+  LogChannel.GENERAL.snap(Metrics.METRIC_LOGGING_REGISTRY_GET_CHILDREN_COUNT);
   return children;
 }
