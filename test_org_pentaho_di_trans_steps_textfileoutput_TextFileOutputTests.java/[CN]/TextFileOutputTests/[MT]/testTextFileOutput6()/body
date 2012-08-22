@@ -1,0 +1,60 @@
+{
+  KettleEnvironment.init();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("testTextFileOutput6");
+  PluginRegistry registry=PluginRegistry.getInstance();
+  String injectorStepName="injector step";
+  StepMeta injectorStep=TestUtilities.createInjectorStep(injectorStepName,registry);
+  transMeta.addStep(injectorStep);
+  StepMeta rowGeneratorStep=createRowGeneratorStep("Create rows for testTextFileOutput5",registry);
+  transMeta.addStep(rowGeneratorStep);
+  TransHopMeta hop_injectory_rowGenerator=new TransHopMeta(injectorStep,rowGeneratorStep);
+  transMeta.addTransHop(hop_injectory_rowGenerator);
+  String textFileName="testTextFileOutput6";
+  String textFileOutputStepName="text file output step";
+  StepMeta textFileOutputStep=createTextFileOutputStep(textFileOutputStepName,textFileName,"None",registry);
+  transMeta.addStep(textFileOutputStep);
+  TransHopMeta hop_RowGenerator_outputTextFile=new TransHopMeta(rowGeneratorStep,textFileOutputStep);
+  transMeta.addTransHop(hop_RowGenerator_outputTextFile);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface dummyStepInterface=trans.getStepInterface(textFileOutputStepName,0);
+  RowStepCollector dummyRowCollector=new RowStepCollector();
+  dummyStepInterface.addRowListener(dummyRowCollector);
+  trans.startThreads();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> resultRows=dummyRowCollector.getRowsWritten();
+  Object[][] rows=new Object[10][3];
+  File f=new File(textFileName + "." + EXTENSION);
+  f.deleteOnExit();
+  try {
+    FileInputStream fin=new FileInputStream(f);
+    InputStreamReader xover=new InputStreamReader(fin);
+    BufferedReader input=new BufferedReader(xover);
+    int rowCount=0;
+    try {
+      String inputLine=input.readLine();
+      while (inputLine != null) {
+        String[] columns=inputLine.split(";");
+        if (columns.length != 3)         fail("Expected 3 columns, got " + columns.length);
+        rows[rowCount][0]=Long.parseLong(columns[0].trim());
+        rows[rowCount][1]=columns[1];
+        rows[rowCount][2]=columns[2];
+        inputLine=input.readLine();
+      }
+    }
+ catch (    IOException ioe) {
+    }
+    fin.close();
+  }
+ catch (  IOException e) {
+    fail(e.getLocalizedMessage());
+  }
+  List<RowMetaAndData> goldenImageRows=createResultDataFromObjects(rows);
+  try {
+    TestUtilities.checkRows(goldenImageRows,resultRows);
+  }
+ catch (  TestFailedException tfe) {
+    fail(tfe.getMessage());
+  }
+}
