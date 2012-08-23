@@ -1,0 +1,31 @@
+{
+  MetricsRegistry metricsRegistry=MetricsRegistry.getInstance();
+  TransMeta insertTransMeta=new TransMeta("testfiles/metrics/insert-data.ktr");
+  Trans insertTrans=new Trans(insertTransMeta);
+  insertTrans.setGatheringMetrics(true);
+  insertTrans.execute(null);
+  insertTrans.waitUntilFinished();
+  LogChannelInterface log=insertTrans.getLogChannel();
+  Deque<MetricsSnapshotInterface> snapshotList=metricsRegistry.getSnapshotList(log.getLogChannelId());
+  assertTrue(snapshotList.size() >= 4);
+  TransMeta readTransMeta=new TransMeta("testfiles/metrics/read-data.ktr");
+  Trans readTrans=new Trans(readTransMeta);
+  readTrans.setGatheringMetrics(true);
+  readTrans.execute(null);
+  readTrans.waitUntilFinished();
+  log=readTrans.getLogChannel();
+  snapshotList=metricsRegistry.getSnapshotList(log.getLogChannelId());
+  assertTrue(snapshotList.size() >= 4);
+  Long rowCount=MetricsUtil.getResult(Metrics.METRIC_DATABASE_GET_ROW_COUNT);
+  assertNotNull(rowCount);
+  assertEquals(Long.valueOf(1001),rowCount);
+  Long sumTime=MetricsUtil.getResult(Metrics.METRIC_DATABASE_GET_ROW_SUM_TIME);
+  assertNotNull(sumTime);
+  assertTrue(sumTime > 0);
+  Long minTime=MetricsUtil.getResult(Metrics.METRIC_DATABASE_GET_ROW_MIN_TIME);
+  assertNotNull(minTime);
+  assertTrue(minTime < sumTime);
+  Long maxTime=MetricsUtil.getResult(Metrics.METRIC_DATABASE_GET_ROW_MAX_TIME);
+  assertNotNull(maxTime);
+  assertTrue(maxTime >= minTime);
+}
