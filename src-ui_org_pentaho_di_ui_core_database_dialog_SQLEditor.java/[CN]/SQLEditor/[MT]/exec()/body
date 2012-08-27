@@ -14,14 +14,14 @@
     try {
       db.connect(partitionId);
       String sqlScript=Const.isEmpty(wScript.getSelectionText()) ? wScript.getText() : wScript.getSelectionText();
-      List<String> statements=ci.getDatabaseInterface().parseStatements(sqlScript + Const.CR);
+      statements=ci.getDatabaseInterface().getSqlScriptStatements(sqlScript + Const.CR);
       int nrstats=0;
-      for (      String sql : statements) {
-        if (sql.toUpperCase().startsWith("SELECT")) {
+      for (      SqlScriptStatement sql : statements) {
+        if (sql.isQuery()) {
           log.logDetailed("launch SELECT statement: " + Const.CR + sql);
           nrstats++;
           try {
-            List<Object[]> rows=db.getRows(sql,1000);
+            List<Object[]> rows=db.getRows(sql.getStatement(),1000);
             RowMetaInterface rowMeta=db.getReturnRowMeta();
             if (rows.size() > 0) {
               PreviewRowsDialog prd=new PreviewRowsDialog(shell,ci,SWT.NONE,BaseMessages.getString(PKG,"SQLEditor.ResultRows.Title",Integer.toString(nrstats)),rowMeta,rows);
@@ -41,20 +41,29 @@
  else {
           log.logDetailed("launch DDL statement: " + Const.CR + sql);
           nrstats++;
+          int startLogLine=CentralLogStore.getLastBufferLineNr();
           try {
             log.logDetailed("Executing SQL: " + Const.CR + sql);
-            db.execStatement(sql);
+            db.execStatement(sql.getStatement());
             message.append(BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecuted",sql));
             message.append(Const.CR);
             if (dbcache != null)             dbcache.clear(ci.getName());
+            sql.setOk(true);
           }
  catch (          Exception dbe) {
+            sql.setOk(false);
             String error=BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecError",sql,dbe.toString());
             message.append(error).append(Const.CR);
             ErrorDialog dialog=new ErrorDialog(shell,BaseMessages.getString(PKG,"SQLEditor.ErrorExecSQL.Title"),error,dbe,true);
             if (dialog.isCancelled()) {
               break;
             }
+          }
+ finally {
+            int endLogLine=CentralLogStore.getLastBufferLineNr();
+            sql.setLoggingText(CentralLogStore.getAppender().getLogBufferFromTo(db.getLogChannelId(),true,startLogLine,endLogLine).toString());
+            sql.setComplete(true);
+            refreshExecutionResults();
           }
         }
       }
@@ -72,6 +81,7 @@
     }
  finally {
       db.disconnect();
+      refreshExecutionResults();
     }
   }
   EnterTextDialog dialog=new EnterTextDialog(shell,BaseMessages.getString(PKG,"SQLEditor.Result.Title"),BaseMessages.getString(PKG,"SQLEditor.Result.Message"),message.toString(),true);

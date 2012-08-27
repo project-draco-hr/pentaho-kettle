@@ -1,0 +1,49 @@
+{
+  if (parentJob != null && transactionId != null && parentJob.getTransactionId() != null && transactionId.equals(parentJob.getTransactionId())) {
+    return;
+  }
+  DatabaseConnectionMap map=DatabaseConnectionMap.getInstance();
+synchronized (map) {
+    List<Database> databaseList=new ArrayList<Database>(map.getMap().values());
+    for (    Database database : databaseList) {
+      if (database.getConnectionGroup().equals(getTransactionId())) {
+        try {
+          if (result.getNrErrors() > 0) {
+            try {
+              database.rollback(true);
+              log.logBasic(BaseMessages.getString(PKG,"Job.Exception.TransactionsRolledBackOnConnection",database.toString()));
+            }
+ catch (            Exception e) {
+              throw new KettleDatabaseException(BaseMessages.getString(PKG,"Job.Exception.ErrorRollingBackUniqueConnection",database.toString()),e);
+            }
+          }
+ else {
+            try {
+              database.commit(true);
+              log.logBasic(BaseMessages.getString(PKG,"Job.Exception.TransactionsCommittedOnConnection",database.toString()));
+            }
+ catch (            Exception e) {
+              throw new KettleDatabaseException(BaseMessages.getString(PKG,"Job.Exception.ErrorCommittingUniqueConnection",database.toString()),e);
+            }
+          }
+        }
+ catch (        Exception e) {
+          log.logError(BaseMessages.getString(PKG,"Job.Exception.ErrorHandlingJobTransaction",database.toString()),e);
+          result.setNrErrors(result.getNrErrors() + 1);
+        }
+ finally {
+          try {
+            database.closeConnectionOnly();
+          }
+ catch (          Exception e) {
+            log.logError(BaseMessages.getString(PKG,"Job.Exception.ErrorHandlingJobTransaction",database.toString()),e);
+            result.setNrErrors(result.getNrErrors() + 1);
+          }
+ finally {
+            map.removeConnection(database.getConnectionGroup(),database.getPartitionId(),database);
+          }
+        }
+      }
+    }
+  }
+}
