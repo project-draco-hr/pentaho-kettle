@@ -1,0 +1,67 @@
+{
+  if ((parent == null || (parent instanceof Job)) && (subject == null || (subject instanceof Result))) {
+    Job job=(Job)parent;
+    Result result=(Result)subject;
+    RowMetaAndData row=new RowMetaAndData();
+    for (    LogTableField field : fields) {
+      if (field.isEnabled()) {
+        Object value=null;
+        if (job != null) {
+switch (ID.valueOf(field.getId())) {
+case ID_JOB_RUN:
+            value=job == null ? Long.valueOf(0) : new Long(job.getRunId());
+          break;
+case ID_JOB:
+        value=job == null ? Long.valueOf(-1) : new Long(job.getBatchId());
+      break;
+case JOBNAME:
+    value=job == null ? null : job.getJobname();
+  break;
+case NAMESPACE:
+{
+  try {
+    if (Const.isEmpty(namespaceParameter)) {
+      value="-";
+    }
+ else {
+      value=Const.NVL(job.getParameterValue(namespaceParameter),"-");
+    }
+  }
+ catch (  UnknownParamException e) {
+    throw new KettleException(BaseMessages.getString(PKG,"CheckpointLogTable.Exception.ParameterNotFound"),e);
+  }
+}
+break;
+case CHECKPOINT_NAME:
+value=job == null || job.getCheckpointJobEntry() == null ? null : job.getCheckpointJobEntry().getName();
+break;
+case CHECKPOINT_COPYNR:
+value=job == null || job.getCheckpointJobEntry() == null ? null : Long.valueOf(job.getCheckpointJobEntry().getNr());
+break;
+case ATTEMPT_NR:
+value=job == null ? Long.valueOf(0) : Long.valueOf(job.getRunAttemptNr());
+break;
+case LOGDATE:
+value=job == null ? null : job.getLogDate();
+break;
+case JOB_RUN_START_DATE:
+value=job == null ? null : job.getRunStartDate();
+break;
+case RESULT_XML:
+value=result != null ? result.getXML() : null;
+break;
+case PARAMETER_XML:
+value=job == null ? null : getParametersXml(job);
+break;
+}
+}
+row.addValue(field.getFieldName(),field.getDataType(),value);
+row.getRowMeta().getValueMeta(row.size() - 1).setLength(field.getLength());
+}
+}
+return row;
+}
+ else {
+return null;
+}
+}

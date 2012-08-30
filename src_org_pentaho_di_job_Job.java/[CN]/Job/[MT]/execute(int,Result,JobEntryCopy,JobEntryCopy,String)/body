@@ -5,11 +5,7 @@
     res.stopped=true;
     return res;
   }
-  if (log.isDetailed())   log.logDetailed("exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (jobEntryCopy != null ? jobEntryCopy.toString() : "null")+ ")");
-  JobEntryInterface jobEntryInterface=jobEntryCopy.getEntry();
-  jobEntryInterface.getLogChannel().setLogLevel(logLevel);
-  JobEntryResult jerBefore=new JobEntryResult(null,null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),reason,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
-  jobTracker.addJobTracker(new JobTracker(jobMeta,jerBefore));
+  final Result result;
   Result prevResult=null;
   if (prev_result != null) {
     prevResult=(Result)prev_result.clone();
@@ -17,54 +13,84 @@
  else {
     prevResult=new Result();
   }
-  ClassLoader cl=Thread.currentThread().getContextClassLoader();
-  Thread.currentThread().setContextClassLoader(jobEntryInterface.getClass().getClassLoader());
-  JobEntryInterface cloneJei=(JobEntryInterface)jobEntryInterface.clone();
-  ((VariableSpace)cloneJei).copyVariablesFrom(this);
-  cloneJei.setRepository(rep);
-  cloneJei.setParentJob(this);
-  final long start=System.currentTimeMillis();
-  cloneJei.getLogChannel().logDetailed("Starting job entry");
-  for (  JobEntryListener jobEntryListener : jobEntryListeners) {
-    jobEntryListener.beforeExecution(this,jobEntryCopy,cloneJei);
-  }
-  if (interactive) {
-    if (jobEntryCopy.isTransformation()) {
-      getActiveJobEntryTransformations().put(jobEntryCopy,(JobEntryTrans)cloneJei);
+  if (checkpointJobEntry != null && checkpointJobEntry == jobEntryCopy) {
+    CheckpointLogTable checkpointLogTable=jobMeta.getCheckpointLogTable();
+    result=prevResult=checkpointResult;
+    if ("Y".equalsIgnoreCase(environmentSubstitute(checkpointLogTable.getSaveParameters()))) {
+      for (      String name : checkpointParameters.keySet()) {
+        setParameterValue(name,checkpointParameters.get(name));
+      }
     }
-    if (jobEntryCopy.isJob()) {
-      getActiveJobEntryJobs().put(jobEntryCopy,(JobEntryJob)cloneJei);
+    if (!"Y".equalsIgnoreCase(environmentSubstitute(checkpointLogTable.getSaveResultRows()))) {
+      prevResult.getRows().clear();
     }
-  }
-  final Result result=cloneJei.execute(prevResult,nr);
-  final long end=System.currentTimeMillis();
-  if (interactive) {
-    if (jobEntryCopy.isTransformation()) {
-      getActiveJobEntryTransformations().remove(jobEntryCopy);
+    if (!"Y".equalsIgnoreCase(environmentSubstitute(checkpointLogTable.getSaveResultFiles()))) {
+      prevResult.getResultFiles().clear();
     }
-    if (jobEntryCopy.isJob()) {
-      getActiveJobEntryJobs().remove(jobEntryCopy);
+    JobEntryResult jerCheckpoint=new JobEntryResult(result,getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobRestartAtCheckpoint"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
+    jerCheckpoint.setCheckpoint(true);
+    jobTracker.addJobTracker(new JobTracker(jobMeta,jerCheckpoint));
+    jobEntryResults.add(jerCheckpoint);
+    log.logBasic("Restarting from checkpoint job entry: " + checkpointJobEntry.toString());
+  }
+ else {
+    if (log.isDetailed())     log.logDetailed("exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (jobEntryCopy != null ? jobEntryCopy.toString() : "null")+ ")");
+    JobEntryInterface jobEntryInterface=jobEntryCopy.getEntry();
+    jobEntryInterface.getLogChannel().setLogLevel(logLevel);
+    JobEntryResult jerBefore=new JobEntryResult(null,null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),reason,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
+    jobTracker.addJobTracker(new JobTracker(jobMeta,jerBefore));
+    ClassLoader cl=Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(jobEntryInterface.getClass().getClassLoader());
+    JobEntryInterface cloneJei=(JobEntryInterface)jobEntryInterface.clone();
+    ((VariableSpace)cloneJei).copyVariablesFrom(this);
+    cloneJei.setRepository(rep);
+    cloneJei.setParentJob(this);
+    final long start=System.currentTimeMillis();
+    cloneJei.getLogChannel().logDetailed("Starting job entry");
+    for (    JobEntryListener jobEntryListener : jobEntryListeners) {
+      jobEntryListener.beforeExecution(this,jobEntryCopy,cloneJei);
     }
-  }
-  if (cloneJei instanceof JobEntryTrans) {
-    String throughput=result.getReadWriteThroughput((int)((end - start) / 1000));
-    if (throughput != null) {
-      log.logMinimal(throughput);
+    if (interactive) {
+      if (jobEntryCopy.isTransformation()) {
+        getActiveJobEntryTransformations().put(jobEntryCopy,(JobEntryTrans)cloneJei);
+      }
+      if (jobEntryCopy.isJob()) {
+        getActiveJobEntryJobs().put(jobEntryCopy,(JobEntryJob)cloneJei);
+      }
     }
-  }
-  for (  JobEntryListener jobEntryListener : jobEntryListeners) {
-    jobEntryListener.afterExecution(this,jobEntryCopy,cloneJei,result);
-  }
-  Thread.currentThread().setContextClassLoader(cl);
-  addErrors((int)result.getNrErrors());
-  Log4jBufferAppender appender=CentralLogStore.getAppender();
-  StringBuffer logTextBuffer=appender.getBuffer(cloneJei.getLogChannel().getLogChannelId(),false);
-  result.setLogText(logTextBuffer.toString());
-  JobEntryResult jerAfter=new JobEntryResult(result,cloneJei.getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
-  jobTracker.addJobTracker(new JobTracker(jobMeta,jerAfter));
-  jobEntryResults.add(jerAfter);
-  if (maxJobEntriesLogged > 0 && jobEntryResults.size() > maxJobEntriesLogged + 50) {
-    jobEntryResults=jobEntryResults.subList(50,jobEntryResults.size());
+    result=cloneJei.execute(prevResult,nr);
+    final long end=System.currentTimeMillis();
+    if (interactive) {
+      if (jobEntryCopy.isTransformation()) {
+        getActiveJobEntryTransformations().remove(jobEntryCopy);
+      }
+      if (jobEntryCopy.isJob()) {
+        getActiveJobEntryJobs().remove(jobEntryCopy);
+      }
+    }
+    if (cloneJei instanceof JobEntryTrans) {
+      String throughput=result.getReadWriteThroughput((int)((end - start) / 1000));
+      if (throughput != null) {
+        log.logMinimal(throughput);
+      }
+    }
+    for (    JobEntryListener jobEntryListener : jobEntryListeners) {
+      jobEntryListener.afterExecution(this,jobEntryCopy,cloneJei,result);
+    }
+    Thread.currentThread().setContextClassLoader(cl);
+    addErrors((int)result.getNrErrors());
+    Log4jBufferAppender appender=CentralLogStore.getAppender();
+    StringBuffer logTextBuffer=appender.getBuffer(cloneJei.getLogChannel().getLogChannelId(),false);
+    result.setLogText(logTextBuffer.toString());
+    JobEntryResult jerAfter=new JobEntryResult(result,cloneJei.getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
+    jobTracker.addJobTracker(new JobTracker(jobMeta,jerAfter));
+    jobEntryResults.add(jerAfter);
+    if (maxJobEntriesLogged > 0 && jobEntryResults.size() > maxJobEntriesLogged + 50) {
+      jobEntryResults=jobEntryResults.subList(50,jobEntryResults.size());
+    }
+    if (jobEntryCopy.isCheckpoint() && jobMeta.getCheckpointLogTable().isDefined()) {
+      writeCheckpointInformation(jobEntryCopy,result);
+    }
   }
   final List<Thread> threads=new ArrayList<Thread>();
   final List<Result> threadResults=new ArrayList<Result>();
