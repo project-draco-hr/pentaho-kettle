@@ -1,91 +1,100 @@
 {
-  runId=-1;
-  runStartDate=getLogDate();
-  checkpointJobEntry=null;
-  runAttemptNr=1;
-  CheckpointLogTable logTable=jobMeta.getCheckpointLogTable();
-  String namespace=Const.NVL(getParameterValue(logTable.getNamespaceParameter()),"-");
-  DatabaseMeta dbMeta=logTable.getDatabaseMeta();
-  String schemaTable=dbMeta.getQuotedSchemaTableCombination(logTable.getActualSchemaName(),logTable.getActualTableName());
-  Database db=null;
   try {
-    db=new Database(this,dbMeta);
-    db.shareVariablesWith(this);
-    db.connect();
-    db.setCommit(logCommitSize);
-    LogTableField idJobRunField=logTable.getKeyField();
-    String idJobRunFieldName=dbMeta.quoteField(idJobRunField.getFieldName());
-    LogTableField jobRunStartDateField=logTable.getJobRunStartDateField();
-    String jobRunStartDateFieldName=dbMeta.quoteField(jobRunStartDateField.getFieldName());
-    LogTableField checkpointNameField=logTable.getCheckpointNameField();
-    String checkpointNameFieldName=dbMeta.quoteField(checkpointNameField.getFieldName());
-    LogTableField checkpointNrField=logTable.getCheckpointCopyNrField();
-    String checkpointNrFieldName=dbMeta.quoteField(checkpointNrField.getFieldName());
-    LogTableField attemptNrField=logTable.getAttemptNrField();
-    String attemptNrFieldName=dbMeta.quoteField(attemptNrField.getFieldName());
-    LogTableField resultXmlField=logTable.getResultXmlField();
-    String resultXmlFieldName=dbMeta.quoteField(resultXmlField.getFieldName());
-    LogTableField parameterXmlField=logTable.getParameterXmlField();
-    String parameterXmlFieldName=dbMeta.quoteField(parameterXmlField.getFieldName());
-    RowMetaAndData pars=new RowMetaAndData();
-    LogTableField jobNameField=logTable.getNameField();
-    String jobNameFieldName=dbMeta.quoteField(jobNameField.getFieldName());
-    pars.addValue(idJobRunFieldName,ValueMetaInterface.TYPE_STRING,jobMeta.getName());
-    LogTableField namespaceField=logTable.getNamespaceField();
-    String namespaceFieldName=dbMeta.quoteField(namespaceField.getFieldName());
-    pars.addValue(namespaceFieldName,ValueMetaInterface.TYPE_STRING,namespace);
-    String sql="SELECT " + idJobRunFieldName + ", "+ jobRunStartDateFieldName+ ", "+ checkpointNameFieldName+ ", "+ checkpointNrFieldName+ ", "+ attemptNrFieldName+ ", "+ resultXmlFieldName+ ", "+ parameterXmlFieldName;
-    sql+=" FROM " + schemaTable;
-    sql+=" WHERE " + jobNameFieldName + " = ? AND "+ namespaceFieldName+ " = ? ";
-    sql+=" AND " + checkpointNrFieldName + " IS NOT NULL";
-    PreparedStatement statement=db.prepareSQL(sql);
-    ResultSet resultSet=db.openQuery(statement,pars.getRowMeta(),pars.getData());
-    Object[] rowData=db.getRow(resultSet);
-    if (rowData == null) {
+    runId=-1;
+    runStartDate=getLogDate();
+    checkpointJobEntry=null;
+    runAttemptNr=1;
+    if (isIgnoringCheckpoints()) {
       return;
     }
-    RowMetaInterface rowMeta=db.getReturnRowMeta();
-    int index=0;
-    Long lookupRunId=rowMeta.getInteger(rowData,index++);
-    Date jobRunStartDate=rowMeta.getDate(rowData,index++);
-    String checkpointName=rowMeta.getString(rowData,index++);
-    Long checkpointNr=rowMeta.getInteger(rowData,index++);
-    Long attemptNr=rowMeta.getInteger(rowData,index++);
-    String resultXml=rowMeta.getString(rowData,index++);
-    String parameterXml=rowMeta.getString(rowData,index++);
-    if (lookupRunId == null || jobRunStartDate == null || checkpointName == null || checkpointNr == null || attemptNr == null || resultXml == null || parameterXml == null) {
-      return;
-    }
-    int retryPeriodInMinutes=Const.toInt(environmentSubstitute(logTable.getRunRetryPeriod()),-1);
-    if (retryPeriodInMinutes > 0) {
-      long maxTime=runStartDate.getTime() + retryPeriodInMinutes * 60 * 1000;
-      if (getStartDate().getTime() > maxTime) {
-        throw new KettleException("Retry period exceeded, please reset job [" + jobMeta.getName() + "] for namespace ["+ namespace+ "]");
+    CheckpointLogTable logTable=jobMeta.getCheckpointLogTable();
+    String namespace=Const.NVL(getParameterValue(logTable.getNamespaceParameter()),"-");
+    DatabaseMeta dbMeta=logTable.getDatabaseMeta();
+    String schemaTable=dbMeta.getQuotedSchemaTableCombination(logTable.getActualSchemaName(),logTable.getActualTableName());
+    Database db=null;
+    try {
+      db=new Database(this,dbMeta);
+      db.shareVariablesWith(this);
+      db.connect();
+      db.setCommit(logCommitSize);
+      LogTableField idJobRunField=logTable.getKeyField();
+      String idJobRunFieldName=dbMeta.quoteField(idJobRunField.getFieldName());
+      LogTableField jobRunStartDateField=logTable.getJobRunStartDateField();
+      String jobRunStartDateFieldName=dbMeta.quoteField(jobRunStartDateField.getFieldName());
+      LogTableField checkpointNameField=logTable.getCheckpointNameField();
+      String checkpointNameFieldName=dbMeta.quoteField(checkpointNameField.getFieldName());
+      LogTableField checkpointNrField=logTable.getCheckpointCopyNrField();
+      String checkpointNrFieldName=dbMeta.quoteField(checkpointNrField.getFieldName());
+      LogTableField attemptNrField=logTable.getAttemptNrField();
+      String attemptNrFieldName=dbMeta.quoteField(attemptNrField.getFieldName());
+      LogTableField resultXmlField=logTable.getResultXmlField();
+      String resultXmlFieldName=dbMeta.quoteField(resultXmlField.getFieldName());
+      LogTableField parameterXmlField=logTable.getParameterXmlField();
+      String parameterXmlFieldName=dbMeta.quoteField(parameterXmlField.getFieldName());
+      RowMetaAndData pars=new RowMetaAndData();
+      LogTableField jobNameField=logTable.getNameField();
+      String jobNameFieldName=dbMeta.quoteField(jobNameField.getFieldName());
+      pars.addValue(idJobRunFieldName,ValueMetaInterface.TYPE_STRING,jobMeta.getName());
+      LogTableField namespaceField=logTable.getNamespaceField();
+      String namespaceFieldName=dbMeta.quoteField(namespaceField.getFieldName());
+      pars.addValue(namespaceFieldName,ValueMetaInterface.TYPE_STRING,namespace);
+      String sql="SELECT " + idJobRunFieldName + ", "+ jobRunStartDateFieldName+ ", "+ checkpointNameFieldName+ ", "+ checkpointNrFieldName+ ", "+ attemptNrFieldName+ ", "+ resultXmlFieldName+ ", "+ parameterXmlFieldName;
+      sql+=" FROM " + schemaTable;
+      sql+=" WHERE " + jobNameFieldName + " = ? AND "+ namespaceFieldName+ " = ? ";
+      sql+=" AND " + checkpointNrFieldName + " IS NOT NULL";
+      PreparedStatement statement=db.prepareSQL(sql);
+      ResultSet resultSet=db.openQuery(statement,pars.getRowMeta(),pars.getData());
+      Object[] rowData=db.getRow(resultSet);
+      if (rowData == null) {
+        return;
       }
-    }
-    int maxAttempts=Const.toInt(environmentSubstitute(logTable.getMaxNrRetries()),-1);
-    if (maxAttempts > 0) {
-      if (attemptNr + 1 > maxAttempts) {
-        throw new KettleException("The job checkpoint system has reached the maximum number or retries after " + attemptNr + " attempts");
+      RowMetaInterface rowMeta=db.getReturnRowMeta();
+      int index=0;
+      Long lookupRunId=rowMeta.getInteger(rowData,index++);
+      Date jobRunStartDate=rowMeta.getDate(rowData,index++);
+      String checkpointName=rowMeta.getString(rowData,index++);
+      Long checkpointNr=rowMeta.getInteger(rowData,index++);
+      Long attemptNr=rowMeta.getInteger(rowData,index++);
+      String resultXml=rowMeta.getString(rowData,index++);
+      String parameterXml=rowMeta.getString(rowData,index++);
+      if (lookupRunId == null || jobRunStartDate == null || checkpointName == null || checkpointNr == null || attemptNr == null || resultXml == null || parameterXml == null) {
+        return;
       }
+      int retryPeriodInMinutes=Const.toInt(environmentSubstitute(logTable.getRunRetryPeriod()),-1);
+      if (retryPeriodInMinutes > 0) {
+        long maxTime=runStartDate.getTime() + retryPeriodInMinutes * 60 * 1000;
+        if (getStartDate().getTime() > maxTime) {
+          throw new KettleException("Retry period exceeded, please reset job [" + jobMeta.getName() + "] for namespace ["+ namespace+ "]");
+        }
+      }
+      int maxAttempts=Const.toInt(environmentSubstitute(logTable.getMaxNrRetries()),-1);
+      if (maxAttempts > 0) {
+        if (attemptNr + 1 > maxAttempts) {
+          throw new KettleException("The job checkpoint system has reached the maximum number or retries after " + attemptNr + " attempts");
+        }
+      }
+      runStartDate=jobRunStartDate;
+      runId=lookupRunId;
+      runAttemptNr=attemptNr.intValue() + 1;
+      checkpointJobEntry=jobMeta.findJobEntry(checkpointName,checkpointNr.intValue(),false);
+      if (checkpointJobEntry == null) {
+        throw new KettleException("Unable to find checkpoint job entry with name [" + checkpointName + "] and copy number ["+ checkpointNr+ "]");
+      }
+      startJobEntryCopy=checkpointJobEntry;
+      checkpointResult=new Result(XMLHandler.loadXMLString(resultXml,Result.XML_TAG));
+      checkpointParameters=extractParameters(parameterXml);
     }
-    runStartDate=jobRunStartDate;
-    runId=lookupRunId;
-    runAttemptNr=attemptNr.intValue() + 1;
-    checkpointJobEntry=jobMeta.findJobEntry(checkpointName,checkpointNr.intValue(),false);
-    if (checkpointJobEntry == null) {
-      throw new KettleException("Unable to find checkpoint job entry with name [" + checkpointName + "] and copy number ["+ checkpointNr+ "]");
+ catch (    Exception e) {
+      throw new KettleException("Unable to look up checkpoint information in the check point log table",e);
     }
-    startJobEntryCopy=checkpointJobEntry;
-    checkpointResult=new Result(XMLHandler.loadXMLString(resultXml,Result.XML_TAG));
-    checkpointParameters=extractParameters(parameterXml);
-  }
- catch (  Exception e) {
-    throw new KettleException("Unable to look up checkpoint information in the check point log table",e);
-  }
  finally {
-    if (db != null) {
-      db.disconnect();
+      if (db != null) {
+        db.disconnect();
+      }
     }
+  }
+  finally {
+    setVariable(Const.INTERNAL_VARIABLE_JOB_RUN_ID,Long.toString(runId));
+    setVariable(Const.INTERNAL_VARIABLE_JOB_RUN_ATTEMPTNR,Long.toString(runAttemptNr));
   }
 }
