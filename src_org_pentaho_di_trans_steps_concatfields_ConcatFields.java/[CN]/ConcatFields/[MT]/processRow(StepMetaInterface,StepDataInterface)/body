@@ -1,0 +1,69 @@
+{
+  meta=(ConcatFieldsMeta)smi;
+  data=(ConcatFieldsData)sdi;
+  boolean result=true;
+  boolean bEndedLineWrote=false;
+  Object[] r=getRow();
+  if (r != null && first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.inputRowMetaModified=getInputRowMeta().clone();
+    meta.getFieldsModifyInput(data.inputRowMetaModified,getStepname(),null,null,this);
+    data.posTargetField=data.outputRowMeta.indexOfValue(meta.getTargetFieldName());
+    if (data.posTargetField < 0) {
+      throw new KettleStepException("Field [" + meta.getTargetFieldName() + "] couldn't be found in the output stream!");
+    }
+    if (!meta.isFileAppended() && (meta.isHeaderEnabled() || meta.isFooterEnabled())) {
+      if (!meta.isFileNameInField() && meta.isHeaderEnabled() && data.outputRowMeta != null) {
+        writeHeader();
+        Object[] row=new Object[data.outputRowMeta.size()];
+        putRowFromStream(row);
+      }
+    }
+    data.fieldnrs=new int[meta.getOutputFields().length];
+    for (int i=0; i < meta.getOutputFields().length; i++) {
+      data.fieldnrs[i]=data.inputRowMetaModified.indexOfValue(meta.getOutputFields()[i].getName());
+      if (data.fieldnrs[i] < 0) {
+        throw new KettleStepException("Field [" + meta.getOutputFields()[i].getName() + "] couldn't be found in the input stream!");
+      }
+    }
+    if (meta.isRemoveSelectedFields()) {
+      data.remainingFieldsInputOutputMapping=new int[data.outputRowMeta.size() - 1];
+      String[] fieldNames=data.outputRowMeta.getFieldNames();
+      for (int i=0; i < fieldNames.length - 1; i++) {
+        data.remainingFieldsInputOutputMapping[i]=data.inputRowMetaModified.indexOfValue(fieldNames[i]);
+        if (data.remainingFieldsInputOutputMapping[i] < 0) {
+          throw new KettleStepException("Remaining Field [" + fieldNames[i] + "] couldn't be found in the input stream!");
+        }
+      }
+    }
+  }
+  if ((r == null && data.outputRowMeta != null && meta.isFooterEnabled()) || (r != null && getLinesOutput() > 0 && meta.getSplitEvery() > 0 && ((getLinesOutput() + 1) % meta.getSplitEvery()) == 0)) {
+    if (data.outputRowMeta != null) {
+      if (meta.isFooterEnabled()) {
+        writeHeader();
+        Object[] row=new Object[data.outputRowMeta.size()];
+        putRowFromStream(row);
+      }
+    }
+    if (r == null) {
+      writeEndedLine();
+      bEndedLineWrote=true;
+      putRowFromStream(r);
+    }
+  }
+  if (r == null) {
+    if (false == bEndedLineWrote) {
+      writeEndedLine();
+      bEndedLineWrote=true;
+      putRowFromStream(r);
+    }
+    setOutputDone();
+    return false;
+  }
+  writeRowToFile(data.inputRowMetaModified,r);
+  putRowFromStream(r);
+  if (checkFeedback(getLinesOutput()))   logBasic("linenr " + getLinesOutput());
+  return result;
+}
