@@ -9,10 +9,11 @@
     MetricsSnapshotInterface lastSnapshot=last.get(key);
     if (lastSnapshot == null) {
       lastSnapshot=snapshot;
+      last.put(key,lastSnapshot);
     }
  else {
       MetricsInterface metric=lastSnapshot.getMetric();
-      if (metric.getType() == MetricsSnapshotType.START && metric.getType() == MetricsSnapshotType.STOP) {
+      if (metric.getType() == MetricsSnapshotType.START && snapshot.getMetric().getType() == MetricsSnapshotType.STOP) {
         long extraDuration=snapshot.getDate().getTime() - lastSnapshot.getDate().getTime();
         MetricsDuration metricsDuration=map.get(key);
         if (metricsDuration == null) {
@@ -21,10 +22,13 @@
  else {
           metricsDuration.setDuration(metricsDuration.getDuration() + extraDuration);
           metricsDuration.incrementCount();
+          if (metricsDuration.getEndDate().getTime() < snapshot.getDate().getTime()) {
+            metricsDuration.setEndDate(snapshot.getDate());
+          }
         }
+        map.put(key,metricsDuration);
       }
     }
-    last.put(key,lastSnapshot);
   }
   return new ArrayList<MetricsDuration>(map.values());
 }
