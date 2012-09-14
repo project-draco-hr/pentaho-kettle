@@ -1,52 +1,58 @@
 {
-  finished.set(false);
-  stopped.set(false);
-  captureSystemEnvironment();
-  transactionId=calculateTransactionId();
-  log.logMinimal(BaseMessages.getString(PKG,"Job.Comment.JobStarted"));
-  JobEntryResult jerStart=new JobEntryResult(null,null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),BaseMessages.getString(PKG,"Job.Reason.Started"),null,0,null);
-  jobTracker.addJobTracker(new JobTracker(jobMeta,jerStart));
-  active.set(true);
-  JobEntryCopy startpoint;
-  Object syncObject=this;
-  if (parentJob != null) {
-    syncObject=parentJob;
-  }
-synchronized (syncObject) {
-    beginProcessing();
-  }
-  if (startJobEntryCopy == null) {
-    startpoint=jobMeta.findJobEntry(JobMeta.STRING_SPECIAL_START,0,false);
-  }
- else {
-    startpoint=startJobEntryCopy;
-  }
-  if (startpoint == null) {
-    throw new KettleJobException(BaseMessages.getString(PKG,"Job.Log.CounldNotFindStartingPoint"));
-  }
-  Result res=null;
-  JobEntryResult jerEnd=null;
-  if (startpoint.isStart()) {
-    long iteration=0;
-    boolean isFirst=true;
-    JobEntrySpecial jes=(JobEntrySpecial)startpoint.getEntry();
-    while ((jes.isRepeat() || isFirst) && !isStopped()) {
-      isFirst=false;
-      res=execute(0,null,startpoint,null,BaseMessages.getString(PKG,"Job.Reason.Started"));
-      if (iteration > 0 && (iteration % 500) == 0) {
-        System.out.println("other 500 iterations: " + iteration);
-      }
-      iteration++;
+  try {
+    log.snap(Metrics.METRIC_JOB_START);
+    finished.set(false);
+    stopped.set(false);
+    captureSystemEnvironment();
+    transactionId=calculateTransactionId();
+    log.logMinimal(BaseMessages.getString(PKG,"Job.Comment.JobStarted"));
+    JobEntryResult jerStart=new JobEntryResult(null,null,BaseMessages.getString(PKG,"Job.Comment.JobStarted"),BaseMessages.getString(PKG,"Job.Reason.Started"),null,0,null);
+    jobTracker.addJobTracker(new JobTracker(jobMeta,jerStart));
+    active.set(true);
+    JobEntryCopy startpoint;
+    Object syncObject=this;
+    if (parentJob != null) {
+      syncObject=parentJob;
     }
-    jerEnd=new JobEntryResult(res,jes.getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),BaseMessages.getString(PKG,"Job.Reason.Finished"),null,0,null);
-  }
+synchronized (syncObject) {
+      beginProcessing();
+    }
+    if (startJobEntryCopy == null) {
+      startpoint=jobMeta.findJobEntry(JobMeta.STRING_SPECIAL_START,0,false);
+    }
  else {
-    res=execute(0,null,startpoint,null,BaseMessages.getString(PKG,"Job.Reason.Started"));
-    jerEnd=new JobEntryResult(res,startpoint.getEntry().getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),BaseMessages.getString(PKG,"Job.Reason.Finished"),null,0,null);
+      startpoint=startJobEntryCopy;
+    }
+    if (startpoint == null) {
+      throw new KettleJobException(BaseMessages.getString(PKG,"Job.Log.CounldNotFindStartingPoint"));
+    }
+    Result res=null;
+    JobEntryResult jerEnd=null;
+    if (startpoint.isStart()) {
+      long iteration=0;
+      boolean isFirst=true;
+      JobEntrySpecial jes=(JobEntrySpecial)startpoint.getEntry();
+      while ((jes.isRepeat() || isFirst) && !isStopped()) {
+        isFirst=false;
+        res=execute(0,null,startpoint,null,BaseMessages.getString(PKG,"Job.Reason.Started"));
+        if (iteration > 0 && (iteration % 500) == 0) {
+          System.out.println("other 500 iterations: " + iteration);
+        }
+        iteration++;
+      }
+      jerEnd=new JobEntryResult(res,jes.getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),BaseMessages.getString(PKG,"Job.Reason.Finished"),null,0,null);
+    }
+ else {
+      res=execute(0,null,startpoint,null,BaseMessages.getString(PKG,"Job.Reason.Started"));
+      jerEnd=new JobEntryResult(res,startpoint.getEntry().getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),BaseMessages.getString(PKG,"Job.Reason.Finished"),null,0,null);
+    }
+    jobTracker.addJobTracker(new JobTracker(jobMeta,jerEnd));
+    log.logMinimal(BaseMessages.getString(PKG,"Job.Comment.JobFinished"));
+    active.set(false);
+    finished.set(true);
+    return res;
   }
-  jobTracker.addJobTracker(new JobTracker(jobMeta,jerEnd));
-  log.logMinimal(BaseMessages.getString(PKG,"Job.Comment.JobFinished"));
-  active.set(false);
-  finished.set(true);
-  return res;
+  finally {
+    log.snap(Metrics.METRIC_JOB_STOP);
+  }
 }

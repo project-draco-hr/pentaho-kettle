@@ -1,7 +1,14 @@
 {
   Rectangle bounds=canvas.getBounds();
   if (bounds.width <= 0 || bounds.height <= 0)   return;
-  if (transGraph.trans == null)   return;
+  if (transGraph.trans == null) {
+    image=null;
+    return;
+  }
+  if (image != null && (System.currentTimeMillis() - lastRefreshTime) < 5000) {
+    return;
+  }
+  lastRefreshTime=System.currentTimeMillis();
   List<MetricsDuration> durations=MetricsUtil.getAllDurations(transGraph.trans.getLogChannelId());
   Collections.sort(durations,new Comparator<MetricsDuration>(){
     @Override public int compare(    MetricsDuration o1,    MetricsDuration o2){
@@ -9,9 +16,14 @@
     }
   }
 );
+  org.eclipse.swt.graphics.Point textExtent=canvasGc.textExtent("AagKkiw");
+  int height=textExtent.y + 4;
+  bounds.height=Math.max(durations.size() * height,bounds.height);
+  canvas.setSize(bounds.width,bounds.height);
   SWTGC gc=new SWTGC(Display.getCurrent(),new Point(bounds.width,bounds.height),PropsUI.getInstance().getIconSize());
   MetricsPainter painter=new MetricsPainter(gc);
   drawAreas=painter.paint(durations);
   image=(Image)gc.getImage();
+  sMetricsComposite.layout(true,true);
   canvas.redraw();
 }
