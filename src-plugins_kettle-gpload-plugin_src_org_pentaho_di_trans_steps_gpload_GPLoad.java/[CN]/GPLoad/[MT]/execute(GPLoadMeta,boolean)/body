@@ -1,18 +1,28 @@
 {
+  String commandLine=null;
   Runtime rt=Runtime.getRuntime();
+  int gpLoadExitVal=0;
   try {
-    gploadProcess=rt.exec(createCommandLine(meta,true));
+    commandLine=createCommandLine(meta,true);
+    logBasic("Executing: " + commandLine);
+    gploadProcess=rt.exec(commandLine);
     StreamLogger errorLogger=new StreamLogger(gploadProcess.getErrorStream(),"ERROR");
     StreamLogger outputLogger=new StreamLogger(gploadProcess.getInputStream(),"OUTPUT");
     errorLogger.start();
     outputLogger.start();
     if (wait) {
-      int exitVal=gploadProcess.waitFor();
-      logBasic(BaseMessages.getString(PKG,"GPLoad.Log.ExitValuePsqlPath","" + exitVal));
+      gpLoadExitVal=gploadProcess.waitFor();
+      logBasic(BaseMessages.getString(PKG,"GPLoad.Log.ExitValuePsqlPath","" + gpLoadExitVal));
+      if (gpLoadExitVal != -0) {
+        throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Log.ExitValuePsqlPath","" + gpLoadExitVal));
+      }
     }
   }
- catch (  Exception ex) {
-    throw new KettleException("Error while executing \'" + createCommandLine(meta,false) + "\'");
+ catch (  KettleException ke) {
+    throw ke;
+  }
+catch (  Exception ex) {
+    throw new KettleException("Error while executing \'" + commandLine + "\'. Exit value = "+ gpLoadExitVal);
   }
   return true;
 }
