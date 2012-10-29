@@ -75,26 +75,72 @@
       addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SupportURL.label"),lastControl);
       lastControl=addRightURL(composite,marketEntry.getSupportUrl(),lastControl);
     }
+    Market.discoverInstalledVersion(marketEntry);
+    if (marketEntry.isInstalled()) {
+      addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Version.label"),lastControl);
+      lastControl=addRightLabel(composite,marketEntry.getInstalledVersion(),lastControl);
+    }
     final Button button=new Button(composite,SWT.PUSH);
     final ExpandItem expandItem=new ExpandItem(bar,SWT.NONE,0);
-    setButtonLabel(button,Market.isInstalled(marketEntry.getName()));
+    setButtonLabel(button,marketEntry.isInstalled());
     button.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
         try {
-          Market.installUninstall(marketEntry,Market.isInstalled(marketEntry.getName()));
-          setButtonLabel(button,Market.isInstalled(marketEntry.getName()));
-          setPluginName(expandItem,marketEntry.getName(),Market.isInstalled(marketEntry.getName()));
+          if (marketEntry.getId().equals("market")) {
+            MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+            mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UninstallMarket.Message"));
+            mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UninstallMarket.Title"));
+            int id=mb.open();
+            if (id == SWT.YES) {
+              dispose();
+              Market.uninstallMarket();
+            }
+          }
+ else {
+            Market.installUninstall(marketEntry,marketEntry.isInstalled());
+            Market.discoverInstalledVersion(marketEntry);
+            setButtonLabel(button,marketEntry.isInstalled());
+            setPluginName(expandItem,marketEntry.getName(),marketEntry.isInstalled());
+          }
         }
  catch (        KettleException ke) {
-          new ErrorDialog(Spoon.getInstance().getShell(),BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+          new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
         }
       }
     }
 );
-    FormData fdButton=new FormData();
-    fdButton.top=new FormAttachment(lastControl,4 * margin);
-    fdButton.left=new FormAttachment(middle,margin);
-    button.setLayoutData(fdButton);
+    if (marketEntry.getInstalledVersion() != marketEntry.getVersion()) {
+      final Button upgradeButton=new Button(composite,SWT.PUSH);
+      upgradeButton.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeTo.button",marketEntry.getVersion()));
+      upgradeButton.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent e){
+          try {
+            if (marketEntry.getId().equals("market")) {
+              MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+              mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Message"));
+              mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Title"));
+              int id=mb.open();
+              if (id == SWT.YES) {
+                dispose();
+                Market.upgradeMarket(marketEntry);
+              }
+            }
+ else {
+              Market.install(marketEntry);
+              upgradeButton.setEnabled(false);
+            }
+          }
+ catch (          KettleException ke) {
+            new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+          }
+        }
+      }
+);
+      BaseStepDialog.positionBottomButtons(composite,new Button[]{button,upgradeButton},margin,lastControl);
+    }
+ else {
+      BaseStepDialog.positionBottomButtons(composite,new Button[]{button},margin,lastControl);
+    }
     Label wlName=new Label(composite,SWT.LEFT);
     props.setLook(wlName);
     wlName.setText("Name:");
@@ -103,7 +149,7 @@
     fdlName.left=new FormAttachment(0,0);
     fdlName.right=new FormAttachment(middle,0);
     wlName.setLayoutData(fdlName);
-    setPluginName(expandItem,marketEntry.getName(),Market.isInstalled(marketEntry.getName()));
+    setPluginName(expandItem,marketEntry.getName(),marketEntry.isInstalled());
     expandItem.setHeight(composite.computeSize(SWT.DEFAULT,SWT.DEFAULT).y);
     expandItem.setControl(composite);
     Image image;
