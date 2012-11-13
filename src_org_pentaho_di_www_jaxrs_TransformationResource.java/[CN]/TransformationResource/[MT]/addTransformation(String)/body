@@ -1,0 +1,43 @@
+{
+  TransConfiguration transConfiguration;
+  try {
+    transConfiguration=TransConfiguration.fromXML(xml.toString());
+    TransMeta transMeta=transConfiguration.getTransMeta();
+    TransExecutionConfiguration transExecutionConfiguration=transConfiguration.getTransExecutionConfiguration();
+    transMeta.setLogLevel(transExecutionConfiguration.getLogLevel());
+    LogChannelInterface log=CarteSingleton.getInstance().getLog();
+    if (log.isDetailed()) {
+      log.logDetailed("Logging level set to " + log.getLogLevel().getDescription());
+    }
+    transMeta.injectVariables(transExecutionConfiguration.getVariables());
+    Map<String,String> params=transExecutionConfiguration.getParams();
+    for (    String param : params.keySet()) {
+      String value=params.get(param);
+      transMeta.setParameterValue(param,value);
+    }
+    TransExecutionConfiguration executionConfiguration=transConfiguration.getTransExecutionConfiguration();
+    final Repository repository=transConfiguration.getTransExecutionConfiguration().getRepository();
+    String carteObjectId=UUID.randomUUID().toString();
+    SimpleLoggingObject servletLoggingObject=new SimpleLoggingObject(getClass().getName(),LoggingObjectType.CARTE,null);
+    servletLoggingObject.setContainerObjectId(carteObjectId);
+    servletLoggingObject.setLogLevel(executionConfiguration.getLogLevel());
+    final Trans trans=new Trans(transMeta,servletLoggingObject);
+    trans.setRepository(repository);
+    trans.setSocketRepository(CarteSingleton.getInstance().getSocketRepository());
+    CarteSingleton.getInstance().getTransformationMap().addTransformation(transMeta.getName(),carteObjectId,trans,transConfiguration);
+    trans.setContainerObjectId(carteObjectId);
+    if (repository != null) {
+      trans.addTransListener(new TransAdapter(){
+        public void transFinished(        Trans trans){
+          repository.disconnect();
+        }
+      }
+);
+    }
+    return getTransformationStatus(carteObjectId);
+  }
+ catch (  KettleException e) {
+    e.printStackTrace();
+  }
+  return null;
+}

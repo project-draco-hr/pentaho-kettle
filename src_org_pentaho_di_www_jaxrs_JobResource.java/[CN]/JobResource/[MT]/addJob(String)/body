@@ -1,0 +1,46 @@
+{
+  JobConfiguration jobConfiguration;
+  try {
+    jobConfiguration=JobConfiguration.fromXML(xml.toString());
+    JobMeta jobMeta=jobConfiguration.getJobMeta();
+    JobExecutionConfiguration jobExecutionConfiguration=jobConfiguration.getJobExecutionConfiguration();
+    jobMeta.setLogLevel(jobExecutionConfiguration.getLogLevel());
+    jobMeta.setArguments(jobExecutionConfiguration.getArgumentStrings());
+    jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
+    final Repository repository=jobConfiguration.getJobExecutionConfiguration().getRepository();
+    String carteObjectId=UUID.randomUUID().toString();
+    SimpleLoggingObject servletLoggingObject=new SimpleLoggingObject(getClass().getName(),LoggingObjectType.CARTE,null);
+    servletLoggingObject.setContainerObjectId(carteObjectId);
+    servletLoggingObject.setLogLevel(jobExecutionConfiguration.getLogLevel());
+    final Job job=new Job(repository,jobMeta,servletLoggingObject);
+    job.initializeVariablesFrom(null);
+    job.getJobMeta().setInternalKettleVariables(job);
+    job.injectVariables(jobConfiguration.getJobExecutionConfiguration().getVariables());
+    job.setIgnoringCheckpoints(jobExecutionConfiguration.isIgnoringCheckpoint());
+    job.copyParametersFrom(jobMeta);
+    job.clearParameters();
+    String[] parameterNames=job.listParameters();
+    for (int idx=0; idx < parameterNames.length; idx++) {
+      String thisValue=jobExecutionConfiguration.getParams().get(parameterNames[idx]);
+      if (!Const.isEmpty(thisValue)) {
+        jobMeta.setParameterValue(parameterNames[idx],thisValue);
+      }
+    }
+    jobMeta.activateParameters();
+    job.setSocketRepository(CarteSingleton.getInstance().getSocketRepository());
+    CarteSingleton.getInstance().getJobMap().addJob(job.getJobname(),carteObjectId,job,jobConfiguration);
+    if (repository != null) {
+      job.addJobListener(new JobAdapter(){
+        public void jobFinished(        Job job){
+          repository.disconnect();
+        }
+      }
+);
+    }
+    return getJobStatus(carteObjectId);
+  }
+ catch (  KettleException e) {
+    e.printStackTrace();
+  }
+  return null;
+}
