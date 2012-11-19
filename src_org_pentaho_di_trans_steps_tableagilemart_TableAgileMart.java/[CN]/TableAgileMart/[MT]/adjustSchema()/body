@@ -1,0 +1,44 @@
+{
+  TableOutputMeta meta=getMeta();
+  TableOutputData data=getData();
+  TransMeta transMeta=getTransMeta();
+  StepMeta stepMeta=meta.getParentStepMeta();
+  DBCache dbcache=transMeta.getDbCache();
+  StringBuffer messageBuffer=new StringBuffer();
+  try {
+    RowMetaInterface prev=transMeta.getPrevStepFields(stepMeta.getName());
+    if (log.isDetailed())     logDetailed("Attempting to auto adjust table structure");
+    if (log.isDetailed())     logDetailed("getTransMeta: " + getTransMeta());
+    if (log.isDetailed())     logDetailed("getStepname: " + getStepname());
+    SQLStatement statement=meta.getSQLStatements(transMeta,stepMeta,prev);
+    if (log.isDetailed())     logDetailed("Statement: " + statement);
+    if (log.isDetailed() && statement != null)     logDetailed("Statement has SQL: " + statement.hasSQL());
+    if (statement != null && statement.hasSQL()) {
+      String sql=statement.getSQL();
+      if (log.isDetailed())       logDetailed("Trying: " + sql);
+      try {
+        log.logDetailed("Executing SQL: " + Const.CR + sql);
+        data.db.execStatement(sql);
+        if (dbcache != null)         dbcache.clear(data.databaseMeta.getName());
+      }
+ catch (      Exception dbe) {
+        String error=BaseMessages.getString(PKG,"SQLEditor.Log.SQLExecError",sql,dbe.toString());
+        messageBuffer.append(error).append(Const.CR);
+        return false;
+      }
+      if (log.isDetailed())       logDetailed("Successfull: " + sql);
+    }
+ else     if (statement.getError() == null) {
+      return true;
+    }
+ else {
+      this.message=statement.getError();
+      logError(statement.getError());
+      return false;
+    }
+  }
+ catch (  Exception e) {
+    logError("An error ocurred trying to adjust the table schema",e);
+  }
+  return true;
+}

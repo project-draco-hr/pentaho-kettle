@@ -1,9 +1,12 @@
 {
   StringBuffer sb=new StringBuffer(300);
+  String osName=System.getProperty("os.name");
+  boolean isWindows=osName.toLowerCase().indexOf("windows") != -1;
   if (!Const.isEmpty(meta.getMClientPath())) {
     try {
       FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getMClientPath()),getTransMeta());
       String psqlexec=KettleVFS.getFilename(fileObject);
+      psqlexec=escapeOsPath(psqlexec,isWindows);
       sb.append(psqlexec);
     }
  catch (    KettleFileException ex) {
@@ -13,48 +16,30 @@
  else {
     throw new KettleException("No mclient application specified");
   }
-  sb.append(" -lsql");
-  if (!Const.isEmpty(meta.getEncoding())) {
-    sb.append(" --encoding=");
-    sb.append(environmentSubstitute(meta.getEncoding()));
+  String enclosure=isWindows ? "\"" : "";
+  if (isWindows) {
+    sb.append(" /STARTED-FROM-MENU");
   }
-  if (!Const.isEmpty(meta.getLogFile())) {
-    try {
-      FileObject fileObject=KettleVFS.getFileObject(environmentSubstitute(meta.getLogFile()),getTransMeta());
-      sb.append(" --log=");
-      sb.append('\'').append(KettleVFS.getFilename(fileObject)).append('\'');
-    }
- catch (    KettleFileException ex) {
-      throw new KettleException("Error retrieving logfile string",ex);
-    }
+  if (lSql) {
+    sb.append(" -lsql");
+  }
+  if (!Const.isEmpty(meta.getEncoding())) {
+    sb.append(" ").append(enclosure).append("--encoding=");
+    sb.append(environmentSubstitute(meta.getEncoding())).append(enclosure);
   }
   DatabaseMeta dm=meta.getDatabaseMeta();
   if (dm != null) {
-    String user=environmentSubstitute(Const.NVL(dm.getUsername(),""));
-    String pass=environmentSubstitute(Const.NVL(dm.getPassword(),""));
     String hostname=environmentSubstitute(Const.NVL(dm.getHostname(),""));
     String portnum=environmentSubstitute(Const.NVL(dm.getDatabasePortNumberString(),""));
     String dbname=environmentSubstitute(Const.NVL(dm.getDatabaseName(),""));
-    if (!Const.isEmpty(user)) {
-      sb.append(" --user=").append(user);
-    }
-    if (!Const.isEmpty(pass)) {
-      sb.append(" --passwd=");
-      if (password) {
-        sb.append(pass);
-      }
- else {
-        sb.append("******");
-      }
-    }
     if (!Const.isEmpty(hostname)) {
-      sb.append(" --host=").append(hostname);
+      sb.append(" ").append(enclosure).append("--host=").append(hostname).append(enclosure);
     }
     if (!Const.isEmpty(portnum) && Const.toInt(portnum,-1) > 0) {
-      sb.append(" --port=").append(portnum);
+      sb.append(" ").append(enclosure).append("--port=").append(portnum).append(enclosure);
     }
     if (!Const.isEmpty(dbname)) {
-      sb.append(" --database=").append(dbname);
+      sb.append(" ").append(enclosure).append("--database=").append(dbname).append(enclosure);
     }
   }
  else {

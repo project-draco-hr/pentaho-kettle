@@ -1,0 +1,34 @@
+{
+  rowLimit=((MonetDBAgileMartMeta)meta).getRowLimit();
+  rowsWritten=0;
+  MonetDBBulkLoaderData data=getData();
+  bufferLimit=data.bufferSize;
+  if (rowLimit < bufferLimit) {
+    bufferLimit=rowLimit;
+  }
+  if (log.isDetailed())   logDetailed("MonetDBAgileMart Truncate flag: " + meta.isTruncate());
+  if (log.isDetailed())   logDetailed("MonetDBAgileMart Auto Adjust Schema flag: " + meta.isAutoSchema());
+  if (log.isDetailed())   logDetailed("MonetDBAgileMart Auto String Length flag: " + meta.isAutoStringWidths());
+  if (log.isDetailed())   logDetailed("Creating commands");
+  if (meta.isAutoSchema() || meta.isTruncate()) {
+    try {
+      Runtime rt=Runtime.getRuntime();
+      String cmd=createCommandLine(meta,false);
+      if (meta.isAutoSchema()) {
+        autoAdjustSchema(meta,rt,cmd);
+      }
+ else {
+        if (meta.isTruncate()) {
+          truncateTable(rt,cmd);
+        }
+      }
+    }
+ catch (    Exception ex) {
+      throw new KettleException("Error while generating MonetDB commands",ex);
+    }
+  }
+  if (!meta.isAutoSchema()) {
+    meta.updateFields(getTransMeta(),getStepname(),data);
+  }
+  return super.execute(meta,wait);
+}

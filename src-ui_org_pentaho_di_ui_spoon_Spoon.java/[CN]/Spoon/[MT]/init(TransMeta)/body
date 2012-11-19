@@ -19,11 +19,13 @@
   shell.setImages(images);
   cursor_hourglass=new Cursor(display,SWT.CURSOR_WAIT);
   cursor_hand=new Cursor(display,SWT.CURSOR_HAND);
+  Composite sashComposite=null;
   MainSpoonPerspective mainPerspective=null;
   try {
     xulLoader=new SwtXulLoader();
     xulLoader.setOuterContext(shell);
     xulLoader.setSettingsManager(XulSpoonSettingsManager.getInstance());
+    ApplicationWindowLocal.setApplicationWindow(this);
     mainSpoonContainer=xulLoader.loadXul(XUL_FILE_MAIN,new XulSpoonResourceBundle());
     bf=new DefaultBindingFactory();
     bf.setDocument(mainSpoonContainer.getDocumentRoot());
@@ -39,12 +41,65 @@
     SpoonPluginManager.getInstance().applyPluginsForContainer("spoon",mainSpoonContainer);
     SpoonPerspectiveManager.getInstance().setDeck(deck);
     SpoonPerspectiveManager.getInstance().setXulDoc(mainSpoonContainer);
-    SpoonPerspectiveManager.getInstance().initialize();
+    boolean firstBtn=true;
+    int y=0;
+    int perspectiveIdx=0;
+    Class<? extends SpoonPerspective> perClass=null;
+    for (    SpoonPerspective per : SpoonPerspectiveManager.getInstance().getPerspectives()) {
+      String name=per.getDisplayName(LanguageChoice.getInstance().getDefaultLocale());
+      InputStream in=per.getPerspectiveIcon();
+      if (this.startupPerspective != null && per.getId().equals(this.startupPerspective)) {
+        perspectiveIdx=y;
+        perClass=per.getClass();
+      }
+      final SwtToolbarbutton btn=(SwtToolbarbutton)mainSpoonContainer.getDocumentRoot().createElement("toolbarbutton");
+      btn.setType("toggle");
+      btn.setLabel(name);
+      btn.setTooltiptext(name);
+      btn.setOnclick("spoon.loadPerspective(" + y + ")");
+      mainToolbar.addChild(btn);
+      if ((firstBtn && this.startupPerspective == null) || (perspectiveIdx == y)) {
+        btn.setSelected(true);
+        firstBtn=false;
+      }
+      if (in != null) {
+        btn.setImageFromStream(in);
+        try {
+          in.close();
+        }
+ catch (        IOException e1) {
+        }
+      }
+      XulVbox box=deck.createVBoxCard();
+      box.setId("perspective-" + per.getId());
+      box.setFlex(1);
+      deck.addChild(box);
+      per.getUI().setParent((Composite)box.getManagedObject());
+      per.getUI().layout();
+      per.addPerspectiveListener(new SpoonPerspectiveListener(){
+        public void onActivation(){
+          btn.setSelected(true);
+        }
+        public void onDeactication(){
+          btn.setSelected(false);
+        }
+      }
+);
+      y++;
+    }
+    deck.setSelectedIndex(perspectiveIdx);
+    if (perClass != null) {
+      SpoonPerspectiveManager.getInstance().activatePerspective(perClass);
+      SpoonPerspectiveManager.getInstance().setForcePerspective(true);
+    }
   }
  catch (  IllegalArgumentException e1) {
     e1.printStackTrace();
   }
 catch (  XulException e1) {
+    e1.printStackTrace();
+  }
+catch (  KettleException e1) {
     e1.printStackTrace();
   }
   WindowProperty winprop=props.getScreen(APPL_TITLE);
@@ -53,18 +108,6 @@ catch (  XulException e1) {
     shell.pack();
     shell.setMaximized(true);
   }
-  shell.addShellListener(new ShellAdapter(){
-    public void shellClosed(    ShellEvent e){
-      try {
-        e.doit=quitFile();
-      }
- catch (      KettleException e1) {
-        e1.printStackTrace();
-      }
-      SpoonPluginManager.getInstance().notifyLifecycleListeners(SpoonLifeCycleEvent.SHUTDOWN);
-    }
-  }
-);
   layout=new FormLayout();
   layout.marginWidth=0;
   layout.marginHeight=0;

@@ -1,0 +1,35 @@
+{
+  try {
+    if (log.isDetailed())     logDetailed("attempting to truncate table");
+    ProcessHolder holder=startMClient(rt,mClientCmd);
+    if (!holder.isRunning) {
+      message=holder.message;
+      throw new KettleException("An error occurred writing data to the mclient process: " + message);
+    }
+    String cmd;
+    cmd=meta.getDatabaseMeta().getTruncateTableStatement(null,data.schemaTable) + ";";
+    if (log.isDetailed())     logDetailed("Trying: " + cmd);
+    holder.stdIn.write(cmd.getBytes());
+    holder.stdIn.flush();
+    holder.stdIn.close();
+    int exitVal=holder.process.waitFor();
+    byte buffer[]=new byte[4096];
+    holder.stdOut.read(buffer);
+    message=new String(buffer);
+    logBasic(BaseMessages.getString(PKG,"MonetDBBulkLoader.Log.ExitValuePsqlPath","" + exitVal));
+    if (exitVal != 0) {
+      logError(BaseMessages.getString(PKG,"MonetDBBulkLoader.Log.ExitMessage",message));
+    }
+ else {
+      logDebug(BaseMessages.getString(PKG,"MonetDBBulkLoader.Log.ExitMessage",message));
+    }
+    if (exitVal != 0) {
+      throw new KettleException("An error occurred executing a statement");
+    }
+    util.updateMetadata(meta,-1);
+    if (log.isDetailed())     logDetailed("Successfull: " + cmd);
+  }
+ catch (  Exception e) {
+    throw new KettleException("An error occurred writing data to the mclient process",e);
+  }
+}

@@ -5,10 +5,14 @@
     Object[] r=getRow();
     if (r == null) {
       setOutputDone();
-      data.monetOutputStream.flush();
-      data.monetOutputStream.close();
-      int exitVal=data.mClientlProcess.waitFor();
-      logBasic(BaseMessages.getString(PKG,"MonetDBBulkLoader.Log.ExitValuePsqlPath","" + exitVal));
+      writeBufferToMonetDB();
+      if (data.monetOutputStream != null) {
+        data.monetOutputStream.flush();
+        data.monetOutputStream.close();
+        int exitVal=data.mClientlProcess.waitFor();
+        logBasic(BaseMessages.getString(PKG,"MonetDBBulkLoader.Log.ExitValuePsqlPath","" + exitVal));
+      }
+      util.updateMetadata(meta,rowsWritten);
       return false;
     }
     if (first) {
@@ -24,7 +28,13 @@
     incrementLinesOutput();
     return true;
   }
- catch (  Exception e) {
+ catch (  MonetDBRowLimitException me) {
+    logDebug(me.getMessage());
+    stopAll();
+    setOutputDone();
+    return true;
+  }
+catch (  Exception e) {
     logError(BaseMessages.getString(PKG,"MonetDBBulkLoader.Log.ErrorInStep"),e);
     setErrors(1);
     stopAll();

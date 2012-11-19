@@ -1,9 +1,24 @@
 {
   Runtime rt=Runtime.getRuntime();
+  if (log.isDetailed())   logDetailed("Started execute");
+  String cmdLSql=null;
+  if (log.isDetailed())   logDetailed("Creating commands");
   try {
-    String cmd=createCommandLine(meta,true);
-    logBasic("Executing command: " + cmd);
-    data.mClientlProcess=rt.exec(cmd);
+    cmdLSql=createCommandLine(meta,true);
+  }
+ catch (  Exception ex) {
+    throw new KettleException("Error while generating MonetDB commands",ex);
+  }
+  if (log.isDetailed())   logDetailed("Created command: " + cmdLSql);
+  try {
+    if (log.isDetailed())     logDetailed("Auto String Length flag: " + meta.isAutoStringWidths());
+    logBasic("Executing command: " + cmdLSql);
+    ProcessHolder holder=startMClient(rt,cmdLSql);
+    if (!holder.isRunning) {
+      message=holder.message;
+      throw new KettleException("An error occurred writing data to the mclient process: " + message);
+    }
+    data.mClientlProcess=holder.process;
     data.errorLogger=new StreamLogger(log,data.mClientlProcess.getErrorStream(),"ERROR");
     data.outputLogger=new StreamLogger(log,data.mClientlProcess.getInputStream(),"OUTPUT");
     data.monetOutputStream=data.mClientlProcess.getOutputStream();
@@ -11,7 +26,7 @@
     new Thread(data.outputLogger).start();
   }
  catch (  Exception ex) {
-    throw new KettleException("Error while executing mclient : " + createCommandLine(meta,false),ex);
+    throw new KettleException("Error while executing mclient : " + cmdLSql,ex);
   }
   return true;
 }

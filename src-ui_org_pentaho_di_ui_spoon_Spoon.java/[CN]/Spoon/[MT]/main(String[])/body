@@ -6,13 +6,20 @@
       DeviceData data=new DeviceData();
       data.tracking=true;
       display=new Display(data);
+      Sleak sleak=new Sleak();
+      Shell sleakShell=new Shell(display);
+      sleakShell.setText("S-Leak");
+      org.eclipse.swt.graphics.Point size=sleakShell.getSize();
+      sleakShell.setSize(size.x / 2,size.y / 2);
+      sleak.create(sleakShell);
+      sleakShell.open();
     }
  else {
-      display=Display.getDefault();
+      display=new Display();
     }
     OsHelper.initOsHandlers(display);
     UIManager.setLookAndFeel(new MetalLookAndFeel());
-    Splash splash=null;
+    splash=new Splash(display);
     registerUIPluginObjectTypes();
     KettleEnvironment.init();
     List<String> args=new ArrayList<String>(java.util.Arrays.asList(a));
@@ -20,26 +27,19 @@
     initLogging(commandLineOptions);
     PropsUI.init(display,Props.TYPE_PROPERTIES_SPOON);
     CentralLogStore.init(PropsUI.getInstance().getMaxNrLinesInLog(),PropsUI.getInstance().getMaxLogLineTimeoutMinutes());
-    staticSpoon=new Spoon(display);
+    staticSpoon=new Spoon((Display)null);
+    staticSpoon.commandLineOptions=commandLineOptions;
     String pId=null;
     StringBuffer perspectiveIdBuff=Spoon.getCommandLineOption(commandLineOptions,"perspective").getArgument();
     pId=perspectiveIdBuff.toString();
     if (!pId.equals("")) {
-      SpoonPerspectiveManager.getInstance().setStartupPerspective(pId);
+      Spoon.staticSpoon.startupPerspective=pId;
     }
-    staticSpoon.init(null);
     SpoonFactory.setSpoonInstance(staticSpoon);
     staticSpoon.setDestroy(true);
     GUIFactory.setThreadDialogs(new ThreadGuiResources());
-    try {
-      staticSpoon.lifecycleSupport.onStart(staticSpoon);
-    }
- catch (    Throwable e) {
-      new ErrorDialog(staticSpoon.shell,"Error","Error starting lifecycle listener",e);
-    }
-    OsHelper.customizeWindow();
     staticSpoon.setArguments(args.toArray(new String[args.size()]));
-    staticSpoon.start(splash,commandLineOptions);
+    staticSpoon.start();
   }
  catch (  Throwable t) {
     t.printStackTrace();
