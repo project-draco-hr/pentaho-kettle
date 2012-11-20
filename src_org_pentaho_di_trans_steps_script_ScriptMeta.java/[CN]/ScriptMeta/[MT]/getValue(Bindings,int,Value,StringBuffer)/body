@@ -1,0 +1,114 @@
+{
+  boolean error_found=false;
+  if (fieldname[i] != null && fieldname[i].length() > 0) {
+    res.setName(rename[i]);
+    res.setType(type[i]);
+    try {
+      Object result=scope.get(fieldname[i]);
+      if (result != null) {
+        String classname=result.getClass().getName();
+switch (type[i]) {
+case ValueMetaInterface.TYPE_NUMBER:
+          if (classname.equalsIgnoreCase("org.mozilla.javascript.Undefined")) {
+            res.setNull();
+          }
+ else           if (classname.equalsIgnoreCase("org.mozilla.javascript.NativeJavaObject")) {
+            Value v=(Value)result;
+            res.setValue(v.getNumber());
+          }
+ else {
+            res.setValue(((Double)result).doubleValue());
+          }
+        break;
+case ValueMetaInterface.TYPE_INTEGER:
+      if (classname.equalsIgnoreCase("java.lang.Byte")) {
+        res.setValue(((java.lang.Byte)result).longValue());
+      }
+ else       if (classname.equalsIgnoreCase("java.lang.Short")) {
+        res.setValue(((Short)result).longValue());
+      }
+ else       if (classname.equalsIgnoreCase("java.lang.Integer")) {
+        res.setValue(((Integer)result).longValue());
+      }
+ else       if (classname.equalsIgnoreCase("java.lang.Long")) {
+        res.setValue(((Long)result).longValue());
+      }
+ else       if (classname.equalsIgnoreCase("org.mozilla.javascript.Undefined")) {
+        res.setNull();
+      }
+ else       if (classname.equalsIgnoreCase("org.mozilla.javascript.NativeJavaObject")) {
+        Value v=(Value)result;
+        res.setValue(v.getInteger());
+      }
+ else {
+        res.setValue(Math.round(((Double)result).doubleValue()));
+      }
+    break;
+case ValueMetaInterface.TYPE_STRING:
+  if (classname.equalsIgnoreCase("org.mozilla.javascript.NativeJavaObject") || classname.equalsIgnoreCase("org.mozilla.javascript.Undefined")) {
+    try {
+      Value v=(Value)result;
+      res.setValue(v.getString());
+    }
+ catch (    Exception ev) {
+      String s=(String)result;
+      res.setValue(s);
+    }
+  }
+ else {
+    res.setValue(((String)result));
+  }
+break;
+case ValueMetaInterface.TYPE_DATE:
+double dbl=0;
+if (classname.equalsIgnoreCase("org.mozilla.javascript.Undefined")) {
+res.setNull();
+}
+ else {
+if (classname.equalsIgnoreCase("org.mozilla.javascript.NativeDate")) {
+dbl=(Double)result;
+}
+ else if (classname.equalsIgnoreCase("org.mozilla.javascript.NativeJavaObject")) {
+try {
+  Date dat=(Date)result;
+  dbl=dat.getTime();
+}
+ catch (Exception e) {
+  Value v=(Value)result;
+  Date dat=v.getDate();
+  if (dat != null)   dbl=dat.getTime();
+ else   res.setNull();
+}
+}
+ else {
+dbl=((Double)result).doubleValue();
+}
+long lng=Math.round(dbl);
+Date dat=new Date(lng);
+res.setValue(dat);
+}
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+res.setValue(((Boolean)result).booleanValue());
+break;
+default :
+res.setNull();
+}
+}
+ else {
+res.setNull();
+}
+}
+ catch (Exception e) {
+message.append(BaseMessages.getString(PKG,"ScriptMeta.CheckResult.ErrorRetrievingValue",fieldname[i]) + " : " + e.toString());
+error_found=true;
+}
+res.setLength(length[i],precision[i]);
+message.append(BaseMessages.getString(PKG,"ScriptMeta.CheckResult.RetrievedValue",fieldname[i],res.toStringMeta()));
+}
+ else {
+message.append(BaseMessages.getString(PKG,"ScriptMeta.CheckResult.ValueIsEmpty",String.valueOf(i)));
+error_found=true;
+}
+return error_found;
+}

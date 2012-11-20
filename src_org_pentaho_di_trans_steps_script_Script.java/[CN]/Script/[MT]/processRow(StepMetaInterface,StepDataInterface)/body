@@ -1,0 +1,45 @@
+{
+  meta=(ScriptMeta)smi;
+  data=(ScriptData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    try {
+      if (data.cx != null) {
+        if (strEndScript != null && strEndScript.length() > 0) {
+          data.cx.eval(strEndScript,data.scope);
+          if (log.isDetailed())           logDetailed(("End Script found!"));
+        }
+ else {
+          if (log.isDetailed())           logDetailed(("No end Script found!"));
+        }
+      }
+    }
+ catch (    Exception e) {
+      logError(BaseMessages.getString(PKG,"Script.Log.UnexpectedeError") + " : " + e.toString());
+      logError(BaseMessages.getString(PKG,"Script.Log.ErrorStackTrace") + Const.CR + Const.getStackTracker(e));
+      setErrors(1);
+      stopAll();
+    }
+    if (data.cx != null)     setOutputDone();
+    return false;
+  }
+  try {
+    addValues(getInputRowMeta(),r);
+  }
+ catch (  KettleValueException e) {
+    String location=null;
+    if (e.getCause() instanceof ScriptException) {
+      ScriptException ee=(ScriptException)e.getCause();
+      location="--> " + ee.getLineNumber() + ":"+ ee.getColumnNumber();
+    }
+    if (getStepMeta().isDoingErrorHandling()) {
+      putError(getInputRowMeta(),r,1,e.getMessage() + Const.CR + location,null,"SCR-001");
+      bRC=true;
+    }
+ else {
+      throw (e);
+    }
+  }
+  if (checkFeedback(getLinesRead()))   logBasic(BaseMessages.getString(PKG,"Script.Log.LineNumber") + getLinesRead());
+  return bRC;
+}
