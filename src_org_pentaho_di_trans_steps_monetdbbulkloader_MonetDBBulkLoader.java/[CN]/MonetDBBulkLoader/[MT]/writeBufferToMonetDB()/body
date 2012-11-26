@@ -2,13 +2,30 @@
   if (data.bufferIndex == 0)   return;
   try {
     StringBuffer cmdBuff=new StringBuffer();
-    cmdBuff.append("COPY ").append(data.bufferIndex).append(" RECORDS INTO ").append(data.schemaTable).append(" FROM STDIN USING DELIMITERS '").append(new String(data.separator)).append("','\\n','").append(new String(data.quote)).append("';");
+    cmdBuff.append("COPY ").append(data.bufferIndex).append(" RECORDS INTO ").append(data.schemaTable).append(" FROM STDIN USING DELIMITERS '").append(new String(data.separator)).append("','" + Const.CR + "','").append(new String(data.quote)).append("';");
     String cmd=cmdBuff.toString();
     if (log.isDetailed())     logDetailed(cmd);
-    data.monetOutputStream.write(cmd.getBytes());
+    data.out.write('s');
+    data.out.write(cmdBuff.toString());
+    data.out.newLine();
     for (int i=0; i < data.bufferIndex; i++) {
-      data.monetOutputStream.write(data.rowBuffer[i]);
-      if (log.isRowLevel())       logRowlevel(new String(data.rowBuffer[i]));
+      String buffer=data.rowBuffer[i];
+      data.out.write(buffer);
+      if (log.isRowLevel())       logRowlevel(buffer);
+    }
+    String error=data.in.waitForPrompt();
+    if (error != null) {
+      throw new KettleException("Error loading data: " + error);
+    }
+    data.out.writeLine("");
+    error=data.in.waitForPrompt();
+    if (error != null) {
+      throw new KettleException("Error loading data: " + error);
+    }
+    data.out.writeLine("");
+    error=data.in.waitForPrompt();
+    if (error != null) {
+      throw new KettleException("Error loading data: " + error);
     }
     if (log.isRowLevel())     logRowlevel(Const.CR);
     data.bufferIndex=0;

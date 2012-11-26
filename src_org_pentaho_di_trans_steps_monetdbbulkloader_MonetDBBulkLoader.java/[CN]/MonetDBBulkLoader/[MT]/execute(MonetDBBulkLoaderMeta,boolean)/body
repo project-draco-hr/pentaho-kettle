@@ -1,32 +1,24 @@
 {
-  Runtime rt=Runtime.getRuntime();
   if (log.isDetailed())   logDetailed("Started execute");
-  String cmdLSql=null;
-  if (log.isDetailed())   logDetailed("Creating commands");
-  try {
-    cmdLSql=createCommandLine(meta,true);
-  }
- catch (  Exception ex) {
-    throw new KettleException("Error while generating MonetDB commands",ex);
-  }
-  if (log.isDetailed())   logDetailed("Created command: " + cmdLSql);
   try {
     if (log.isDetailed())     logDetailed("Auto String Length flag: " + meta.isAutoStringWidths());
-    logBasic("Executing command: " + cmdLSql);
-    ProcessHolder holder=startMClient(rt,cmdLSql);
-    if (!holder.isRunning) {
-      message=holder.message;
-      throw new KettleException("An error occurred writing data to the mclient process: " + message);
+    DatabaseMeta dm=meta.getDatabaseMeta();
+    String hostname=environmentSubstitute(Const.NVL(dm.getHostname(),""));
+    String portnum=environmentSubstitute(Const.NVL(dm.getDatabasePortNumberString(),""));
+    int port=Integer.valueOf(portnum);
+    String dbname=environmentSubstitute(Const.NVL(dm.getDatabaseName(),""));
+    MapiSocket mserver=getMonetDBConnection();
+    data.mserver=mserver;
+    data.in=mserver.getReader();
+    data.out=mserver.getWriter();
+    String error=data.in.waitForPrompt();
+    if (error != null) {
+      throw new KettleException("Error while connecting to MonetDB for bulk loading : " + error);
     }
-    data.mClientlProcess=holder.process;
-    data.errorLogger=new StreamLogger(log,data.mClientlProcess.getErrorStream(),"ERROR");
-    data.outputLogger=new StreamLogger(log,data.mClientlProcess.getInputStream(),"OUTPUT");
-    data.monetOutputStream=data.mClientlProcess.getOutputStream();
-    new Thread(data.errorLogger).start();
-    new Thread(data.outputLogger).start();
+    data.outputLogger=new StreamLogger(log,mserver.getInputStream(),"OUTPUT");
   }
  catch (  Exception ex) {
-    throw new KettleException("Error while executing mclient : " + cmdLSql,ex);
+    throw new KettleException(ex);
   }
   return true;
 }
