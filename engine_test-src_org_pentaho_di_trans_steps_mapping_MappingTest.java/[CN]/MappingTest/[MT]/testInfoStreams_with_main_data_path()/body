@@ -1,0 +1,43 @@
+{
+  KettleEnvironment.init();
+  PluginRegistry registry=PluginRegistry.getInstance();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("Mapping Info Test");
+  StepMeta rowGenerator=buildRowGeneratorStep(registry,"Generate Rows");
+  transMeta.addStep(rowGenerator);
+  StepMeta rowGeneratorMain=buildRowGeneratorStep(registry,"Generate Rows Main");
+  transMeta.addStep(rowGeneratorMain);
+  String mappingName="mapping";
+  MappingMeta mappingMeta=new MappingMeta();
+  mappingMeta.setSpecificationMethod(ObjectLocationSpecificationMethod.FILENAME);
+  mappingMeta.setFileName("test-src/org/pentaho/di/trans/steps/mapping/subtrans.ktr");
+  List<MappingIODefinition> inputMappings=new ArrayList<MappingIODefinition>();
+  String mappingInputStepName="input";
+  inputMappings.add(createMappingDef(rowGenerator.getName(),mappingInputStepName,"string","a"));
+  MappingIODefinition mainMappingDef=createMappingDef(rowGeneratorMain.getName(),mappingInputStepName,"string","a");
+  mainMappingDef.setMainDataPath(true);
+  inputMappings.add(mainMappingDef);
+  mappingMeta.setInputMappings(inputMappings);
+  String mappingPid=registry.getPluginId(StepPluginType.class,mappingMeta);
+  StepMeta mapping=new StepMeta(mappingPid,mappingName,mappingMeta);
+  transMeta.addStep(mapping);
+  TransHopMeta hopGeneratorToMapping=new TransHopMeta(rowGenerator,mapping);
+  transMeta.addTransHop(hopGeneratorToMapping);
+  hopGeneratorToMapping=new TransHopMeta(rowGeneratorMain,mapping);
+  transMeta.addTransHop(hopGeneratorToMapping);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  for (int i=0; i < transMeta.nrSteps(); i++) {
+    StepMeta stepMeta=transMeta.getStep(i);
+    StepMetaInterface sii=stepMeta.getStepMetaInterface();
+    if (sii != null)     sii.searchInfoAndTargetSteps(transMeta.getSteps());
+  }
+  assertEquals("Transformation not initialized properly",3,transMeta.nrSteps());
+  StepMeta meta=transMeta.getStep(2);
+  assertTrue("Transformation not initialized properly",meta.getStepMetaInterface() instanceof MappingMeta);
+  MappingMeta loadedMappingMeta=(MappingMeta)meta.getStepMetaInterface();
+  assertEquals("Expected a two input mapping definition",2,loadedMappingMeta.getInputMappings().size());
+  StepIOMetaInterface ioMeta=loadedMappingMeta.getStepIOMeta();
+  assertEquals("Expected a single Info Stream",1,ioMeta.getInfoStreams().size());
+  assertEquals("Expected a single Info Step",1,loadedMappingMeta.getInfoSteps().length);
+}
