@@ -1,0 +1,45 @@
+{
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
+  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"GetTransImageServlet.Log.TransImageRequested"));
+  String transName=request.getParameter("name");
+  String id=request.getParameter("id");
+  Trans trans;
+  CarteObjectEntry entry;
+  if (Const.isEmpty(id)) {
+    entry=getTransformationMap().getFirstCarteObjectEntry(transName);
+    if (entry == null) {
+      trans=null;
+    }
+ else {
+      id=entry.getId();
+      trans=getTransformationMap().getTransformation(entry);
+    }
+  }
+ else {
+    entry=new CarteObjectEntry(transName,id);
+    trans=getTransformationMap().getTransformation(entry);
+  }
+  try {
+    if (trans != null) {
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.setCharacterEncoding("UTF-8");
+      response.setContentType("image/png");
+      BufferedImage image=generateTransformationImage(trans.getTransMeta());
+      ByteArrayOutputStream os=new ByteArrayOutputStream();
+      try {
+        ImageIO.write(image,"png",os);
+      }
+  finally {
+        os.flush();
+      }
+      response.setContentLength(os.size());
+      OutputStream out=response.getOutputStream();
+      out.write(os.toByteArray());
+    }
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+  }
+}

@@ -23,6 +23,7 @@
   resultStepName=sqlTransMeta.getResultStepName();
   genTrans=new Trans(genTransMeta);
   genTrans.prepareExecution(null);
+  final List<Object[]> serviceRowsWhenCached=new ArrayList<Object[]>();
   if (!service.isDual()) {
     final RowProducer rowProducer=genTrans.addRowProducer(sqlTransMeta.getInjectorStepName(),0);
     StepInterface serviceStep=serviceTrans.findRunThread(serviceStepName);
@@ -37,15 +38,28 @@
  catch (        KettleValueException e) {
         }
         rowProducer.putRow(rowMeta,row);
+        if (service.getCacheMethod() == ServiceCacheMethod.LocalMemory) {
+          serviceRowsWhenCached.add(row);
+        }
       }
     }
 );
     serviceTrans.addTransListener(new TransAdapter(){
       @Override public void transFinished(      Trans trans) throws KettleException {
         rowProducer.finished();
+        if (service.getCacheMethod() == ServiceCacheMethod.LocalMemory) {
+          TransDataCache.getInstance().store(serviceName,serviceFields,serviceRowsWhenCached);
+        }
       }
     }
 );
+  }
+  if (serviceData != null) {
+    final RowProducer rowProducer=genTrans.addRowProducer(sqlTransMeta.getInjectorStepName(),0);
+    for (    Object[] row : serviceData) {
+      rowProducer.putRow(serviceFields,row);
+    }
+    rowProducer.finished();
   }
   StepInterface resultStep=genTrans.findRunThread(sqlTransMeta.getResultStepName());
   resultStep.addRowListener(resultRowListener);

@@ -1,0 +1,45 @@
+{
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
+  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"GetJobImageServlet.Log.JobImageRequested"));
+  String jobName=request.getParameter("name");
+  String id=request.getParameter("id");
+  Job job;
+  CarteObjectEntry entry;
+  if (Const.isEmpty(id)) {
+    entry=getJobMap().getFirstCarteObjectEntry(jobName);
+    if (entry == null) {
+      job=null;
+    }
+ else {
+      id=entry.getId();
+      job=getJobMap().getJob(entry);
+    }
+  }
+ else {
+    entry=new CarteObjectEntry(jobName,id);
+    job=getJobMap().getJob(entry);
+  }
+  try {
+    if (job != null) {
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.setCharacterEncoding("UTF-8");
+      response.setContentType("image/png");
+      BufferedImage image=generateJobImage(job.getJobMeta());
+      ByteArrayOutputStream os=new ByteArrayOutputStream();
+      try {
+        ImageIO.write(image,"png",os);
+      }
+  finally {
+        os.flush();
+      }
+      response.setContentLength(os.size());
+      OutputStream out=response.getOutputStream();
+      out.write(os.toByteArray());
+    }
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+  }
+}

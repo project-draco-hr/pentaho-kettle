@@ -13,7 +13,17 @@
   final String debugTransFile=request.getHeader(ThinConnection.ARG_DEBUGTRANS);
   Map<String,String> parameters=getParametersFromRequestHeader(request);
   try {
-    final SqlTransExecutor executor=new SqlTransExecutor(sqlQuery,getTransformationMap().getSlaveServerConfig().getServices(),parameters);
+    List<TransDataService> services=new ArrayList<TransDataService>(transformationMap.getSlaveServerConfig().getServices());
+    Repository repository=transformationMap.getSlaveServerConfig().getRepository();
+    if (repository != null) {
+      List<DataServiceMeta> dataServices=repository.listDataServices();
+      for (      DataServiceMeta dataService : dataServices) {
+        if (!Const.isEmpty(dataService.getName()) && !Const.isEmpty(dataService.getStepname())) {
+          services.add(new TransDataService(dataService.getName(),null,dataService.getObjectId(),dataService.getStepname(),null,dataService.getCacheMethod()));
+        }
+      }
+    }
+    final SqlTransExecutor executor=new SqlTransExecutor(sqlQuery,services,parameters,repository,0);
     dos.writeUTF(executor.getServiceName());
     dos.writeUTF(SqlTransExecutor.calculateTransname(executor.getSql(),true));
     String serviceContainerObjectId=UUID.randomUUID().toString();
