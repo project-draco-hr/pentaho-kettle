@@ -11,24 +11,27 @@
       int sels=selection.size();
       XulMenuitem item=(XulMenuitem)doc.getElementById("job-graph-entry-newhop");
       item.setDisabled(sels < 2);
-      XulMenupopup launchMenu=(XulMenupopup)doc.getElementById("job-graph-entry-launch-popup");
-      String[] referencedObjects=jobEntry.getEntry().getReferencedObjectDescriptions();
-      boolean[] enabledObjects=jobEntry.getEntry().isReferencedObjectEnabled();
-      launchMenu.setDisabled(Const.isEmpty(referencedObjects));
       item=(XulMenuitem)doc.getElementById("job-graph-entry-checkpoint");
       item.setDisabled(!jobMeta.getCheckpointLogTable().isDefined());
       item.setSelected(jobEntry.isCheckpoint());
-      List<XulComponent> childNodes=launchMenu.getChildNodes();
-      for (      XulComponent childNode : childNodes) {
-        item.removeChild(childNode);
-      }
+      JfaceMenupopup launchMenu=(JfaceMenupopup)doc.getElementById("job-graph-entry-launch-popup");
+      String[] referencedObjects=jobEntry.getEntry().getReferencedObjectDescriptions();
+      boolean[] enabledObjects=jobEntry.getEntry().isReferencedObjectEnabled();
+      launchMenu.setDisabled(Const.isEmpty(referencedObjects));
+      launchMenu.removeChildren();
       if (!Const.isEmpty(referencedObjects)) {
         for (int i=0; i < referencedObjects.length; i++) {
+          final int index=i;
           String referencedObject=referencedObjects[i];
-          XulMenuitem child=new SwtMenuitem(launchMenu,xulDomContainer,referencedObject,i);
+          Action action=new Action(referencedObject,Action.AS_DROP_DOWN_MENU){
+            public void run(){
+              loadReferencedObject(jobEntry,index);
+            }
+          }
+;
+          JfaceMenuitem child=new JfaceMenuitem(null,launchMenu,xulDomContainer,referencedObject,i,action);
           child.setLabel(referencedObject);
           child.setDisabled(!enabledObjects[i]);
-          launchMenu.addChild(child);
         }
       }
       item=(XulMenuitem)doc.getElementById("job-graph-entry-align-snap");
@@ -55,7 +58,7 @@
       if (item != null) {
         item.setSelected(jobEntry.isLaunchingInParallel());
       }
-      ConstUI.displayMenu((Menu)menu.getManagedObject(),canvas);
+      ConstUI.displayMenu(menu,canvas);
     }
   }
  else {
@@ -105,7 +108,7 @@
           if (hi.isEnabled())           miDisHop.setLabel(BaseMessages.getString(PKG,"JobGraph.PopupMenu.Hop.Disable"));
  else           miDisHop.setLabel(BaseMessages.getString(PKG,"JobGraph.PopupMenu.Hop.Enable"));
         }
-        ConstUI.displayMenu((Menu)menu.getManagedObject(),canvas);
+        ConstUI.displayMenu(menu,canvas);
       }
     }
  else {
@@ -114,7 +117,7 @@
       if (ni != null) {
         XulMenupopup menu=(XulMenupopup)doc.getElementById("job-graph-note");
         if (menu != null) {
-          ConstUI.displayMenu((Menu)menu.getManagedObject(),canvas);
+          ConstUI.displayMenu(menu,canvas);
         }
       }
  else {

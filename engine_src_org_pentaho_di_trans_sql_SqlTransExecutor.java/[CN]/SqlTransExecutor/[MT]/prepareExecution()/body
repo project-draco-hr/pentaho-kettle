@@ -11,10 +11,23 @@
     if (service == null) {
       throw new KettleException("Unable to find service with name '" + service + "' and SQL: "+ sqlQuery);
     }
-    serviceTransMeta=loadTransMeta(repository);
-    serviceTransMeta.setName(calculateTransname(sql,true));
-    serviceTransMeta.activateParameters();
-    serviceStepName=service.getServiceStepName();
-    serviceFields=serviceTransMeta.getStepFields(serviceStepName);
+    if (service.getCacheMethod() == ServiceCacheMethod.LocalMemory) {
+      serviceFields=TransDataCache.getInstance().retrieveRowMeta(serviceName);
+      if (serviceFields != null) {
+        serviceData=TransDataCache.getInstance().retrieveRowData(serviceName);
+        service=findService(serviceName);
+        if (service == null) {
+          throw new KettleException("Unable to find service with name '" + service + "' and SQL: "+ sqlQuery);
+        }
+        service.setDual(true);
+      }
+    }
+    if (serviceFields == null) {
+      serviceTransMeta=loadTransMeta(repository);
+      serviceTransMeta.setName(calculateTransname(sql,true));
+      serviceTransMeta.activateParameters();
+      serviceStepName=service.getServiceStepName();
+      serviceFields=serviceTransMeta.getStepFields(serviceStepName);
+    }
   }
 }

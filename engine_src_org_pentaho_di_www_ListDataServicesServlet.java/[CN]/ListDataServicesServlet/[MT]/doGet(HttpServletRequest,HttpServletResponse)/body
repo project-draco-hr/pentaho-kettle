@@ -8,11 +8,32 @@
   response.setContentType("text/xml");
   response.getWriter().println(XMLHandler.getXMLHeader());
   response.getWriter().println(XMLHandler.openTag(XML_TAG_SERVICES));
-  for (  TransDataService service : transformationMap.getSlaveServerConfig().getServices()) {
+  List<TransDataService> services=new ArrayList<TransDataService>(transformationMap.getSlaveServerConfig().getServices());
+  Repository repository=transformationMap.getSlaveServerConfig().getRepository();
+  if (repository != null) {
+    try {
+      List<DataServiceMeta> dataServices=repository.listDataServices();
+      for (      DataServiceMeta dataService : dataServices) {
+        if (!Const.isEmpty(dataService.getName()) && !Const.isEmpty(dataService.getStepname())) {
+          services.add(new TransDataService(dataService.getName(),null,dataService.getObjectId(),dataService.getStepname()));
+        }
+      }
+    }
+ catch (    Exception e) {
+      log.logError("Unable to list extra repository services",e);
+    }
+  }
+  for (  TransDataService service : services) {
     response.getWriter().println(XMLHandler.openTag(XML_TAG_SERVICE));
     response.getWriter().println(XMLHandler.addTagValue("name",service.getName()));
     try {
-      TransMeta transMeta=new TransMeta(service.getFileName());
+      TransMeta transMeta=null;
+      if (service.getObjectId() != null) {
+        transMeta=repository.loadTransformation(service.getObjectId(),null);
+      }
+ else {
+        transMeta=new TransMeta(service.getFileName());
+      }
       for (      String name : parameters.keySet()) {
         transMeta.setParameterValue(name,parameters.get(name));
       }
