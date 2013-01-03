@@ -2,7 +2,11 @@
   if (data.bufferIndex == 0)   return;
   try {
     StringBuffer cmdBuff=new StringBuffer();
-    cmdBuff.append("COPY ").append(data.bufferIndex).append(" RECORDS INTO ").append(data.schemaTable).append(" FROM STDIN USING DELIMITERS '").append(new String(data.separator)).append("','" + Const.CR + "','").append(new String(data.quote)).append("';");
+    if (meta.isTruncate()) {
+      logBasic(BaseMessages.getString(PKG,"MonetDBBulkLoader.writeBufferToMonetDB - Truncating the destination table using SQL DELETE FROM syntax.",""));
+      cmdBuff.append("DELETE FROM " + data.schemaTable + ";");
+    }
+    cmdBuff.append("COPY ").append(data.bufferIndex).append(" RECORDS INTO ").append(data.schemaTable).append(" FROM STDIN USING DELIMITERS '").append(new String(data.separator)).append("','" + Const.CR + "','").append(new String(data.quote)).append("' NULL AS '" + new String(data.nullrepresentation) + ";");
     String cmd=cmdBuff.toString();
     if (log.isDetailed())     logDetailed(cmd);
     data.out.write('s');
@@ -31,6 +35,6 @@
     data.bufferIndex=0;
   }
  catch (  Exception e) {
-    throw new KettleException("An error occurred writing data to the mclient process",e);
+    throw new KettleException("An error occurred writing data to the MonetDB API (MAPI) process",e);
   }
 }
