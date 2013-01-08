@@ -11,6 +11,14 @@
   }
 ;
   changed=inputMeta.hasChanged();
+  ModifyListener lsContent=new ModifyListener(){
+    @Override public void modifyText(    ModifyEvent arg0){
+      asyncUpdatePreview();
+    }
+  }
+;
+  initializing=true;
+  previewBusy=new AtomicBoolean(false);
   FormLayout formLayout=new FormLayout();
   formLayout.marginWidth=Const.FORM_MARGIN;
   formLayout.marginHeight=Const.FORM_MARGIN;
@@ -106,6 +114,12 @@
     fdFilename.left=new FormAttachment(middle,0);
     fdFilename.right=new FormAttachment(wbbFilename,-margin);
     wFilename.setLayoutData(fdFilename);
+    wFilename.addFocusListener(new FocusAdapter(){
+      @Override public void focusLost(      FocusEvent arg0){
+        asyncUpdatePreview();
+      }
+    }
+);
     lastControl=wFilename;
   }
   Label wlDelimiter=new Label(shell,SWT.RIGHT);
@@ -131,6 +145,7 @@
   fdDelimiter.left=new FormAttachment(middle,0);
   fdDelimiter.right=new FormAttachment(wbDelimiter,-margin);
   wDelimiter.setLayoutData(fdDelimiter);
+  wDelimiter.addModifyListener(lsContent);
   lastControl=wDelimiter;
   Label wlEnclosure=new Label(shell,SWT.RIGHT);
   wlEnclosure.setText(BaseMessages.getString(PKG,inputMeta.getDescription("ENCLOSURE")));
@@ -148,6 +163,7 @@
   fdEnclosure.left=new FormAttachment(middle,0);
   fdEnclosure.right=new FormAttachment(100,0);
   wEnclosure.setLayoutData(fdEnclosure);
+  wEnclosure.addModifyListener(lsContent);
   lastControl=wEnclosure;
   Label wlBufferSize=new Label(shell,SWT.RIGHT);
   wlBufferSize.setText(BaseMessages.getString(PKG,inputMeta.getDescription("BUFFERSIZE")));
@@ -197,6 +213,12 @@
   fdHeaderPresent.left=new FormAttachment(middle,0);
   fdHeaderPresent.right=new FormAttachment(100,0);
   wHeaderPresent.setLayoutData(fdHeaderPresent);
+  wHeaderPresent.addSelectionListener(new SelectionAdapter(){
+    @Override public void widgetSelected(    SelectionEvent arg0){
+      asyncUpdatePreview();
+    }
+  }
+);
   lastControl=wHeaderPresent;
   wlAddResult=new Label(shell,SWT.RIGHT);
   wlAddResult.setText(BaseMessages.getString(PKG,inputMeta.getDescription("ADD_FILENAME_RESULT")));
@@ -266,6 +288,12 @@
     }
   }
 );
+  wNewlinePossible.addSelectionListener(new SelectionAdapter(){
+    @Override public void widgetSelected(    SelectionEvent arg0){
+      asyncUpdatePreview();
+    }
+  }
+);
   lastControl=wNewlinePossible;
   Label wlEncoding=new Label(shell,SWT.RIGHT);
   wlEncoding.setText(BaseMessages.getString(PKG,inputMeta.getDescription("ENCODING")));
@@ -283,6 +311,7 @@
   fdEncoding.left=new FormAttachment(middle,0);
   fdEncoding.right=new FormAttachment(100,0);
   wEncoding.setLayoutData(fdEncoding);
+  wEncoding.addModifyListener(lsContent);
   lastControl=wEncoding;
   wEncoding.addFocusListener(new FocusListener(){
     public void focusLost(    org.eclipse.swt.events.FocusEvent e){
@@ -335,6 +364,7 @@ fdFields.bottom=new FormAttachment(wOK,-margin * 2);
 fdFields.left=new FormAttachment(0,0);
 fdFields.right=new FormAttachment(100,0);
 wFields.setLayoutData(fdFields);
+wFields.setContentListener(lsContent);
 lsCancel=new Listener(){
 public void handleEvent(Event e){
 cancel();
@@ -410,6 +440,8 @@ cancel();
 setSize();
 getData();
 inputMeta.setChanged(changed);
+initializing=false;
+asyncUpdatePreview();
 shell.open();
 while (!shell.isDisposed()) {
 if (!display.readAndDispatch()) display.sleep();

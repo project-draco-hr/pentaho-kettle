@@ -1,0 +1,33 @@
+{
+  String kettleValueMetaPluginsXmlFile=Const.XML_FILE_KETTLE_VALUEMETA_PLUGINS;
+  String alternative=System.getProperty(Const.KETTLE_VALUEMETA_PLUGINS_FILE,null);
+  if (!Const.isEmpty(alternative)) {
+    kettleValueMetaPluginsXmlFile=alternative;
+  }
+  try {
+    InputStream inputStream=getClass().getResourceAsStream(kettleValueMetaPluginsXmlFile);
+    if (inputStream == null) {
+      inputStream=getClass().getResourceAsStream("/" + kettleValueMetaPluginsXmlFile);
+    }
+    if (inputStream == null && !Const.isEmpty(alternative)) {
+      try {
+        inputStream=new FileInputStream(kettleValueMetaPluginsXmlFile);
+      }
+ catch (      Exception e) {
+        throw new KettlePluginException("Unable to load native value meta plugins '" + kettleValueMetaPluginsXmlFile + "'",e);
+      }
+    }
+    if (inputStream == null) {
+      throw new KettlePluginException("Unable to find native value meta plugins definition file: " + Const.XML_FILE_KETTLE_STEPS);
+    }
+    Document document=XMLHandler.loadXMLFile(inputStream,null,true,false);
+    Node stepsNode=XMLHandler.getSubNode(document,"valuemeta-plugins");
+    List<Node> stepNodes=XMLHandler.getNodes(stepsNode,"valuemeta-plugin");
+    for (    Node stepNode : stepNodes) {
+      registerPluginFromXmlResource(stepNode,null,this.getClass(),true,null);
+    }
+  }
+ catch (  KettleXMLException e) {
+    throw new KettlePluginException("Unable to read the kettle metadata plugins XML config file: " + kettleValueMetaPluginsXmlFile,e);
+  }
+}
