@@ -1,0 +1,61 @@
+{
+  if (initializing)   return;
+  if (previewBusy.get()) {
+    return;
+  }
+  try {
+    previewBusy.set(true);
+    CsvInputMeta meta=new CsvInputMeta();
+    getInfo(meta);
+    if (Const.isEmpty(meta.getFilename())) {
+      return;
+    }
+    if (Const.isEmpty(meta.getInputFields())) {
+      return;
+    }
+    String stepname=wStepname.getText();
+    StringBuffer buffer=new StringBuffer();
+    final List<Object[]> rowsData=new ArrayList<Object[]>();
+    final RowMetaInterface rowMeta=new RowMeta();
+    try {
+      meta.getFields(rowMeta,stepname,null,null,transMeta);
+      TransMeta previewTransMeta=TransPreviewFactory.generatePreviewTransformation(transMeta,meta,stepname);
+      final Trans trans=new Trans(previewTransMeta);
+      trans.prepareExecution(null);
+      StepInterface step=trans.getRunThread(stepname,0);
+      step.addRowListener(new RowAdapter(){
+        @Override public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
+          rowsData.add(row);
+          if (rowsData.size() > PropsUI.getInstance().getDefaultPreviewSize()) {
+            trans.stopAll();
+          }
+        }
+      }
+);
+      trans.startThreads();
+      trans.waitUntilFinished();
+      if (trans.getErrors() > 0) {
+        StringBuffer log=CentralLogStore.getAppender().getBuffer(trans.getLogChannelId(),false);
+        buffer.append(log);
+      }
+      CentralLogStore.discardLines(trans.getLogChannelId(),false);
+      LoggingRegistry.getInstance().removeIncludingChildren(trans.getLogChannelId());
+    }
+ catch (    Exception e) {
+      buffer.append(Const.getStackTracker(e));
+    }
+    TransGraph transGraph=Spoon.getInstance().getActiveTransGraph();
+    if (transGraph != null) {
+      if (!transGraph.isExecutionResultsPaneVisible()) {
+        transGraph.showExecutionResults();
+      }
+      transGraph.extraViewTabFolder.setSelection(5);
+      transGraph.transPreviewDelegate.addPreviewData(stepMeta,rowMeta,rowsData,buffer);
+      transGraph.transPreviewDelegate.setSelectedStep(stepMeta);
+      transGraph.transPreviewDelegate.refreshView();
+    }
+  }
+  finally {
+    previewBusy.set(false);
+  }
+}

@@ -1,0 +1,93 @@
+{
+  boolean ctrl=((e.stateMask & SWT.CONTROL) != 0);
+  List<CompletionProposal> proposals=new ArrayList<CompletionProposal>();
+  if (ctrl && e.character == ' ') {
+    StringBuffer beforeBuffer=new StringBuffer();
+    String editor=expressionEditor.getText();
+    int pos=expressionEditor.getCaretOffset() - 1;
+    while (pos >= 0 && pos < editor.length()) {
+      char c=editor.charAt(pos);
+      if (Character.isWhitespace(c))       break;
+      if (Character.isLetterOrDigit(c) || c == '[') {
+        beforeBuffer.insert(0,c);
+        pos--;
+      }
+ else {
+        break;
+      }
+    }
+    String before=beforeBuffer.toString();
+    System.out.println("BEFORE = " + before);
+    if (before.equals("[")) {
+      for (      String fieldName : inputFields) {
+        proposals.add(new CompletionProposal("[" + fieldName + "] (input field)",fieldName + "]",fieldName.length() + 1));
+      }
+    }
+ else     if (Const.isEmpty(before)) {
+      for (      String fieldName : inputFields) {
+        proposals.add(new CompletionProposal("[" + fieldName + "] (input field)","[" + fieldName + "]",fieldName.length() + 2));
+      }
+    }
+ else {
+      for (      String fieldName : inputFields) {
+        String key="[" + fieldName;
+        if (key.startsWith(before) && !key.equalsIgnoreCase(before)) {
+          proposals.add(new CompletionProposal("[" + fieldName + "] (keyword)",fieldName.substring(before.length()) + "]",fieldName.length() - before.length() + 1));
+        }
+      }
+      for (      String function : functions) {
+        if (function.startsWith(before) && !function.equalsIgnoreCase(before)) {
+          proposals.add(new CompletionProposal(function + "() (Function)",function.substring(before.length()) + "()",function.length() - before.length() + 1));
+        }
+      }
+    }
+    if (helperMenu == null) {
+      helperMenu=new Menu(shell,SWT.POP_UP);
+    }
+ else {
+      for (      MenuItem item : helperMenu.getItems()) {
+        item.dispose();
+      }
+    }
+    final int offset=expressionEditor.getCaretOffset();
+    Point p=expressionEditor.getLocationAtOffset(offset);
+    int h=expressionEditor.getLineHeight(offset);
+    Point l=GUIResource.calculateControlPosition(expressionEditor);
+    MenuItem first=null;
+    if (proposals.size() == 1) {
+      MenuItem item=new MenuItem(helperMenu,SWT.NONE);
+      if (first == null)       first=item;
+      final CompletionProposal proposal=proposals.get(0);
+      item.setText(proposal.getMenuText());
+      item.addSelectionListener(new SelectionAdapter(){
+        public void widgetSelected(        SelectionEvent se){
+          expressionEditor.insert(proposal.getCompletionString());
+          expressionEditor.setSelection(offset + proposal.getOffset());
+        }
+      }
+);
+      helperMenu.setLocation(l.x + p.x,l.y + p.y + h);
+      helperMenu.setDefaultItem(first);
+      helperMenu.setVisible(true);
+    }
+ else     if (proposals.size() > 0) {
+      int nr=0;
+      for (      final CompletionProposal proposal : proposals) {
+        MenuItem item=new MenuItem(helperMenu,SWT.NONE);
+        if (first == null)         first=item;
+        item.setText(proposal.getMenuText());
+        item.addSelectionListener(new SelectionAdapter(){
+          public void widgetSelected(          SelectionEvent se){
+            expressionEditor.insert(proposal.getCompletionString());
+            expressionEditor.setSelection(offset + proposal.getOffset());
+          }
+        }
+);
+        if (nr++ > 5)         break;
+      }
+      helperMenu.setLocation(l.x + p.x,l.y + p.y + h);
+      helperMenu.setDefaultItem(first);
+      helperMenu.setVisible(true);
+    }
+  }
+}

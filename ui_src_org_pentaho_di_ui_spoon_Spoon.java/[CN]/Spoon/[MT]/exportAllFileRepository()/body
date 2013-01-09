@@ -1,0 +1,39 @@
+{
+  ResourceExportInterface resourceExportInterface=getActiveTransformation();
+  if (resourceExportInterface == null)   resourceExportInterface=getActiveJob();
+  if (resourceExportInterface == null)   return;
+  try {
+    String zipFilename=null;
+    while (Const.isEmpty(zipFilename)) {
+      FileDialog dialog=new FileDialog(shell,SWT.SAVE);
+      dialog.setText(BaseMessages.getString(PKG,"Spoon.ExportResourceSelectZipFile"));
+      dialog.setFilterExtensions(new String[]{"*.zip;*.ZIP","*"});
+      dialog.setFilterNames(new String[]{BaseMessages.getString(PKG,"System.FileType.ZIPFiles"),BaseMessages.getString(PKG,"System.FileType.AllFiles")});
+      setFilterPath(dialog);
+      if (dialog.open() != null) {
+        lastDirOpened=dialog.getFilterPath();
+        zipFilename=dialog.getFilterPath() + Const.FILE_SEPARATOR + dialog.getFileName();
+        FileObject zipFileObject=KettleVFS.getFileObject(zipFilename);
+        if (zipFileObject.exists()) {
+          MessageBox box=new MessageBox(shell,SWT.YES | SWT.NO | SWT.CANCEL);
+          box.setMessage(BaseMessages.getString(PKG,"Spoon.ExportResourceZipFileExists.Message",zipFilename));
+          box.setText(BaseMessages.getString(PKG,"Spoon.ExportResourceZipFileExists.Title"));
+          int answer=box.open();
+          if (answer == SWT.CANCEL)           return;
+          if (answer == SWT.NO)           zipFilename=null;
+        }
+      }
+ else {
+        return;
+      }
+    }
+    TopLevelResource topLevelResource=ResourceUtil.serializeResourceExportInterface(zipFilename,resourceExportInterface,(VariableSpace)resourceExportInterface,rep);
+    String message=ResourceUtil.getExplanation(zipFilename,topLevelResource.getResourceName(),resourceExportInterface);
+    EnterTextDialog enterTextDialog=new EnterTextDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.ResourceSerialized"),BaseMessages.getString(PKG,"Spoon.Dialog.ResourceSerializedSuccesfully"),message);
+    enterTextDialog.setReadOnly();
+    enterTextDialog.open();
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Error"),BaseMessages.getString(PKG,"Spoon.ErrorExportingFile"),e);
+  }
+}

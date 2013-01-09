@@ -1,0 +1,48 @@
+{
+  org.pentaho.ui.xul.dom.Document doc=(org.pentaho.ui.xul.dom.Document)mainSpoonContainer.getDocumentRoot();
+  XulMenupopup recentFilesPopup=(XulMenupopup)doc.getElementById("file-open-recent-popup");
+  int max=recentFilesPopup.getChildNodes().size();
+  for (int i=max - 1; i >= 0; i--) {
+    XulComponent mi=recentFilesPopup.getChildNodes().get(i);
+    mi.getParent().removeChild(mi);
+  }
+  List<LastUsedFile> lastUsedFiles=props.getLastUsedFiles();
+  for (int i=0; i < lastUsedFiles.size(); i++) {
+    final LastUsedFile lastUsedFile=lastUsedFiles.get(i);
+    char chr=(char)('1' + i);
+    String accessKey="ctrl-" + chr;
+    String accessText="CTRL-" + chr;
+    String text=lastUsedFile.toString();
+    String id="last-file-" + i;
+    if (i > 9) {
+      accessKey=null;
+      accessText=null;
+    }
+    XulMenuitem miFileLast=((JfaceMenupopup)recentFilesPopup).createNewMenuitem();
+    int targetLength=40;
+    if (text.length() > targetLength) {
+      int lastSep=text.replace('\\','/').lastIndexOf('/');
+      if (lastSep != -1) {
+        String fileName="..." + text.substring(lastSep);
+        if (fileName.length() < targetLength) {
+          int leadSize=targetLength - fileName.length();
+          text=text.substring(0,leadSize) + fileName;
+        }
+ else {
+          text=fileName;
+        }
+      }
+    }
+    miFileLast.setLabel(text);
+    miFileLast.setId(id);
+    miFileLast.setAcceltext(accessText);
+    miFileLast.setAccesskey(accessKey);
+    if (lastUsedFile.isTransformation()) {
+      ((JfaceMenuitem)miFileLast).setImage(GUIResource.getInstance().getImageTransGraph());
+    }
+ else     if (lastUsedFile.isJob()) {
+      ((JfaceMenuitem)miFileLast).setImage(GUIResource.getInstance().getImageJobGraph());
+    }
+    miFileLast.setCommand("spoon.lastFileSelect('" + i + "')");
+  }
+}

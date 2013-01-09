@@ -1,0 +1,29 @@
+{
+  Object[] row=null;
+  String jobtrans=job ? databaseMeta.quoteField("JOBNAME") : databaseMeta.quoteField("TRANSNAME");
+  String sql="";
+  sql+=" SELECT " + databaseMeta.quoteField("ENDDATE") + ", "+ databaseMeta.quoteField("DEPDATE")+ ", "+ databaseMeta.quoteField("STARTDATE");
+  sql+=" FROM " + logtable;
+  sql+=" WHERE  " + databaseMeta.quoteField("ERRORS") + "    = 0";
+  sql+=" AND    " + databaseMeta.quoteField("STATUS") + "    = 'end'";
+  sql+=" AND    " + jobtrans + " = ?";
+  sql+=" ORDER BY " + databaseMeta.quoteField("LOGDATE") + " DESC, "+ databaseMeta.quoteField("ENDDATE")+ " DESC";
+  try {
+    pstmt=connection.prepareStatement(databaseMeta.stripCR(sql));
+    RowMetaInterface r=new RowMeta();
+    r.addValueMeta(new ValueMeta("TRANSNAME",ValueMetaInterface.TYPE_STRING));
+    setValues(r,new Object[]{name});
+    ResultSet res=pstmt.executeQuery();
+    if (res != null) {
+      rowMeta=getRowInfo(res.getMetaData(),false,false);
+      row=getRow(res);
+      res.close();
+    }
+    pstmt.close();
+    pstmt=null;
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Unable to obtain last logdate from table " + logtable,ex);
+  }
+  return row;
+}

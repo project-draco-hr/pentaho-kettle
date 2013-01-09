@@ -1,0 +1,111 @@
+{
+  try {
+    currentMouseX=x;
+    currentMouseY=y;
+    final StepMeta stepMeta=transMeta.getStep(x,y,iconsize);
+    if (stepMeta != null) {
+      setCurrentStep(stepMeta);
+      XulMenupopup menu=menuMap.get("trans-graph-entry");
+      if (menu != null) {
+        List<StepMeta> selection=transMeta.getSelectedSteps();
+        int sels=selection.size();
+        Document doc=getXulDomContainer().getDocumentRoot();
+        XulMenuitem item=(XulMenuitem)doc.getElementById("trans-graph-entry-newhop");
+        item.setDisabled(sels != 2);
+        JfaceMenupopup launchMenu=(JfaceMenupopup)doc.getElementById("trans-graph-entry-launch-popup");
+        String[] referencedObjects=stepMeta.getStepMetaInterface().getReferencedObjectDescriptions();
+        boolean[] enabledObjects=stepMeta.getStepMetaInterface().isReferencedObjectEnabled();
+        launchMenu.setDisabled(Const.isEmpty(referencedObjects));
+        launchMenu.removeChildren();
+        if (!Const.isEmpty(referencedObjects)) {
+          for (int i=0; i < referencedObjects.length; i++) {
+            final int index=i;
+            String referencedObject=referencedObjects[i];
+            Action action=new Action(referencedObject,Action.AS_DROP_DOWN_MENU){
+              public void run(){
+                openMapping(stepMeta,index);
+              }
+            }
+;
+            JfaceMenuitem child=new JfaceMenuitem(null,launchMenu,xulDomContainer,referencedObject,i,action);
+            child.setLabel(referencedObject);
+            child.setDisabled(!enabledObjects[i]);
+          }
+        }
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-align-snap");
+        item.setAcceltext("ALT-HOME");
+        item.setLabel(BaseMessages.getString(PKG,"TransGraph.PopupMenu.SnapToGrid") + ConstUI.GRID_SIZE + ")");
+        item.setAccesskey("alt-home");
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-open-mapping");
+        XulMenu men=(XulMenu)doc.getElementById("trans-graph-entry-sniff");
+        men.setDisabled(trans == null || trans.isRunning() == false);
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-sniff-input");
+        item.setDisabled(trans == null || trans.isRunning() == false);
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-sniff-output");
+        item.setDisabled(trans == null || trans.isRunning() == false);
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-sniff-error");
+        item.setDisabled(!(stepMeta.supportsErrorHandling() && stepMeta.getStepErrorMeta() != null && stepMeta.getStepErrorMeta().getTargetStep() != null && trans != null && trans.isRunning()));
+        XulMenu aMenu=(XulMenu)doc.getElementById("trans-graph-entry-align");
+        if (aMenu != null) {
+          aMenu.setDisabled(sels < 2);
+        }
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-data-movement-distribute");
+        item.setSelected(stepMeta.isDistributes() && !stepMeta.isLoadBalancing());
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-data-movement-loadbalance");
+        item.setSelected(stepMeta.isDistributes() && stepMeta.isLoadBalancing());
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-data-movement-copy");
+        item.setSelected(!stepMeta.isDistributes());
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-hide");
+        item.setDisabled(!(stepMeta.isDrawn() && !transMeta.isStepUsedInTransHops(stepMeta)));
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-detach");
+        item.setDisabled(!transMeta.isStepUsedInTransHops(stepMeta));
+        item=(XulMenuitem)doc.getElementById("trans-graph-entry-errors");
+        item.setDisabled(!stepMeta.supportsErrorHandling());
+        ConstUI.displayMenu(menu,canvas);
+      }
+    }
+ else {
+      final TransHopMeta hi=findHop(x,y);
+      if (hi != null) {
+        XulMenupopup menu=menuMap.get("trans-graph-hop");
+        if (menu != null) {
+          setCurrentHop(hi);
+          XulMenuitem item=(XulMenuitem)getXulDomContainer().getDocumentRoot().getElementById("trans-graph-hop-enabled");
+          if (item != null) {
+            if (hi.isEnabled()) {
+              item.setLabel(BaseMessages.getString(PKG,"TransGraph.PopupMenu.DisableHop"));
+            }
+ else {
+              item.setLabel(BaseMessages.getString(PKG,"TransGraph.PopupMenu.EnableHop"));
+            }
+          }
+          ConstUI.displayMenu(menu,canvas);
+        }
+      }
+ else {
+        final NotePadMeta ni=transMeta.getNote(x,y);
+        setCurrentNote(ni);
+        if (ni != null) {
+          XulMenupopup menu=menuMap.get("trans-graph-note");
+          if (menu != null) {
+            ConstUI.displayMenu(menu,canvas);
+          }
+        }
+ else {
+          XulMenupopup menu=menuMap.get("trans-graph-background");
+          if (menu != null) {
+            final String clipcontent=spoon.fromClipboard();
+            XulMenuitem item=(XulMenuitem)getXulDomContainer().getDocumentRoot().getElementById("trans-graph-background-paste");
+            if (item != null) {
+              item.setDisabled(clipcontent == null);
+            }
+            ConstUI.displayMenu(menu,canvas);
+          }
+        }
+      }
+    }
+  }
+ catch (  Throwable t) {
+    t.printStackTrace();
+  }
+}

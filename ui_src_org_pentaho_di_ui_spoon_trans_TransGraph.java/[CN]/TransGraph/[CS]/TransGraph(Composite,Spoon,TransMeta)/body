@@ -1,0 +1,247 @@
+{
+  super(parent,SWT.NONE);
+  this.shell=parent.getShell();
+  this.spoon=spoon;
+  this.transMeta=transMeta;
+  this.areaOwners=new ArrayList<AreaOwner>();
+  this.log=spoon.getLog();
+  this.mouseOverSteps=new ArrayList<StepMeta>();
+  this.delayTimers=new HashMap<StepMeta,DelayTimer>();
+  transLogDelegate=new TransLogDelegate(spoon,this);
+  transGridDelegate=new TransGridDelegate(spoon,this);
+  transHistoryDelegate=new TransHistoryDelegate(spoon,this);
+  transPerfDelegate=new TransPerfDelegate(spoon,this);
+  transMetricsDelegate=new TransMetricsDelegate(spoon,this);
+  transPreviewDelegate=new TransPreviewDelegate(spoon,this);
+  try {
+    XulLoader loader=new SwtXulLoader();
+    loader.setSettingsManager(XulSpoonSettingsManager.getInstance());
+    ResourceBundle bundle=new XulSpoonResourceBundle(Spoon.class);
+    XulDomContainer container=loader.loadXul(XUL_FILE_TRANS_TOOLBAR,bundle);
+    container.addEventHandler(this);
+    SpoonPluginManager.getInstance().applyPluginsForContainer("trans-graph",xulDomContainer);
+    setXulDomContainer(container);
+  }
+ catch (  XulException e1) {
+    log.logError("Error loading XUL resource bundle for Spoon",e1);
+  }
+  setLayout(new FormLayout());
+  setLayoutData(new GridData(GridData.FILL_BOTH));
+  addToolBar();
+  setControlStates();
+  mainComposite=new Composite(this,SWT.NONE);
+  mainComposite.setLayout(new FillLayout());
+  Control toolbarControl=(Control)toolbar.getManagedObject();
+  FormData toolbarFd=new FormData();
+  toolbarFd.left=new FormAttachment(0,0);
+  toolbarFd.right=new FormAttachment(100,0);
+  toolbarControl.setLayoutData(toolbarFd);
+  toolbarControl.setParent(this);
+  FormData fdMainComposite=new FormData();
+  fdMainComposite.left=new FormAttachment(0,0);
+  fdMainComposite.top=new FormAttachment((Control)toolbar.getManagedObject(),0);
+  fdMainComposite.right=new FormAttachment(100,0);
+  fdMainComposite.bottom=new FormAttachment(100,0);
+  mainComposite.setLayoutData(fdMainComposite);
+  sashForm=new SashForm(mainComposite,SWT.VERTICAL);
+  canvas=new Canvas(sashForm,SWT.V_SCROLL | SWT.H_SCROLL | SWT.NO_BACKGROUND| SWT.BORDER);
+  sashForm.setWeights(new int[]{100});
+  try {
+    menuMap.put("trans-graph-hop",(XulMenupopup)getXulDomContainer().getDocumentRoot().getElementById("trans-graph-hop"));
+    menuMap.put("trans-graph-entry",(XulMenupopup)getXulDomContainer().getDocumentRoot().getElementById("trans-graph-entry"));
+    menuMap.put("trans-graph-background",(XulMenupopup)getXulDomContainer().getDocumentRoot().getElementById("trans-graph-background"));
+    menuMap.put("trans-graph-note",(XulMenupopup)getXulDomContainer().getDocumentRoot().getElementById("trans-graph-note"));
+  }
+ catch (  Throwable t) {
+    log.logError("Error parsing XUL XML",t);
+  }
+  toolTip=new DefaultToolTip(canvas,ToolTip.NO_RECREATE,true);
+  toolTip.setRespectMonitorBounds(true);
+  toolTip.setRespectDisplayBounds(true);
+  toolTip.setPopupDelay(350);
+  toolTip.setHideDelay(5000);
+  toolTip.setShift(new org.eclipse.swt.graphics.Point(ConstUI.TOOLTIP_OFFSET,ConstUI.TOOLTIP_OFFSET));
+  helpTip=new CheckBoxToolTip(canvas);
+  helpTip.addCheckBoxToolTipListener(new CheckBoxToolTipListener(){
+    public void checkBoxSelected(    boolean enabled){
+      spoon.props.setShowingHelpToolTips(enabled);
+    }
+  }
+);
+  iconsize=spoon.props.getIconSize();
+  clearSettings();
+  remarks=new ArrayList<CheckResultInterface>();
+  impact=new ArrayList<DatabaseImpact>();
+  impactFinished=false;
+  hori=canvas.getHorizontalBar();
+  vert=canvas.getVerticalBar();
+  hori.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      redraw();
+    }
+  }
+);
+  vert.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      redraw();
+    }
+  }
+);
+  hori.setThumb(100);
+  vert.setThumb(100);
+  hori.setVisible(true);
+  vert.setVisible(true);
+  setVisible(true);
+  newProps();
+  canvas.setBackground(GUIResource.getInstance().getColorBackground());
+  canvas.addPaintListener(new PaintListener(){
+    public void paintControl(    PaintEvent e){
+      if (!spoon.isStopped())       TransGraph.this.paintControl(e);
+    }
+  }
+);
+  selectedSteps=null;
+  lastclick=null;
+  canvas.addMouseListener(this);
+  canvas.addMouseMoveListener(this);
+  canvas.addMouseTrackListener(this);
+  canvas.addMouseWheelListener(this);
+  canvas.addKeyListener(this);
+  Transfer[] ttypes=new Transfer[]{XMLTransfer.getInstance()};
+  DropTarget ddTarget=new DropTarget(canvas,DND.DROP_MOVE);
+  ddTarget.setTransfer(ttypes);
+  ddTarget.addDropListener(new DropTargetListener(){
+    public void dragEnter(    DropTargetEvent event){
+      clearSettings();
+      drop_candidate=PropsUI.calculateGridPosition(getRealPosition(canvas,event.x,event.y));
+      redraw();
+    }
+    public void dragLeave(    DropTargetEvent event){
+      drop_candidate=null;
+      redraw();
+    }
+    public void dragOperationChanged(    DropTargetEvent event){
+    }
+    public void dragOver(    DropTargetEvent event){
+      drop_candidate=PropsUI.calculateGridPosition(getRealPosition(canvas,event.x,event.y));
+      redraw();
+    }
+    public void drop(    DropTargetEvent event){
+      if (event.data == null) {
+        event.detail=DND.DROP_NONE;
+        return;
+      }
+      Point p=getRealPosition(canvas,event.x,event.y);
+      try {
+        DragAndDropContainer container=(DragAndDropContainer)event.data;
+        StepMeta stepMeta=null;
+        boolean newstep=false;
+switch (container.getType()) {
+case DragAndDropContainer.TYPE_STEP:
+{
+            stepMeta=transMeta.findStep(container.getData());
+            if (stepMeta != null) {
+              if (stepMeta.isDrawn() || transMeta.isStepUsedInTransHops(stepMeta)) {
+                MessageBox mb=new MessageBox(shell,SWT.OK);
+                mb.setMessage(BaseMessages.getString(PKG,"TransGraph.Dialog.StepIsAlreadyOnCanvas.Message"));
+                mb.setText(BaseMessages.getString(PKG,"TransGraph.Dialog.StepIsAlreadyOnCanvas.Title"));
+                mb.open();
+                return;
+              }
+            }
+ else {
+              return;
+            }
+          }
+        break;
+case DragAndDropContainer.TYPE_BASE_STEP_TYPE:
+{
+        String steptype=container.getData();
+        stepMeta=spoon.newStep(transMeta,steptype,steptype,false,true);
+        if (stepMeta != null) {
+          newstep=true;
+        }
+ else {
+          return;
+        }
+      }
+    break;
+case DragAndDropContainer.TYPE_DATABASE_CONNECTION:
+{
+    newstep=true;
+    String connectionName=container.getData();
+    TableInputMeta tii=new TableInputMeta();
+    tii.setDatabaseMeta(transMeta.findDatabase(connectionName));
+    PluginRegistry registry=PluginRegistry.getInstance();
+    String stepID=registry.getPluginId(StepPluginType.class,tii);
+    PluginInterface stepPlugin=registry.findPluginWithId(StepPluginType.class,stepID);
+    String stepName=transMeta.getAlternativeStepname(stepPlugin.getName());
+    stepMeta=new StepMeta(stepID,stepName,tii);
+    if (spoon.editStep(transMeta,stepMeta) != null) {
+      transMeta.addStep(stepMeta);
+      spoon.refreshTree();
+      spoon.refreshGraph();
+    }
+ else {
+      return;
+    }
+  }
+break;
+case DragAndDropContainer.TYPE_TRANS_HOP:
+{
+newHop();
+return;
+}
+default :
+{
+MessageBox mb=new MessageBox(shell,SWT.OK);
+mb.setMessage(BaseMessages.getString(PKG,"TransGraph.Dialog.ItemCanNotBePlacedOnCanvas.Message"));
+mb.setText(BaseMessages.getString(PKG,"TransGraph.Dialog.ItemCanNotBePlacedOnCanvas.Title"));
+mb.open();
+return;
+}
+}
+transMeta.unselectAll();
+StepMeta before=null;
+if (!newstep) {
+before=(StepMeta)stepMeta.clone();
+}
+stepMeta.drawStep();
+stepMeta.setSelected(true);
+PropsUI.setLocation(stepMeta,p.x,p.y);
+if (newstep) {
+spoon.addUndoNew(transMeta,new StepMeta[]{stepMeta},new int[]{transMeta.indexOfStep(stepMeta)});
+}
+ else {
+spoon.addUndoChange(transMeta,new StepMeta[]{before},new StepMeta[]{(StepMeta)stepMeta.clone()},new int[]{transMeta.indexOfStep(stepMeta)});
+}
+canvas.forceFocus();
+redraw();
+if (newstep && transMeta.nrSteps() > 1 && transMeta.nrSteps() < 5 && spoon.props.isShowingHelpToolTips()) {
+showHelpTip(p.x,p.y,BaseMessages.getString(PKG,"TransGraph.HelpToolTip.CreatingHops.Title"),BaseMessages.getString(PKG,"TransGraph.HelpToolTip.CreatingHops.Message"));
+}
+}
+ catch (Exception e) {
+new ErrorDialog(shell,BaseMessages.getString(PKG,"TransGraph.Dialog.ErrorDroppingObject.Message"),BaseMessages.getString(PKG,"TransGraph.Dialog.ErrorDroppingObject.Title"),e);
+}
+}
+public void dropAccept(DropTargetEvent event){
+}
+}
+);
+setBackground(GUIResource.getInstance().getColorBackground());
+final Timer timer=new Timer("TransGraph.setControlStates Timer: " + getMeta().getName());
+TimerTask timerTask=new TimerTask(){
+public void run(){
+setControlStates();
+}
+}
+;
+timer.schedule(timerTask,2000,1000);
+addDisposeListener(new DisposeListener(){
+public void widgetDisposed(DisposeEvent arg0){
+timer.cancel();
+}
+}
+);
+}
