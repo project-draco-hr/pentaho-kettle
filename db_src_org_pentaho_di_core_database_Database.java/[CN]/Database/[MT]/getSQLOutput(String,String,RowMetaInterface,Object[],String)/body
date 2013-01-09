@@ -1,0 +1,61 @@
+{
+  StringBuffer ins=new StringBuffer(128);
+  try {
+    String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+    ins.append("INSERT INTO ").append(schemaTable).append('(');
+    for (int i=0; i < fields.size(); i++) {
+      if (i > 0)       ins.append(", ");
+      String name=fields.getValueMeta(i).getName();
+      ins.append(databaseMeta.quoteField(name));
+    }
+    ins.append(") VALUES (");
+    java.text.SimpleDateFormat[] fieldDateFormatters=new java.text.SimpleDateFormat[fields.size()];
+    for (int i=0; i < fields.size(); i++) {
+      ValueMetaInterface valueMeta=fields.getValueMeta(i);
+      Object valueData=r[i];
+      if (i > 0)       ins.append(",");
+      if (valueMeta.isNull(valueData)) {
+        ins.append("null");
+      }
+ else {
+switch (valueMeta.getType()) {
+case ValueMetaInterface.TYPE_BOOLEAN:
+case ValueMetaInterface.TYPE_STRING:
+          String string=valueMeta.getString(valueData);
+        string=databaseMeta.quoteSQLString(string);
+      ins.append(string);
+    break;
+case ValueMetaInterface.TYPE_DATE:
+  Date date=fields.getDate(r,i);
+if (Const.isEmpty(dateFormat)) if (databaseMeta.getDatabaseInterface() instanceof OracleDatabaseMeta) {
+  if (fieldDateFormatters[i] == null) {
+    fieldDateFormatters[i]=new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+  }
+  ins.append("TO_DATE('").append(fieldDateFormatters[i].format(date)).append("', 'YYYY/MM/DD HH24:MI:SS')");
+}
+ else {
+  ins.append("'" + fields.getString(r,i) + "'");
+}
+ else {
+  try {
+    java.text.SimpleDateFormat formatter=new java.text.SimpleDateFormat(dateFormat);
+    ins.append("'" + formatter.format(fields.getDate(r,i)) + "'");
+  }
+ catch (  Exception e) {
+    throw new KettleDatabaseException("Error : ",e);
+  }
+}
+break;
+default :
+ins.append(fields.getString(r,i));
+break;
+}
+}
+}
+ins.append(')');
+}
+ catch (Exception e) {
+throw new KettleDatabaseException(e);
+}
+return ins.toString();
+}
