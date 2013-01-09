@@ -1,0 +1,89 @@
+{
+  try {
+    if (!meta.isFileField()) {
+      if (data.filenr >= data.files.nrOfFiles()) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"AccessInput.Log.FinishedProcessing"));
+        return false;
+      }
+      data.last_file=(data.filenr == data.files.nrOfFiles() - 1);
+      data.file=(FileObject)data.files.getFile(data.filenr);
+      data.filenr++;
+    }
+ else {
+      data.readrow=getRow();
+      if (data.readrow == null) {
+        if (log.isDetailed())         logDetailed(BaseMessages.getString(PKG,"AccessInput.Log.FinishedProcessing"));
+        return false;
+      }
+      if (first) {
+        first=false;
+        data.inputRowMeta=getInputRowMeta();
+        data.outputRowMeta=data.inputRowMeta.clone();
+        meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+        data.totalpreviousfields=data.inputRowMeta.size();
+        data.convertRowMeta=data.outputRowMeta.clone();
+        data.convertRowMeta=data.outputRowMeta.clone();
+        for (int i=0; i < data.convertRowMeta.size(); i++) {
+          data.convertRowMeta.getValueMeta(i).setType(ValueMetaInterface.TYPE_STRING);
+        }
+        if (Const.isEmpty(meta.getDynamicFilenameField())) {
+          logError(BaseMessages.getString(PKG,"AccessInput.Log.NoField"));
+          throw new KettleException(BaseMessages.getString(PKG,"AccessInput.Log.NoField"));
+        }
+        if (data.indexOfFilenameField < 0) {
+          data.indexOfFilenameField=getInputRowMeta().indexOfValue(meta.getDynamicFilenameField());
+          if (data.indexOfFilenameField < 0) {
+            logError(BaseMessages.getString(PKG,"AccessInput.Log.ErrorFindingField") + "[" + meta.getDynamicFilenameField()+ "]");
+            throw new KettleException(BaseMessages.getString(PKG,"AccessInput.Exception.CouldnotFindField",meta.getDynamicFilenameField()));
+          }
+        }
+      }
+      String filename=getInputRowMeta().getString(data.readrow,data.indexOfFilenameField);
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"AccessInput.Log.FilenameInStream",meta.getDynamicFilenameField(),filename));
+      data.file=KettleVFS.getFileObject(filename,getTransMeta());
+    }
+    if (meta.getShortFileNameField() != null && meta.getShortFileNameField().length() > 0) {
+      data.shortFilename=data.file.getName().getBaseName();
+    }
+    if (meta.getPathField() != null && meta.getPathField().length() > 0) {
+      data.path=KettleVFS.getFilename(data.file.getParent());
+    }
+    if (meta.isHiddenField() != null && meta.isHiddenField().length() > 0) {
+      data.hidden=data.file.isHidden();
+    }
+    if (meta.getExtensionField() != null && meta.getExtensionField().length() > 0) {
+      data.extension=data.file.getName().getExtension();
+    }
+    if (meta.getLastModificationDateField() != null && meta.getLastModificationDateField().length() > 0) {
+      data.lastModificationDateTime=new Date(data.file.getContent().getLastModifiedTime());
+    }
+    if (meta.getUriField() != null && meta.getUriField().length() > 0) {
+      data.uriName=data.file.getName().getURI();
+    }
+    if (meta.getRootUriField() != null && meta.getRootUriField().length() > 0) {
+      data.rootUriName=data.file.getName().getRootURI();
+    }
+    if (meta.getSizeField() != null && meta.getSizeField().length() > 0) {
+      data.size=new Long(data.file.getContent().getSize());
+    }
+    if (meta.resetRowNumber())     data.rownr=0;
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"AccessInput.Log.OpeningFile",data.file.toString()));
+    if (meta.isAddResultFile()) {
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_GENERAL,data.file,getTransMeta().getName(),getStepname());
+      resultFile.setComment(BaseMessages.getString(PKG,"AccessInput.Log.FileAddedResult"));
+      addResultFile(resultFile);
+    }
+    data.file.getName().getPathDecoded();
+    data.d=Database.open(new File(AccessInputMeta.getFilename(data.file)),true);
+    if (data.isTableSystem)     data.t=data.d.getSystemTable(data.tableName);
+ else     data.t=data.d.getTable(data.tableName);
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"AccessInput.Log.FileOpened",data.file.toString()));
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"AccessInput.Log.UnableToOpenFile","" + data.filenr,data.file.toString(),e.toString()));
+    stopAll();
+    setErrors(1);
+    return false;
+  }
+  return true;
+}

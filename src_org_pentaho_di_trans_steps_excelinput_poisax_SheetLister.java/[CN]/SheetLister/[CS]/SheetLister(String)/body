@@ -1,0 +1,51 @@
+{
+  InputStream inputStream=null;
+  InputStream din=null;
+  sheets=new ArrayList<SheetInfo>();
+  try {
+    Package pkg=Package.open(filename);
+    XSSFReader reader=new XSSFReader(pkg);
+    SharedStringsTable sst=reader.getSharedStringsTable();
+    XMLReader parser=fetchSheetParser(sst);
+    Iterator<InputStream> sheets=reader.getSheetsData();
+    while (sheets.hasNext()) {
+      System.out.println("Processing new sheet:\n");
+      InputStream sheet=sheets.next();
+      InputSource sheetSource=new InputSource(sheet);
+      parser.parse(sheetSource);
+      sheet.close();
+      System.out.println("");
+    }
+    inputStream=KettleVFS.getInputStream(filename);
+    XSSFWorkbook xssfWorkbook=new XSSFWorkbook(inputStream);
+    POIFSFileSystem poifs=new POIFSFileSystem(inputStream);
+    din=poifs.createDocumentInputStream("Workbook");
+    HSSFRequest req=new HSSFRequest();
+    req.addListenerForAllRecords(this);
+    HSSFEventFactory factory=new HSSFEventFactory();
+    factory.processEvents(req,din);
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+ finally {
+    try {
+      if (inputStream != null) {
+        inputStream.close();
+      }
+    }
+ catch (    Exception e) {
+      throw new KettleException(e);
+    }
+ finally {
+      try {
+        if (din != null) {
+          din.close();
+        }
+      }
+ catch (      Exception e) {
+        throw new KettleException(e);
+      }
+    }
+  }
+}

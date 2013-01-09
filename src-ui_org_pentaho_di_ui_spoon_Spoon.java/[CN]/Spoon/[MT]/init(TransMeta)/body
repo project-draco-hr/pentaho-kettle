@@ -1,0 +1,203 @@
+{
+  FormLayout layout=new FormLayout();
+  layout.marginWidth=0;
+  layout.marginHeight=0;
+  shell.setLayout(layout);
+  addFileListener(new TransFileListener());
+  addFileListener(new JobFileListener());
+  if (ti != null)   delegates.trans.addTransformation(ti);
+  loadSettings();
+  transExecutionConfiguration=new TransExecutionConfiguration();
+  transExecutionConfiguration.setGatheringMetrics(true);
+  transPreviewExecutionConfiguration=new TransExecutionConfiguration();
+  transPreviewExecutionConfiguration.setGatheringMetrics(true);
+  transDebugExecutionConfiguration=new TransExecutionConfiguration();
+  transDebugExecutionConfiguration.setGatheringMetrics(true);
+  jobExecutionConfiguration=new JobExecutionConfiguration();
+  variables=new RowMetaAndData(new RowMeta(),new Object[]{});
+  Image[] images={GUIResource.getInstance().getImageSpoonHigh(),GUIResource.getInstance().getImageSpoon()};
+  shell.setImages(images);
+  cursor_hourglass=new Cursor(display,SWT.CURSOR_WAIT);
+  cursor_hand=new Cursor(display,SWT.CURSOR_HAND);
+  Composite sashComposite=null;
+  MainSpoonPerspective mainPerspective=null;
+  try {
+    xulLoader=new SwtXulLoader();
+    xulLoader.setOuterContext(shell);
+    xulLoader.setSettingsManager(XulSpoonSettingsManager.getInstance());
+    ApplicationWindowLocal.setApplicationWindow(this);
+    mainSpoonContainer=xulLoader.loadXul(XUL_FILE_MAIN,new XulSpoonResourceBundle());
+    bf=new DefaultBindingFactory();
+    bf.setDocument(mainSpoonContainer.getDocumentRoot());
+    mainSpoonContainer.addEventHandler(this);
+    mainSpoonContainer.getDocumentRoot().getElementById("spoon-menubar");
+    mainToolbar=(XulToolbar)mainSpoonContainer.getDocumentRoot().getElementById("main-toolbar");
+    mainSpoonContainer.getDocumentRoot().getElementById("trans-job-canvas");
+    deck=(SwtDeck)mainSpoonContainer.getDocumentRoot().getElementById("canvas-deck");
+    final Composite tempSashComposite=new Composite(shell,SWT.None);
+    sashComposite=tempSashComposite;
+    mainPerspective=new MainSpoonPerspective(tempSashComposite,tabfolder);
+    SpoonPerspectiveManager.getInstance().addPerspective(mainPerspective);
+    SpoonPluginManager.getInstance().applyPluginsForContainer("spoon",mainSpoonContainer);
+    SpoonPerspectiveManager.getInstance().setDeck(deck);
+    SpoonPerspectiveManager.getInstance().setXulDoc(mainSpoonContainer);
+    boolean firstBtn=true;
+    int y=0;
+    int perspectiveIdx=0;
+    Class<? extends SpoonPerspective> perClass=null;
+    for (    SpoonPerspective per : SpoonPerspectiveManager.getInstance().getPerspectives()) {
+      String name=per.getDisplayName(LanguageChoice.getInstance().getDefaultLocale());
+      InputStream in=per.getPerspectiveIcon();
+      if (this.startupPerspective != null && per.getId().equals(this.startupPerspective)) {
+        perspectiveIdx=y;
+        perClass=per.getClass();
+      }
+      final SwtToolbarbutton btn=(SwtToolbarbutton)mainSpoonContainer.getDocumentRoot().createElement("toolbarbutton");
+      btn.setType("toggle");
+      btn.setLabel(name);
+      btn.setTooltiptext(name);
+      btn.setOnclick("spoon.loadPerspective(" + y + ")");
+      mainToolbar.addChild(btn);
+      if ((firstBtn && this.startupPerspective == null) || (perspectiveIdx == y)) {
+        btn.setSelected(true);
+        firstBtn=false;
+      }
+      if (in != null) {
+        btn.setImageFromStream(in);
+        try {
+          in.close();
+        }
+ catch (        IOException e1) {
+        }
+      }
+      XulVbox box=deck.createVBoxCard();
+      box.setId("perspective-" + per.getId());
+      box.setFlex(1);
+      deck.addChild(box);
+      per.getUI().setParent((Composite)box.getManagedObject());
+      per.getUI().layout();
+      per.addPerspectiveListener(new SpoonPerspectiveListener(){
+        public void onActivation(){
+          btn.setSelected(true);
+        }
+        public void onDeactication(){
+          btn.setSelected(false);
+        }
+      }
+);
+      y++;
+    }
+    deck.setSelectedIndex(perspectiveIdx);
+    if (perClass != null) {
+      SpoonPerspectiveManager.getInstance().activatePerspective(perClass);
+      SpoonPerspectiveManager.getInstance().setForcePerspective(true);
+    }
+  }
+ catch (  IllegalArgumentException e1) {
+    e1.printStackTrace();
+  }
+catch (  XulException e1) {
+    e1.printStackTrace();
+  }
+catch (  KettleException e1) {
+    e1.printStackTrace();
+  }
+  WindowProperty winprop=props.getScreen(APPL_TITLE);
+  if (winprop != null)   winprop.setShell(shell);
+ else {
+    shell.pack();
+    shell.setMaximized(true);
+  }
+  layout=new FormLayout();
+  layout.marginWidth=0;
+  layout.marginHeight=0;
+  GridData data=new GridData();
+  data.grabExcessHorizontalSpace=true;
+  data.grabExcessVerticalSpace=true;
+  data.verticalAlignment=SWT.FILL;
+  data.horizontalAlignment=SWT.FILL;
+  sashComposite.setLayoutData(data);
+  sashComposite.setLayout(layout);
+  sashform=new SashForm(sashComposite,SWT.HORIZONTAL);
+  FormData fdSash=new FormData();
+  fdSash.left=new FormAttachment(0,0);
+  fdSash.top=new FormAttachment(0,0);
+  fdSash.bottom=new FormAttachment(100,0);
+  fdSash.right=new FormAttachment(100,0);
+  sashform.setLayoutData(fdSash);
+  createPopupMenus();
+  addTree();
+  addTabs();
+  mainPerspective.setTabset(this.tabfolder);
+  ((Composite)deck.getManagedObject()).layout(true,true);
+  SpoonPluginManager.getInstance().notifyLifecycleListeners(SpoonLifeCycleEvent.STARTUP);
+  if (props.showWelcomePageOnStartup()) {
+    showWelcomePage();
+  }
+  int operations=DND.DROP_COPY | DND.DROP_DEFAULT;
+  DropTarget target=new DropTarget(shell,operations);
+  final FileTransfer fileTransfer=FileTransfer.getInstance();
+  Transfer[] types=new Transfer[]{fileTransfer};
+  target.setTransfer(types);
+  target.addDropListener(new DropTargetListener(){
+    public void dragEnter(    DropTargetEvent event){
+      if (event.detail == DND.DROP_DEFAULT) {
+        if ((event.operations & DND.DROP_COPY) != 0) {
+          event.detail=DND.DROP_COPY;
+        }
+ else {
+          event.detail=DND.DROP_NONE;
+        }
+      }
+    }
+    public void dragOver(    DropTargetEvent event){
+      event.feedback=DND.FEEDBACK_SELECT | DND.FEEDBACK_SCROLL;
+    }
+    public void dragOperationChanged(    DropTargetEvent event){
+      if (event.detail == DND.DROP_DEFAULT) {
+        if ((event.operations & DND.DROP_COPY) != 0) {
+          event.detail=DND.DROP_COPY;
+        }
+ else {
+          event.detail=DND.DROP_NONE;
+        }
+      }
+    }
+    public void dragLeave(    DropTargetEvent event){
+    }
+    public void dropAccept(    DropTargetEvent event){
+    }
+    public void drop(    DropTargetEvent event){
+      if (fileTransfer.isSupportedType(event.currentDataType)) {
+        String[] files=(String[])event.data;
+        for (int i=0; i < files.length; i++) {
+          openFile(files[i],false);
+        }
+      }
+    }
+  }
+);
+  PluginRegistry.getInstance().addPluginListener(StepPluginType.class,new PluginTypeListener(){
+    @Override public void pluginAdded(    Object serviceObject){
+      previousShowTrans=false;
+      Display.getDefault().asyncExec(new Runnable(){
+        @Override public void run(){
+          refreshCoreObjects();
+        }
+      }
+);
+    }
+    @Override public void pluginRemoved(    Object serviceObject){
+      previousShowTrans=false;
+      Display.getDefault().asyncExec(new Runnable(){
+        @Override public void run(){
+          refreshCoreObjects();
+        }
+      }
+);
+    }
+    @Override public void pluginChanged(    Object serviceObject){
+    }
+  }
+);
+}

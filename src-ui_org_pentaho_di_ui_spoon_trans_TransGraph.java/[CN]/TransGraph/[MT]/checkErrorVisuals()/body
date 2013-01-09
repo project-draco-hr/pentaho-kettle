@@ -1,0 +1,36 @@
+{
+  if (trans.getErrors() > 0) {
+    stepLogMap=new HashMap<StepMeta,String>();
+    shell.getDisplay().syncExec(new Runnable(){
+      public void run(){
+        for (        StepMetaDataCombi combi : trans.getSteps()) {
+          if (combi.step.getErrors() > 0) {
+            String channelId=combi.step.getLogChannel().getLogChannelId();
+            List<LoggingEvent> eventList=CentralLogStore.getLogBufferFromTo(channelId,false,0,CentralLogStore.getLastBufferLineNr());
+            StringBuilder logText=new StringBuilder();
+            for (            LoggingEvent event : eventList) {
+              Object message=event.getMessage();
+              if (message instanceof LogMessage) {
+                LogMessage logMessage=(LogMessage)message;
+                if (logMessage.isError()) {
+                  logText.append(logMessage.getMessage()).append(Const.CR);
+                }
+              }
+            }
+            stepLogMap.put(combi.stepMeta,logText.toString());
+          }
+        }
+      }
+    }
+);
+  }
+ else {
+    stepLogMap=null;
+  }
+  shell.getDisplay().asyncExec(new Runnable(){
+    public void run(){
+      redraw();
+    }
+  }
+);
+}

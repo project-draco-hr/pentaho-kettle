@@ -1,0 +1,117 @@
+{
+  final Spoon spoon=((Spoon)SpoonFactory.getInstance());
+  try {
+    final TransMeta transMeta=spoon.getActiveTransformation();
+    if (transMeta == null || spoon.getActiveTransGraph() == null) {
+      return;
+    }
+    StepMeta stepMeta=spoon.getActiveTransGraph().getCurrentStep();
+    if (stepMeta == null) {
+      return;
+    }
+    TransExecutionConfiguration executionConfiguration=spoon.getTransPreviewExecutionConfiguration();
+    TransExecutionConfigurationDialog tecd=new TransExecutionConfigurationDialog(spoon.getShell(),executionConfiguration,transMeta);
+    if (!tecd.open())     return;
+    String[] args=null;
+    Map<String,String> arguments=executionConfiguration.getArguments();
+    if (arguments != null) {
+      args=convertArguments(arguments);
+    }
+    transMeta.injectVariables(executionConfiguration.getVariables());
+    Map<String,String> paramMap=executionConfiguration.getParams();
+    Set<String> keys=paramMap.keySet();
+    for (    String key : keys) {
+      transMeta.setParameterValue(key,Const.NVL(paramMap.get(key),""));
+    }
+    transMeta.activateParameters();
+    if (executionConfiguration.isClearingLog()) {
+      spoon.getActiveTransGraph().transLogDelegate.clearLog();
+    }
+    Trans trans=new Trans(transMeta,Spoon.loggingObject);
+    trans.prepareExecution(executionConfiguration.getArgumentStrings());
+    trans.setSafeModeEnabled(executionConfiguration.isSafeModeEnabled());
+    trans.setPreview(true);
+    trans.prepareExecution(args);
+    trans.setRepository(spoon.rep);
+    final DataCleanerKettleFileWriter writer=new DataCleanerKettleFileWriter(trans,stepMeta);
+    try {
+      writer.run();
+    }
+  finally {
+      writer.close();
+    }
+    AnalyzerBeansConfiguration abc=new AnalyzerBeansConfigurationImpl();
+    AnalysisJobBuilder analysisJobBuilder=new AnalysisJobBuilder(abc);
+    Datastore datastore=new KettleDatastore(transMeta.getName(),stepMeta.getName(),transMeta.getStepFields(stepMeta));
+    analysisJobBuilder.setDatastore(datastore);
+    DatastoreConnection connection=null;
+    try {
+      connection=datastore.openConnection();
+      DataContext dataContext=connection.getDataContext();
+      Column[] customerColumns=dataContext.getTableByQualifiedLabel(stepMeta.getName()).getColumns();
+      analysisJobBuilder.addSourceColumns(customerColumns);
+      List<InputColumn<?>> numberColumns=analysisJobBuilder.getAvailableInputColumns(Number.class);
+      if (!numberColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(NumberAnalyzer.class).addInputColumns(numberColumns);
+      }
+      List<InputColumn<?>> dateColumns=analysisJobBuilder.getAvailableInputColumns(Date.class);
+      if (!dateColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(DateAndTimeAnalyzer.class).addInputColumns(dateColumns);
+      }
+      List<InputColumn<?>> booleanColumns=analysisJobBuilder.getAvailableInputColumns(Boolean.class);
+      if (!booleanColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(BooleanAnalyzer.class).addInputColumns(booleanColumns);
+      }
+      List<InputColumn<?>> stringColumns=analysisJobBuilder.getAvailableInputColumns(String.class);
+      if (!stringColumns.isEmpty()) {
+        analysisJobBuilder.addAnalyzer(StringAnalyzer.class).addInputColumns(stringColumns);
+      }
+      final FileObject jobFile=KettleVFS.createTempFile("datacleaner-job",".xml",System.getProperty("java.io.tmpdir"),new Variables());
+      OutputStream jobOutputStream=null;
+      try {
+        jobOutputStream=KettleVFS.getOutputStream(jobFile,false);
+        new JaxbJobWriter(abc).write(analysisJobBuilder.toAnalysisJob(),jobOutputStream);
+        jobOutputStream.close();
+      }
+  finally {
+        if (jobOutputStream != null) {
+          jobOutputStream.close();
+        }
+      }
+      String confXml=generateConfXml(transMeta.getName(),stepMeta.getName(),writer.getFilename());
+      final FileObject confFile=KettleVFS.createTempFile("datacleaner-conf",".xml",System.getProperty("java.io.tmpdir"),new Variables());
+      OutputStream confOutputStream=null;
+      try {
+        confOutputStream=KettleVFS.getOutputStream(confFile,false);
+        confOutputStream.write(confXml.getBytes(Const.XML_ENCODING));
+        confOutputStream.close();
+      }
+  finally {
+        if (confOutputStream != null) {
+          confOutputStream.close();
+        }
+      }
+      Spoon.getInstance().getDisplay().syncExec(new Runnable(){
+        public void run(){
+          new Thread(){
+            public void run(){
+              launchDataCleaner(KettleVFS.getFilename(confFile),KettleVFS.getFilename(jobFile),transMeta.getName(),writer.getFilename());
+            }
+          }
+.start();
+        }
+      }
+);
+    }
+  finally {
+      if (connection != null) {
+        connection.close();
+      }
+    }
+  }
+ catch (  final Exception e) {
+    new ErrorDialog(spoon.getShell(),"Error","unexpected error occurred",e);
+  }
+ finally {
+  }
+}

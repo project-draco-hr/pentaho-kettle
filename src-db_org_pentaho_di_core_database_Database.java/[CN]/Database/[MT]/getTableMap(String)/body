@@ -1,0 +1,44 @@
+{
+  String schemaname=schemanamein;
+  if (schemaname == null) {
+    if (databaseMeta.useSchemaNameForTableList())     schemaname=environmentSubstitute(databaseMeta.getUsername()).toUpperCase();
+  }
+  Map<String,Collection<String>> tableMap=new HashMap<String,Collection<String>>();
+  ResultSet alltables=null;
+  try {
+    alltables=getDatabaseMetaData().getTables(null,schemaname,null,databaseMeta.getTableTypes());
+    while (alltables.next()) {
+      String cat="";
+      try {
+        cat=alltables.getString("TABLE_CAT");
+      }
+ catch (      Exception e) {
+        if (log.isDebug())         log.logDebug("Error getting tables for field TABLE_CAT (ignored): " + e.toString());
+      }
+      String schema="";
+      try {
+        schema=alltables.getString("TABLE_SCHEM");
+      }
+ catch (      Exception e) {
+        if (log.isDebug())         log.logDebug("Error getting tables for field TABLE_SCHEM (ignored): " + e.toString());
+      }
+      if (Const.isEmpty(schema))       schema=cat;
+      String table=alltables.getString("TABLE_NAME");
+      if (log.isRowLevel())       log.logRowlevel(toString(),"got table from meta-data: " + databaseMeta.getQuotedSchemaTableCombination(schema,table));
+      multimapPut(schema,table,tableMap);
+    }
+  }
+ catch (  SQLException e) {
+    log.logError("Error getting tablenames from schema [" + schemaname + "]");
+  }
+ finally {
+    try {
+      if (alltables != null)       alltables.close();
+    }
+ catch (    SQLException e) {
+      throw new KettleDatabaseException("Error closing resultset after getting views from schema [" + schemaname + "]",e);
+    }
+  }
+  if (log.isDetailed())   log.logDetailed("read :" + multimapSize(tableMap) + " table names from db meta-data.");
+  return tableMap;
+}

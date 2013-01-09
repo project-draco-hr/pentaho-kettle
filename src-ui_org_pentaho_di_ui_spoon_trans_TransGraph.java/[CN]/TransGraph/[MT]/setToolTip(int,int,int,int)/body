@@ -1,0 +1,153 @@
+{
+  AreaOwner subject=null;
+  if (!spoon.getProperties().showToolTips())   return subject;
+  canvas.setToolTipText(null);
+  String newTip=null;
+  Image tipImage=null;
+  final TransHopMeta hi=findHop(x,y);
+  StringBuffer tip=new StringBuffer();
+  AreaOwner areaOwner=getVisibleAreaOwner(x,y);
+  if (areaOwner != null) {
+switch (areaOwner.getAreaType()) {
+case REMOTE_INPUT_STEP:
+      StepMeta step=(StepMeta)areaOwner.getParent();
+    tip.append("Remote input steps:").append(Const.CR).append("-----------------------").append(Const.CR);
+  for (  RemoteStep remoteStep : step.getRemoteInputSteps()) {
+    tip.append(remoteStep.toString()).append(Const.CR);
+  }
+break;
+case REMOTE_OUTPUT_STEP:
+step=(StepMeta)areaOwner.getParent();
+tip.append("Remote output steps:").append(Const.CR).append("-----------------------").append(Const.CR);
+for (RemoteStep remoteStep : step.getRemoteOutputSteps()) {
+tip.append(remoteStep.toString()).append(Const.CR);
+}
+break;
+case STEP_PARTITIONING:
+step=(StepMeta)areaOwner.getParent();
+tip.append("Step partitioning:").append(Const.CR).append("-----------------------").append(Const.CR);
+tip.append(step.getStepPartitioningMeta().toString()).append(Const.CR);
+if (step.getTargetStepPartitioningMeta() != null) {
+tip.append(Const.CR).append(Const.CR).append("TARGET: " + step.getTargetStepPartitioningMeta().toString()).append(Const.CR);
+}
+break;
+case STEP_ERROR_ICON:
+String log=(String)areaOwner.getParent();
+tip.append(log);
+tipImage=GUIResource.getInstance().getImageStepError();
+break;
+case HOP_COPY_ICON:
+step=(StepMeta)areaOwner.getParent();
+tip.append(BaseMessages.getString(PKG,"TransGraph.Hop.Tooltip.HopTypeCopy",step.getName(),Const.CR));
+tipImage=GUIResource.getInstance().getImageCopyHop();
+break;
+case HOP_LOAD_BALANCE:
+step=(StepMeta)areaOwner.getParent();
+tip.append(BaseMessages.getString(PKG,"TransGraph.Hop.Tooltip.HopTypeBalance",step.getName(),Const.CR));
+tipImage=GUIResource.getInstance().getImageBalance();
+break;
+case HOP_INFO_ICON:
+StepMeta from=(StepMeta)areaOwner.getParent();
+StepMeta to=(StepMeta)areaOwner.getOwner();
+tip.append(BaseMessages.getString(PKG,"TransGraph.Hop.Tooltip.HopTypeInfo",to.getName(),from.getName(),Const.CR));
+tipImage=GUIResource.getInstance().getImageInfoHop();
+break;
+case HOP_ERROR_ICON:
+from=(StepMeta)areaOwner.getParent();
+to=(StepMeta)areaOwner.getOwner();
+areaOwner.getOwner();
+tip.append(BaseMessages.getString(PKG,"TransGraph.Hop.Tooltip.HopTypeError",from.getName(),to.getName(),Const.CR));
+tipImage=GUIResource.getInstance().getImageErrorHop();
+break;
+case HOP_INFO_STEP_COPIES_ERROR:
+from=(StepMeta)areaOwner.getParent();
+to=(StepMeta)areaOwner.getOwner();
+tip.append(BaseMessages.getString(PKG,"TransGraph.Hop.Tooltip.InfoStepCopies",from.getName(),to.getName(),Const.CR));
+tipImage=GUIResource.getInstance().getImageStepError();
+break;
+case STEP_INPUT_HOP_ICON:
+tip.append(BaseMessages.getString(PKG,"TransGraph.StepInputConnector.Tooltip"));
+tipImage=GUIResource.getInstance().getImageHopInput();
+break;
+case STEP_OUTPUT_HOP_ICON:
+tip.append(BaseMessages.getString(PKG,"TransGraph.StepOutputConnector.Tooltip"));
+tipImage=GUIResource.getInstance().getImageHopOutput();
+break;
+case STEP_INFO_HOP_ICON:
+StepIOMetaInterface ioMeta=(StepIOMetaInterface)areaOwner.getOwner();
+tip.append(BaseMessages.getString(PKG,"TransGraph.StepInfoConnector.Tooltip") + Const.CR + ioMeta.toString());
+tipImage=GUIResource.getInstance().getImageHopOutput();
+break;
+case STEP_TARGET_HOP_ICON:
+StreamInterface stream=(StreamInterface)areaOwner.getOwner();
+tip.append(stream.getDescription());
+tipImage=GUIResource.getInstance().getImageHopOutput();
+break;
+case STEP_ERROR_HOP_ICON:
+StepMeta stepMeta=(StepMeta)areaOwner.getParent();
+if (stepMeta.supportsErrorHandling()) {
+tip.append(BaseMessages.getString(PKG,"TransGraph.StepSupportsErrorHandling.Tooltip"));
+}
+ else {
+tip.append(BaseMessages.getString(PKG,"TransGraph.StepDoesNotSupportsErrorHandling.Tooltip"));
+}
+tipImage=GUIResource.getInstance().getImageHopOutput();
+break;
+case STEP_EDIT_ICON:
+stepMeta=(StepMeta)(areaOwner.getParent());
+tip.append(BaseMessages.getString(PKG,"TransGraph.EditStep.Tooltip"));
+tipImage=GUIResource.getInstance().getImageEdit();
+break;
+case STEP_INJECT_ICON:
+stepMeta=(StepMeta)(areaOwner.getParent());
+Object injection=areaOwner.getOwner();
+if (injection != null) {
+tip.append(BaseMessages.getString(PKG,"TransGraph.StepInjectionSupported.Tooltip"));
+}
+ else {
+tip.append(BaseMessages.getString(PKG,"TransGraph.StepInjectionNotSupported.Tooltip"));
+}
+tipImage=GUIResource.getInstance().getImageEdit();
+break;
+case STEP_DATA_SERVICE:
+transMeta=(TransMeta)areaOwner.getParent();
+tip.append(BaseMessages.getString(PKG,"TransGraph.DataServiceDefined",transMeta.getDataService().getName()));
+tipImage=GUIResource.getInstance().getImageConnection();
+break;
+}
+}
+if (hi != null) {
+tip.append(Const.CR).append(BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo")).append(newTip=hi.toString()).append(Const.CR);
+}
+if (tip.length() == 0) {
+newTip=null;
+}
+ else {
+newTip=tip.toString();
+}
+if (newTip == null) {
+toolTip.hide();
+if (hi != null) {
+newTip=BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo") + Const.CR + BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo.SourceStep")+ " "+ hi.getFromStep().getName()+ Const.CR+ BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo.TargetStep")+ " "+ hi.getToStep().getName()+ Const.CR+ BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo.Status")+ " "+ (hi.isEnabled() ? BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo.Enable") : BaseMessages.getString(PKG,"TransGraph.Dialog.HopInfo.Disable"));
+toolTip.setText(newTip);
+if (hi.isEnabled()) toolTip.setImage(GUIResource.getInstance().getImageHop());
+ else toolTip.setImage(GUIResource.getInstance().getImageDisabledHop());
+toolTip.show(new org.eclipse.swt.graphics.Point(screenX,screenY));
+}
+ else {
+newTip=null;
+}
+}
+ else if (!newTip.equalsIgnoreCase(getToolTipText())) {
+if (tipImage != null) {
+toolTip.setImage(tipImage);
+}
+ else {
+toolTip.setImage(GUIResource.getInstance().getImageSpoon());
+}
+toolTip.setText(newTip);
+toolTip.hide();
+toolTip.show(new org.eclipse.swt.graphics.Point(x,y));
+}
+return subject;
+}
