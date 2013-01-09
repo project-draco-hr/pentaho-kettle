@@ -1,36 +1,44 @@
 {
-  for (int i=0; i < fieldname.length; i++) {
-    if (!Const.isEmpty(fieldname[i])) {
-      ValueMetaInterface v;
-      if (replace[i]) {
-        v=row.searchValueMeta(fieldname[i]);
-        if (v == null) {
-          if (Const.isEmpty(rename[i])) {
-            throw new KettleStepException(BaseMessages.getString(PKG,"ScriptValuesMetaMod.Exception.FieldToReplaceNotFound",fieldname[i]));
-          }
+  try {
+    for (int i=0; i < fieldname.length; i++) {
+      if (!Const.isEmpty(fieldname[i])) {
+        int valueIndex=-1;
+        ValueMetaInterface v;
+        if (replace[i]) {
+          valueIndex=row.indexOfValue(fieldname[i]);
+          if (valueIndex < 0) {
+            if (Const.isEmpty(rename[i])) {
+              throw new KettleStepException(BaseMessages.getString(PKG,"ScriptValuesMetaMod.Exception.FieldToReplaceNotFound",fieldname[i]));
+            }
  else {
-            v=row.searchValueMeta(rename[i]);
-            if (v == null) {
-              throw new KettleStepException(BaseMessages.getString(PKG,"ScriptValuesMetaMod.Exception.FieldToReplaceNotFound",rename[i]));
+              valueIndex=row.indexOfValue(rename[i]);
+              if (valueIndex < 0) {
+                throw new KettleStepException(BaseMessages.getString(PKG,"ScriptValuesMetaMod.Exception.FieldToReplaceNotFound",rename[i]));
+              }
             }
           }
-        }
-        v.setType(type[i]);
-      }
- else {
-        if (rename[i] != null && rename[i].length() != 0) {
-          v=new ValueMeta(rename[i],type[i]);
+          ValueMetaInterface source=row.getValueMeta(valueIndex);
+          v=ValueMetaFactory.cloneValueMeta(source,type[i]);
+          row.setValueMeta(valueIndex,v);
         }
  else {
-          v=new ValueMeta(this.fieldname[i],type[i]);
+          if (!Const.isEmpty(rename[i])) {
+            v=ValueMetaFactory.createValueMeta(rename[i],type[i]);
+          }
+ else {
+            v=ValueMetaFactory.createValueMeta(fieldname[i],type[i]);
+          }
         }
-      }
-      v.setLength(length[i]);
-      v.setPrecision(precision[i]);
-      v.setOrigin(originStepname);
-      if (!replace[i]) {
-        row.addValueMeta(v);
+        v.setLength(length[i]);
+        v.setPrecision(precision[i]);
+        v.setOrigin(originStepname);
+        if (!replace[i]) {
+          row.addValueMeta(v);
+        }
       }
     }
+  }
+ catch (  KettleException e) {
+    throw new KettleStepException(e);
   }
 }
