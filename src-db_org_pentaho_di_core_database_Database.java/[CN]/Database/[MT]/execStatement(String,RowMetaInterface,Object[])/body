@@ -1,0 +1,42 @@
+{
+  Result result=new Result();
+  String sql=SqlCommentScrubber.removeComments(rawsql).trim();
+  try {
+    boolean resultSet;
+    int count;
+    if (params != null) {
+      PreparedStatement prep_stmt=connection.prepareStatement(databaseMeta.stripCR(sql));
+      setValues(params,data,prep_stmt);
+      resultSet=prep_stmt.execute();
+      count=prep_stmt.getUpdateCount();
+      prep_stmt.close();
+    }
+ else {
+      String sqlStripped=databaseMeta.stripCR(sql);
+      Statement stmt=connection.createStatement();
+      resultSet=stmt.execute(sqlStripped);
+      count=stmt.getUpdateCount();
+      stmt.close();
+    }
+    String upperSql=sql.toUpperCase();
+    if (resultSet) {
+    }
+ else {
+      if (count > 0) {
+        if (upperSql.startsWith("INSERT"))         result.setNrLinesOutput(count);
+ else         if (upperSql.startsWith("UPDATE"))         result.setNrLinesUpdated(count);
+ else         if (upperSql.startsWith("DELETE"))         result.setNrLinesDeleted(count);
+      }
+    }
+    if (upperSql.startsWith("ALTER TABLE") || upperSql.startsWith("DROP TABLE") || upperSql.startsWith("CREATE TABLE")) {
+      DBCache.getInstance().clear(databaseMeta.getName());
+    }
+  }
+ catch (  SQLException ex) {
+    throw new KettleDatabaseException("Couldn't execute SQL: " + sql + Const.CR,ex);
+  }
+catch (  Exception e) {
+    throw new KettleDatabaseException("Unexpected error executing SQL: " + Const.CR,e);
+  }
+  return result;
+}

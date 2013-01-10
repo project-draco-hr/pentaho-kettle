@@ -1,0 +1,46 @@
+{
+  boolean loaded=false;
+  FileListener listener=null;
+  Node root=null;
+  int idx=fname.lastIndexOf('.');
+  if (idx != -1) {
+    for (    FileListener li : fileListeners) {
+      if (li.accepts(fname)) {
+        listener=li;
+        break;
+      }
+    }
+  }
+  try {
+    Document document=XMLHandler.loadXMLFile(fname);
+    root=document.getDocumentElement();
+  }
+ catch (  KettleXMLException e) {
+    if (log.isDetailed()) {
+      log.logDetailed(BaseMessages.getString(PKG,"Spoon.File.Xml.Parse.Error"));
+    }
+  }
+  if (listener == null && root != null) {
+    for (    FileListener li : fileListeners) {
+      if (li.acceptsXml(root.getNodeName())) {
+        listener=li;
+        break;
+      }
+    }
+  }
+  if (!Const.isEmpty(fname)) {
+    if (listener != null) {
+      loaded=listener.open(root,fname,importfile);
+    }
+    if (!loaded) {
+      hideSplash();
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage(BaseMessages.getString(PKG,"Spoon.UnknownFileType.Message",fname));
+      mb.setText(BaseMessages.getString(PKG,"Spoon.UnknownFileType.Title"));
+      mb.open();
+    }
+ else {
+      applyVariables();
+    }
+  }
+}

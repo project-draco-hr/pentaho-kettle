@@ -1,0 +1,53 @@
+{
+  Object oRC=new Object();
+  if (ArgList.length == 2) {
+    try {
+      Object scmO=actualObject.get("_step_");
+      Script scm=(Script)scmO;
+      String strDBName=(String)ArgList[0];
+      String strSQL=(String)ArgList[1];
+      DatabaseMeta ci=DatabaseMeta.findDatabase(scm.getTransMeta().getDatabases(),strDBName);
+      if (ci == null)       throw new RuntimeException("Database connection not found: " + strDBName);
+      ci.shareVariablesWith(scm);
+      Database db=new Database(scm,ci);
+      db.setQueryLimit(0);
+      try {
+        if (scm.getTransMeta().isUsingUniqueConnections()) {
+synchronized (scm.getTrans()) {
+            db.connect(scm.getTrans().getThreadName(),scm.getPartitionID());
+          }
+        }
+ else {
+          db.connect(scm.getPartitionID());
+        }
+        ResultSet rs=db.openQuery(strSQL);
+        ResultSetMetaData resultSetMetaData=rs.getMetaData();
+        int columnCount=resultSetMetaData.getColumnCount();
+        if (rs != null) {
+          List<Object[]> list=new ArrayList<Object[]>();
+          while (rs.next()) {
+            Object[] objRow=new Object[columnCount];
+            for (int i=0; i < columnCount; i++) {
+              objRow[i]=rs.getObject(i + 1);
+            }
+            list.add(objRow);
+          }
+          Object[][] resultArr=new Object[list.size()][];
+          list.toArray(resultArr);
+          db.disconnect();
+          return resultArr;
+        }
+      }
+ catch (      Exception er) {
+        throw new RuntimeException(er.toString());
+      }
+    }
+ catch (    Exception e) {
+      throw new RuntimeException(e.toString());
+    }
+  }
+ else {
+    throw new RuntimeException("The function call fireToDB requires 2 arguments.");
+  }
+  return oRC;
+}

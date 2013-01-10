@@ -1,0 +1,121 @@
+{
+  if (shell.isDisposed())   return;
+  if (!designSelected)   return;
+  if (coreObjectsTree == null || coreObjectsTree.isDisposed()) {
+    addCoreObjectsTree();
+  }
+  showTrans=getActiveTransformation() != null;
+  showJob=getActiveJob() != null;
+  if (showTrans == previousShowTrans && showJob == previousShowJob) {
+    return;
+  }
+  TreeItem[] expandItems=coreObjectsTree.getItems();
+  for (int i=0; i < expandItems.length; i++) {
+    TreeItem item=expandItems[i];
+    item.dispose();
+  }
+  if (showTrans) {
+    selectionLabel.setText(BaseMessages.getString(PKG,"Spoon.Steps"));
+    PluginRegistry registry=PluginRegistry.getInstance();
+    final List<PluginInterface> basesteps=registry.getPlugins(StepPluginType.class);
+    final List<String> basecat=registry.getCategories(StepPluginType.class);
+    for (int i=0; i < basecat.size(); i++) {
+      TreeItem item=new TreeItem(coreObjectsTree,SWT.NONE);
+      item.setText(basecat.get(i));
+      item.setImage(GUIResource.getInstance().getImageArrow());
+      for (int j=0; j < basesteps.size(); j++) {
+        if (basesteps.get(j).getCategory().equalsIgnoreCase(basecat.get(i))) {
+          final Image stepimg=(Image)GUIResource.getInstance().getImagesStepsSmall().get(basesteps.get(j).getIds()[0]);
+          String pluginName=basesteps.get(j).getName();
+          String pluginDescription=basesteps.get(j).getDescription();
+          if (!filterMatch(pluginName) && !filterMatch(pluginDescription))           continue;
+          TreeItem stepItem=new TreeItem(item,SWT.NONE);
+          stepItem.setImage(stepimg);
+          stepItem.setText(pluginName);
+          stepItem.addListener(SWT.Selection,new Listener(){
+            public void handleEvent(            Event arg0){
+            }
+          }
+);
+          coreStepToolTipMap.put(pluginName,pluginDescription);
+        }
+      }
+    }
+    TreeItem item=new TreeItem(coreObjectsTree,SWT.NONE);
+    item.setText(BaseMessages.getString(PKG,"Spoon.History"));
+    item.setImage(GUIResource.getInstance().getImageArrow());
+    List<ObjectUsageCount> pluginHistory=props.getPluginHistory();
+    for (int i=0; i < pluginHistory.size() && i < 10; i++) {
+      ObjectUsageCount usage=pluginHistory.get(i);
+      PluginInterface stepPlugin=PluginRegistry.getInstance().findPluginWithId(StepPluginType.class,usage.getObjectName());
+      if (stepPlugin != null) {
+        final Image stepimg=GUIResource.getInstance().getImagesSteps().get(stepPlugin.getIds()[0]);
+        String pluginName=Const.NVL(stepPlugin.getName(),"");
+        String pluginDescription=Const.NVL(stepPlugin.getDescription(),"");
+        if (!filterMatch(pluginName) && !filterMatch(pluginDescription))         continue;
+        TreeItem stepItem=new TreeItem(item,SWT.NONE);
+        stepItem.setImage(stepimg);
+        stepItem.setText(pluginName);
+        stepItem.addListener(SWT.Selection,new Listener(){
+          public void handleEvent(          Event arg0){
+          }
+        }
+);
+        coreStepToolTipMap.put(stepPlugin.getDescription(),pluginDescription + " (" + usage.getNrUses()+ ")");
+      }
+    }
+  }
+  if (showJob) {
+    selectionLabel.setText(BaseMessages.getString(PKG,"Spoon.Entries"));
+    PluginRegistry registry=PluginRegistry.getInstance();
+    List<PluginInterface> baseJobEntries=registry.getPlugins(JobEntryPluginType.class);
+    List<String> baseCategories=registry.getCategories(JobEntryPluginType.class);
+    TreeItem generalItem=null;
+    for (int i=0; i < baseCategories.size(); i++) {
+      TreeItem item=new TreeItem(coreObjectsTree,SWT.NONE);
+      item.setText(baseCategories.get(i));
+      item.setImage(GUIResource.getInstance().getImageArrow());
+      if (baseCategories.get(i).equalsIgnoreCase(JobEntryPluginType.GENERAL_CATEGORY)) {
+        generalItem=item;
+      }
+      for (int j=0; j < baseJobEntries.size(); j++) {
+        if (!baseJobEntries.get(j).getIds()[0].equals("SPECIAL")) {
+          if (baseJobEntries.get(j).getCategory().equalsIgnoreCase(baseCategories.get(i))) {
+            final Image jobEntryImage=(Image)GUIResource.getInstance().getImagesJobentriesSmall().get(baseJobEntries.get(j).getIds()[0]);
+            String pluginName=Const.NVL(baseJobEntries.get(j).getName(),"");
+            String pluginDescription=Const.NVL(baseJobEntries.get(j).getDescription(),"");
+            if (!filterMatch(pluginName) && !filterMatch(pluginDescription))             continue;
+            TreeItem stepItem=new TreeItem(item,SWT.NONE);
+            stepItem.setImage(jobEntryImage);
+            stepItem.setText(pluginName);
+            stepItem.addListener(SWT.Selection,new Listener(){
+              public void handleEvent(              Event arg0){
+              }
+            }
+);
+            coreJobToolTipMap.put(pluginName,pluginDescription);
+          }
+        }
+      }
+    }
+    JobEntryCopy startEntry=JobMeta.createStartEntry();
+    JobEntryCopy dummyEntry=JobMeta.createDummyEntry();
+    String specialText[]=new String[]{startEntry.getName(),dummyEntry.getName()};
+    String specialTooltip[]=new String[]{startEntry.getDescription(),dummyEntry.getDescription()};
+    Image specialImage[]=new Image[]{GUIResource.getInstance().getImageStartSmall(),GUIResource.getInstance().getImageDummySmall()};
+    for (int i=0; i < specialText.length; i++) {
+      TreeItem specialItem=new TreeItem(generalItem,SWT.NONE,i);
+      specialItem.setImage(specialImage[i]);
+      specialItem.setText(specialText[i]);
+      specialItem.addListener(SWT.Selection,new Listener(){
+        public void handleEvent(        Event arg0){
+        }
+      }
+);
+      coreJobToolTipMap.put(specialText[i],specialTooltip[i]);
+    }
+  }
+  variableComposite.layout(true,true);
+  previousShowTrans=showTrans;
+  previousShowJob=showJob;
+}

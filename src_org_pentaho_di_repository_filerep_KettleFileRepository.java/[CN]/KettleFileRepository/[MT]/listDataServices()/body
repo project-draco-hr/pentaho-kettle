@@ -1,0 +1,30 @@
+{
+  try {
+    RepositoryDirectoryInterface tree=loadRepositoryDirectoryTree();
+    List<DataServiceMeta> list=new ArrayList<DataServiceMeta>();
+    FileObject rootFolder=KettleVFS.getFileObject(repositoryMeta.getBaseDirectory());
+    FileObject[] dataServiceFiles=rootFolder.findFiles(new FileSelector(){
+      @Override public boolean traverseDescendents(      FileSelectInfo arg0) throws Exception {
+        return true;
+      }
+      @Override public boolean includeFile(      FileSelectInfo fsi) throws Exception {
+        return EXT_DATA_SERVICE.substring(1).equalsIgnoreCase(fsi.getFile().getName().getExtension());
+      }
+    }
+);
+    for (    FileObject dataServiceFile : dataServiceFiles) {
+      Document dataServiceDocument=XMLHandler.loadXMLFile(dataServiceFile);
+      Node dataServiceNode=XMLHandler.getSubNode(dataServiceDocument,DataServiceMeta.XML_TAG);
+      DataServiceMeta dataService=new DataServiceMeta(dataServiceNode);
+      String dirPath=dataServiceFile.getParent().toString().substring(rootFolder.toString().length());
+      String name=dataServiceFile.getName().getBaseName();
+      name=name.substring(0,name.length() - 4);
+      dataService.setObjectId(new StringObjectId(dirPath + "/" + name+ EXT_TRANSFORMATION));
+      list.add(dataService);
+    }
+    return list;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Error listing data services",e);
+  }
+}
