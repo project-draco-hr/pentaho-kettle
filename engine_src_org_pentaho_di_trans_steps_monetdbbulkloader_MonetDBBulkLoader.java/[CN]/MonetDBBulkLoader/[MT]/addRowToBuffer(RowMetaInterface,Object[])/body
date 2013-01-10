@@ -54,12 +54,24 @@ if (valueMeta.isStorageBinaryString() && meta.getFieldFormatOk()[i]) {
 line.write((byte[])valueData);
 }
  else {
+ValueMetaInterface colMeta=null;
+if (physicalTableRowMeta != null) {
+colMeta=physicalTableRowMeta.getValueMeta(index);
+}
 Date value=valueMeta.getDate(valueData);
 if (value == null) {
 line.write("null".getBytes());
 }
  else {
-line.write(data.monetDateMeta.getString(value).getBytes());
+if (colMeta != null && colMeta.getOriginalColumnTypeName().equalsIgnoreCase("date")) {
+  line.write(data.monetDateMeta.getString(value).getBytes());
+}
+ else if (colMeta != null && colMeta.getOriginalColumnTypeName().equalsIgnoreCase("time")) {
+  line.write(data.monetTimeMeta.getString(value).getBytes());
+}
+ else {
+  line.write(data.monetTimestampMeta.getString(value).getBytes());
+}
 }
 }
 break;
@@ -118,6 +130,6 @@ data.rowBuffer[data.bufferIndex]=line.toString();
 data.bufferIndex++;
 }
  catch (Exception e) {
-throw new KettleException("Error serializing rows of data to the psql command",e);
+throw new KettleException("Error serializing rows of data to the MonetDB API (MAPI).",e);
 }
 }
