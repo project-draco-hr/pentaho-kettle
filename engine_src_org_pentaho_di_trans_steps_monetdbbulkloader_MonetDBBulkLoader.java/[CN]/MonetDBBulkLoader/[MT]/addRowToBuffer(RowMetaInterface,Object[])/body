@@ -8,45 +8,50 @@
       int index=data.keynrs[i];
       ValueMetaInterface valueMeta=rowMeta.getValueMeta(index);
       Object valueData=r[index];
+      String nullRep=new String(data.nullrepresentation);
       if (valueData != null) {
 switch (valueMeta.getType()) {
 case ValueMetaInterface.TYPE_STRING:
-          line.write(data.quote);
-        String str=valueMeta.getString(valueData);
-      if (str == null) {
-        line.write("null".getBytes());
+          String str=valueMeta.getString(valueData);
+        if (str == null || str.equals(nullRep)) {
+          line.write(str.getBytes());
+          break;
+        }
+      line.write(data.quote);
+    if (str == null) {
+      line.write(data.nullrepresentation);
+    }
+ else {
+      str=str.replace("\\","\\\\");
+      str=str.replace("\"","\\\"");
+      if (meta.isAutoStringWidths()) {
+        int len=valueMeta.getLength();
+        if (len < 1) {
+          len=MonetDBDatabaseMeta.DEFAULT_VARCHAR_LENGTH;
+        }
+        if (str.length() > len) {
+          str=str.substring(0,len);
+        }
+        line.write(str.getBytes(meta.getEncoding()));
       }
  else {
-        str=str.replace("\\","\\\\");
-        str=str.replace("\"","\\\"");
-        if (meta.isAutoStringWidths()) {
-          int len=valueMeta.getLength();
-          if (len < 1) {
-            len=MonetDBDatabaseMeta.DEFAULT_VARCHAR_LENGTH;
-          }
-          if (str.length() > len) {
-            str=str.substring(0,len);
-          }
-          line.write(str.getBytes(meta.getEncoding()));
-        }
- else {
-          line.write(str.getBytes(meta.getEncoding()));
-        }
+        line.write(str.getBytes(meta.getEncoding()));
       }
-    line.write(data.quote);
-  break;
+    }
+  line.write(data.quote);
+break;
 case ValueMetaInterface.TYPE_INTEGER:
 if (valueMeta.isStorageBinaryString() && meta.getFieldFormatOk()[i]) {
-  line.write((byte[])valueData);
+line.write((byte[])valueData);
 }
  else {
-  Long value=valueMeta.getInteger(valueData);
-  if (value == null) {
-    line.write("null".getBytes());
-  }
+Long value=valueMeta.getInteger(valueData);
+if (value == null) {
+  line.write(data.nullrepresentation);
+}
  else {
-    line.write(Long.toString(value).getBytes());
-  }
+  line.write(Long.toString(value).getBytes());
+}
 }
 break;
 case ValueMetaInterface.TYPE_DATE:
@@ -60,17 +65,17 @@ colMeta=physicalTableRowMeta.getValueMeta(index);
 }
 Date value=valueMeta.getDate(valueData);
 if (value == null) {
-line.write("null".getBytes());
+line.write(data.nullrepresentation);
 }
  else {
 if (colMeta != null && colMeta.getOriginalColumnTypeName().equalsIgnoreCase("date")) {
-  line.write(data.monetDateMeta.getString(value).getBytes());
+line.write(data.monetDateMeta.getString(value).getBytes());
 }
  else if (colMeta != null && colMeta.getOriginalColumnTypeName().equalsIgnoreCase("time")) {
-  line.write(data.monetTimeMeta.getString(value).getBytes());
+line.write(data.monetTimeMeta.getString(value).getBytes());
 }
  else {
-  line.write(data.monetTimestampMeta.getString(value).getBytes());
+line.write(data.monetTimestampMeta.getString(value).getBytes());
 }
 }
 }
@@ -79,7 +84,7 @@ case ValueMetaInterface.TYPE_BOOLEAN:
 {
 Boolean value=valueMeta.getBoolean(valueData);
 if (value == null) {
-line.write("null".getBytes());
+line.write(data.nullrepresentation);
 }
  else {
 if (value.booleanValue()) {
@@ -98,7 +103,7 @@ line.write((byte[])valueData);
  else {
 Double value=valueMeta.getNumber(valueData);
 if (value == null) {
-line.write("null".getBytes());
+line.write(data.nullrepresentation);
 }
  else {
 line.write(Double.toString(value).getBytes());
@@ -112,7 +117,7 @@ line.write((byte[])valueData);
  else {
 String value=valueMeta.getString(valueData);
 if (value == null) {
-line.write("null".getBytes());
+line.write(data.nullrepresentation);
 }
  else {
 line.write(value.getBytes());
@@ -122,7 +127,7 @@ break;
 }
 }
  else {
-line.write("null".getBytes());
+line.write(data.nullrepresentation);
 }
 }
 line.write(data.newline);
