@@ -1,24 +1,27 @@
 {
-  String[] dirs=new String[sourceDirectories.size()];
-  String[] masks=new String[sourceDirectories.size()];
-  String[] req=new String[sourceDirectories.size()];
-  boolean[] subdirs=new boolean[sourceDirectories.size()];
-  for (int i=0; i < masks.length; i++) {
-    dirs[i]=sourceDirectories.get(i);
-    masks[i]=".*\\.java$";
-    req[i]="N";
-    subdirs[i]=true;
-  }
-  FileInputList fileInputList=FileInputList.createFileList(new Variables(),dirs,masks,req,subdirs);
-  for (  FileObject fileObject : new ArrayList<FileObject>(fileInputList.getFiles())) {
-    for (    String filename : filesToAvoid) {
-      if (fileObject.getName().getBaseName().equals(filename)) {
-        fileInputList.getFiles().remove(fileObject);
+  for (  final String sourceDirectory : sourceDirectories) {
+    FileObject folder=KettleVFS.getFileObject(sourceDirectory);
+    FileObject[] javaFiles=folder.findFiles(new FileSelector(){
+      @Override public boolean traverseDescendents(      FileSelectInfo info) throws Exception {
+        return true;
+      }
+      @Override public boolean includeFile(      FileSelectInfo info) throws Exception {
+        return info.getFile().getName().getExtension().equals("java");
       }
     }
-  }
-  for (  FileObject fileObject : fileInputList.getFiles()) {
-    lookForOccurrencesInFile(fileObject);
+);
+    for (    FileObject javaFile : javaFiles) {
+      boolean skip=false;
+      for (      String filename : filesToAvoid) {
+        if (javaFile.getName().getBaseName().equals(filename)) {
+          skip=true;
+        }
+      }
+      if (skip) {
+        continue;
+      }
+      lookForOccurrencesInFile(sourceDirectory,javaFile);
+    }
   }
   for (  SourceCrawlerXMLFolder xmlFolder : xmlFolders) {
     String[] xmlDirs={xmlFolder.getFolder()};
@@ -30,7 +33,7 @@
       try {
         Document doc=XMLHandler.loadXMLFile(fileObject);
         for (        SourceCrawlerXMLElement xmlElement : xmlFolder.getElements()) {
-          addLabelOccurrences(fileObject,doc.getElementsByTagName(xmlElement.getSearchElement()),xmlFolder.getKeyPrefix(),xmlElement.getKeyTag(),xmlElement.getKeyAttribute(),xmlFolder.getDefaultPackage(),xmlFolder.getPackageExceptions());
+          addLabelOccurrences(xmlFolder.getDefaultSourceFolder(),fileObject,doc.getElementsByTagName(xmlElement.getSearchElement()),xmlFolder.getKeyPrefix(),xmlElement.getKeyTag(),xmlElement.getKeyAttribute(),xmlFolder.getDefaultPackage(),xmlFolder.getPackageExceptions());
         }
       }
  catch (      KettleXMLException e) {
