@@ -1,0 +1,49 @@
+{
+  if (data.cacheValueRowMeta == null) {
+    data.cacheValueRowMeta=assembleCacheValueRowMeta();
+  }
+  byte[] keyPart=RowMeta.extractData(data.cacheKeyRowMeta,keyValues);
+  byte[] valuePart=RowMeta.extractData(data.cacheValueRowMeta,returnValues);
+  data.cache.put(keyPart,valuePart);
+  int tenPercent=meta.getCacheSize() / 10;
+  if (meta.getCacheSize() > 0 && data.cache.size() > meta.getCacheSize() + tenPercent) {
+    List<byte[]> keys=data.cache.getKeys();
+    int sizeBefore=keys.size();
+    List<Long> samples=new ArrayList<Long>();
+    int stepsize=keys.size() / 5;
+    if (stepsize < 1)     stepsize=1;
+    for (int i=0; i < keys.size(); i+=stepsize) {
+      byte[] key=(byte[])keys.get(i);
+      byte[] value=data.cache.get(key);
+      if (value != null) {
+        Object[] values=RowMeta.getRow(data.cacheValueRowMeta,value);
+        Long tk=data.cacheValueRowMeta.getInteger(values,0);
+        samples.add(tk);
+      }
+    }
+    Collections.sort(samples);
+    if (samples.size() > 1) {
+      data.smallestCacheKey=samples.get(1);
+    }
+ else     if (!samples.isEmpty()) {
+      data.smallestCacheKey=samples.get(0);
+    }
+ else {
+      return;
+    }
+    for (int i=0; i < keys.size(); i++) {
+      byte[] key=(byte[])keys.get(i);
+      byte[] value=data.cache.get(key);
+      if (value != null) {
+        Object[] values=RowMeta.getRow(data.cacheValueRowMeta,value);
+        long tk=data.cacheValueRowMeta.getInteger(values,0).longValue();
+        if (tk <= data.smallestCacheKey) {
+          data.cache.remove(key);
+        }
+      }
+    }
+    int sizeAfter=data.cache.size();
+    logDetailed("Reduced the lookup cache from " + sizeBefore + " to "+ sizeAfter+ " rows.");
+  }
+  if (log.isRowLevel())   logRowlevel("Cache store: key=" + keyValues + "    values="+ returnValues);
+}

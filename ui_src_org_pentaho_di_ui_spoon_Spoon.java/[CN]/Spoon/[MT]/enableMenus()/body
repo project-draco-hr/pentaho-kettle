@@ -1,0 +1,93 @@
+{
+  boolean disableTransMenu=getActiveTransformation() == null;
+  boolean disableJobMenu=getActiveJob() == null;
+  boolean disableMetaMenu=getActiveMeta() == null;
+  boolean isRepositoryRunning=rep != null;
+  boolean disablePreviewButton=true;
+  String activePerspectiveId=null;
+  SpoonPerspectiveManager manager=SpoonPerspectiveManager.getInstance();
+  if (manager != null && manager.getActivePerspective() != null) {
+    activePerspectiveId=manager.getActivePerspective().getId();
+  }
+  boolean etlPerspective=false;
+  if (activePerspectiveId != null && activePerspectiveId.length() > 0) {
+    etlPerspective=activePerspectiveId.equals(MainSpoonPerspective.ID);
+  }
+  TransGraph transGraph=getActiveTransGraph();
+  if (transGraph != null) {
+    disablePreviewButton=!(transGraph.isRunning() && !transGraph.isHalting());
+  }
+  boolean disableSave=true;
+  TabItemInterface currentTab=getActiveTabitem();
+  if (currentTab != null && currentTab.canHandleSave()) {
+    disableSave=!currentTab.hasContentChanged();
+  }
+  EngineMetaInterface meta=getActiveMeta();
+  if (meta != null) {
+    disableSave=!meta.canSave();
+  }
+  org.pentaho.ui.xul.dom.Document doc=null;
+  if (mainSpoonContainer != null) {
+    doc=mainSpoonContainer.getDocumentRoot();
+    if (doc != null) {
+      if (etlPerspective) {
+        ((XulMenu)doc.getElementById("file")).setVisible(etlPerspective);
+        ((XulMenu)doc.getElementById("edit")).setVisible(etlPerspective);
+        ((XulMenu)doc.getElementById("view")).setVisible(etlPerspective);
+        ((XulMenu)doc.getElementById("action")).setVisible(etlPerspective);
+        ((XulMenu)doc.getElementById("tools")).setVisible(etlPerspective);
+        ((XulMenu)doc.getElementById("help")).setVisible(etlPerspective);
+        ((XulMenuitem)doc.getElementById("help-tip")).setVisible(etlPerspective);
+        ((XulMenuitem)doc.getElementById("help-welcome")).setVisible(etlPerspective);
+        ((XulMenuitem)doc.getElementById("help-step-plugins")).setVisible(etlPerspective);
+        ((XulMenuitem)doc.getElementById("help-jobentry-plugins")).setVisible(etlPerspective);
+      }
+      disableMenuItem(doc,"file-new-database",disableTransMenu && disableJobMenu || !isRepositoryRunning);
+      disableMenuItem(doc,"file-save",disableTransMenu && disableJobMenu && disableMetaMenu || disableSave);
+      disableMenuItem(doc,"toolbar-file-save",disableTransMenu && disableJobMenu && disableMetaMenu || disableSave);
+      disableMenuItem(doc,"file-save-as",disableTransMenu && disableJobMenu && disableMetaMenu || disableSave);
+      disableMenuItem(doc,"toolbar-file-save-as",disableTransMenu && disableJobMenu && disableMetaMenu || disableSave);
+      disableMenuItem(doc,"file-save-as-vfs",disableTransMenu && disableJobMenu && disableMetaMenu);
+      disableMenuItem(doc,"file-close",disableTransMenu && disableJobMenu && disableMetaMenu);
+      disableMenuItem(doc,"file-print",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"file-export-to-xml",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"file-export-all-to-xml",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,UNDO_MENUITEM,disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,REDO_MENUITEM,disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"edit-clear-selection",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"edit-select-all",disableTransMenu && disableJobMenu);
+      updateSettingsMenu(doc,disableTransMenu,disableJobMenu);
+      disableMenuItem(doc,"edit-settings",disableTransMenu && disableJobMenu && disableMetaMenu);
+      ((XulMenuitem)doc.getElementById("view-results")).setSelected(isExecutionResultsPaneVisible());
+      disableMenuItem(doc,"view-results",transGraph == null && disableJobMenu);
+      disableMenuItem(doc,"view-zoom-in",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"view-zoom-out",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"view-zoom-100pct",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"process-run",disableTransMenu && disablePreviewButton && disableJobMenu);
+      disableMenuItem(doc,"trans-replay",disableTransMenu && disablePreviewButton);
+      disableMenuItem(doc,"trans-preview",disableTransMenu && disablePreviewButton);
+      disableMenuItem(doc,"trans-debug",disableTransMenu && disablePreviewButton);
+      disableMenuItem(doc,"trans-verify",disableTransMenu);
+      disableMenuItem(doc,"trans-impact",disableTransMenu);
+      disableMenuItem(doc,"trans-get-sql",disableTransMenu);
+      disableMenuItem(doc,"trans-last-impact",disableTransMenu);
+      disableMenuItem(doc,"repository-connect",isRepositoryRunning);
+      disableMenuItem(doc,"repository-disconnect",!isRepositoryRunning);
+      disableMenuItem(doc,"repository-explore",!isRepositoryRunning);
+      disableMenuItem(doc,"repository-clear-shared-object-cache",!isRepositoryRunning);
+      disableMenuItem(doc,"toolbar-expore-repository",!isRepositoryRunning);
+      disableMenuItem(doc,"repository-export-all",!isRepositoryRunning);
+      disableMenuItem(doc,"repository-import-directory",!isRepositoryRunning);
+      disableMenuItem(doc,"trans-last-preview",!isRepositoryRunning || disableTransMenu);
+      disableMenuItem(doc,"wizard-connection",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"wizard-copy-table",disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"wizard-copy-tables",isRepositoryRunning && disableTransMenu && disableJobMenu);
+      disableMenuItem(doc,"database-inst-dependancy",!isRepositoryRunning);
+      SpoonPluginManager.getInstance().notifyLifecycleListeners(SpoonLifeCycleEvent.MENUS_REFRESHED);
+      MenuManager menuManager=getMenuBarManager();
+      menuManager.updateAll(true);
+      refreshCoreObjects();
+      fireMenuControlers();
+    }
+  }
+}

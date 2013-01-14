@@ -1,0 +1,42 @@
+{
+  if (first && !meta.isFileField()) {
+    data.files=meta.getFiles(this);
+    if (data.files == null || data.files.nrOfFiles() == 0)     throw new KettleException(BaseMessages.getString(PKG,"PropertyInput.Log.NoFiles"));
+    handleMissingFiles();
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertRowMeta=data.outputRowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+  }
+  Object[] r=null;
+  boolean sendToErrorRow=false;
+  String errorMessage=null;
+  try {
+    Object[] outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (meta.getRowLimit() > 0 && data.rownr > meta.getRowLimit()) {
+      setOutputDone();
+      return false;
+    }
+  }
+ catch (  KettleException e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"PropertyInput.ErrorInStepRunning",e.getMessage()));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),r,1,errorMessage,null,"PropertyInput001");
+    }
+  }
+  return true;
+}

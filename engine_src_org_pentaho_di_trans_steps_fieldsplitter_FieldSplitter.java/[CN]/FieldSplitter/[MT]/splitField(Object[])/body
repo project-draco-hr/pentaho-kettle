@@ -1,0 +1,89 @@
+{
+  if (first) {
+    first=false;
+    data.previousMeta=getInputRowMeta().clone();
+    data.fieldnr=data.previousMeta.indexOfValue(meta.getSplitField());
+    if (data.fieldnr < 0) {
+      throw new KettleValueException(BaseMessages.getString(PKG,"FieldSplitter.Log.CouldNotFindFieldToSplit",meta.getSplitField()));
+    }
+    if (!data.previousMeta.getValueMeta(data.fieldnr).isString()) {
+      throw new KettleValueException((BaseMessages.getString(PKG,"FieldSplitter.Log.SplitFieldNotValid",meta.getSplitField())));
+    }
+    data.outputMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputMeta,getStepname(),null,null,this);
+    data.conversionMeta=data.outputMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+    data.delimiter=environmentSubstitute(meta.getDelimiter());
+  }
+  String v=data.previousMeta.getString(r,data.fieldnr);
+  Object[] outputRow=RowDataUtil.allocateRowData(data.outputMeta.size());
+  int nrExtraFields=meta.getFieldID().length - 1;
+  for (int i=0; i < data.fieldnr; i++)   outputRow[i]=r[i];
+  for (int i=data.fieldnr + 1; i < data.previousMeta.size(); i++)   outputRow[i + nrExtraFields]=r[i];
+  boolean use_ids=meta.getFieldID().length > 0 && meta.getFieldID()[0] != null && meta.getFieldID()[0].length() > 0;
+  Object value=null;
+  if (use_ids) {
+    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.UsingIds"));
+    int polSize=0;
+    if (v != null) {
+      polSize++;
+      for (int i=0; i < v.length(); i++) {
+        i=v.indexOf(data.delimiter,i);
+        if (i == -1)         break;
+ else         polSize++;
+      }
+    }
+    final String pol[]=new String[polSize];
+    int prev=0;
+    int i=0;
+    while (v != null && prev < v.length() && i < pol.length) {
+      pol[i]=polNext(v,data.delimiter,prev);
+      if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitFieldsInfo",pol[i],String.valueOf(prev)));
+      prev+=pol[i].length() + data.delimiter.length();
+      i++;
+    }
+    for (i=0; i < meta.getFieldName().length; i++) {
+      String split=null;
+      for (int p=0; p < pol.length && split == null; p++) {
+        if (pol[p] != null) {
+          if (Const.trimToType(pol[p],meta.getFieldTrimType()[i]).indexOf(meta.getFieldID()[i]) == 0)           split=pol[p];
+        }
+      }
+      if (split != null && meta.getFieldRemoveID()[i]) {
+        final StringBuilder sb=new StringBuilder(split);
+        final int idx=sb.indexOf(meta.getFieldID()[i]);
+        sb.delete(idx,idx + meta.getFieldID()[i].length());
+        split=sb.toString();
+      }
+      if (split == null)       split="";
+      if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitInfo") + split);
+      try {
+        ValueMetaInterface valueMeta=data.outputMeta.getValueMeta(data.fieldnr + i);
+        ValueMetaInterface conversionValueMeta=data.conversionMeta.getValueMeta(data.fieldnr + i);
+        value=valueMeta.convertDataFromString(split,conversionValueMeta,meta.getFieldNullIf()[i],meta.getFieldIfNull()[i],meta.getFieldTrimType()[i]);
+      }
+ catch (      Exception e) {
+        throw new KettleValueException(BaseMessages.getString(PKG,"FieldSplitter.Log.ErrorConvertingSplitValue",split,meta.getSplitField() + "]!"),e);
+      }
+      outputRow[data.fieldnr + i]=value;
+    }
+  }
+ else {
+    if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.UsingPositionOfValue"));
+    int prev=0;
+    for (int i=0; i < meta.getFieldName().length; i++) {
+      String pol=polNext(v,data.delimiter,prev);
+      if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitFieldsInfo",pol,String.valueOf(prev)));
+      prev+=(pol == null ? 0 : pol.length()) + data.delimiter.length();
+      try {
+        ValueMetaInterface valueMeta=data.outputMeta.getValueMeta(data.fieldnr + i);
+        ValueMetaInterface conversionValueMeta=data.conversionMeta.getValueMeta(data.fieldnr + i);
+        value=valueMeta.convertDataFromString(pol,conversionValueMeta,meta.getFieldNullIf()[i],meta.getFieldIfNull()[i],meta.getFieldTrimType()[i]);
+      }
+ catch (      Exception e) {
+        throw new KettleValueException(BaseMessages.getString(PKG,"FieldSplitter.Log.ErrorConvertingSplitValue",pol,meta.getSplitField() + "]!"),e);
+      }
+      outputRow[data.fieldnr + i]=value;
+    }
+  }
+  return outputRow;
+}

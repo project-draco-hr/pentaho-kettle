@@ -1,0 +1,67 @@
+{
+  log.logBasic(BaseMessages.getString(PKG,"i18n.Log.ScanningSourceDirectories"));
+  try {
+    crawler=new MessagesSourceCrawler(log,rootDirectories,singleMessagesFile,xmlFolders);
+    crawler.setScanPhrases(scanPhrases);
+    crawler.setFilesToAvoid(filesToAvoid);
+    crawler.crawl();
+    store=new TranslationsStore(log,localeList,referenceLocale,crawler.getSourcePackageOccurrences());
+    store.read(rootDirectories);
+    Map<String,int[]> folderKeyCounts=new HashMap<String,int[]>();
+    Map<String,Integer> nrKeysPerFolder=new HashMap<String,Integer>();
+    for (    String sourceFolder : rootDirectories) {
+      folderKeyCounts.put(sourceFolder,new int[localeList.size()]);
+    }
+    for (    String sourceFolder : rootDirectories) {
+      int[] keyCounts=folderKeyCounts.get(sourceFolder);
+      int nrKeys=0;
+      for (int i=0; i < localeList.size(); i++) {
+        String locale=localeList.get(i);
+        for (        KeyOccurrence keyOccurrence : crawler.getKeyOccurrences(sourceFolder)) {
+          if (showKey(keyOccurrence.getKey(),keyOccurrence.getMessagesPackage())) {
+            String value=store.lookupKeyValue(locale,keyOccurrence.getMessagesPackage(),keyOccurrence.getKey());
+            if (!Const.isEmpty(value)) {
+              keyCounts[i]++;
+            }
+            if (locale.equals(referenceLocale)) {
+              nrKeys++;
+            }
+          }
+        }
+      }
+      nrKeysPerFolder.put(sourceFolder,new Integer(nrKeys));
+    }
+    DecimalFormat pctFormat=new DecimalFormat("#00.00");
+    DecimalFormat nrFormat=new DecimalFormat("00");
+    for (    String sourceFolder : rootDirectories) {
+      System.out.println("-------------------------------------");
+      System.out.println("Folder: " + sourceFolder);
+      System.out.println("-------------------------------------");
+      int nrKeys=nrKeysPerFolder.get(sourceFolder);
+      System.out.println(BaseMessages.getString(PKG,"i18n.Log.NumberOfKeysFound","" + nrKeys));
+      int[] keyCounts=folderKeyCounts.get(sourceFolder);
+      String[] locales=localeList.toArray(new String[localeList.size()]);
+      for (int i=0; i < locales.length; i++) {
+        for (int j=0; j < locales.length - 1; j++) {
+          if (keyCounts[j] < keyCounts[j + 1]) {
+            int c=keyCounts[j];
+            keyCounts[j]=keyCounts[j + 1];
+            keyCounts[j + 1]=c;
+            String l=locales[j];
+            locales[j]=locales[j + 1];
+            locales[j + 1]=l;
+          }
+        }
+      }
+      for (int i=0; i < locales.length; i++) {
+        double donePct=100 * (double)keyCounts[i] / (double)nrKeys;
+        int missingKeys=nrKeys - keyCounts[i];
+        String statusKeys="# " + nrFormat.format(i + 1) + " : "+ locales[i]+ " : "+ pctFormat.format(donePct)+ "% "+ BaseMessages.getString(PKG,"i18n.Log.CompleteKeys",keyCounts[i])+ (missingKeys != 0 ? BaseMessages.getString(PKG,"i18n.Log.MissingKeys",missingKeys) : "");
+        System.out.println(statusKeys);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleFileException(BaseMessages.getString(PKG,"i18n.Log.UnableToGetFiles",rootDirectories.toString()),e);
+  }
+}

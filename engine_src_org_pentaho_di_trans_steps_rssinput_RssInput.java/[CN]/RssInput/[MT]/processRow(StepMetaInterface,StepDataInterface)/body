@@ -1,0 +1,57 @@
+{
+  Object[] outputRowData=null;
+  try {
+    outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      RowMeta errorMeta=new RowMeta();
+      Object[] errorData=new Object[0];
+      if (this.data.readrow != null) {
+        errorMeta.addRowMeta(getInputRowMeta());
+        errorData=this.data.readrow;
+      }
+      String errorCode="UnknownError";
+      if (e instanceof FeedXMLParseException) {
+        if (e.getCause() instanceof DocumentException) {
+          if (((DocumentException)e.getCause()).getNestedException() instanceof SAXParseException) {
+            errorCode="XMLError";
+          }
+ else           if (((DocumentException)e.getCause()).getNestedException() instanceof FileNotFoundException) {
+            errorCode="FileNotFound";
+          }
+ else           if (((DocumentException)e.getCause()).getNestedException() instanceof IOException) {
+            if (((DocumentException)e.getCause()).getNestedException() instanceof UnknownHostException) {
+              errorCode="UnknownHost";
+            }
+ else {
+              errorCode="TransferError";
+            }
+          }
+        }
+      }
+ else       if (e instanceof MalformedURLException) {
+        errorCode="BadURL";
+      }
+ else       if (e instanceof UnsupportedFeedException) {
+        errorCode="BadRSSFormat";
+      }
+      putError(errorMeta,errorData,1,e.toString(),this.data.currenturl,errorCode);
+      logError(BaseMessages.getString(PKG,"RssInput.ErrorProcessing.Run",e.toString()));
+      ByteArrayOutputStream byteOS=new ByteArrayOutputStream();
+      e.printStackTrace(new PrintStream(byteOS));
+      logDebug(byteOS.toString());
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"RssInput.Exception.Run",e.toString()));
+      logError(Const.getStackTracker(e));
+      setErrors(1);
+      throw new KettleException(e);
+    }
+  }
+  return true;
+}

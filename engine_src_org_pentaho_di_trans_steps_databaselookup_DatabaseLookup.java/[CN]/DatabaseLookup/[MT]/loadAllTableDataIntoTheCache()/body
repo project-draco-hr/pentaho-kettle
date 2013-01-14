@@ -1,0 +1,39 @@
+{
+  DatabaseMeta dbMeta=meta.getDatabaseMeta();
+  try {
+    String sql="SELECT ";
+    for (int i=0; i < meta.getStreamKeyField1().length; i++) {
+      if (i > 0)       sql+=", ";
+      sql+=dbMeta.quoteField(meta.getTableKeyField()[i]);
+    }
+    for (int i=0; i < meta.getReturnValueField().length; i++) {
+      sql+=", " + dbMeta.quoteField(meta.getReturnValueField()[i]);
+    }
+    sql+=" FROM " + dbMeta.getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTablename()));
+    if (meta.getOrderByClause() != null && meta.getOrderByClause().length() != 0) {
+      sql+=" ORDER BY " + meta.getOrderByClause();
+    }
+    List<Object[]> rows=data.db.getRows(sql,0);
+    if (rows != null && rows.size() > 0) {
+      RowMetaInterface returnRowMeta=data.db.getReturnRowMeta();
+      for (      Object[] row : rows) {
+        int index=0;
+        RowMeta keyMeta=new RowMeta();
+        Object[] keyData=new Object[meta.getStreamKeyField1().length];
+        for (int i=0; i < meta.getStreamKeyField1().length; i++) {
+          keyData[i]=row[index];
+          keyMeta.addValueMeta(returnRowMeta.getValueMeta(index++));
+        }
+        Object[] valueData=new Object[data.returnMeta.size()];
+        for (int i=0; i < data.returnMeta.size(); i++) {
+          valueData[i]=row[index++];
+        }
+        storeRowInCache(keyMeta,keyData,valueData);
+        incrementLinesInput();
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+}

@@ -1,0 +1,67 @@
+{
+  final Axis[] axes=result.getAxes();
+  rows=new ArrayList<List<Object>>();
+  headings=new ArrayList<String>();
+  for (  Axis axis : axes) {
+    final List<Position> positions=axis.getPositions();
+    if (positions.isEmpty()) {
+      return;
+    }
+    for (    Member member : positions.get(0)) {
+      Hierarchy hierarchy=member.getHierarchy();
+      headings.add(hierarchy.getUniqueName());
+    }
+  }
+  int[] coords=new int[axes.length];
+  outputFlattenedRecurse(result,rows,new ArrayList<Object>(),coords,0);
+  outputRowMeta=new RowMeta();
+  for (int i=0; i < rows.size() && i < 1; i++) {
+    List<Object> rowValues=rows.get(i);
+    for (int c=0; c < rowValues.size(); c++) {
+      Object valueData=rowValues.get(c);
+      int valueType;
+      if (valueData instanceof String) {
+        valueType=ValueMetaInterface.TYPE_STRING;
+      }
+ else       if (valueData instanceof Date) {
+        valueType=ValueMetaInterface.TYPE_DATE;
+      }
+ else       if (valueData instanceof Boolean) {
+        valueType=ValueMetaInterface.TYPE_BOOLEAN;
+      }
+ else       if (valueData instanceof Integer) {
+        valueType=ValueMetaInterface.TYPE_INTEGER;
+        valueData=Long.valueOf(((Integer)valueData).longValue());
+      }
+ else       if (valueData instanceof Short) {
+        valueType=ValueMetaInterface.TYPE_INTEGER;
+        valueData=Long.valueOf(((Short)valueData).longValue());
+      }
+ else       if (valueData instanceof Byte) {
+        valueType=ValueMetaInterface.TYPE_INTEGER;
+        valueData=Long.valueOf(((Byte)valueData).longValue());
+      }
+ else       if (valueData instanceof Long) {
+        valueType=ValueMetaInterface.TYPE_INTEGER;
+      }
+ else       if (valueData instanceof Double) {
+        valueType=ValueMetaInterface.TYPE_NUMBER;
+      }
+ else       if (valueData instanceof Float) {
+        valueType=ValueMetaInterface.TYPE_NUMBER;
+        valueData=Double.valueOf(((Float)valueData).doubleValue());
+      }
+ else       if (valueData instanceof BigDecimal) {
+        valueType=ValueMetaInterface.TYPE_BIGNUMBER;
+      }
+ else {
+        throw new KettleDatabaseException("Unhandled data type found '" + valueData.getClass().toString() + "'");
+      }
+      ValueMetaInterface valueMeta=new ValueMeta(headings.get(c),valueType);
+      outputRowMeta.addValueMeta(valueMeta);
+      rowValues.set(i,valueData);
+    }
+  }
+  DBCacheEntry cacheEntry=new DBCacheEntry(databaseMeta.getName(),queryString);
+  DBCache.getInstance().put(cacheEntry,outputRowMeta);
+}

@@ -1,0 +1,51 @@
+{
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    data.convertRowMeta=data.outputRowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+    data.connection.query(meta.isSpecifyQuery());
+    data.limitReached=true;
+    data.recordcount=data.connection.getQueryResultSize();
+    if (data.recordcount > 0) {
+      data.limitReached=false;
+      data.nrRecords=data.connection.getRecordsCount();
+    }
+    if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.RecordCount") + " : " + data.recordcount);
+  }
+  Object[] outputRowData=null;
+  try {
+    outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (checkFeedback(getLinesInput())) {
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"SalesforceInput.log.LineRow","" + getLinesInput()));
+    }
+    data.rownr++;
+    data.recordIndex++;
+    return true;
+  }
+ catch (  KettleException e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"SalesforceInput.log.Exception",e.getMessage()));
+      logError(Const.getStackTracker(e));
+      setErrors(1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),outputRowData,1,errorMessage,null,"SalesforceInput001");
+    }
+  }
+  return true;
+}

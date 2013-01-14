@@ -1,0 +1,61 @@
+{
+  if (inputRowMeta != null && !inputRowMeta.isEmpty()) {
+    if (selectingAndSortingUnspecifiedFields) {
+      if (valueRenames != null) {
+        for (        MappingValueRename valueRename : valueRenames) {
+          ValueMetaInterface valueMeta=inputRowMeta.searchValueMeta(valueRename.getSourceValueName());
+          if (valueMeta == null) {
+            throw new KettleStepException(BaseMessages.getString(PKG,"MappingInput.Exception.UnableToFindMappedValue",valueRename.getSourceValueName()));
+          }
+          valueMeta.setName(valueRename.getTargetValueName());
+        }
+      }
+      RowMetaInterface newRow=new RowMeta();
+      for (int i=0; i < fieldName.length; i++) {
+        int index=inputRowMeta.indexOfValue(fieldName[i]);
+        if (index < 0) {
+          throw new KettleStepException(BaseMessages.getString(PKG,"MappingInputMeta.Exception.UnknownField",fieldName[i]));
+        }
+        newRow.addValueMeta(inputRowMeta.getValueMeta(index));
+      }
+      List<String> extra=new ArrayList<String>();
+      for (int i=0; i < inputRowMeta.size(); i++) {
+        String fieldName=inputRowMeta.getValueMeta(i).getName();
+        if (newRow.indexOfValue(fieldName) < 0) {
+          extra.add(fieldName);
+        }
+      }
+      Collections.sort(extra);
+      for (      String fieldName : extra) {
+        ValueMetaInterface extraValue=inputRowMeta.searchValueMeta(fieldName);
+        newRow.addValueMeta(extraValue);
+      }
+      row.mergeRowMeta(newRow);
+    }
+ else {
+      row.mergeRowMeta(inputRowMeta);
+      if (!row.isEmpty()) {
+        for (int i=0; i < fieldName.length; i++) {
+          if (row.indexOfValue(fieldName[i]) < 0) {
+            throw new KettleStepException(BaseMessages.getString(PKG,"MappingInputMeta.Exception.UnknownField",fieldName[i]));
+          }
+        }
+      }
+    }
+  }
+ else {
+    for (int i=0; i < fieldName.length; i++) {
+      if (!Const.isEmpty(fieldName[i])) {
+        int valueType=fieldType[i];
+        if (valueType == ValueMetaInterface.TYPE_NONE) {
+          valueType=ValueMetaInterface.TYPE_STRING;
+        }
+        ValueMetaInterface v=new ValueMeta(fieldName[i],valueType);
+        v.setLength(fieldLength[i]);
+        v.setPrecision(fieldPrecision[i]);
+        v.setOrigin(origin);
+        row.addValueMeta(v);
+      }
+    }
+  }
+}

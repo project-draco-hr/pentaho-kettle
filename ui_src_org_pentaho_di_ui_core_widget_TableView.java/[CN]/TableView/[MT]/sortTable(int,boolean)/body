@@ -1,0 +1,119 @@
+{
+  boolean shouldRefresh=false;
+  if (this.sortfield_last == -1 && this.sortingDescending_last == null) {
+    shouldRefresh=true;
+    this.sortfield_last=this.sortfield;
+    this.sortingDescending_last=new Boolean(this.sortingDescending);
+    this.sortfield=sortField;
+    this.sortingDescending=sortingDescending;
+  }
+  if (sortfield_last != this.sortfield) {
+    this.sortfield_last=this.sortfield;
+    this.sortfield=sortField;
+    shouldRefresh=true;
+  }
+  if (sortingDescending_last != this.sortingDescending) {
+    this.sortingDescending_last=this.sortingDescending;
+    this.sortingDescending=sortingDescending;
+    shouldRefresh=true;
+  }
+  if (!shouldRefresh && table.getItemCount() == lastRowCount) {
+    return;
+  }
+  try {
+    TableItem[] items=table.getItems();
+    List<Object[]> v=new ArrayList<Object[]>();
+    final RowMetaInterface rowMeta=new RowMeta();
+    rowMeta.addValueMeta(new ValueMeta("colorname",ValueMetaInterface.TYPE_STRING));
+    rowMeta.addValueMeta(new ValueMeta("color",ValueMetaInterface.TYPE_INTEGER));
+    for (int j=0; j < table.getColumnCount(); j++) {
+      ColumnInfo colInfo;
+      if (j > 0)       colInfo=columns[j - 1];
+ else       colInfo=numberColumn;
+      ValueMetaInterface valueMeta=colInfo.getValueMeta();
+      if (j == sortField)       valueMeta.setSortedDescending(sortingDescending);
+      rowMeta.addValueMeta(valueMeta);
+    }
+    final RowMetaInterface sourceRowMeta=rowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+    final RowMetaInterface conversionRowMeta=rowMeta.clone();
+    for (int i=0; i < sourceRowMeta.size(); i++) {
+      ValueMetaInterface sourceValueMeta=sourceRowMeta.getValueMeta(i);
+      sourceValueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+      ValueMetaInterface conversionMetaData=conversionRowMeta.getValueMeta(i);
+      conversionMetaData.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+      sourceRowMeta.getValueMeta(i).setConversionMetadata(conversionMetaData);
+    }
+    for (int i=0; i < items.length; i++) {
+      TableItem item=items[i];
+      Object[] r=new Object[table.getColumnCount() + 2];
+      Color bg=item.getBackground();
+      if (!bg.equals(defaultBackgroundColor)) {
+        String colorName="bg " + bg.toString();
+        r[0]=colorName;
+        r[1]=new Long((bg.getRed() << 16) + (bg.getGreen() << 8) + (bg.getBlue()));
+        usedColors.put(colorName,bg);
+      }
+      for (int j=0; j < table.getColumnCount(); j++) {
+        String data=item.getText(j);
+        if (GUIResource.getInstance().getColorBlue().equals(item.getForeground(j))) {
+          data=null;
+        }
+        ValueMetaInterface sourceValueMeta=sourceRowMeta.getValueMeta(j + 2);
+        try {
+          r[j + 2]=sourceValueMeta.convertDataUsingConversionMetaData(data);
+        }
+ catch (        Exception e) {
+          if (isShowingConversionErrorsInline()) {
+            r[j + 2]=Const.getStackTracker(e);
+          }
+ else {
+            throw e;
+          }
+        }
+      }
+      v.add(r);
+    }
+    final int[] sortIndex=new int[]{sortField + 2};
+    Collections.sort(v,new Comparator<Object[]>(){
+      public int compare(      Object[] r1,      Object[] r2){
+        try {
+          return conversionRowMeta.compare(r1,r2,sortIndex);
+        }
+ catch (        KettleValueException e) {
+          throw new RuntimeException("Error comparing rows",e);
+        }
+      }
+    }
+);
+    table.removeAll();
+    for (int i=0; i < v.size(); i++) {
+      Object[] r=v.get(i);
+      TableItem item=new TableItem(table,SWT.NONE);
+      String colorName=(String)r[0];
+      Long colorValue=(Long)r[1];
+      if (colorValue != null) {
+        Color bg=usedColors.get(colorName);
+        if (bg != null) {
+          item.setBackground(bg);
+        }
+      }
+      for (int j=2; j < r.length; j++) {
+        String string=conversionRowMeta.getString(r,j);
+        if (showingBlueNullValues && string == null) {
+          string="<null>";
+          item.setForeground(j - 2,GUIResource.getInstance().getColorBlue());
+        }
+ else {
+          item.setForeground(j - 2,GUIResource.getInstance().getColorBlack());
+        }
+        if (string != null)         item.setText(j - 2,string);
+      }
+    }
+    table.setSortColumn(table.getColumn(sortfield));
+    table.setSortDirection(sortingDescending ? SWT.DOWN : SWT.UP);
+    lastRowCount=table.getItemCount();
+  }
+ catch (  Exception e) {
+    new ErrorDialog(this.getShell(),BaseMessages.getString(PKG,"TableView.ErrorDialog.title"),BaseMessages.getString(PKG,"TableView.ErrorDialog.description"),e);
+  }
+}

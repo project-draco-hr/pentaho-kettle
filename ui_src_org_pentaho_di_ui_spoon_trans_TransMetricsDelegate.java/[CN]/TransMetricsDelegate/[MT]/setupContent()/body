@@ -1,0 +1,68 @@
+{
+  if (metricsComposite.isDisposed())   return;
+  for (  Control control : metricsComposite.getChildren()) {
+    if (!control.isDisposed()) {
+      control.dispose();
+    }
+  }
+  emptyGraph=false;
+  canvas=new Canvas(metricsComposite,SWT.NONE);
+  spoon.props.setLook(canvas);
+  FormData fdCanvas=new FormData();
+  fdCanvas.left=new FormAttachment(0,0);
+  fdCanvas.right=new FormAttachment(100,0);
+  fdCanvas.top=new FormAttachment(0,0);
+  fdCanvas.bottom=new FormAttachment(100,0);
+  canvas.setLayoutData(fdCanvas);
+  metricsComposite.addControlListener(new ControlAdapter(){
+    public void controlResized(    ControlEvent event){
+      updateGraph();
+    }
+  }
+);
+  metricsComposite.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent event){
+      if (image != null)       image.dispose();
+    }
+  }
+);
+  canvas.addPaintListener(new PaintListener(){
+    public void paintControl(    PaintEvent event){
+      numberOfPaints++;
+      if ((numberOfPaints % 10) == 0)       System.out.println("!!!!!! paints=" + numberOfPaints);
+      refreshImage(event.gc);
+      if (image != null && !image.isDisposed()) {
+        event.gc.drawImage(image,0,0);
+      }
+    }
+  }
+);
+  final Timer timer=new Timer("TransMetricsDelegate Timer");
+  timer.schedule(new TimerTask(){
+    public void run(){
+      updateGraph();
+    }
+  }
+,0,5000);
+  transMetricsTab.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent arg0){
+      timer.cancel();
+    }
+  }
+);
+  canvas.addMouseListener(new MouseAdapter(){
+    @Override public void mouseDown(    MouseEvent event){
+      if (drawAreas == null)       return;
+      for (int i=drawAreas.size() - 1; i >= 0; i--) {
+        MetricsDrawArea drawArea=drawAreas.get(i);
+        if (drawArea.getArea().contains(event.x,event.y)) {
+          MetricsDuration duration=drawArea.getDuration();
+          System.out.println(duration.toString());
+          LoggingObjectInterface loggingObject=LoggingRegistry.getInstance().getLoggingObject(duration.getLogChannelId());
+          System.out.println(loggingObject.getObjectType() + " : " + loggingObject.getObjectName());
+        }
+      }
+    }
+  }
+);
+}

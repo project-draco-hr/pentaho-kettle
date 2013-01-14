@@ -1,0 +1,45 @@
+{
+  if (!data.dynamic) {
+    if (first) {
+      first=false;
+      data.outputRowMeta=new RowMeta();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+      data.convertRowMeta=data.outputRowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+      search(data.staticSearchBase,data.staticFilter);
+    }
+  }
+  Object[] outputRowData=null;
+  try {
+    outputRowData=getOneRow();
+    if (outputRowData == null) {
+      setOutputDone();
+      return false;
+    }
+    putRow(data.outputRowMeta,outputRowData);
+    if (log.isRowLevel())     logRowlevel(BaseMessages.getString(PKG,"LDAPInput.log.ReadRow"),data.outputRowMeta.getString(outputRowData));
+    if (checkFeedback(getLinesInput())) {
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"LDAPInput.log.LineRow") + getLinesInput());
+    }
+    return true;
+  }
+ catch (  Exception e) {
+    boolean sendToErrorRow=false;
+    String errorMessage=null;
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendToErrorRow=true;
+      errorMessage=e.toString();
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"LDAPInput.log.Exception",e.getMessage()));
+      setErrors(1);
+      logError(Const.getStackTracker(e));
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+    if (sendToErrorRow) {
+      putError(getInputRowMeta(),outputRowData,1,errorMessage,null,"LDAPINPUT001");
+    }
+  }
+  return true;
+}

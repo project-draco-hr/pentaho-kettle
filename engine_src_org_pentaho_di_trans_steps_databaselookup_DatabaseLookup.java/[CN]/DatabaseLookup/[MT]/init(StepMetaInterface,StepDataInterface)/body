@@ -1,0 +1,44 @@
+{
+  meta=(DatabaseLookupMeta)smi;
+  data=(DatabaseLookupData)sdi;
+  if (super.init(smi,sdi)) {
+    if (meta.getDatabaseMeta() == null) {
+      logError(BaseMessages.getString(PKG,"DatabaseLookup.Init.ConnectionMissing",getStepname()));
+      return false;
+    }
+    data.db=new Database(this,meta.getDatabaseMeta());
+    data.db.shareVariablesWith(this);
+    try {
+      if (getTransMeta().isUsingUniqueConnections()) {
+synchronized (getTrans()) {
+          data.db.connect(getTrans().getTransactionId(),getPartitionID());
+        }
+      }
+ else {
+        data.db.connect(getPartitionID());
+      }
+      data.db.setCommit(100);
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"DatabaseLookup.Log.ConnectedToDatabase"));
+      data.allEquals=true;
+      data.hasDBCondition=false;
+      data.conditions=new int[meta.getKeyCondition().length];
+      for (int i=0; i < meta.getKeyCondition().length; i++) {
+        data.conditions[i]=Const.indexOfString(meta.getKeyCondition()[i],DatabaseLookupMeta.conditionStrings);
+        if (!("=".equals(meta.getKeyCondition()[i]))) {
+          data.allEquals=false;
+        }
+        if (data.conditions[i] == DatabaseLookupMeta.CONDITION_LIKE) {
+          data.hasDBCondition=true;
+        }
+      }
+      return true;
+    }
+ catch (    Exception e) {
+      logError(BaseMessages.getString(PKG,"DatabaseLookup.ERROR0004.UnexpectedErrorDuringInit") + e.toString());
+      if (data.db != null) {
+        data.db.disconnect();
+      }
+    }
+  }
+  return false;
+}

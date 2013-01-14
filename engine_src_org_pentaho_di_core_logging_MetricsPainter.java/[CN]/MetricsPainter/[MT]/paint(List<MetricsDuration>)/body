@@ -1,0 +1,45 @@
+{
+  int width=gc.getArea().x - 4;
+  int height=gc.getArea().y - 4;
+  List<MetricsDrawArea> areas=new ArrayList<MetricsDrawArea>();
+  determinePeriod(durations);
+  if (periodStart == null || periodEnd == null || periodEnd <= periodStart) {
+    return areas;
+  }
+  double pixelsPerMs=(double)width / ((double)(periodEnd - periodStart));
+  int barHeight=Math.round(((height - 10) / durations.size())) - 2;
+  long periodInMs=periodEnd - periodStart;
+  int log10=(int)Math.log10(periodInMs);
+  int timeLineDistance=(int)Math.pow(10,log10 - 1);
+  for (int time=timeLineDistance; time < periodInMs; time+=timeLineDistance) {
+    int x=(int)(time * pixelsPerMs);
+    gc.setForeground(EColor.LIGHTGRAY);
+    gc.drawLine(x,0,x,height);
+    String marker=Integer.toString(time);
+    Point point=gc.textExtent(marker);
+    gc.setForeground(EColor.DARKGRAY);
+    gc.drawText(marker,x - (point.x / 2),0,true);
+  }
+  int y=14;
+  for (int i=0; i < durations.size(); i++) {
+    MetricsDuration duration=durations.get(i);
+    Long realDuration=duration.getEndDate().getTime() - duration.getDate().getTime();
+    int durationWidth=(int)(realDuration * pixelsPerMs);
+    int x=2 + (int)((duration.getDate().getTime() - periodStart) * pixelsPerMs);
+    gc.setForeground(EColor.BLACK);
+    gc.setBackground(EColor.LIGHTGRAY);
+    gc.fillRectangle(x,y,durationWidth,barHeight);
+    gc.drawRectangle(x,y,durationWidth,barHeight);
+    areas.add(new MetricsDrawArea(new Rectangle(x,y,durationWidth,barHeight),duration));
+    LoggingObjectInterface loggingObject=LoggingRegistry.getInstance().getLoggingObject(duration.getLogChannelId());
+    String message=duration.getDescription() + " - " + loggingObject.getObjectName()+ " : "+ duration.getDuration()+ "ms";
+    if (duration.getCount() > 1) {
+      message+=" " + duration.getCount() + " calls, avg="+ (duration.getDuration() / duration.getCount());
+    }
+    gc.setFont(EFont.GRAPH);
+    gc.textExtent(message);
+    gc.drawText(message,x + 2,y + 2,true);
+    y+=barHeight + 2;
+  }
+  return areas;
+}

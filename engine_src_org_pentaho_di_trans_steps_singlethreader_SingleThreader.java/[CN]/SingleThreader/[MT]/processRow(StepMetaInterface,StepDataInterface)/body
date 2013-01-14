@@ -1,0 +1,33 @@
+{
+  meta=(SingleThreaderMeta)smi;
+  data=(SingleThreaderData)sdi;
+  Object[] row=getRow();
+  if (row == null) {
+    if (data.batchCount > 0) {
+      return execOneIteration();
+    }
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.startTime=System.currentTimeMillis();
+  }
+  data.rowProducer.putRow(getInputRowMeta(),row);
+  data.batchCount++;
+  if (getStepMeta().isDoingErrorHandling()) {
+    data.errorBuffer.add(row);
+  }
+  boolean countWindow=data.batchSize > 0 && data.batchCount >= data.batchSize;
+  boolean timeWindow=data.batchTime > 0 && (System.currentTimeMillis() - data.startTime) > data.batchTime;
+  if (countWindow || timeWindow) {
+    data.batchCount=0;
+    boolean more=execOneIteration();
+    if (!more) {
+      setOutputDone();
+      return false;
+    }
+    data.startTime=System.currentTimeMillis();
+  }
+  return true;
+}

@@ -1,0 +1,28 @@
+{
+  final PluginRegistry registry=getInstance();
+  log.snap(Metrics.METRIC_PLUGIN_REGISTRY_REGISTER_EXTENSIONS_START);
+  try {
+    registry.registerType(PluginRegistryPluginType.getInstance());
+    List<PluginInterface> plugins=registry.getPlugins(PluginRegistryPluginType.class);
+    for (    PluginInterface extensionPlugin : plugins) {
+      log.snap(Metrics.METRIC_PLUGIN_REGISTRY_REGISTER_EXTENSION_START,extensionPlugin.getName());
+      PluginRegistryExtension extension=(PluginRegistryExtension)registry.loadClass(extensionPlugin);
+      extensions.add(extension);
+      log.snap(Metrics.METRIC_PLUGIN_REGISTRY_REGISTER_EXTENSIONS_STOP,extensionPlugin.getName());
+    }
+  }
+ catch (  KettlePluginException e) {
+    e.printStackTrace();
+  }
+  log.snap(Metrics.METRIC_PLUGIN_REGISTRY_REGISTER_EXTENSIONS_STOP);
+  log.snap(Metrics.METRIC_PLUGIN_REGISTRY_PLUGIN_REGISTRATION_START);
+  for (  final PluginTypeInterface pluginType : pluginTypes) {
+    log.snap(Metrics.METRIC_PLUGIN_REGISTRY_PLUGIN_TYPE_REGISTRATION_START,pluginType.getName());
+    registry.registerType(pluginType);
+    log.snap(Metrics.METRIC_PLUGIN_REGISTRY_PLUGIN_TYPE_REGISTRATION_STOP,pluginType.getName());
+  }
+  log.snap(Metrics.METRIC_PLUGIN_REGISTRY_PLUGIN_REGISTRATION_STOP);
+  if (!keepCache) {
+    JarFileCache.getInstance().clear();
+  }
+}
