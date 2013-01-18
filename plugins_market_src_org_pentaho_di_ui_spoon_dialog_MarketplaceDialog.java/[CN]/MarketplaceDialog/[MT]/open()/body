@@ -28,7 +28,7 @@
   bar.setLayoutData(fdBar);
   MarketEntries marketEntries=new MarketEntries();
   for (  final MarketEntry marketEntry : marketEntries) {
-    Composite composite=new Composite(bar,SWT.NONE);
+    final Composite composite=new Composite(bar,SWT.NONE);
     FormLayout layout=new FormLayout();
     layout.marginHeight=margin;
     layout.marginWidth=margin;
@@ -83,6 +83,79 @@
     final Button button=new Button(composite,SWT.PUSH);
     final ExpandItem expandItem=new ExpandItem(bar,SWT.NONE,0);
     setButtonLabel(button,marketEntry.isInstalled());
+    final ProgressMonitorDialog pmd=new ProgressMonitorDialog(shell);
+    final Button upgradeButton=new Button(composite,SWT.PUSH);
+    upgradeButton.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeTo.button",marketEntry.getVersion()));
+    upgradeButton.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent e){
+        try {
+          if (marketEntry.getId().equals("market")) {
+            MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+            mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Message"));
+            mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Title"));
+            int id=mb.open();
+            if (id == SWT.YES) {
+              dispose();
+              Market.upgradeMarket(marketEntry);
+            }
+          }
+ else {
+            try {
+              pmd.run(true,true,new ProgressMonitorRunner(new Runnable(){
+                public void run(){
+                  try {
+                    Market.install(marketEntry);
+                    upgradeButton.setEnabled(false);
+                  }
+ catch (                  KettleException ke) {
+                    new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+                  }
+                }
+              }
+));
+            }
+ catch (            Exception ex) {
+              new ErrorDialog(shell,"Error with Progress Monitor Dialog","Error with Progress Monitor Dialog",ex);
+            }
+          }
+        }
+ catch (        KettleException ke) {
+          new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+        }
+      }
+    }
+);
+    BaseStepDialog.positionBottomButtons(composite,new Button[]{button,upgradeButton},margin,lastControl);
+    boolean showUpgradeButton=marketEntry.getInstalledVersion() != marketEntry.getVersion() && marketEntry.isInstalled();
+    upgradeButton.setVisible(showUpgradeButton);
+    final ProgressMonitorRunner installRunner=new ProgressMonitorRunner(new Runnable(){
+      public void run(){
+        try {
+          Market.installUninstall(marketEntry,marketEntry.isInstalled());
+          Market.discoverInstalledVersion(marketEntry);
+          setButtonLabel(button,marketEntry.isInstalled());
+          setPluginName(expandItem,marketEntry.getName(),marketEntry.isInstalled());
+          if (upgradeButton != null) {
+            upgradeButton.setVisible(marketEntry.isInstalled());
+          }
+        }
+ catch (        KettleException ke) {
+          new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+        }
+      }
+    }
+);
+    final ProgressMonitorRunner uninstallMarketRunner=new ProgressMonitorRunner(new Runnable(){
+      public void run(){
+        try {
+          Market.uninstallMarket();
+        }
+ catch (        KettleException ke) {
+          new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+        }
+      }
+    }
+);
     button.addSelectionListener(new SelectionAdapter(){
       public void widgetSelected(      SelectionEvent e){
         try {
@@ -93,54 +166,19 @@
             int id=mb.open();
             if (id == SWT.YES) {
               dispose();
-              Market.uninstallMarket();
+              pmd.run(true,true,uninstallMarketRunner);
             }
           }
  else {
-            Market.installUninstall(marketEntry,marketEntry.isInstalled());
-            Market.discoverInstalledVersion(marketEntry);
-            setButtonLabel(button,marketEntry.isInstalled());
-            setPluginName(expandItem,marketEntry.getName(),marketEntry.isInstalled());
+            pmd.run(true,true,installRunner);
           }
         }
- catch (        KettleException ke) {
+ catch (        Throwable ke) {
           new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
         }
       }
     }
 );
-    if (marketEntry.getInstalledVersion() != marketEntry.getVersion()) {
-      final Button upgradeButton=new Button(composite,SWT.PUSH);
-      upgradeButton.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeTo.button",marketEntry.getVersion()));
-      upgradeButton.addSelectionListener(new SelectionAdapter(){
-        public void widgetSelected(        SelectionEvent e){
-          try {
-            if (marketEntry.getId().equals("market")) {
-              MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
-              mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Message"));
-              mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Title"));
-              int id=mb.open();
-              if (id == SWT.YES) {
-                dispose();
-                Market.upgradeMarket(marketEntry);
-              }
-            }
- else {
-              Market.install(marketEntry);
-              upgradeButton.setEnabled(false);
-            }
-          }
- catch (          KettleException ke) {
-            new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
-          }
-        }
-      }
-);
-      BaseStepDialog.positionBottomButtons(composite,new Button[]{button,upgradeButton},margin,lastControl);
-    }
- else {
-      BaseStepDialog.positionBottomButtons(composite,new Button[]{button},margin,lastControl);
-    }
     Label wlName=new Label(composite,SWT.LEFT);
     props.setLook(wlName);
     wlName.setText("Name:");
