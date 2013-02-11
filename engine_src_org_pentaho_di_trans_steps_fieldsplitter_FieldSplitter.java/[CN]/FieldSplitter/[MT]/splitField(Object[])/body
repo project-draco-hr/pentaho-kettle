@@ -13,6 +13,7 @@
     meta.getFields(data.outputMeta,getStepname(),null,null,this);
     data.conversionMeta=data.outputMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
     data.delimiter=environmentSubstitute(meta.getDelimiter());
+    data.enclosure=environmentSubstitute(meta.getEnclosure());
   }
   String v=data.previousMeta.getString(r,data.fieldnr);
   Object[] outputRow=RowDataUtil.allocateRowData(data.outputMeta.size());
@@ -21,33 +22,11 @@
   for (int i=data.fieldnr + 1; i < data.previousMeta.size(); i++)   outputRow[i + nrExtraFields]=r[i];
   boolean use_ids=meta.getFieldID().length > 0 && meta.getFieldID()[0] != null && meta.getFieldID()[0].length() > 0;
   Object value=null;
+  String[] splits=Const.splitString(v,data.delimiter,data.enclosure);
   if (use_ids) {
     if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.UsingIds"));
-    int polSize=0;
-    if (v != null) {
-      polSize++;
-      for (int i=0; i < v.length(); i++) {
-        i=v.indexOf(data.delimiter,i);
-        if (i == -1)         break;
- else         polSize++;
-      }
-    }
-    final String pol[]=new String[polSize];
-    int prev=0;
-    int i=0;
-    while (v != null && prev < v.length() && i < pol.length) {
-      pol[i]=polNext(v,data.delimiter,prev);
-      if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitFieldsInfo",pol[i],String.valueOf(prev)));
-      prev+=pol[i].length() + data.delimiter.length();
-      i++;
-    }
-    for (i=0; i < meta.getFieldName().length; i++) {
-      String split=null;
-      for (int p=0; p < pol.length && split == null; p++) {
-        if (pol[p] != null) {
-          if (Const.trimToType(pol[p],meta.getFieldTrimType()[i]).indexOf(meta.getFieldID()[i]) == 0)           split=pol[p];
-        }
-      }
+    for (int i=0; i < meta.getFieldName().length; i++) {
+      String split=(i >= splits.length) ? null : splits[i];
       if (split != null && meta.getFieldRemoveID()[i]) {
         final StringBuilder sb=new StringBuilder(split);
         final int idx=sb.indexOf(meta.getFieldID()[i]);
@@ -71,7 +50,7 @@
     if (log.isDebug())     logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.UsingPositionOfValue"));
     int prev=0;
     for (int i=0; i < meta.getFieldName().length; i++) {
-      String pol=polNext(v,data.delimiter,prev);
+      String pol=(i >= splits.length) ? null : splits[i];
       if (log.isDebug())       logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitFieldsInfo",pol,String.valueOf(prev)));
       prev+=(pol == null ? 0 : pol.length()) + data.delimiter.length();
       try {
