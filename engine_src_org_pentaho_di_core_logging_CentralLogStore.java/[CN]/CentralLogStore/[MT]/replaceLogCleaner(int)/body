@@ -3,31 +3,12 @@
     logCleanerTimer.cancel();
   }
   logCleanerTimer=new Timer(true);
-  final AtomicBoolean busy=new AtomicBoolean(false);
   TimerTask timerTask=new TimerTask(){
     public void run(){
-      if (!busy.get()) {
-        busy.set(true);
-        if (maxLogTimeoutMinutes > 0) {
-          long minTimeBoundary=new Date().getTime() - maxLogTimeoutMinutes * 60 * 1000;
-synchronized (appender) {
-            long cleanStart=System.currentTimeMillis();
-            Iterator<BufferLine> i=appender.getBufferIterator();
-            while (i.hasNext()) {
-              BufferLine bufferLine=i.next();
-              if (bufferLine.getEvent().timeStamp < minTimeBoundary) {
-                i.remove();
-              }
- else {
-                break;
-              }
-            }
-            long cleanEnd=System.currentTimeMillis();
-            LogChannel.GENERAL.snap(Metrics.METRIC_CENTRAL_LOG_STORE_TIMEOUT_CLEAN_TIME,cleanEnd - cleanStart);
-            LogChannel.GENERAL.snap(Metrics.METRIC_CENTRAL_LOG_STORE_TIMEOUT_CLEAN_COUNT);
-          }
-        }
-        busy.set(false);
+      if (maxLogTimeoutMinutes > 0) {
+        long minTimeBoundary=new Date().getTime() - maxLogTimeoutMinutes * 60 * 1000;
+        List<BufferLine> linesToRemove=appender.getBufferLinesBefore(minTimeBoundary);
+        appender.removeBufferLines(linesToRemove);
       }
     }
   }
