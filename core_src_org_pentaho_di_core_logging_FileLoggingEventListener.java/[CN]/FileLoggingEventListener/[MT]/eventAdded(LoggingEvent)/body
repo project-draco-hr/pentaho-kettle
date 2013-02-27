@@ -1,8 +1,22 @@
 {
-  String logText=layout.format(event);
   try {
-    outputStream.write(logText.getBytes());
-    outputStream.write(Const.CR.getBytes());
+    Object messageObject=event.getMessage();
+    if (messageObject instanceof LogMessage) {
+      boolean logToFile=false;
+      if (logChannelId == null) {
+        logToFile=true;
+      }
+ else {
+        LogMessage message=(LogMessage)messageObject;
+        List<String> logChannelChildren=LoggingRegistry.getInstance().getLogChannelChildren(logChannelId);
+        logToFile=Const.indexOfString(message.getLogChannelId(),logChannelChildren) >= 0;
+      }
+      if (logToFile) {
+        String logText=layout.format(event);
+        outputStream.write(logText.getBytes());
+        outputStream.write(Const.CR.getBytes());
+      }
+    }
   }
  catch (  Exception e) {
     exception=new KettleException("Unable to write to logging event to file '" + filename + "'",e);
