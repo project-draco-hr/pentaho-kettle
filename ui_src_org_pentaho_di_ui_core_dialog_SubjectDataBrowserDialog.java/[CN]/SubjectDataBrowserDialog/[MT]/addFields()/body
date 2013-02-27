@@ -1,0 +1,66 @@
+{
+  int margin=Const.MARGIN;
+  if (wlSubjectMessage == null) {
+    wlSubjectMessage=new Label(shell,SWT.LEFT);
+    wlSubjectMessage.setText(subjectMessage);
+    props.setLook(wlSubjectMessage);
+    FormData fdlFields=new FormData();
+    fdlFields.left=new FormAttachment(0,0);
+    fdlFields.top=new FormAttachment(0,margin);
+    wlSubjectMessage.setLayoutData(fdlFields);
+    wSubject=new CCombo(shell,SWT.LEFT | SWT.READ_ONLY | SWT.BORDER);
+    wSubject.setItems(subjects);
+    wSubject.setText(selectedSubject);
+    props.setLook(wSubject);
+    FormData fdlSubject=new FormData();
+    fdlSubject.left=new FormAttachment(wlSubjectMessage,margin);
+    fdlSubject.top=new FormAttachment(wlSubjectMessage,0,SWT.CENTER);
+    wSubject.setLayoutData(fdlSubject);
+    wSubject.addSelectionListener(new SelectionAdapter(){
+      @Override public void widgetSelected(      SelectionEvent arg0){
+        selectedSubject=wSubject.getText();
+        addFields();
+      }
+    }
+);
+  }
+ else {
+    wFields.dispose();
+  }
+  RowMetaInterface rowMeta=metaMap.get(selectedSubject);
+  List<Object[]> buffer=dataMap.get(selectedSubject);
+  if (buffer == null) {
+    buffer=new ArrayList<Object[]>();
+  }
+  ColumnInfo[] colinf=new ColumnInfo[rowMeta.size()];
+  for (int i=0; i < rowMeta.size(); i++) {
+    ValueMetaInterface v=rowMeta.getValueMeta(i);
+    colinf[i]=new ColumnInfo(v.getName(),ColumnInfo.COLUMN_TYPE_TEXT,v.isNumeric());
+    colinf[i].setToolTip(v.toStringMeta());
+    colinf[i].setValueMeta(v);
+  }
+  wFields=new TableView(new Variables(),shell,SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI,colinf,0,null,props);
+  wFields.setShowingBlueNullValues(true);
+  FormData fdFields=new FormData();
+  fdFields.left=new FormAttachment(0,0);
+  fdFields.top=new FormAttachment(wSubject,margin);
+  fdFields.right=new FormAttachment(100,0);
+  fdFields.bottom=new FormAttachment(100,-50);
+  wFields.setLayoutData(fdFields);
+  for (int i=0; i < buffer.size(); i++) {
+    TableItem item;
+    if (i == 0) {
+      item=wFields.table.getItem(i);
+    }
+ else {
+      item=new TableItem(wFields.table,SWT.NONE);
+    }
+    Object[] rowData=(Object[])buffer.get(i);
+    getDataForRow(item,rowMeta,rowData,i + 1);
+  }
+  if (!wFields.isDisposed()) {
+    wFields.optWidth(true,200);
+  }
+  shell.layout(true,true);
+  return false;
+}
