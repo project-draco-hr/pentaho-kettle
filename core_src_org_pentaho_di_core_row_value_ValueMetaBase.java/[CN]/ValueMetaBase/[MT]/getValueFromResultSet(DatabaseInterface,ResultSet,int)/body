@@ -1,0 +1,62 @@
+{
+  try {
+    Object data=null;
+switch (getType()) {
+case ValueMetaInterface.TYPE_BOOLEAN:
+      data=Boolean.valueOf(resultSet.getBoolean(index + 1));
+    break;
+case ValueMetaInterface.TYPE_NUMBER:
+  data=new Double(resultSet.getDouble(index + 1));
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+data=resultSet.getBigDecimal(index + 1);
+break;
+case ValueMetaInterface.TYPE_INTEGER:
+data=Long.valueOf(resultSet.getLong(index + 1));
+break;
+case ValueMetaInterface.TYPE_STRING:
+if (isStorageBinaryString()) {
+data=resultSet.getBytes(index + 1);
+}
+ else {
+data=resultSet.getString(index + 1);
+}
+break;
+case ValueMetaInterface.TYPE_BINARY:
+if (databaseInterface.supportsGetBlob()) {
+Blob blob=resultSet.getBlob(index + 1);
+if (blob != null) {
+data=blob.getBytes(1L,(int)blob.length());
+}
+ else {
+data=null;
+}
+}
+ else {
+data=resultSet.getBytes(index + 1);
+}
+break;
+case ValueMetaInterface.TYPE_TIMESTAMP:
+data=resultSet.getTimestamp(index + 1);
+break;
+case ValueMetaInterface.TYPE_DATE:
+if (getPrecision() != 1 && databaseInterface.supportsTimeStampToDateConversion()) {
+data=resultSet.getTimestamp(index + 1);
+break;
+}
+ else {
+data=resultSet.getDate(index + 1);
+break;
+}
+default :
+break;
+}
+if (resultSet.wasNull()) {
+data=null;
+}
+return data;
+}
+ catch (SQLException e) {
+throw new KettleDatabaseException("Unable to get value '" + toStringMeta() + "' from database resultset, index "+ index,e);
+}
+}

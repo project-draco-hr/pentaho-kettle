@@ -1,0 +1,37 @@
+{
+  if (valueMetaPluginClasses == null) {
+    try {
+      valueMetaPluginClasses=ValueMetaFactory.getValueMetaPluginClasses();
+      Collections.sort(valueMetaPluginClasses,new Comparator<ValueMetaInterface>(){
+        @Override public int compare(        ValueMetaInterface o1,        ValueMetaInterface o2){
+          return Integer.valueOf(o1.getType()).compareTo(Integer.valueOf(o2.getType()));
+        }
+      }
+);
+    }
+ catch (    Exception e) {
+      throw new KettleDatabaseException("Unable to get list of instantiated value meta plugin classes",e);
+    }
+  }
+  String name;
+  if (databaseMeta.isMySQLVariant() && getDatabaseMetaData().getDriverMajorVersion() > 3) {
+    name=new String(rm.getColumnLabel(i));
+  }
+ else {
+    name=new String(rm.getColumnName(i));
+  }
+  if (Const.isEmpty(name) || Const.onlySpaces(name)) {
+    name="Field" + (i + 1);
+  }
+  ValueMetaInterface valueMeta=null;
+  for (  ValueMetaInterface valueMetaClass : valueMetaPluginClasses) {
+    ValueMetaInterface v=valueMetaClass.getValueFromSQLType(databaseMeta,name,rm,i,ignoreLength,lazyConversion);
+    if (v != null) {
+      valueMeta=v;
+    }
+  }
+  if (valueMeta != null) {
+    return valueMeta;
+  }
+  throw new KettleDatabaseException("Unable to handle database column '" + name + "', on column index "+ i+ " : not a handled data type");
+}

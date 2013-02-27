@@ -1,5 +1,5 @@
 {
-  Log4jFileAppender appender=null;
+  FileLoggingEventListener loggingEventListener=null;
   LogLevel shellLogLevel=parentJob.getLogLevel();
   if (setLogfile) {
     String realLogFilename=environmentSubstitute(getLogFilename());
@@ -10,8 +10,8 @@
       return result;
     }
     try {
-      appender=LogWriter.createFileAppender(realLogFilename,true,setAppendLogfile);
-      LogWriter.getInstance().addAppender(appender);
+      loggingEventListener=new FileLoggingEventListener(realLogFilename,setAppendLogfile);
+      CentralLogStore.getAppender().addLoggingEventListener(loggingEventListener);
     }
  catch (    KettleException e) {
       logError(BaseMessages.getString(PKG,"JobEntryShell.Error.UnableopenAppenderFile",getLogFilename(),e.toString()));
@@ -84,10 +84,10 @@
     iteration++;
   }
   if (setLogfile) {
-    if (appender != null) {
-      LogWriter.getInstance().removeAppender(appender);
-      appender.close();
-      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,appender.getFile(),parentJob.getJobname(),getName());
+    if (loggingEventListener != null) {
+      CentralLogStore.getAppender().removeLoggingEventListener(loggingEventListener);
+      loggingEventListener.close();
+      ResultFile resultFile=new ResultFile(ResultFile.FILE_TYPE_LOG,loggingEventListener.getFile(),parentJob.getJobname(),getName());
       result.getResultFiles().put(resultFile.getFile().toString(),resultFile);
     }
   }

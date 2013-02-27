@@ -1,0 +1,134 @@
+{
+  try {
+switch (getType()) {
+case ValueMetaInterface.TYPE_NUMBER:
+      if (!isNull(data)) {
+        double num=getNumber(data).doubleValue();
+        if (databaseMeta.supportsFloatRoundingOnUpdate() && getPrecision() >= 0) {
+          num=Const.round(num,getPrecision());
+        }
+        preparedStatement.setDouble(index,num);
+      }
+ else {
+        preparedStatement.setNull(index,java.sql.Types.DOUBLE);
+      }
+    break;
+case ValueMetaInterface.TYPE_INTEGER:
+  if (!isNull(data)) {
+    if (databaseMeta.supportsSetLong()) {
+      preparedStatement.setLong(index,getInteger(data).longValue());
+    }
+ else {
+      double d=getNumber(data).doubleValue();
+      if (databaseMeta.supportsFloatRoundingOnUpdate() && getPrecision() >= 0) {
+        preparedStatement.setDouble(index,d);
+      }
+ else {
+        preparedStatement.setDouble(index,Const.round(d,getPrecision()));
+      }
+    }
+  }
+ else {
+    preparedStatement.setNull(index,java.sql.Types.INTEGER);
+  }
+break;
+case ValueMetaInterface.TYPE_STRING:
+if (getLength() < DatabaseMeta.CLOB_LENGTH) {
+if (!isNull(data)) {
+  preparedStatement.setString(index,getString(data));
+}
+ else {
+  preparedStatement.setNull(index,java.sql.Types.VARCHAR);
+}
+}
+ else {
+if (!isNull(data)) {
+  String string=getString(data);
+  int maxlen=databaseMeta.getMaxTextFieldLength();
+  int len=string.length();
+  int begin=len - maxlen;
+  if (begin < 0)   begin=0;
+  String logging=string.substring(begin);
+  if (databaseMeta.supportsSetCharacterStream()) {
+    StringReader sr=new StringReader(logging);
+    preparedStatement.setCharacterStream(index,sr,logging.length());
+  }
+ else {
+    preparedStatement.setString(index,logging);
+  }
+}
+ else {
+  preparedStatement.setNull(index,java.sql.Types.VARCHAR);
+}
+}
+break;
+case ValueMetaInterface.TYPE_DATE:
+if (!isNull(data)) {
+if (getPrecision() == 1 || !databaseMeta.supportsTimeStampToDateConversion()) {
+long dat=getInteger(data).longValue();
+java.sql.Date ddate=new java.sql.Date(dat);
+preparedStatement.setDate(index,ddate);
+}
+ else {
+if (data instanceof java.sql.Timestamp) {
+preparedStatement.setTimestamp(index,(java.sql.Timestamp)data);
+}
+ else {
+long dat=getInteger(data).longValue();
+java.sql.Timestamp sdate=new java.sql.Timestamp(dat);
+preparedStatement.setTimestamp(index,sdate);
+}
+}
+}
+ else {
+if (getPrecision() == 1 || !databaseMeta.supportsTimeStampToDateConversion()) {
+preparedStatement.setNull(index,java.sql.Types.DATE);
+}
+ else {
+preparedStatement.setNull(index,java.sql.Types.TIMESTAMP);
+}
+}
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+if (databaseMeta.supportsBooleanDataType()) {
+if (!isNull(data)) {
+preparedStatement.setBoolean(index,getBoolean(data).booleanValue());
+}
+ else {
+preparedStatement.setNull(index,java.sql.Types.BOOLEAN);
+}
+}
+ else {
+if (!isNull(data)) {
+preparedStatement.setString(index,getBoolean(data).booleanValue() ? "Y" : "N");
+}
+ else {
+preparedStatement.setNull(index,java.sql.Types.CHAR);
+}
+}
+break;
+case ValueMetaInterface.TYPE_BIGNUMBER:
+if (!isNull(data)) {
+preparedStatement.setBigDecimal(index,getBigNumber(data));
+}
+ else {
+preparedStatement.setNull(index,java.sql.Types.DECIMAL);
+}
+break;
+case ValueMetaInterface.TYPE_BINARY:
+if (!isNull(data)) {
+preparedStatement.setBytes(index,getBinary(data));
+}
+ else {
+preparedStatement.setNull(index,java.sql.Types.BINARY);
+}
+break;
+default :
+preparedStatement.setNull(index,java.sql.Types.VARCHAR);
+break;
+}
+}
+ catch (Exception e) {
+throw new KettleDatabaseException("Error setting value #" + index + " ["+ toStringMeta()+ "] on prepared statement",e);
+}
+}
