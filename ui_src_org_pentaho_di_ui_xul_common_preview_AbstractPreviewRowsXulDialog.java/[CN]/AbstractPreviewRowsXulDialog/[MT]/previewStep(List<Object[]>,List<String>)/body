@@ -1,0 +1,50 @@
+{
+  TransMeta previewMeta=TransPreviewFactory.generatePreviewTransformation(null,(StepMetaInterface)meta,"data_sync");
+  final Trans trans=new Trans(previewMeta);
+  try {
+    trans.prepareExecution(null);
+    TransDebugMeta transDebugMeta=new TransDebugMeta(previewMeta);
+    StepMeta stepMeta=previewMeta.findStep("data_sync");
+    StepDebugMeta stepDebugMeta=new StepDebugMeta(stepMeta);
+    stepDebugMeta.setReadingFirstRows(true);
+    stepDebugMeta.setRowCount(maxRows);
+    transDebugMeta.getStepDebugMetaMap().put(stepMeta,stepDebugMeta);
+    transDebugMeta.addRowListenersToTransformation(trans);
+    transDebugMeta.addBreakPointListers(new BreakPointListener(){
+      public void breakPointHit(      TransDebugMeta transDebugMeta,      StepDebugMeta stepDebugMeta,      RowMetaInterface rowBufferMeta,      List<Object[]> rowBuffer){
+        System.out.println("break point hit...".concat(String.valueOf(stepDebugMeta.getRowCount())));
+        trans.stopAll();
+      }
+    }
+);
+    trans.startThreads();
+    int previousPct=0;
+    while (!trans.isFinished()) {
+      int nrDone=0;
+      int nrTotal=0;
+      for (      StepDebugMeta debug : transDebugMeta.getStepDebugMetaMap().values()) {
+        nrDone+=debug.getRowBuffer().size();
+        nrTotal+=debug.getRowCount();
+      }
+      int pct=100 * nrDone / nrTotal;
+      int worked=pct - previousPct;
+      if (worked > 0)       this.progressMeter.setValue(worked);
+      previousPct=pct;
+      try {
+        Thread.sleep(500);
+      }
+ catch (      InterruptedException e) {
+      }
+    }
+    trans.stopAll();
+    data.addAll(stepDebugMeta.getRowBuffer());
+    RowMetaInterface rowMeta=stepDebugMeta.getRowBufferMeta();
+    for (int i=0; i < rowMeta.size(); i++) {
+      ValueMetaInterface v=rowMeta.getValueMeta(i);
+      columns.add(v.getName());
+    }
+  }
+ catch (  KettleException e) {
+    this.logError("Data preview failed.",e);
+  }
+}
