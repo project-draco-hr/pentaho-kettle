@@ -1,0 +1,146 @@
+{
+  PropsUI props=PropsUI.getInstance();
+  int middle=props.getMiddlePct();
+  int margin=Const.MARGIN;
+  final Group logicalGroup=new Group(parentComposite,SWT.SHADOW_NONE);
+  props.setLook(logicalGroup);
+  logicalGroup.setText(BaseMessages.getString(PKG,"StarModelerPerspective.LogicalGroup.Label"));
+  FormLayout groupLayout=new FormLayout();
+  groupLayout.marginLeft=10;
+  groupLayout.marginRight=10;
+  groupLayout.marginTop=10;
+  groupLayout.marginBottom=10;
+  groupLayout.spacing=margin;
+  logicalGroup.setLayout(groupLayout);
+  FormData fdLogicalGroup=new FormData();
+  fdLogicalGroup.top=new FormAttachment(0,0);
+  fdLogicalGroup.left=new FormAttachment(0,0);
+  fdLogicalGroup.right=new FormAttachment(100,0);
+  logicalGroup.setLayoutData(fdLogicalGroup);
+  Label nameLabel=new Label(logicalGroup,SWT.RIGHT);
+  props.setLook(nameLabel);
+  nameLabel.setText(BaseMessages.getString(PKG,"StarModelerPerspective.DomainName.Label"));
+  FormData fdNameLabel=new FormData();
+  fdNameLabel.left=new FormAttachment(0,0);
+  fdNameLabel.right=new FormAttachment(middle,0);
+  fdNameLabel.top=new FormAttachment(0,0);
+  nameLabel.setLayoutData(fdNameLabel);
+  final Text nameText=new Text(logicalGroup,SWT.BORDER | SWT.SINGLE);
+  props.setLook(nameText);
+  nameText.setText(Const.NVL(starDomain.getDomain().getName(defaultLocale),""));
+  FormData fdNameText=new FormData();
+  fdNameText.left=new FormAttachment(middle,margin);
+  fdNameText.right=new FormAttachment(100,0);
+  fdNameText.top=new FormAttachment(0,0);
+  nameText.setLayoutData(fdNameText);
+  nameText.addModifyListener(new ModifyListener(){
+    public void modifyText(    ModifyEvent event){
+      starDomain.getDomain().setName(new LocalizedString(defaultLocale,nameText.getText()));
+      setNameForTab(tabAndPanel.tab,starDomain.getDomain().getName(defaultLocale));
+    }
+  }
+);
+  Control lastControl=nameText;
+  Label descriptionLabel=new Label(logicalGroup,SWT.RIGHT);
+  props.setLook(descriptionLabel);
+  descriptionLabel.setText(BaseMessages.getString(PKG,"StarModelerPerspective.DomainDescription.Label"));
+  FormData fdDescriptionLabel=new FormData();
+  fdDescriptionLabel.left=new FormAttachment(0,0);
+  fdDescriptionLabel.right=new FormAttachment(middle,0);
+  fdDescriptionLabel.top=new FormAttachment(lastControl,margin);
+  descriptionLabel.setLayoutData(fdDescriptionLabel);
+  final Text descriptionText=new Text(logicalGroup,SWT.BORDER | SWT.SINGLE);
+  props.setLook(descriptionText);
+  descriptionText.setText(Const.NVL(starDomain.getDomain().getDescription(defaultLocale),""));
+  FormData fdDescriptionText=new FormData();
+  fdDescriptionText.left=new FormAttachment(middle,5);
+  fdDescriptionText.right=new FormAttachment(100,0);
+  fdDescriptionText.top=new FormAttachment(lastControl,margin);
+  descriptionText.setLayoutData(fdDescriptionText);
+  descriptionText.addModifyListener(new ModifyListener(){
+    public void modifyText(    ModifyEvent event){
+      starDomain.getDomain().setDescription(new LocalizedString(defaultLocale,descriptionText.getText()));
+    }
+  }
+);
+  lastControl=descriptionText;
+  Label modelsLabel=new Label(logicalGroup,SWT.RIGHT);
+  props.setLook(modelsLabel);
+  modelsLabel.setText(BaseMessages.getString(PKG,"StarModelerPerspective.DomainModels.Label"));
+  FormData fdModelsLabel=new FormData();
+  fdModelsLabel.left=new FormAttachment(0,0);
+  fdModelsLabel.right=new FormAttachment(middle,0);
+  fdModelsLabel.top=new FormAttachment(lastControl,margin);
+  modelsLabel.setLayoutData(fdModelsLabel);
+  ColumnInfo[] colinf=new ColumnInfo[]{new ColumnInfo(BaseMessages.getString(PKG,"StarModelerPerspective.ModelName.Column"),ColumnInfo.COLUMN_TYPE_TEXT,false,true),new ColumnInfo(BaseMessages.getString(PKG,"StarModelerPerspective.ModelDescription.Column"),ColumnInfo.COLUMN_TYPE_TEXT,false,true)};
+  final TableView modelsList=new TableView(new Variables(),logicalGroup,SWT.BORDER,colinf,1,null,props);
+  modelsList.setReadonly(true);
+  modelsList.table.addSelectionListener(new SelectionAdapter(){
+    @Override public void widgetDefaultSelected(    SelectionEvent e){
+      if (modelsList.getSelectionIndex() < 0)       return;
+      TableItem item=modelsList.table.getSelection()[0];
+      String name=item.getText(1);
+      if (editModel(logicalGroup.getShell(),starDomain,defaultLocale,name)) {
+        refreshModelsList(starDomain,modelsList);
+      }
+    }
+  }
+);
+  refreshModelsList(starDomain,modelsList);
+  FormData fdModelsList=new FormData();
+  fdModelsList.top=new FormAttachment(lastControl,margin);
+  fdModelsList.bottom=new FormAttachment(lastControl,250);
+  fdModelsList.left=new FormAttachment(middle,margin);
+  fdModelsList.right=new FormAttachment(100,0);
+  modelsList.setLayoutData(fdModelsList);
+  lastControl=modelsList;
+  Button newModelButton=new Button(logicalGroup,SWT.PUSH);
+  newModelButton.setText(BaseMessages.getString(PKG,"StarModelerPerspective.Button.NewModel"));
+  FormData fdNewModelButton=new FormData();
+  fdNewModelButton.top=new FormAttachment(lastControl,margin);
+  fdNewModelButton.left=new FormAttachment(middle,margin);
+  newModelButton.setLayoutData(fdNewModelButton);
+  newModelButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      if (newModel(logicalGroup.getShell(),starDomain)) {
+        refreshModelsList(starDomain,modelsList);
+      }
+    }
+  }
+);
+  Button editModelButton=new Button(logicalGroup,SWT.PUSH);
+  editModelButton.setText(BaseMessages.getString(PKG,"StarModelerPerspective.Button.EditModel"));
+  FormData fdEditModelButton=new FormData();
+  fdEditModelButton.top=new FormAttachment(lastControl,margin);
+  fdEditModelButton.left=new FormAttachment(newModelButton,margin);
+  editModelButton.setLayoutData(fdEditModelButton);
+  editModelButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      if (modelsList.getSelectionIndex() < 0)       return;
+      TableItem item=modelsList.table.getSelection()[0];
+      String name=item.getText(1);
+      if (editModel(logicalGroup.getShell(),starDomain,defaultLocale,name)) {
+        refreshModelsList(starDomain,modelsList);
+      }
+    }
+  }
+);
+  Button delModelButton=new Button(logicalGroup,SWT.PUSH);
+  delModelButton.setText(BaseMessages.getString(PKG,"StarModelerPerspective.Button.DeleteModel"));
+  FormData fdDelModelButton=new FormData();
+  fdDelModelButton.top=new FormAttachment(lastControl,margin);
+  fdDelModelButton.left=new FormAttachment(editModelButton,margin);
+  delModelButton.setLayoutData(fdDelModelButton);
+  delModelButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent event){
+      if (modelsList.getSelectionIndex() < 0)       return;
+      TableItem item=modelsList.table.getSelection()[0];
+      String name=item.getText(1);
+      if (deleteModel(logicalGroup.getShell(),starDomain,defaultLocale,name)) {
+        refreshModelsList(starDomain,modelsList);
+      }
+    }
+  }
+);
+  return logicalGroup;
+}

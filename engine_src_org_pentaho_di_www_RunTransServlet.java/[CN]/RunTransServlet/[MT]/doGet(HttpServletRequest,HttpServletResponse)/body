@@ -1,0 +1,65 @@
+{
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
+  if (log.isDebug())   logDebug(BaseMessages.getString(PKG,"RunTransServlet.Log.RunTransRequested"));
+  String[] knownOptions=new String[]{"trans","level"};
+  String transOption=request.getParameter("trans");
+  String levelOption=request.getParameter("level");
+  response.setStatus(HttpServletResponse.SC_OK);
+  PrintWriter out=response.getWriter();
+  try {
+    final Repository repository=transformationMap.getSlaveServerConfig().getRepository();
+    final TransMeta transMeta=loadTrans(repository,transOption);
+    String[] parameters=transMeta.listParameters();
+    Enumeration<?> parameterNames=request.getParameterNames();
+    while (parameterNames.hasMoreElements()) {
+      String parameter=(String)parameterNames.nextElement();
+      String[] values=request.getParameterValues(parameter);
+      if (Const.indexOfString(parameter,knownOptions) < 0) {
+        if (Const.indexOfString(parameter,parameters) < 0) {
+          transMeta.setVariable(parameter,values[0]);
+        }
+ else {
+          transMeta.setParameterValue(parameter,values[0]);
+        }
+      }
+    }
+    TransExecutionConfiguration transExecutionConfiguration=new TransExecutionConfiguration();
+    LogLevel logLevel=LogLevel.getLogLevelForCode(levelOption);
+    transExecutionConfiguration.setLogLevel(logLevel);
+    TransConfiguration transConfiguration=new TransConfiguration(transMeta,transExecutionConfiguration);
+    String carteObjectId=UUID.randomUUID().toString();
+    SimpleLoggingObject servletLoggingObject=new SimpleLoggingObject(CONTEXT_PATH,LoggingObjectType.CARTE,null);
+    servletLoggingObject.setContainerObjectId(carteObjectId);
+    servletLoggingObject.setLogLevel(logLevel);
+    final Trans trans=new Trans(transMeta,servletLoggingObject);
+    trans.setRepository(repository);
+    trans.setServletPrintWriter(out);
+    trans.setServletReponse(response);
+    trans.setServletRequest(request);
+    trans.initializeVariablesFrom(null);
+    trans.getTransMeta().setInternalKettleVariables(trans);
+    trans.injectVariables(transConfiguration.getTransExecutionConfiguration().getVariables());
+    trans.copyParametersFrom(transMeta);
+    trans.clearParameters();
+    transMeta.activateParameters();
+    trans.setSocketRepository(getSocketRepository());
+    getTransformationMap().addTransformation(trans.getName(),carteObjectId,trans,transConfiguration);
+    String message="Transformation '" + trans.getName() + "' was added to the list with id "+ carteObjectId;
+    logBasic(message);
+    try {
+      trans.execute(null);
+      WebResult webResult=new WebResult(WebResult.STRING_OK,"Transformation started",carteObjectId);
+      out.println(webResult.getXML());
+      out.flush();
+    }
+ catch (    Exception executionException) {
+      String logging=CentralLogStore.getAppender().getBuffer(trans.getLogChannelId(),false).toString();
+      throw new KettleException("Error executing Transformation: " + logging,executionException);
+    }
+  }
+ catch (  Exception ex) {
+    out.println(new WebResult(WebResult.STRING_ERROR,BaseMessages.getString(PKG,"RunTransServlet.Error.UnexpectedError",Const.CR + Const.getStackTracker(ex))));
+  }
+}

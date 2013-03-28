@@ -1,8 +1,12 @@
 {
-  IMetaStoreElementType elementType=metaStore.getElementTypeByName(MetaStoreConst.PENTAHO_NAMESPACE,MetaStoreConst.DATABASE_TYPE_NAME);
-  if (elementType == null) {
-    elementType=populateDatabaseElementType(metaStore);
+  if (!metaStore.namespaceExists(PentahoDefaults.NAMESPACE)) {
+    throw new MetaStoreException("Namespace '" + PentahoDefaults.NAMESPACE + "' doesn't exist.");
   }
+  IMetaStoreElementType elementType=metaStore.getElementTypeByName(PentahoDefaults.NAMESPACE,MetaStoreConst.DATABASE_TYPE_NAME);
+  if (elementType == null) {
+    throw new MetaStoreException("Unable to find the database connection type");
+  }
+  elementType=populateDatabaseElementType(metaStore);
   IMetaStoreElement element=metaStore.newElement(elementType,databaseMeta.getName(),null);
   element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_PLUGIN_ID,databaseMeta.getPluginId()));
   if (element.getId() == null) {
@@ -15,7 +19,7 @@
   element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_PORT,databaseMeta.getDatabasePortNumberString()));
   element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_DATABASE_NAME,databaseMeta.getDatabaseName()));
   element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_USERNAME,databaseMeta.getUsername()));
-  element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_PASSWORD,Encr.encryptPasswordIfNotUsingVariables(databaseMeta.getUsername())));
+  element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_PASSWORD,Encr.encryptPasswordIfNotUsingVariables(databaseMeta.getPassword())));
   element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_SERVERNAME,databaseMeta.getServername()));
   element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_DATA_TABLESPACE,databaseMeta.getDataTablespace()));
   element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_ID_INDEX_TABLESPACE,databaseMeta.getIndexTablespace()));
@@ -27,6 +31,13 @@
     String code=(String)keys.nextElement();
     String attribute=(String)attributes.get(code);
     attributesChild.addChild(metaStore.newAttribute(code,attribute));
+  }
+  element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_DRIVER_CLASS,databaseMeta.getDriverClass()));
+  try {
+    element.addChild(metaStore.newAttribute(MetaStoreConst.DB_ATTR_JDBC_URL,databaseMeta.getURL()));
+  }
+ catch (  Exception e) {
+    throw new MetaStoreException("Unable to assemble URL from database '" + databaseMeta.getName() + "'",e);
   }
   return element;
 }

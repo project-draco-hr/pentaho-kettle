@@ -1,0 +1,26 @@
+{
+  KettleEnvironment.init();
+  File sharedObjectsFile=File.createTempFile("shared-objects",".xml");
+  String sharedObjectsFilename=sharedObjectsFile.toString();
+  sharedObjectsFile.delete();
+  SharedObjects sharedObjects=new SharedObjects(sharedObjectsFilename);
+  SharedObjectsMetaStore metaStore=new SharedObjectsMetaStore(sharedObjects);
+  List<IMetaStoreElementType> elementTypes=metaStore.getElementTypes(PentahoDefaults.NAMESPACE);
+  assertEquals(1,elementTypes.size());
+  IMetaStoreElementType databaseElementType=metaStore.getElementType(PentahoDefaults.NAMESPACE,MetaStoreConst.DATABASE_TYPE_NAME);
+  assertNotNull(databaseElementType);
+  List<IMetaStoreElement> elements=metaStore.getElements(PentahoDefaults.NAMESPACE,databaseElementType.getId());
+  assertEquals(0,elements.size());
+  DatabaseMeta databaseMeta=new DatabaseMeta(databaseMetaXml);
+  sharedObjects.storeObject(databaseMeta);
+  elements=metaStore.getElements(PentahoDefaults.NAMESPACE,databaseElementType.getId());
+  assertEquals(1,elements.size());
+  IMetaStoreElement databaseElement=elements.get(0);
+  sharedObjects.removeObject(databaseMeta);
+  elements=metaStore.getElements(PentahoDefaults.NAMESPACE,databaseElementType.getId());
+  assertEquals(0,elements.size());
+  metaStore.createElement(PentahoDefaults.NAMESPACE,databaseElementType.getId(),databaseElement);
+  elements=metaStore.getElements(PentahoDefaults.NAMESPACE,databaseElementType.getId());
+  assertEquals(1,elements.size());
+  assertNotNull(sharedObjects.getSharedDatabase(databaseMeta.getName()));
+}

@@ -1,0 +1,111 @@
+{
+  if (data.groupBuffer.isEmpty()) {
+    return;
+  }
+  data.groupTimeStart=System.currentTimeMillis();
+  if (data.executorTrans != null) {
+    CentralLogStore.discardLines(data.executorTrans.getLogChannelId(),false);
+    LoggingRegistry.getInstance().removeIncludingChildren(data.executorTrans.getLogChannelId());
+  }
+  data.executorTrans=new Trans(data.executorTransMeta,this);
+  data.executorTrans.setParentTrans(getTrans());
+  data.executorTrans.setLogLevel(getLogLevel());
+  data.executorTrans.setArguments(getTrans().getArguments());
+  if (meta.getParameters().isInheritingAllVariables()) {
+    data.executorTrans.shareVariablesWith(this);
+  }
+  data.executorTrans.setInternalKettleVariables(this);
+  data.executorTrans.copyParametersFrom(data.executorTransMeta);
+  data.executorTrans.setPreview(getTrans().isPreview());
+  data.executorTrans.setServletPrintWriter(getTrans().getServletPrintWriter());
+  data.executorTrans.setServletReponse(getTrans().getServletResponse());
+  data.executorTrans.setServletRequest(getTrans().getServletRequest());
+  passParametersToTrans();
+  getTrans().getActiveSubtransformations().put(getStepname(),data.executorTrans);
+  Result result=new Result();
+  result.setRows(data.groupBuffer);
+  try {
+    data.executorTrans.setPreviousResult(result);
+    data.executorTrans.execute(null);
+    data.executorTrans.waitUntilFinished();
+    result=data.executorTrans.getResult();
+  }
+ catch (  KettleException e) {
+    log.logError("An error occurred executing the transformation: ",e);
+    result.setResult(false);
+    result.setNrErrors(1);
+  }
+ finally {
+  }
+  if (meta.getExecutionResultTargetStepMeta() != null) {
+    Object[] outputRow=RowDataUtil.allocateRowData(data.executionResultsOutputRowMeta.size());
+    int idx=0;
+    if (!Const.isEmpty(meta.getExecutionTimeField())) {
+      outputRow[idx++]=Long.valueOf(System.currentTimeMillis() - data.groupTimeStart);
+    }
+    if (!Const.isEmpty(meta.getExecutionResultField())) {
+      outputRow[idx++]=Boolean.valueOf(result.getResult());
+    }
+    if (!Const.isEmpty(meta.getExecutionNrErrorsField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrErrors());
+    }
+    if (!Const.isEmpty(meta.getExecutionLinesReadField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrLinesRead());
+    }
+    if (!Const.isEmpty(meta.getExecutionLinesWrittenField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrLinesWritten());
+    }
+    if (!Const.isEmpty(meta.getExecutionLinesInputField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrLinesInput());
+    }
+    if (!Const.isEmpty(meta.getExecutionLinesOutputField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrLinesOutput());
+    }
+    if (!Const.isEmpty(meta.getExecutionLinesRejectedField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrLinesRejected());
+    }
+    if (!Const.isEmpty(meta.getExecutionLinesUpdatedField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrLinesUpdated());
+    }
+    if (!Const.isEmpty(meta.getExecutionLinesDeletedField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrLinesDeleted());
+    }
+    if (!Const.isEmpty(meta.getExecutionFilesRetrievedField())) {
+      outputRow[idx++]=Long.valueOf(result.getNrFilesRetrieved());
+    }
+    if (!Const.isEmpty(meta.getExecutionExitStatusField())) {
+      outputRow[idx++]=Long.valueOf(result.getExitStatus());
+    }
+    if (!Const.isEmpty(meta.getExecutionLogTextField())) {
+      String channelId=data.executorTrans.getLogChannelId();
+      String logText=CentralLogStore.getAppender().getBuffer(channelId,false).toString();
+      outputRow[idx++]=logText;
+    }
+    if (!Const.isEmpty(meta.getExecutionLogChannelIdField())) {
+      outputRow[idx++]=data.executorTrans.getLogChannelId();
+    }
+    putRowTo(data.executionResultsOutputRowMeta,outputRow,data.executionResultRowSet);
+  }
+  if (meta.getResultRowsTargetStepMeta() != null && result.getRows() != null) {
+    for (    RowMetaAndData row : result.getRows()) {
+      Object[] targetRow=RowDataUtil.allocateRowData(data.resultRowsOutputRowMeta.size());
+      for (int i=0; i < meta.getResultRowsField().length; i++) {
+        ValueMetaInterface valueMeta=row.getRowMeta().getValueMeta(i);
+        if (valueMeta.getType() != meta.getResultRowsType()[i]) {
+          throw new KettleException(BaseMessages.getString(PKG,"TransExecutor.IncorrectDataTypePassed",valueMeta.getTypeDesc(),ValueMeta.getTypeDesc(meta.getResultRowsType()[i])));
+        }
+        targetRow[i]=row.getData()[i];
+      }
+      putRowTo(data.resultRowsOutputRowMeta,targetRow,data.resultRowsRowSet);
+    }
+  }
+  if (meta.getResultFilesTargetStepMeta() != null && result.getResultFilesList() != null) {
+    for (    ResultFile resultFile : result.getResultFilesList()) {
+      Object[] targetRow=RowDataUtil.allocateRowData(data.resultFilesOutputRowMeta.size());
+      int idx=0;
+      targetRow[idx++]=resultFile.getFile().getName().toString();
+      putRowTo(data.resultFilesOutputRowMeta,targetRow,data.resultFilesRowSet);
+    }
+  }
+  data.groupBuffer.clear();
+}

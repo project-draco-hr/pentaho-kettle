@@ -1,0 +1,41 @@
+{
+  JobMeta mappingJobMeta=null;
+switch (executorMeta.getSpecificationMethod()) {
+case FILENAME:
+    String realFilename=space.environmentSubstitute(executorMeta.getFileName());
+  try {
+    mappingJobMeta=new JobMeta(space,realFilename,rep,metaStore,null);
+    LogChannel.GENERAL.logDetailed("Loading job from repository","Job was loaded from XML file [" + realFilename + "]");
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"JobExecutorMeta.Exception.UnableToLoadJob"),e);
+  }
+break;
+case REPOSITORY_BY_NAME:
+String realJobname=space.environmentSubstitute(executorMeta.getJobName());
+String realDirectory=space.environmentSubstitute(executorMeta.getDirectoryPath());
+if (!Const.isEmpty(realJobname) && !Const.isEmpty(realDirectory) && rep != null) {
+RepositoryDirectoryInterface repdir=rep.findDirectory(realDirectory);
+if (repdir != null) {
+try {
+mappingJobMeta=rep.loadJob(realJobname,repdir,null,null);
+LogChannel.GENERAL.logDetailed("Loading job from repository","Executor job [" + realJobname + "] was loaded from the repository");
+}
+ catch (Exception e) {
+throw new KettleException("Unable to load job [" + realJobname + "]",e);
+}
+}
+ else {
+throw new KettleException(BaseMessages.getString(PKG,"JobExecutorMeta.Exception.UnableToLoadJob",realJobname) + realDirectory);
+}
+}
+break;
+case REPOSITORY_BY_REFERENCE:
+mappingJobMeta=rep.loadJob(executorMeta.getJobObjectId(),null);
+break;
+}
+mappingJobMeta.copyVariablesFrom(space);
+mappingJobMeta.setRepository(rep);
+mappingJobMeta.setFilename(mappingJobMeta.getFilename());
+return mappingJobMeta;
+}
