@@ -1,28 +1,40 @@
 {
   for (int i=0; i < fieldname.length; i++) {
     if (!Const.isEmpty(fieldname[i])) {
-      ValueMetaInterface v;
+      String fieldName;
+      int replaceIndex;
+      int fieldType;
       if (replace[i]) {
-        v=row.searchValueMeta(fieldname[i]);
-        if (v == null && Const.isEmpty(rename[i])) {
+        if (row.searchValueMeta(fieldname[i]) == null && Const.isEmpty(rename[i])) {
           throw new KettleStepException(BaseMessages.getString(PKG,"ScriptMeta.Exception.FieldToReplaceNotFound",fieldname[i]));
         }
-        v=row.searchValueMeta(rename[i]);
-        v.setType(type[i]);
+        replaceIndex=row.indexOfValue(rename[i]);
+        fieldType=type[i];
+        fieldName=rename[i];
       }
  else {
+        replaceIndex=-1;
+        fieldType=type[i];
         if (rename[i] != null && rename[i].length() != 0) {
-          v=new ValueMeta(rename[i],type[i]);
+          fieldName=rename[i];
         }
  else {
-          v=new ValueMeta(this.fieldname[i],type[i]);
+          fieldName=fieldname[i];
         }
       }
-      v.setLength(length[i]);
-      v.setPrecision(precision[i]);
-      v.setOrigin(originStepname);
-      if (!replace[i]) {
-        row.addValueMeta(v);
+      try {
+        ValueMetaInterface v=ValueMetaFactory.createValueMeta(fieldName,fieldType);
+        v.setLength(length[i]);
+        v.setPrecision(precision[i]);
+        v.setOrigin(originStepname);
+        if (replace[i] && replaceIndex >= 0) {
+          row.setValueMeta(replaceIndex,v);
+        }
+ else {
+          row.addValueMeta(v);
+        }
+      }
+ catch (      KettlePluginException e) {
       }
     }
   }

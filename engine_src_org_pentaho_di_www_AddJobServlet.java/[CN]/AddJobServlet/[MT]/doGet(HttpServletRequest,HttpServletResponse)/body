@@ -28,7 +28,6 @@
     JobMeta jobMeta=jobConfiguration.getJobMeta();
     JobExecutionConfiguration jobExecutionConfiguration=jobConfiguration.getJobExecutionConfiguration();
     jobMeta.setLogLevel(jobExecutionConfiguration.getLogLevel());
-    jobMeta.setArguments(jobExecutionConfiguration.getArgumentStrings());
     jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
     final Repository repository=jobConfiguration.getJobExecutionConfiguration().getRepository();
     String carteObjectId=UUID.randomUUID().toString();
@@ -40,6 +39,7 @@
     job.getJobMeta().setInternalKettleVariables(job);
     job.injectVariables(jobConfiguration.getJobExecutionConfiguration().getVariables());
     job.setIgnoringCheckpoints(jobExecutionConfiguration.isIgnoringCheckpoint());
+    job.setArguments(jobExecutionConfiguration.getArgumentStrings());
     job.copyParametersFrom(jobMeta);
     job.clearParameters();
     String[] parameterNames=job.listParameters();
@@ -51,7 +51,12 @@
     }
     jobMeta.activateParameters();
     job.setSocketRepository(getSocketRepository());
-    getJobMap().addJob(job.getJobname(),carteObjectId,job,jobConfiguration);
+    if (jobExecutionConfiguration.isExpandingRemoteJob()) {
+      job.addDelegationListener(new CarteDelegationHandler(getTransformationMap(),getJobMap()));
+    }
+synchronized (getJobMap()) {
+      getJobMap().addJob(job.getJobname(),carteObjectId,job,jobConfiguration);
+    }
     if (repository != null) {
       job.addJobListener(new JobAdapter(){
         public void jobFinished(        Job job){

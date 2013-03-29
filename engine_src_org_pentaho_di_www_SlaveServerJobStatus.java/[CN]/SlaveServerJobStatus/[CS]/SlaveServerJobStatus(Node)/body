@@ -7,24 +7,17 @@
   firstLoggingLineNr=Const.toInt(XMLHandler.getTagValue(jobStatusNode,"first_log_line_nr"),0);
   lastLoggingLineNr=Const.toInt(XMLHandler.getTagValue(jobStatusNode,"last_log_line_nr"),0);
   String loggingString64=XMLHandler.getTagValue(jobStatusNode,"logging_string");
-  try {
-    byte[] bytes=new byte[]{};
-    if (loggingString64 != null)     bytes=Base64.decodeBase64(loggingString64.getBytes());
-    if (bytes.length > 0) {
-      ByteArrayInputStream bais=new ByteArrayInputStream(bytes);
-      GZIPInputStream gzip=new GZIPInputStream(bais);
-      int c;
-      StringBuffer buffer=new StringBuffer();
-      while ((c=gzip.read()) != -1)       buffer.append((char)c);
-      gzip.close();
-      loggingString=buffer.toString();
+  if (!Const.isEmpty(loggingString64)) {
+    String dataString64=loggingString64.substring("<![CDATA[".length(),loggingString64.length() - "]]>".length());
+    try {
+      loggingString=HttpUtil.decodeBase64ZippedString(dataString64);
     }
- else {
-      loggingString="";
+ catch (    IOException e) {
+      loggingString="Unable to decode logging from remote server : " + e.toString() + Const.CR+ Const.getStackTracker(e);
     }
   }
- catch (  IOException e) {
-    loggingString="Unable to decode logging from remote server : " + e.toString() + Const.CR+ Const.getStackTracker(e)+ Const.CR;
+ else {
+    loggingString="";
   }
   Node resultNode=XMLHandler.getSubNode(jobStatusNode,Result.XML_TAG);
   if (resultNode != null) {

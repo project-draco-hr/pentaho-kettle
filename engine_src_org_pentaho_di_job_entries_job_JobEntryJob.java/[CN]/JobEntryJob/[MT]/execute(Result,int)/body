@@ -65,7 +65,7 @@ verifyRecursiveExecution(parentJob,jobMeta);
 int iteration=0;
 String args1[]=arguments;
 if (args1 == null || args1.length == 0) {
-args1=parentJob.getJobMeta().getArguments();
+args1=parentJob.getArguments();
 }
 copyVariablesFrom(parentJob);
 setParentVariableSpace(parentJob);
@@ -231,7 +231,10 @@ job.getJobTracker().setParentJobTracker(parentJob.getJobTracker());
 if (parentJob.getJobMeta().isBatchIdPassed()) {
 job.setPassedBatchId(parentJob.getBatchId());
 }
-job.getJobMeta().setArguments(args);
+job.setArguments(args);
+for (DelegationListener delegationListener : parentJob.getDelegationListeners()) {
+delegationListener.jobDelegationStarted(job,new JobExecutionConfiguration());
+}
 JobEntryJobRunner runner=new JobEntryJobRunner(job,result,nr,log);
 Thread jobRunnerThread=new Thread(runner);
 jobRunnerThread.setName(Const.NVL(job.getJobMeta().getName(),job.getJobMeta().getFilename()) + " UUID: " + UUID.randomUUID().toString());
@@ -260,6 +263,7 @@ jobExecutionConfiguration.setRemoteServer(remoteSlaveServer);
 jobExecutionConfiguration.setRepository(rep);
 jobExecutionConfiguration.setLogLevel(jobLogLevel);
 jobExecutionConfiguration.setPassingExport(passingExport);
+jobExecutionConfiguration.setExpandingRemoteJob(expandingRemoteJob);
 for (String param : namedParam.listParameters()) {
 String defValue=namedParam.getParameterDefault(param);
 String value=namedParam.getParameterValue(param);

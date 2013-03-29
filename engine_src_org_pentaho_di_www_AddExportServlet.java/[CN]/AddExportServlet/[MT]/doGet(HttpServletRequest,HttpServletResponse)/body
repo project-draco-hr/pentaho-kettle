@@ -36,9 +36,14 @@
         servletLoggingObject.setContainerObjectId(carteObjectId);
         servletLoggingObject.setLogLevel(jobExecutionConfiguration.getLogLevel());
         Job job=new Job(null,jobMeta,servletLoggingObject);
-        getJobMap().addJob(job.getJobname(),carteObjectId,job,new JobConfiguration(jobMeta,jobExecutionConfiguration));
+        if (jobExecutionConfiguration.isExpandingRemoteJob()) {
+          job.addDelegationListener(new CarteDelegationHandler(getTransformationMap(),getJobMap()));
+        }
+synchronized (getJobMap()) {
+          getJobMap().addJob(job.getJobname(),carteObjectId,job,new JobConfiguration(jobMeta,jobExecutionConfiguration));
+        }
         log.setLogLevel(jobExecutionConfiguration.getLogLevel());
-        jobMeta.setArguments(jobExecutionConfiguration.getArgumentStrings());
+        job.setArguments(jobExecutionConfiguration.getArgumentStrings());
         jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
         Map<String,String> params=jobExecutionConfiguration.getParams();
         for (        String param : params.keySet()) {

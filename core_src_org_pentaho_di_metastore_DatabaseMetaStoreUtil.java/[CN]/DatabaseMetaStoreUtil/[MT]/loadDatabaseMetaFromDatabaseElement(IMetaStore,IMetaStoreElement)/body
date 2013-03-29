@@ -1,6 +1,23 @@
 {
   DatabaseMeta databaseMeta=new DatabaseMeta();
+  PluginRegistry pluginRegistry=PluginRegistry.getInstance();
   String pluginId=getChildString(element,MetaStoreConst.DB_ATTR_ID_PLUGIN_ID);
+  String driverClassName=getChildString(element,MetaStoreConst.DB_ATTR_DRIVER_CLASS);
+  if (Const.isEmpty(pluginId) && Const.isEmpty(driverClassName)) {
+    throw new KettlePluginException("The attributes 'plugin_id' and 'driver_class' can't be both empty");
+  }
+  if (Const.isEmpty(pluginId)) {
+    List<PluginInterface> plugins=pluginRegistry.getPlugins(DatabasePluginType.class);
+    for (    PluginInterface plugin : plugins) {
+      DatabaseInterface databaseInterface=(DatabaseInterface)pluginRegistry.loadClass(plugin);
+      if (driverClassName.equalsIgnoreCase(databaseInterface.getDriverClass())) {
+        pluginId=plugin.getIds()[0];
+      }
+    }
+  }
+  if (Const.isEmpty(pluginId)) {
+    throw new KettlePluginException("The 'plugin_id' attribute could not be determined using 'driver_class' value '" + driverClassName + "'");
+  }
   PluginInterface plugin=PluginRegistry.getInstance().getPlugin(DatabasePluginType.class,pluginId);
   DatabaseInterface databaseInterface=(DatabaseInterface)PluginRegistry.getInstance().loadClass(plugin);
   databaseInterface.setPluginId(pluginId);
@@ -9,12 +26,15 @@
   databaseMeta.setName(element.getName());
   databaseMeta.setDescription(getChildString(element,MetaStoreConst.DB_ATTR_ID_DESCRIPTION));
   String accessTypeString=getChildString(element,MetaStoreConst.DB_ATTR_ID_ACCESS_TYPE);
+  if (Const.isEmpty(accessTypeString)) {
+    accessTypeString=DatabaseMeta.getAccessTypeDesc(DatabaseMeta.TYPE_ACCESS_NATIVE);
+  }
   databaseMeta.setAccessType(DatabaseMeta.getAccessType(accessTypeString));
   databaseMeta.setHostname(getChildString(element,MetaStoreConst.DB_ATTR_ID_HOSTNAME));
   databaseMeta.setDBPort(getChildString(element,MetaStoreConst.DB_ATTR_ID_PORT));
   databaseMeta.setDBName(getChildString(element,MetaStoreConst.DB_ATTR_ID_DATABASE_NAME));
   databaseMeta.setUsername(getChildString(element,MetaStoreConst.DB_ATTR_ID_USERNAME));
-  databaseMeta.setPassword(Encr.decryptPasswordOptionallyEncrypted(getChildString(element,MetaStoreConst.DB_ATTR_ID_PASSWORD)));
+  databaseMeta.setPassword(metaStore.getTwoWayPasswordEncoder().decode(getChildString(element,MetaStoreConst.DB_ATTR_ID_PASSWORD)));
   databaseMeta.setServername(getChildString(element,MetaStoreConst.DB_ATTR_ID_SERVERNAME));
   databaseMeta.setDataTablespace(getChildString(element,MetaStoreConst.DB_ATTR_ID_DATA_TABLESPACE));
   databaseMeta.setIndexTablespace(getChildString(element,MetaStoreConst.DB_ATTR_ID_INDEX_TABLESPACE));
