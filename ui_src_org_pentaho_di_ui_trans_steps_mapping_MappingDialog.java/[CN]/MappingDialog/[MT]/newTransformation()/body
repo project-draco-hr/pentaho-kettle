@@ -1,5 +1,35 @@
 {
+  RowMetaInterface inFields=new RowMeta();
+  try {
+    inFields=transMeta.getPrevStepFields(stepname);
+  }
+ catch (  Exception e) {
+    new ErrorDialog(shell,"Error","Unable to get input fields from previous step",e);
+  }
   TransMeta newTransMeta=new TransMeta();
+  newTransMeta.setUsingUniqueConnections(transMeta.isUsingUniqueConnections());
+  String INPUTSTEP_NAME="Mapping Input";
+  MappingInputMeta inputMeta=new MappingInputMeta();
+  inputMeta.allocate(inFields.size());
+  for (int i=0; i < inFields.size(); i++) {
+    ValueMetaInterface valueMeta=inFields.getValueMeta(i);
+    inputMeta.getFieldName()[i]=valueMeta.getName();
+    inputMeta.getFieldType()[i]=valueMeta.getType();
+    inputMeta.getFieldLength()[i]=valueMeta.getLength();
+    inputMeta.getFieldPrecision()[i]=valueMeta.getPrecision();
+  }
+  StepMeta inputStep=new StepMeta(INPUTSTEP_NAME,inputMeta);
+  inputStep.setLocation(50,50);
+  inputStep.setDraw(true);
+  newTransMeta.addStep(inputStep);
+  String OUTPUTSTEP_NAME="Mapping Output";
+  MappingOutputMeta outputMeta=new MappingOutputMeta();
+  outputMeta.allocate(0);
+  StepMeta outputStep=new StepMeta(OUTPUTSTEP_NAME,outputMeta);
+  outputStep.setLocation(500,50);
+  outputStep.setDraw(true);
+  newTransMeta.addStep(outputStep);
+  newTransMeta.addTransHop(new TransHopMeta(inputStep,outputStep));
   TransDialog transDialog=new TransDialog(shell,SWT.NONE,newTransMeta,repository);
   if (transDialog.open() != null) {
     Spoon spoon=Spoon.getInstance();
@@ -40,7 +70,6 @@ case REPOSITORY_BY_REFERENCE:
 getByReferenceData(newTransMeta.getObjectId());
 break;
 }
-getParametersFromTrans(newTransMeta);
 }
 }
 }
