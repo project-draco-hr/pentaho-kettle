@@ -29,17 +29,39 @@ case SerialSingleThreaded:
       }
       getRemoteInputSteps().clear();
     }
-  data.mappingTrans.startThreads();
+  if (!getOutputRowSets().isEmpty()) {
+    for (    RowSet rowSet : new ArrayList<RowSet>(getOutputRowSets())) {
+      if (mappingOutputs.length == 1) {
+        mappingOutputs[0].getOutputRowSets().add(rowSet);
+      }
+ else {
+        throw new KettleException("Unsupported situation detected where more than one Mapping Output step needs to be handled.  To solve it, insert a dummy step after the mapping step.");
+      }
+    }
+    getOutputRowSets().clear();
+  }
+if (!getRemoteOutputSteps().isEmpty()) {
+  for (  RemoteStep remoteStep : getRemoteOutputSteps()) {
+    if (mappingOutputs.length == 1) {
+      mappingOutputs[0].getRemoteOutputSteps().add(remoteStep);
+    }
+ else {
+      throw new KettleException("Unsupported situation detected where a remote output step is expecting data to end up in a particular Mapping Output step of a sub-transformation.  To solve it, insert a dummy step after the mapping.");
+    }
+  }
+  getRemoteOutputSteps().clear();
+}
+data.mappingTrans.startThreads();
 if (getTransMeta().getTransformationType() == TransformationType.Normal) {
-  data.mappingTrans.waitUntilFinished();
-  Result result=data.mappingTrans.getResult();
-  setErrors(result.getNrErrors());
-  setLinesRead(result.getNrLinesRead());
-  setLinesWritten(result.getNrLinesWritten());
-  setLinesInput(result.getNrLinesInput());
-  setLinesOutput(result.getNrLinesOutput());
-  setLinesUpdated(result.getNrLinesUpdated());
-  setLinesRejected(result.getNrLinesRejected());
+data.mappingTrans.waitUntilFinished();
+Result result=data.mappingTrans.getResult();
+setErrors(result.getNrErrors());
+setLinesRead(result.getNrLinesRead());
+setLinesWritten(result.getNrLinesWritten());
+setLinesInput(result.getNrLinesInput());
+setLinesOutput(result.getNrLinesOutput());
+setLinesUpdated(result.getNrLinesUpdated());
+setLinesRejected(result.getNrLinesRejected());
 }
 return false;
 case SingleThreaded:
