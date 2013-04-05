@@ -1,0 +1,115 @@
+{
+  CheckResult cr;
+  String error_message="";
+  if (databaseMeta != null) {
+    Database db=new Database(loggingObject,databaseMeta);
+    db.shareVariablesWith(transMeta);
+    try {
+      db.connect();
+      if (!Const.isEmpty(tableName)) {
+        cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,BaseMessages.getString(PKG,"DeleteMeta.CheckResult.TablenameOK"),stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        boolean error_found=false;
+        error_message="";
+        String schemaTable=databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName);
+        RowMetaInterface r=db.getTableFields(schemaTable);
+        if (r != null) {
+          cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,BaseMessages.getString(PKG,"DeleteMeta.CheckResult.VisitTableSuccessfully"),stepMeta);
+          remarks.add(cr);
+          for (int i=0; i < keyLookup.length; i++) {
+            String lufield=keyLookup[i];
+            ValueMetaInterface v=r.searchValueMeta(lufield);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=BaseMessages.getString(PKG,"DeleteMeta.CheckResult.MissingCompareFieldsInTargetTable") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + lufield + Const.CR;
+            }
+          }
+          if (error_found) {
+            cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+          }
+ else {
+            cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,BaseMessages.getString(PKG,"DeleteMeta.CheckResult.FoundLookupFields"),stepMeta);
+          }
+          remarks.add(cr);
+        }
+ else {
+          error_message=BaseMessages.getString(PKG,"DeleteMeta.CheckResult.CouldNotReadTableInfo");
+          cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+          remarks.add(cr);
+        }
+      }
+      if (prev != null && prev.size() > 0) {
+        cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,BaseMessages.getString(PKG,"DeleteMeta.CheckResult.ConnectedStepSuccessfully",String.valueOf(prev.size())),stepMeta);
+        remarks.add(cr);
+        boolean first=true;
+        error_message="";
+        boolean error_found=false;
+        for (int i=0; i < keyStream.length; i++) {
+          ValueMetaInterface v=prev.searchValueMeta(keyStream[i]);
+          if (v == null) {
+            if (first) {
+              first=false;
+              error_message+=BaseMessages.getString(PKG,"DeleteMeta.CheckResult.MissingFields") + Const.CR;
+            }
+            error_found=true;
+            error_message+="\t\t" + keyStream[i] + Const.CR;
+          }
+        }
+        for (int i=0; i < keyStream2.length; i++) {
+          if (keyStream2[i] != null && keyStream2[i].length() > 0) {
+            ValueMetaInterface v=prev.searchValueMeta(keyStream2[i]);
+            if (v == null) {
+              if (first) {
+                first=false;
+                error_message+=BaseMessages.getString(PKG,"DeleteMeta.CheckResult.MissingFields2") + Const.CR;
+              }
+              error_found=true;
+              error_message+="\t\t" + keyStream[i] + Const.CR;
+            }
+          }
+        }
+        if (error_found) {
+          cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+        }
+ else {
+          cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,BaseMessages.getString(PKG,"DeleteMeta.CheckResult.AllFieldsFound"),stepMeta);
+        }
+        remarks.add(cr);
+        first=true;
+        error_found=false;
+        error_message="";
+      }
+ else {
+        error_message=BaseMessages.getString(PKG,"DeleteMeta.CheckResult.MissingFields3") + Const.CR;
+        cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+        remarks.add(cr);
+      }
+    }
+ catch (    KettleException e) {
+      error_message=BaseMessages.getString(PKG,"DeleteMeta.CheckResult.DatabaseError") + e.getMessage();
+      cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+      remarks.add(cr);
+    }
+ finally {
+      db.disconnect();
+    }
+  }
+ else {
+    error_message=BaseMessages.getString(PKG,"DeleteMeta.CheckResult.InvalidConnection");
+    cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,error_message,stepMeta);
+    remarks.add(cr);
+  }
+  if (input.length > 0) {
+    cr=new CheckResult(CheckResultInterface.TYPE_RESULT_OK,BaseMessages.getString(PKG,"DeleteMeta.CheckResult.StepReceivingInfo"),stepMeta);
+    remarks.add(cr);
+  }
+ else {
+    cr=new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,BaseMessages.getString(PKG,"DeleteMeta.CheckResult.NoInputReceived"),stepMeta);
+    remarks.add(cr);
+  }
+}

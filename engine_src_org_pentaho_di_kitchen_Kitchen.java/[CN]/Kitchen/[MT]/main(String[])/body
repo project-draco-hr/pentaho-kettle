@@ -5,6 +5,8 @@
   for (int i=0; i < a.length; i++) {
     if (a[i].length() > 0)     args.add(a[i]);
   }
+  DelegatingMetaStore metaStore=new DelegatingMetaStore();
+  metaStore.addMetaStore(MetaStoreConst.openLocalPentahoMetaStore());
   RepositoryMeta repositoryMeta=null;
   Job job=null;
   StringBuffer optionRepname, optionUsername, optionPassword, optionJobname, optionDirname, optionFilename, optionLoglevel;
@@ -77,6 +79,9 @@
           repository.init(repositoryMeta);
           repository.connect(optionUsername != null ? optionUsername.toString() : null,optionPassword != null ? optionPassword.toString() : null);
           RepositoryDirectoryInterface directory=repository.loadRepositoryDirectoryTree();
+          if (repository.getMetaStore() != null) {
+            metaStore.addMetaStore(repository.getMetaStore());
+          }
           if (!Const.isEmpty(optionDirname)) {
             directory=directory.findDirectory(optionDirname.toString());
           }
@@ -139,7 +144,7 @@
   }
   if (!Const.isEmpty(optionExport.toString())) {
     try {
-      TopLevelResource topLevelResource=ResourceUtil.serializeResourceExportInterface(optionExport.toString(),job.getJobMeta(),job,repository);
+      TopLevelResource topLevelResource=ResourceUtil.serializeResourceExportInterface(optionExport.toString(),job.getJobMeta(),job,repository,metaStore);
       String launchFile=topLevelResource.getResourceName();
       String message=ResourceUtil.getExplanation(optionExport.toString(),launchFile,job.getJobMeta());
       System.out.println();

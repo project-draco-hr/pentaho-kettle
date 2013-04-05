@@ -7,12 +7,33 @@
     first=false;
     getRow();
   }
-  if (data.rowsWritten < data.rowLimit) {
+ else {
+    if (meta.isNeverEnding() && data.delay > 0) {
+      try {
+        Thread.sleep(data.delay);
+      }
+ catch (      InterruptedException e) {
+        throw new KettleException(e);
+      }
+    }
+  }
+  if (meta.isNeverEnding() || data.rowsWritten < data.rowLimit) {
     r=data.outputRowMeta.cloneRow(data.outputRowData);
   }
  else {
     setOutputDone();
     return false;
+  }
+  if (meta.isNeverEnding()) {
+    data.prevDate=data.rowDate;
+    data.rowDate=new Date();
+    int index=0;
+    if (!Const.isEmpty(meta.getRowTimeField())) {
+      r[index++]=data.rowDate;
+    }
+    if (!Const.isEmpty(meta.getLastTimeField())) {
+      r[index++]=data.prevDate;
+    }
   }
   putRow(data.outputRowMeta,r);
   data.rowsWritten++;

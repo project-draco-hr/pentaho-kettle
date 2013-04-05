@@ -26,7 +26,16 @@
   result.setRows(data.groupBuffer);
   try {
     data.executorTrans.setPreviousResult(result);
-    data.executorTrans.execute(null);
+    data.executorTrans.prepareExecution(getTrans().getArguments());
+    if (meta.getOutputRowsSourceStepMeta() != null) {
+      StepInterface stepInterface=data.executorTrans.findRunThread(meta.getOutputRowsSourceStepMeta().getName());
+      stepInterface.addRowListener(new RowAdapter(){
+        @Override public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
+          TransExecutor.this.putRow(rowMeta,row);
+        }
+      }
+);
+    }
     for (    DelegationListener delegationListener : getTrans().getDelegationListeners()) {
       delegationListener.transformationDelegationStarted(data.executorTrans,new TransExecutionConfiguration());
     }
@@ -88,19 +97,6 @@
       outputRow[idx++]=data.executorTrans.getLogChannelId();
     }
     putRowTo(data.executionResultsOutputRowMeta,outputRow,data.executionResultRowSet);
-  }
-  if (meta.getResultRowsTargetStepMeta() != null && result.getRows() != null) {
-    for (    RowMetaAndData row : result.getRows()) {
-      Object[] targetRow=RowDataUtil.allocateRowData(data.resultRowsOutputRowMeta.size());
-      for (int i=0; i < meta.getResultRowsField().length; i++) {
-        ValueMetaInterface valueMeta=row.getRowMeta().getValueMeta(i);
-        if (valueMeta.getType() != meta.getResultRowsType()[i]) {
-          throw new KettleException(BaseMessages.getString(PKG,"TransExecutor.IncorrectDataTypePassed",valueMeta.getTypeDesc(),ValueMeta.getTypeDesc(meta.getResultRowsType()[i])));
-        }
-        targetRow[i]=row.getData()[i];
-      }
-      putRowTo(data.resultRowsOutputRowMeta,targetRow,data.resultRowsRowSet);
-    }
   }
   if (meta.getResultFilesTargetStepMeta() != null && result.getResultFilesList() != null) {
     for (    ResultFile resultFile : result.getResultFilesList()) {
