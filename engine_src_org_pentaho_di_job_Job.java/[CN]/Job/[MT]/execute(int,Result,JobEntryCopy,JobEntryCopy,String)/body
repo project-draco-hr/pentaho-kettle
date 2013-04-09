@@ -32,7 +32,7 @@
     JobEntryResult jerCheckpoint=new JobEntryResult(result,getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobRestartAtCheckpoint"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
     jerCheckpoint.setCheckpoint(true);
     jobTracker.addJobTracker(new JobTracker(jobMeta,jerCheckpoint));
-synchronized (this) {
+synchronized (jobEntryResults) {
       jobEntryResults.add(jerCheckpoint);
     }
     log.logBasic("Restarting from checkpoint job entry: " + checkpointJobEntry.toString());
@@ -93,11 +93,13 @@ synchronized (this) {
     result.setLogText(logTextBuffer.toString());
     JobEntryResult jerAfter=new JobEntryResult(result,cloneJei.getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
     jobTracker.addJobTracker(new JobTracker(jobMeta,jerAfter));
-synchronized (this) {
+synchronized (jobEntryResults) {
       jobEntryResults.add(jerAfter);
-    }
-    if (maxJobEntriesLogged > 0 && jobEntryResults.size() > maxJobEntriesLogged + 50) {
-      jobEntryResults=jobEntryResults.subList(50,jobEntryResults.size());
+      if (maxJobEntriesLogged > 0) {
+        while (jobEntryResults.size() > maxJobEntriesLogged + 50) {
+          jobEntryResults.removeFirst();
+        }
+      }
     }
     if (jobEntryCopy.isCheckpoint() && jobMeta.getCheckpointLogTable().isDefined()) {
       writeCheckpointInformation(jobEntryCopy,result);
