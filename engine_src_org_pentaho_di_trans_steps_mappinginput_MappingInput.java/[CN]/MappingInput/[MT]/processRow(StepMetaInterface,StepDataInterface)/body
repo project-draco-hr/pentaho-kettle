@@ -25,7 +25,6 @@
   if (first) {
     first=false;
     data.outputRowMeta=getInputRowMeta().clone();
-    meta.setInputRowMeta(getInputRowMeta());
     if (meta.isSelectingAndSortingUnspecifiedFields()) {
       data.fieldNrs=new int[data.outputRowMeta.size()];
       for (int i=0; i < data.outputRowMeta.size(); i++) {
@@ -38,7 +37,28 @@
         throw new KettleStepException(BaseMessages.getString(PKG,"MappingInput.Exception.UnableToFindMappedValue",valueRename.getSourceValueName()));
       }
       valueMeta.setName(valueRename.getTargetValueName());
+      valueMeta=getInputRowMeta().searchValueMeta(valueRename.getSourceValueName());
+      if (valueMeta == null) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"MappingInput.Exception.UnableToFindMappedValue",valueRename.getSourceValueName()));
+      }
+      valueMeta.setName(valueRename.getTargetValueName());
     }
+    if (meta.isSelectingAndSortingUnspecifiedFields()) {
+      data.outputRowMeta=new RowMeta();
+      meta.setInputRowMeta(getInputRowMeta());
+    }
+ else {
+      RowMeta newRow=new RowMeta();
+      for (      String field : meta.getFieldName()) {
+        ValueMetaInterface vmi=data.outputRowMeta.searchValueMeta(field);
+        if (vmi != null) {
+          newRow.addValueMeta(vmi);
+        }
+      }
+      data.outputRowMeta=new RowMeta();
+      meta.setInputRowMeta(newRow);
+    }
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
   }
   if (meta.isSelectingAndSortingUnspecifiedFields()) {
     Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
