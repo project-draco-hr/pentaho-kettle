@@ -3,7 +3,6 @@
   DataOutputStream dos;
   GZIPOutputStream gzos;
   int p;
-  Object[] previousRow=null;
   try {
     FileObject fileObject=KettleVFS.createTempFile(meta.getPrefix(),".tmp",environmentSubstitute(meta.getDirectory()),getTransMeta());
     data.files.add(fileObject);
@@ -16,6 +15,8 @@
       dos=new DataOutputStream(new BufferedOutputStream(outputStream,500000));
       gzos=null;
     }
+    List<Integer> duplicates=new ArrayList<Integer>();
+    Object[] previousRow=null;
     if (meta.isOnlyPassingUniqueRows()) {
       int index=0;
       while (index < data.buffer.size()) {
@@ -23,22 +24,29 @@
         if (previousRow != null) {
           int result=data.outputRowMeta.compare(row,previousRow,data.fieldnrs);
           if (result == 0) {
-            data.buffer.remove(index);
-            if (log.isRowLevel())             logRowlevel("Duplicate row removed: " + data.outputRowMeta.getString(row));
-          }
- else {
-            index++;
+            duplicates.add(index);
+            if (log.isRowLevel()) {
+              logRowlevel("Duplicate row removed: " + data.outputRowMeta.getString(row));
+            }
           }
         }
- else {
-          index++;
-        }
+        index++;
         previousRow=row;
       }
     }
-    data.bufferSizes.add(data.buffer.size());
+    data.bufferSizes.add(data.buffer.size() - duplicates.size());
+    int duplicatesIndex=0;
     for (p=0; p < data.buffer.size(); p++) {
-      data.outputRowMeta.writeData(dos,data.buffer.get(p));
+      boolean skip=false;
+      if (duplicatesIndex < duplicates.size()) {
+        if (p == duplicates.get(duplicatesIndex)) {
+          skip=true;
+          duplicatesIndex++;
+        }
+      }
+      if (!skip) {
+        data.outputRowMeta.writeData(dos,data.buffer.get(p));
+      }
     }
     if (data.sortSize < 0) {
       if (data.buffer.size() > data.minSortSize) {
