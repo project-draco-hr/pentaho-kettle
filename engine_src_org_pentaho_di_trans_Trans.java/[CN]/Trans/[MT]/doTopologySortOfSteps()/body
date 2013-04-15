@@ -1,0 +1,59 @@
+{
+  transMeta.clearCaches();
+  int stepsMinSize=0;
+  int stepsSize=steps.size();
+  int windowShrinkThreshold=(int)Math.round(stepsSize * 0.75);
+  int totalIterations=stepsSize * 2;
+  boolean isBefore=false;
+  boolean forwardChange=false;
+  boolean backwardChange=false;
+  boolean lastForwardChange=true;
+  boolean keepSortingForward=true;
+  StepMetaDataCombi one=null;
+  StepMetaDataCombi two=null;
+  for (int x=0; x < totalIterations; x++) {
+    if (keepSortingForward) {
+      for (int y=stepsMinSize; y < stepsSize - 1; y++) {
+        one=steps.get(y);
+        two=steps.get(y + 1);
+        isBefore=transMeta.findPrevious(one.stepMeta,two.stepMeta);
+        if (isBefore) {
+          steps.set(y,two);
+          steps.set(y + 1,one);
+          forwardChange=true;
+        }
+      }
+    }
+    for (int z=stepsSize - 1; z > stepsMinSize; z--) {
+      one=steps.get(z);
+      two=steps.get(z - 1);
+      isBefore=transMeta.findPrevious(one.stepMeta,two.stepMeta);
+      if (!isBefore) {
+        steps.set(z,two);
+        steps.set(z - 1,one);
+        backwardChange=true;
+      }
+    }
+    if (x > windowShrinkThreshold && !forwardChange) {
+      stepsSize--;
+      if (stepsSize <= stepsMinSize) {
+        break;
+      }
+    }
+    if (x > windowShrinkThreshold && !backwardChange) {
+      stepsMinSize++;
+      if (stepsMinSize >= stepsSize) {
+        break;
+      }
+    }
+    if (!forwardChange && !backwardChange) {
+      break;
+    }
+    if (keepSortingForward && x > 0 && !lastForwardChange && !forwardChange) {
+      keepSortingForward=false;
+    }
+    lastForwardChange=forwardChange;
+    forwardChange=false;
+    backwardChange=false;
+  }
+}
