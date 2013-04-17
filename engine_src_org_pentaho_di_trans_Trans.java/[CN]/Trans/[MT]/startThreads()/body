@@ -1,6 +1,7 @@
 {
   nrOfFinishedSteps=0;
   nrOfActiveSteps=0;
+  ExtensionPointHandler.callExtensionPoint(KettleExtensionPoint.TransformationStartThreads.id,this);
   fireTransStartedListeners();
   for (int i=0; i < steps.size(); i++) {
     final StepMetaDataCombi sid=steps.get(i);
@@ -65,6 +66,12 @@ synchronized (Trans.this) {
   transFinishedBlockingQueue=new ArrayBlockingQueue<Object>(10);
   TransListener transListener=new TransAdapter(){
     public void transFinished(    Trans trans){
+      try {
+        ExtensionPointHandler.callExtensionPoint(KettleExtensionPoint.TransformationFinish.id,this);
+      }
+ catch (      KettleException e) {
+        throw new RuntimeException("Error calling extension point at end of transformation",e);
+      }
       if (transMeta.isCapturingStepPerformanceSnapShots() && stepPerformanceSnapShotTimer != null) {
         stepPerformanceSnapShotTimer.cancel();
       }
@@ -152,5 +159,6 @@ break;
 case SingleThreaded:
 break;
 }
+ExtensionPointHandler.callExtensionPoint(KettleExtensionPoint.TransformationStarted.id,this);
 if (log.isDetailed()) log.logDetailed(BaseMessages.getString(PKG,"Trans.Log.TransformationHasAllocated",String.valueOf(steps.size()),String.valueOf(rowsets.size())));
 }
