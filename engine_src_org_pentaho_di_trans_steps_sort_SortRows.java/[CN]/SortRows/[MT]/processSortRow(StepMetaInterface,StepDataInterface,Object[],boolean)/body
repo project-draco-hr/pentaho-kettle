@@ -1,0 +1,30 @@
+{
+  boolean err=true;
+  if (first && r != null) {
+    first=false;
+    data.convertKeysToNative=new boolean[meta.getFieldName().length];
+    data.fieldnrs=new int[meta.getFieldName().length];
+    for (int i=0; i < meta.getFieldName().length; i++) {
+      data.fieldnrs[i]=getInputRowMeta().indexOfValue(meta.getFieldName()[i]);
+      if (data.fieldnrs[i] < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"SortRowsMeta.CheckResult.StepFieldNotInInputStream",meta.getFieldName()[i],getStepname()));
+      }
+      data.convertKeysToNative[i]=getInputRowMeta().getValueMeta(data.fieldnrs[i]).isStorageBinaryString();
+    }
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+  }
+  err=addBuffer(getInputRowMeta(),r);
+  if (!err) {
+    setOutputDone();
+    return false;
+  }
+  if (r == null) {
+    passBuffer(!meta.isGroupSortEnabled());
+    return false;
+  }
+  if (checkFeedback(getLinesRead())) {
+    if (log.isBasic())     logBasic("Linenr " + getLinesRead());
+  }
+  return true;
+}

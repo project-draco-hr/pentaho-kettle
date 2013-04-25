@@ -1,0 +1,34 @@
+{
+  HttpClient client=SlaveConnectionManager.getInstance().createHttpClient();
+  addCredentials(client);
+  addProxy(client);
+  GetMethod method=new GetMethod(constructUrl(service));
+  for (  String key : headerValues.keySet()) {
+    method.setRequestHeader(key,headerValues.get(key));
+  }
+  InputStream inputStream=null;
+  BufferedInputStream bufferedInputStream=null;
+  try {
+    int result=client.executeMethod(method);
+    if (log.isDebug())     log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
+    inputStream=method.getResponseBodyAsStream();
+    bufferedInputStream=new BufferedInputStream(inputStream,1000);
+    StringBuffer bodyBuffer=new StringBuffer();
+    int c;
+    while ((c=bufferedInputStream.read()) != -1)     bodyBuffer.append((char)c);
+    String body=bodyBuffer.toString();
+    if (log.isDetailed())     log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_FinishedReading",Integer.toString(body.getBytes().length)));
+    if (log.isDebug())     log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",body));
+    return body;
+  }
+  finally {
+    if (bufferedInputStream != null) {
+      bufferedInputStream.close();
+    }
+    if (inputStream != null) {
+      inputStream.close();
+    }
+    method.releaseConnection();
+    if (log.isDetailed())     log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_ExecutedService",service,hostname));
+  }
+}

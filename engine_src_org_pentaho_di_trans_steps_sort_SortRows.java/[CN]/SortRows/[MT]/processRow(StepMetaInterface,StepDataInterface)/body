@@ -1,31 +1,48 @@
 {
-  boolean err=true;
-  Object[] r=getRow();
-  if (first && r != null) {
-    first=false;
-    data.convertKeysToNative=new boolean[meta.getFieldName().length];
-    data.fieldnrs=new int[meta.getFieldName().length];
-    for (int i=0; i < meta.getFieldName().length; i++) {
-      data.fieldnrs[i]=getInputRowMeta().indexOfValue(meta.getFieldName()[i]);
-      if (data.fieldnrs[i] < 0) {
-        throw new KettleException(BaseMessages.getString(PKG,"SortRowsMeta.CheckResult.StepFieldNotInInputStream",meta.getFieldName()[i],getStepname()));
-      }
-      data.convertKeysToNative[i]=getInputRowMeta().getValueMeta(data.fieldnrs[i]).isStorageBinaryString();
-    }
-    data.outputRowMeta=getInputRowMeta().clone();
-    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+  if (!meta.isGroupSortEnabled()) {
+    boolean retval=this.processSortRow(smi,sdi,getRow(),first);
+    return retval;
   }
-  err=addBuffer(getInputRowMeta(),r);
-  if (!err) {
-    setOutputDone();
-    return false;
+  Object[] r=getRow();
+  if (first) {
+    if (r == null) {
+      this.setOutputDone();
+      return true;
+    }
+    data.groupnrs=new int[meta.getGroupFields().size()];
+    for (int i=0; i < meta.getGroupFields().size(); i++) {
+      data.groupnrs[i]=getInputRowMeta().indexOfValue(meta.getGroupFields().get(i));
+      if (data.groupnrs[i] < 0) {
+        logError(String.format("Presorted Field %s cound not be found",meta.getGroupFields().get(i)));
+        setErrors(1);
+        stopAll();
+        return false;
+      }
+    }
+  }
+  boolean retval=true;
+  if (first || data.newBatch) {
+    first=false;
+    data.newBatch=false;
+    setPrevious(r);
+    boolean moreInput=(r != null) ? true : false;
+    retval=this.processSortRow(smi,sdi,r,moreInput);
+  }
+ else {
+    if (this.sameGroup(data.previous,r)) {
+      setPrevious(r);
+      retval=this.processSortRow(smi,sdi,r,false);
+    }
+ else {
+      this.processSortRow(smi,sdi,null,false);
+      setPrevious(r);
+      data.newBatch=true;
+      this.init(smi,sdi);
+      retval=this.processSortRow(smi,sdi,r,true);
+    }
   }
   if (r == null) {
-    passBuffer();
-    return false;
+    this.setOutputDone();
   }
-  if (checkFeedback(getLinesRead())) {
-    if (log.isBasic())     logBasic("Linenr " + getLinesRead());
-  }
-  return true;
+  return retval;
 }
