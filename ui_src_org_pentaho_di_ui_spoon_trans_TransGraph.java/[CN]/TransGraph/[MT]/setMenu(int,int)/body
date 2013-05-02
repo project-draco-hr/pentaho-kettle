@@ -12,6 +12,59 @@
         Document doc=getXulDomContainer().getDocumentRoot();
         XulMenuitem item=(XulMenuitem)doc.getElementById("trans-graph-entry-newhop");
         item.setDisabled(sels != 2);
+        List<PluginInterface> rowDistributionPlugins=PluginRegistry.getInstance().getPlugins(RowDistributionPluginType.class);
+        JfaceMenupopup customRowDistMenu=(JfaceMenupopup)doc.getElementById("trans-graph-entry-data-movement-popup");
+        customRowDistMenu.setDisabled(rowDistributionPlugins.isEmpty());
+        customRowDistMenu.removeChildren();
+{
+          Action action=new Action("RoundRobinRowDistribution",Action.AS_CHECK_BOX){
+            public void run(){
+              stepMeta.setDistributes(true);
+              stepMeta.setRowDistribution(null);
+            }
+          }
+;
+          boolean selected=stepMeta.isDistributes() && stepMeta.getRowDistribution() == null;
+          action.setChecked(selected);
+          JfaceMenuitem child=new JfaceMenuitem(null,customRowDistMenu,xulDomContainer,"Round Robin row distribution",0,action);
+          child.setLabel(BaseMessages.getString(PKG,"TransGraph.PopupMenu.RoundRobin"));
+          child.setDisabled(false);
+          child.setSelected(selected);
+        }
+        for (int p=0; p < rowDistributionPlugins.size(); p++) {
+          final PluginInterface rowDistributionPlugin=rowDistributionPlugins.get(p);
+          boolean selected=stepMeta.isDistributes() && stepMeta.getRowDistribution() != null && stepMeta.getRowDistribution().getCode().equals(rowDistributionPlugin.getIds()[0]);
+          Action action=new Action(rowDistributionPlugin.getIds()[0],Action.AS_CHECK_BOX){
+            public void run(){
+              try {
+                stepMeta.setRowDistribution((RowDistributionInterface)PluginRegistry.getInstance().loadClass(rowDistributionPlugin));
+              }
+ catch (              Exception e) {
+                LogChannel.GENERAL.logError("Error loading row distribution plugin class: ",e);
+              }
+            }
+          }
+;
+          action.setChecked(selected);
+          JfaceMenuitem child=new JfaceMenuitem(null,customRowDistMenu,xulDomContainer,rowDistributionPlugin.getName(),p + 1,action);
+          child.setLabel(rowDistributionPlugin.getName());
+          child.setDisabled(false);
+          child.setSelected(selected);
+        }
+{
+          Action action=new Action("CopyRowsDistribution",Action.AS_CHECK_BOX){
+            public void run(){
+              stepMeta.setDistributes(false);
+            }
+          }
+;
+          boolean selected=!stepMeta.isDistributes();
+          action.setChecked(selected);
+          JfaceMenuitem child=new JfaceMenuitem(null,customRowDistMenu,xulDomContainer,"Copy rows distribution",0,action);
+          child.setLabel(BaseMessages.getString(PKG,"TransGraph.PopupMenu.CopyData"));
+          child.setDisabled(false);
+          child.setSelected(selected);
+        }
         JfaceMenupopup launchMenu=(JfaceMenupopup)doc.getElementById("trans-graph-entry-launch-popup");
         String[] referencedObjects=stepMeta.getStepMetaInterface().getReferencedObjectDescriptions();
         boolean[] enabledObjects=stepMeta.getStepMetaInterface().isReferencedObjectEnabled();
@@ -49,10 +102,6 @@
         if (aMenu != null) {
           aMenu.setDisabled(sels < 2);
         }
-        item=(XulMenuitem)doc.getElementById("trans-graph-entry-data-movement-distribute");
-        item.setSelected(stepMeta.isDistributes() && !stepMeta.isLoadBalancing());
-        item=(XulMenuitem)doc.getElementById("trans-graph-entry-data-movement-loadbalance");
-        item.setSelected(stepMeta.isDistributes() && stepMeta.isLoadBalancing());
         item=(XulMenuitem)doc.getElementById("trans-graph-entry-data-movement-copy");
         item.setSelected(!stepMeta.isDistributes());
         item=(XulMenuitem)doc.getElementById("trans-graph-entry-hide");
