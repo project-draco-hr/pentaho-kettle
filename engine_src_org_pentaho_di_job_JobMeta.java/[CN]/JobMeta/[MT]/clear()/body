@@ -9,7 +9,21 @@
   jobLogTable=JobLogTable.getDefault(this,this);
   channelLogTable=ChannelLogTable.getDefault(this,this);
   jobEntryLogTable=JobEntryLogTable.getDefault(this,this);
-  checkpointLogTable=CheckpointLogTable.getDefault(this,this);
+  extraLogTables=new ArrayList<LogTableInterface>();
+  List<PluginInterface> plugins=PluginRegistry.getInstance().getPlugins(LogTablePluginType.class);
+  for (  PluginInterface plugin : plugins) {
+    try {
+      LogTablePluginInterface logTablePluginInterface=(LogTablePluginInterface)PluginRegistry.getInstance().loadClass(plugin);
+      if (logTablePluginInterface.getType() == TableType.JOB) {
+        logTablePluginInterface.setContext(this,this);
+        extraLogTables.add(logTablePluginInterface);
+      }
+    }
+ catch (    Exception e) {
+      LogChannel.GENERAL.logError("Error loading log table plugin with ID " + plugin.getIds()[0],e);
+    }
+  }
+  attributesMap=new HashMap<String,Map<String,String>>();
   arguments=null;
   max_undo=Const.MAX_UNDO;
   undo=new ArrayList<TransAction>();

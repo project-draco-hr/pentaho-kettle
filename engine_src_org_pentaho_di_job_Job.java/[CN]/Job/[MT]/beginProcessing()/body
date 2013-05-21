@@ -106,34 +106,13 @@
           writeLogChannelInformation();
         }
  catch (        KettleException e) {
-          throw new KettleException(BaseMessages.getString(PKG,"Trans.Exception.UnableToPerformLoggingAtTransEnd"),e);
+          throw new KettleException(BaseMessages.getString(PKG,"Job.Exception.UnableToPerformLoggingAtTransEnd"),e);
         }
       }
     }
 );
   }
-  if (jobMeta.isUsingUniqueConnections()) {
-    addJobListener(new JobAdapter(){
-      @Override public void jobFinished(      Job job) throws KettleException {
-        job.closeUniqueDatabaseConnections();
-      }
-    }
-);
-  }
-  if (jobMeta.getCheckpointLogTable().isDefined()) {
-    lookupCheckpoint();
-    if (runAttemptNr > 1) {
-      writeCheckpointInformation(checkpointJobEntry,checkpointResult);
-    }
-    addJobListener(new JobAdapter(){
-      @Override public void jobFinished(      Job job) throws KettleException {
-        if (result != null && result.getResult() && result.getNrErrors() == 0) {
-          checkpointJobEntry=null;
-          writeCheckpointInformation(null,result);
-        }
-      }
-    }
-);
-  }
+  JobExecutionExtension extension=new JobExecutionExtension(this,result,null,false);
+  ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobBeginProcessing.id,extension);
   return true;
 }

@@ -13,29 +13,10 @@
  else {
     prevResult=new Result();
   }
-  if (checkpointJobEntry != null && checkpointJobEntry == jobEntryCopy) {
-    CheckpointLogTable checkpointLogTable=jobMeta.getCheckpointLogTable();
-    checkpointResult.setResult(true);
-    checkpointResult.setNrErrors(0);
-    result=prevResult=checkpointResult;
-    if ("Y".equalsIgnoreCase(environmentSubstitute(checkpointLogTable.getSaveParameters()))) {
-      for (      String name : checkpointParameters.keySet()) {
-        setParameterValue(name,checkpointParameters.get(name));
-      }
-    }
-    if (!"Y".equalsIgnoreCase(environmentSubstitute(checkpointLogTable.getSaveResultRows()))) {
-      prevResult.getRows().clear();
-    }
-    if (!"Y".equalsIgnoreCase(environmentSubstitute(checkpointLogTable.getSaveResultFiles()))) {
-      prevResult.getResultFiles().clear();
-    }
-    JobEntryResult jerCheckpoint=new JobEntryResult(result,getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobRestartAtCheckpoint"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
-    jerCheckpoint.setCheckpoint(true);
-    jobTracker.addJobTracker(new JobTracker(jobMeta,jerCheckpoint));
-synchronized (jobEntryResults) {
-      jobEntryResults.add(jerCheckpoint);
-    }
-    log.logBasic("Restarting from checkpoint job entry: " + checkpointJobEntry.toString());
+  JobExecutionExtension extension=new JobExecutionExtension(this,prevResult,jobEntryCopy,true);
+  ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobBeforeJobEntryExecution.id,extension);
+  if (!extension.executeEntry) {
+    result=prevResult=extension.result;
   }
  else {
     if (log.isDetailed())     log.logDetailed("exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (jobEntryCopy != null ? jobEntryCopy.toString() : "null")+ ")");
@@ -101,10 +82,9 @@ synchronized (jobEntryResults) {
         }
       }
     }
-    if (jobEntryCopy.isCheckpoint() && jobMeta.getCheckpointLogTable().isDefined()) {
-      writeCheckpointInformation(jobEntryCopy,result);
-    }
   }
+  extension=new JobExecutionExtension(this,prevResult,jobEntryCopy,extension.executeEntry);
+  ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobAfterJobEntryExecution.id,extension);
   final List<Thread> threads=new ArrayList<Thread>();
   final List<Result> threadResults=new ArrayList<Result>();
   final List<KettleException> threadExceptions=new ArrayList<KettleException>();

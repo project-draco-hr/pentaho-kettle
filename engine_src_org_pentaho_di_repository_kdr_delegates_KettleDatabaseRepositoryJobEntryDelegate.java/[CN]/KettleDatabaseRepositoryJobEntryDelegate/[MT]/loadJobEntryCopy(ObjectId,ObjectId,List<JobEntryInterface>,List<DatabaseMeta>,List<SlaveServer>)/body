@@ -1,20 +1,19 @@
 {
   JobEntryCopy jobEntryCopy=new JobEntryCopy();
   try {
-    jobEntryCopy.setObjectId(id_jobentry_copy);
-    RowMetaAndData r=getJobEntryCopy(id_jobentry_copy);
+    jobEntryCopy.setObjectId(jobEntryCopyId);
+    RowMetaAndData r=getJobEntryCopy(jobEntryCopyId);
     if (r != null) {
-      ObjectId id_jobentry=new LongObjectId(r.getInteger(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_ID_JOBENTRY,0));
-      ObjectId id_jobentry_type=new LongObjectId(r.getInteger(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_ID_JOBENTRY_TYPE,0));
+      ObjectId jobEntryId=new LongObjectId(r.getInteger(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_ID_JOBENTRY,0));
+      ObjectId jobEntryTypeId=new LongObjectId(r.getInteger(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_ID_JOBENTRY_TYPE,0));
       jobEntryCopy.setNr((int)r.getInteger(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_NR,0));
       int locx=(int)r.getInteger(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_GUI_LOCATION_X,0);
       int locy=(int)r.getInteger(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_GUI_LOCATION_Y,0);
       boolean isdrawn=r.getBoolean(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_GUI_DRAW,false);
       boolean isparallel=r.getBoolean(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_PARALLEL,false);
-      boolean checkpoint=r.getBoolean(KettleDatabaseRepository.FIELD_JOBENTRY_COPY_CHECKPOINT,false);
-      jobEntryCopy.setEntry(JobMeta.findJobEntry(jobentries,id_jobentry));
+      jobEntryCopy.setEntry(JobMeta.findJobEntry(jobentries,jobEntryId));
       if (jobEntryCopy.getEntry() == null) {
-        RowMetaAndData rt=getJobEntryType(new LongObjectId(id_jobentry_type));
+        RowMetaAndData rt=getJobEntryType(new LongObjectId(jobEntryTypeId));
         if (rt != null) {
           String jet_code=rt.getString(KettleDatabaseRepository.FIELD_JOBENTRY_TYPE_CODE,null);
           PluginRegistry registry=PluginRegistry.getInstance();
@@ -24,11 +23,12 @@
             JobEntryInterface jobEntry=(JobEntryInterface)registry.loadClass(jobPlugin);
             jobEntryCopy.setEntry(jobEntry);
             if (jobEntry instanceof JobEntryBase) {
-              loadJobEntryBase((JobEntryBase)jobEntry,id_jobentry,databases,slaveServers);
+              loadJobEntryBase((JobEntryBase)jobEntry,jobEntryId,databases,slaveServers);
+              ((JobEntryBase)jobEntry).setAttributesMap(loadJobEntryAttributesMap(jobId,jobEntryId));
             }
-            compatibleJobEntryLoadRep(jobEntry,repository,id_jobentry_type,databases,slaveServers);
-            jobEntry.loadRep(repository,repository.metaStore,id_jobentry,databases,slaveServers);
-            jobEntryCopy.getEntry().setObjectId(id_jobentry);
+            compatibleJobEntryLoadRep(jobEntry,repository,jobEntryTypeId,databases,slaveServers);
+            jobEntry.loadRep(repository,repository.metaStore,jobEntryId,databases,slaveServers);
+            jobEntryCopy.getEntry().setObjectId(jobEntryId);
             jobentries.add(jobEntryCopy.getEntry());
           }
  else {
@@ -36,20 +36,19 @@
           }
         }
  else {
-          throw new KettleException("Unable to find Job Entry Type with id=" + id_jobentry_type + " in the repository");
+          throw new KettleException("Unable to find Job Entry Type with id=" + jobEntryTypeId + " in the repository");
         }
       }
       jobEntryCopy.setLocation(locx,locy);
       jobEntryCopy.setDrawn(isdrawn);
       jobEntryCopy.setLaunchingInParallel(isparallel);
-      jobEntryCopy.setCheckpoint(checkpoint);
       return jobEntryCopy;
     }
  else {
-      throw new KettleException("Unable to find job entry copy in repository with id_jobentry_copy=" + id_jobentry_copy);
+      throw new KettleException("Unable to find job entry copy in repository with id_jobentry_copy=" + jobEntryCopyId);
     }
   }
  catch (  KettleDatabaseException dbe) {
-    throw new KettleException("Unable to load job entry copy from repository with id_jobentry_copy=" + id_jobentry_copy,dbe);
+    throw new KettleException("Unable to load job entry copy from repository with id_jobentry_copy=" + jobEntryCopyId,dbe);
   }
 }

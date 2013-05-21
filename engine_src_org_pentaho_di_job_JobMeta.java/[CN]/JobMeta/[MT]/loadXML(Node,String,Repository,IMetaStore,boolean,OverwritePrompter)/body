@@ -30,7 +30,6 @@
     if (modDate != null) {
       modifiedDate=XMLHandler.stringToDate(modDate);
     }
-    usingUniqueConnections="Y".equalsIgnoreCase(XMLHandler.getTagValue(jobnode,"unique_connections"));
     try {
       sharedObjectsFile=XMLHandler.getTagValue(jobnode,"shared_objects_file");
       if (rep == null || ignoreRepositorySharedObjects) {
@@ -102,19 +101,12 @@
       jobLogTable.findField(JobLogTable.ID.LINES_REJECTED).setEnabled(false);
     }
  else {
-      jobLogTable.loadXML(jobLogNode,databases);
+      jobLogTable.loadXML(jobLogNode,databases,null);
     }
-    Node channelLogNode=XMLHandler.getSubNode(jobnode,ChannelLogTable.XML_TAG);
-    if (channelLogNode != null) {
-      channelLogTable.loadXML(channelLogNode,databases);
-    }
-    Node jobEntryLogNode=XMLHandler.getSubNode(jobnode,JobEntryLogTable.XML_TAG);
-    if (jobEntryLogNode != null) {
-      jobEntryLogTable.loadXML(jobEntryLogNode,databases);
-    }
-    Node checkpointLogNode=XMLHandler.getSubNode(jobnode,CheckpointLogTable.XML_TAG);
-    if (checkpointLogNode != null) {
-      checkpointLogTable.loadXML(checkpointLogNode,databases);
+    channelLogTable.loadXML(jobnode,databases,null);
+    jobEntryLogTable.loadXML(jobnode,databases,null);
+    for (    LogTableInterface extraLogTable : extraLogTables) {
+      extraLogTable.loadXML(jobnode,databases,null);
     }
     batchIdPassed="Y".equalsIgnoreCase(XMLHandler.getTagValue(jobnode,"pass_batchid"));
     Node entriesnode=XMLHandler.getSubNode(jobnode,"entries");
@@ -153,6 +145,7 @@
       NotePadMeta ni=new NotePadMeta(notepadnode);
       notes.add(ni);
     }
+    attributesMap=AttributesUtil.loadAttributes(XMLHandler.getSubNode(jobnode,AttributesUtil.XML_TAG));
     ExtensionPointHandler.callExtensionPoint(LogChannel.GENERAL,KettleExtensionPoint.JobMetaLoaded.id,this);
     clearChanged();
   }

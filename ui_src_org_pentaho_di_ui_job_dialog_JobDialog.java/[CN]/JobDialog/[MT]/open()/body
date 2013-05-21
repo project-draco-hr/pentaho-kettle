@@ -1,7 +1,7 @@
 {
   Shell parent=getParent();
   Display display=parent.getDisplay();
-  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX| SWT.MIN);
+  shell=new Shell(parent,SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX| SWT.MIN| SWT.APPLICATION_MODAL);
   props.setLook(shell);
   shell.setImage((Image)GUIResource.getInstance().getImageJobGraph());
   lsMod=new ModifyListener(){
@@ -19,10 +19,25 @@
   margin=Const.MARGIN;
   wTabFolder=new CTabFolder(shell,SWT.BORDER);
   props.setLook(wTabFolder,Props.WIDGET_STYLE_TAB);
+  for (  LogTableInterface logTable : logTables) {
+    logTableUserInterfaces.add(getLogTableUserInterface(logTable,jobMeta,lsMod));
+  }
   addJobTab();
   addParamTab();
   addSettingsTab();
   addLogTab();
+  extraTabs=new ArrayList<JobDialogPluginInterface>();
+  java.util.List<PluginInterface> jobDialogPlugins=PluginRegistry.getInstance().getPlugins(JobDialogPluginType.class);
+  for (  PluginInterface jobDialogPlugin : jobDialogPlugins) {
+    try {
+      JobDialogPluginInterface extraTab=(JobDialogPluginInterface)PluginRegistry.getInstance().loadClass(jobDialogPlugin);
+      extraTab.addTab(jobMeta,parent,wTabFolder);
+      extraTabs.add(extraTab);
+    }
+ catch (    Exception e) {
+      new ErrorDialog(shell,"Error","Error loading job dialog plugin with id " + jobDialogPlugin.getIds()[0],e);
+    }
+  }
   fdTabFolder=new FormData();
   fdTabFolder.left=new FormAttachment(0,0);
   fdTabFolder.top=new FormAttachment(0,0);

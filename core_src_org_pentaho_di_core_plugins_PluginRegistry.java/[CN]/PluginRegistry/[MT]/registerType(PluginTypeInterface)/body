@@ -5,36 +5,42 @@
   for (  PluginRegistryExtension ext : extensions) {
     ext.searchForType(pluginType);
   }
+  List<String> pluginClassNames=new ArrayList<String>();
   String pluginClasses=EnvUtil.getSystemProperty(Const.KETTLE_PLUGIN_CLASSES);
   if (!Const.isEmpty(pluginClasses)) {
     String[] classNames=pluginClasses.split(",");
     for (    String className : classNames) {
-      try {
-        PluginAnnotationType annotationType=pluginType.getClass().getAnnotation(PluginAnnotationType.class);
-        if (annotationType != null) {
-          Class<? extends Annotation> annotationClass=annotationType.value();
-          Class<?> clazz=Class.forName(className);
-          Annotation annotation=clazz.getAnnotation(annotationClass);
-          if (annotation != null) {
-            pluginType.handlePluginAnnotation(clazz,annotation,new ArrayList<String>(),true,null);
-            LogChannel.GENERAL.logBasic("Plugin class " + className + " registered for plugin type '"+ pluginType.getName()+ "'");
-          }
- else {
-            if (KettleLogStore.isInitialized()) {
-              LogChannel.GENERAL.logDebug("Plugin class " + className + " doesn't contain annotation for plugin type '"+ pluginType.getName()+ "'");
-            }
-          }
+      if (!pluginClassNames.contains(className)) {
+        pluginClassNames.add(className);
+      }
+    }
+  }
+  for (  String className : pluginClassNames) {
+    try {
+      PluginAnnotationType annotationType=pluginType.getClass().getAnnotation(PluginAnnotationType.class);
+      if (annotationType != null) {
+        Class<? extends Annotation> annotationClass=annotationType.value();
+        Class<?> clazz=Class.forName(className);
+        Annotation annotation=clazz.getAnnotation(annotationClass);
+        if (annotation != null) {
+          pluginType.handlePluginAnnotation(clazz,annotation,new ArrayList<String>(),true,null);
+          LogChannel.GENERAL.logBasic("Plugin class " + className + " registered for plugin type '"+ pluginType.getName()+ "'");
         }
  else {
           if (KettleLogStore.isInitialized()) {
-            LogChannel.GENERAL.logDebug("Plugin class " + className + " doesn't contain valid class for plugin type '"+ pluginType.getName()+ "'");
+            LogChannel.GENERAL.logDebug("Plugin class " + className + " doesn't contain annotation for plugin type '"+ pluginType.getName()+ "'");
           }
         }
       }
- catch (      Exception e) {
+ else {
         if (KettleLogStore.isInitialized()) {
-          LogChannel.GENERAL.logError("Error registring plugin class from KETTLE_PLUGIN_CLASSES: " + className + Const.CR+ Const.getStackTracker(e));
+          LogChannel.GENERAL.logDebug("Plugin class " + className + " doesn't contain valid class for plugin type '"+ pluginType.getName()+ "'");
         }
+      }
+    }
+ catch (    Exception e) {
+      if (KettleLogStore.isInitialized()) {
+        LogChannel.GENERAL.logError("Error registring plugin class from KETTLE_PLUGIN_CLASSES: " + className + Const.CR+ Const.getStackTracker(e));
       }
     }
   }
