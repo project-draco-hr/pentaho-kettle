@@ -1,5 +1,4 @@
 {
-  data.connection=new LDAPConnection(log,environmentSubstitute(meta.getHost()),Const.toInt(environmentSubstitute(meta.getPort()),LDAPConnection.DEFAULT_PORT));
   data.attrReturned=new String[meta.getInputFields().length];
   data.attributesBinary=new HashSet<String>();
   for (int i=0; i < meta.getInputFields().length; i++) {
@@ -7,22 +6,14 @@
     String name=environmentSubstitute(field.getAttribute());
     field.setRealAttribute(name);
     if (field.getReturnType() == LDAPInputField.FETCH_ATTRIBUTE_AS_BINARY) {
-      if (!data.attributesBinary.contains(name)) {
-        data.connection.addBinaryAttribute(name);
-        data.attributesBinary.add(name);
-      }
+      data.attributesBinary.add(name);
     }
     data.attrReturned[i]=name;
     if (field.isSortedKey()) {
       data.connection.addSortingAttributes(name);
     }
   }
-  data.connection.setProtocol(LDAPConnection.getProtocolFromCode(meta.getProtocol()));
-  if (meta.isUseCertificate()) {
-    data.connection.setTrustStorePath(meta.getTrustStorePath());
-    data.connection.setTrustStorePassword(meta.getTrustStorePassword());
-    data.connection.trustAllCertificates(meta.isTrustAllCertificates());
-  }
+  data.connection=new LDAPConnection(log,this,meta,data.attributesBinary);
   if (meta.UseAuthentication()) {
     String username=environmentSubstitute(meta.getUserName());
     String password=Encr.decryptPasswordOptionallyEncrypted(environmentSubstitute(meta.getPassword()));
