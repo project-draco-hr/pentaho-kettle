@@ -2,16 +2,19 @@
   this.meta=(TeraFastMeta)smi;
   Object[] row=getRow();
   if (row == null) {
+    this.dataFilePrintStream.close();
     IOUtils.closeQuietly(this.dataFile);
     this.execute();
     setOutputDone();
     try {
       logBasic("TeraFast.Log.WatingForFastload");
-      final int exitVal=this.process.waitFor();
-      if (exitVal != 0) {
-        setErrors(DEFAULT_ERROR_CODE);
+      if (this.process != null) {
+        final int exitVal=this.process.waitFor();
+        if (exitVal != 0) {
+          setErrors(DEFAULT_ERROR_CODE);
+        }
+        logBasic(BaseMessages.getString(PKG,"TeraFast.Log.ExitValueFastloadPath","" + exitVal));
       }
-      logBasic(BaseMessages.getString(PKG,"TeraFast.Log.ExitValueFastloadPath","" + exitVal));
     }
  catch (    Exception e) {
       logError(BaseMessages.getString(PKG,"TeraFast.Log.ErrorInStep"),e);
@@ -25,6 +28,7 @@
     try {
       final File tempDataFile=new File(resolveFileName(this.meta.getDataFile().getValue()));
       this.dataFile=FileUtils.openOutputStream(tempDataFile);
+      this.dataFilePrintStream=new PrintStream(dataFile);
     }
  catch (    IOException e) {
       throw new KettleException("Cannot open data file [path=" + this.dataFile + "]",e);
@@ -35,10 +39,12 @@
     for (int i=0; i < this.tableRowMeta.size(); i++) {
       ValueMetaInterface column=this.tableRowMeta.getValueMeta(i);
       int tableIndex=this.meta.getTableFieldList().getValue().indexOf(column.getName());
-      String streamField=this.meta.getStreamFieldList().getValue().get(tableIndex);
-      this.columnSortOrder.add(streamRowMeta.indexOfValue(streamField));
+      if (tableIndex >= 0) {
+        String streamField=this.meta.getStreamFieldList().getValue().get(tableIndex);
+        this.columnSortOrder.add(streamRowMeta.indexOfValue(streamField));
+      }
     }
   }
-  writeToDataFile(row);
+  writeToDataFile(getInputRowMeta(),row);
   return true;
 }
