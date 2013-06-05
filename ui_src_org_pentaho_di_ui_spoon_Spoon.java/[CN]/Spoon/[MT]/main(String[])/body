@@ -1,4 +1,20 @@
 {
+  ExecutorService executor=Executors.newCachedThreadPool();
+  Future<KettleException> pluginRegistryFuture=executor.submit(new Callable<KettleException>(){
+    @Override public KettleException call() throws Exception {
+      registerUIPluginObjectTypes();
+      try {
+        KettleEnvironment.init();
+      }
+ catch (      KettleException e) {
+        return e;
+      }
+      KettleClientEnvironment.getInstance().setClient(KettleClientEnvironment.ClientType.SPOON);
+      System.out.println("Plugin init done.");
+      return null;
+    }
+  }
+);
   try {
     OsHelper.setAppName();
     Display display=null;
@@ -20,15 +36,16 @@
     OsHelper.initOsHandlers(display);
     UIManager.setLookAndFeel(new MetalLookAndFeel());
     splash=new Splash(display);
-    registerUIPluginObjectTypes();
-    KettleEnvironment.init();
-    KettleClientEnvironment.getInstance().setClient(KettleClientEnvironment.ClientType.SPOON);
-    List<String> args=new ArrayList<String>(java.util.Arrays.asList(a));
+    List<String> args=new ArrayList<String>(Arrays.asList(a));
     CommandLineOption[] commandLineOptions=getCommandLineArgs(args);
     initLogging(commandLineOptions);
     PropsUI.init(display,Props.TYPE_PROPERTIES_SPOON);
     KettleLogStore.init(PropsUI.getInstance().getMaxNrLinesInLog(),PropsUI.getInstance().getMaxLogLineTimeoutMinutes());
-    staticSpoon=new Spoon((Display)null);
+    KettleException registryException=pluginRegistryFuture.get();
+    if (registryException != null) {
+      throw registryException;
+    }
+    staticSpoon=new Spoon();
     staticSpoon.commandLineOptions=commandLineOptions;
     String pId=null;
     StringBuffer perspectiveIdBuff=Spoon.getCommandLineOption(commandLineOptions,"perspective").getArgument();

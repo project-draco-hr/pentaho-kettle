@@ -37,61 +37,15 @@
     final Composite tempSashComposite=new Composite(shell,SWT.None);
     sashComposite=tempSashComposite;
     mainPerspective=new MainSpoonPerspective(tempSashComposite,tabfolder);
+    if (startupPerspective == null) {
+      startupPerspective=mainPerspective.getId();
+    }
+    SpoonPerspectiveManager.getInstance().setStartupPerspective(startupPerspective);
     SpoonPerspectiveManager.getInstance().addPerspective(mainPerspective);
     SpoonPluginManager.getInstance().applyPluginsForContainer("spoon",mainSpoonContainer);
     SpoonPerspectiveManager.getInstance().setDeck(deck);
     SpoonPerspectiveManager.getInstance().setXulDoc(mainSpoonContainer);
-    boolean firstBtn=true;
-    int y=0;
-    int perspectiveIdx=0;
-    Class<? extends SpoonPerspective> perClass=null;
-    for (    SpoonPerspective per : SpoonPerspectiveManager.getInstance().getPerspectives()) {
-      String name=per.getDisplayName(LanguageChoice.getInstance().getDefaultLocale());
-      InputStream in=per.getPerspectiveIcon();
-      if (this.startupPerspective != null && per.getId().equals(this.startupPerspective)) {
-        perspectiveIdx=y;
-        perClass=per.getClass();
-      }
-      final SwtToolbarbutton btn=(SwtToolbarbutton)mainSpoonContainer.getDocumentRoot().createElement("toolbarbutton");
-      btn.setType("toggle");
-      btn.setLabel(name);
-      btn.setTooltiptext(name);
-      btn.setOnclick("spoon.loadPerspective(" + y + ")");
-      mainToolbar.addChild(btn);
-      if ((firstBtn && this.startupPerspective == null) || (perspectiveIdx == y)) {
-        btn.setSelected(true);
-        firstBtn=false;
-      }
-      if (in != null) {
-        btn.setImageFromStream(in);
-        try {
-          in.close();
-        }
- catch (        IOException e1) {
-        }
-      }
-      XulVbox box=deck.createVBoxCard();
-      box.setId("perspective-" + per.getId());
-      box.setFlex(1);
-      deck.addChild(box);
-      per.getUI().setParent((Composite)box.getManagedObject());
-      per.getUI().layout();
-      per.addPerspectiveListener(new SpoonPerspectiveListener(){
-        public void onActivation(){
-          btn.setSelected(true);
-        }
-        public void onDeactication(){
-          btn.setSelected(false);
-        }
-      }
-);
-      y++;
-    }
-    deck.setSelectedIndex(perspectiveIdx);
-    if (perClass != null) {
-      SpoonPerspectiveManager.getInstance().activatePerspective(perClass);
-      SpoonPerspectiveManager.getInstance().setForcePerspective(true);
-    }
+    SpoonPerspectiveManager.getInstance().initialize();
   }
  catch (  Exception e) {
     LogChannel.GENERAL.logError("Error initializing transformation",e);
