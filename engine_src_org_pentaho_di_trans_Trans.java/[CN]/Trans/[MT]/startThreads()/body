@@ -105,11 +105,23 @@ synchronized (Trans.this) {
 switch (transMeta.getTransformationType()) {
 case Normal:
     for (int i=0; i < steps.size(); i++) {
-      StepMetaDataCombi combi=steps.get(i);
+      final StepMetaDataCombi combi=steps.get(i);
       RunThread runThread=new RunThread(combi);
       Thread thread=new Thread(runThread);
       thread.setName(getName() + " - " + combi.stepname);
+      ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.StepBeforeStart.id,combi);
       thread.start();
+      combi.step.addStepListener(new StepAdapter(){
+        @Override public void stepFinished(        Trans trans,        StepMeta stepMeta,        StepInterface step){
+          try {
+            ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.StepFinished.id,combi);
+          }
+ catch (          KettleException e) {
+            throw new RuntimeException("Unexpected error in calling extension point upon step finish",e);
+          }
+        }
+      }
+);
     }
   break;
 case SerialSingleThreaded:
