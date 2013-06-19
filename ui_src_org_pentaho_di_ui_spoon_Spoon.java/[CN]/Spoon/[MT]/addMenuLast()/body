@@ -1,11 +1,7 @@
 {
   org.pentaho.ui.xul.dom.Document doc=(org.pentaho.ui.xul.dom.Document)mainSpoonContainer.getDocumentRoot();
-  XulMenupopup recentFilesPopup=(XulMenupopup)doc.getElementById("file-open-recent-popup");
-  int max=recentFilesPopup.getChildNodes().size();
-  for (int i=max - 1; i >= 0; i--) {
-    XulComponent mi=recentFilesPopup.getChildNodes().get(i);
-    mi.getParent().removeChild(mi);
-  }
+  JfaceMenupopup recentFilesPopup=(JfaceMenupopup)doc.getElementById("file-open-recent-popup");
+  recentFilesPopup.removeChildren();
   List<LastUsedFile> lastUsedFiles=props.getLastUsedFiles();
   for (int i=0; i < lastUsedFiles.size(); i++) {
     final LastUsedFile lastUsedFile=lastUsedFiles.get(i);
@@ -14,11 +10,17 @@
     String accessText="CTRL-" + chr;
     String text=lastUsedFile.toString();
     String id="last-file-" + i;
-    if (i > 9) {
+    if (i > 8) {
       accessKey=null;
       accessText=null;
     }
-    XulMenuitem miFileLast=((JfaceMenupopup)recentFilesPopup).createNewMenuitem();
+    final String lastFileId=Integer.toString(i);
+    Action action=new Action("open-last-file-" + (i + 1),Action.AS_DROP_DOWN_MENU){
+      public void run(){
+        lastFileSelect(lastFileId);
+      }
+    }
+;
     int targetLength=40;
     if (text.length() > targetLength) {
       int lastSep=text.replace('\\','/').lastIndexOf('/');
@@ -33,10 +35,13 @@
         }
       }
     }
+    JfaceMenuitem miFileLast=new JfaceMenuitem(null,recentFilesPopup,mainSpoonContainer,text,0,action);
     miFileLast.setLabel(text);
     miFileLast.setId(id);
-    miFileLast.setAcceltext(accessText);
-    miFileLast.setAccesskey(accessKey);
+    if (accessText != null && accessKey != null) {
+      miFileLast.setAcceltext(accessText);
+      miFileLast.setAccesskey(accessKey);
+    }
     if (lastUsedFile.isTransformation()) {
       ((JfaceMenuitem)miFileLast).setImage(GUIResource.getInstance().getImageTransGraph());
     }
