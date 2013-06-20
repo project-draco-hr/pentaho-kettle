@@ -1,0 +1,169 @@
+{
+  final Composite composite=new Composite(expandBar,SWT.NONE);
+  FormLayout layout=new FormLayout();
+  layout.marginHeight=margin;
+  layout.marginWidth=margin;
+  composite.setLayout(layout);
+  props.setLook(composite);
+  Control lastControl=null;
+  addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.ID.label"),lastControl);
+  lastControl=addRightLabel(composite,Const.NVL(marketEntry.getId(),""),lastControl);
+  addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Name.label"),lastControl);
+  lastControl=addRightLabel(composite,Const.NVL(marketEntry.getName(),""),lastControl);
+  addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.AvailableVersion.label"),lastControl);
+  lastControl=addRightLabel(composite,Const.NVL(marketEntry.getVersion(),""),lastControl);
+  if (!Const.isEmpty(marketEntry.getAuthor())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Author.label"),lastControl);
+    lastControl=addRightLabel(composite,Const.NVL(marketEntry.getAuthor(),""),lastControl);
+  }
+  addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.InstallPath.label"),lastControl);
+  lastControl=addRightLabel(composite,new File(Market.buildPluginsFolderPath(marketEntry)).getAbsolutePath(),lastControl);
+  if (!Const.isEmpty(marketEntry.getDescription())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Description.label"),lastControl);
+    lastControl=addRightLabel(composite,marketEntry.getDescription(),lastControl);
+  }
+  addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.PackageURL.label"),lastControl);
+  lastControl=addRightURL(composite,marketEntry.getPackageUrl(),lastControl);
+  if (!Const.isEmpty(marketEntry.getDocumentationUrl())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.Documentation.label"),lastControl);
+    lastControl=addRightURL(composite,marketEntry.getDocumentationUrl(),lastControl);
+  }
+  if (!Const.isEmpty(marketEntry.getCasesUrl())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.CaseTracking.label"),lastControl);
+    lastControl=addRightURL(composite,marketEntry.getCasesUrl(),lastControl);
+  }
+  if (!Const.isEmpty(marketEntry.getSourceUrl())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SourceCode.label"),lastControl);
+    lastControl=addRightURL(composite,marketEntry.getSourceUrl(),lastControl);
+  }
+  if (!Const.isEmpty(marketEntry.getLicenseName())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.License.label"),lastControl);
+    lastControl=addRightLabel(composite,Const.NVL(marketEntry.getLicenseName(),""),lastControl);
+  }
+  if (!Const.isEmpty(marketEntry.getLicenseText())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.LicenseDetails.label"),lastControl);
+    lastControl=addRightLabel(composite,Const.NVL(marketEntry.getLicenseText(),""),lastControl);
+  }
+  addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SupportLevel.label"),lastControl);
+  lastControl=addRightLabel(composite,marketEntry.getSupportLevel().getDescription(),lastControl);
+  if (!Const.isEmpty(marketEntry.getSupportMessage())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SupportMessage.label"),lastControl);
+    lastControl=addRightLabel(composite,marketEntry.getSupportMessage(),lastControl);
+  }
+  if (!Const.isEmpty(marketEntry.getSupportUrl())) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.SupportURL.label"),lastControl);
+    lastControl=addRightURL(composite,marketEntry.getSupportUrl(),lastControl);
+  }
+  Market.discoverInstalledVersion(marketEntry);
+  if (marketEntry.isInstalled()) {
+    addLeftLabel(composite,BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.InstalledVersion.label"),lastControl);
+    lastControl=addRightLabel(composite,marketEntry.getInstalledVersion(),lastControl);
+  }
+  final Button installedButton=new Button(composite,SWT.PUSH);
+  setButtonLabel(installedButton,marketEntry.isInstalled());
+  final ProgressMonitorDialog pmd=new ProgressMonitorDialog(shell);
+  final Button upgradeButton=new Button(composite,SWT.PUSH);
+  upgradeButton.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeTo.button",marketEntry.getVersion()));
+  upgradeButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      try {
+        if (marketEntry.getId().equals("market")) {
+          MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+          mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Message"));
+          mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Title"));
+          int id=mb.open();
+          if (id == SWT.YES) {
+            dispose();
+            Market.upgradeMarket(marketEntry);
+          }
+        }
+ else {
+          try {
+            pmd.run(true,true,new ProgressMonitorRunner(new Runnable(){
+              public void run(){
+                try {
+                  Market.install(marketEntry,pmd);
+                  upgradeButton.setEnabled(false);
+                }
+ catch (                KettleException ke) {
+                  new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+                }
+              }
+            }
+));
+          }
+ catch (          Exception ex) {
+            new ErrorDialog(shell,"Error with Progress Monitor Dialog","Error with Progress Monitor Dialog",ex);
+          }
+        }
+      }
+ catch (      KettleException ke) {
+        new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+      }
+    }
+  }
+);
+  final ProgressMonitorRunner installRunner=new ProgressMonitorRunner(new Runnable(){
+    public void run(){
+      try {
+        Market.installUninstall(marketEntry,marketEntry.isInstalled(),pmd);
+        Market.discoverInstalledVersion(marketEntry);
+        setButtonLabel(installedButton,marketEntry.isInstalled());
+        setPluginName(marketEntry);
+        if (upgradeButton != null) {
+          upgradeButton.setVisible(marketEntry.isInstalled());
+        }
+      }
+ catch (      KettleException ke) {
+        new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+      }
+    }
+  }
+);
+  BaseStepDialog.positionBottomButtons(composite,new Button[]{installedButton,upgradeButton},margin,lastControl);
+  boolean showUpgradeButton=marketEntry.isInstalled() && (marketEntry.getInstalledVersion() == null || marketEntry.getVersion() == null || marketEntry.getInstalledVersion().compareTo(marketEntry.getVersion()) < 0);
+  upgradeButton.setVisible(showUpgradeButton);
+  final ProgressMonitorRunner uninstallMarketRunner=new ProgressMonitorRunner(new Runnable(){
+    public void run(){
+      try {
+        Market.uninstallMarket();
+      }
+ catch (      KettleException ke) {
+        new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+      }
+    }
+  }
+);
+  installedButton.addSelectionListener(new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      try {
+        if (marketEntry.getId().equals("market")) {
+          MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+          mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UninstallMarket.Message"));
+          mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UninstallMarket.Title"));
+          int id=mb.open();
+          if (id == SWT.YES) {
+            dispose();
+            pmd.run(true,true,uninstallMarketRunner);
+          }
+        }
+ else {
+          pmd.run(true,true,installRunner);
+        }
+      }
+ catch (      Throwable ke) {
+        new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+      }
+    }
+  }
+);
+  Label wlName=new Label(composite,SWT.LEFT);
+  props.setLook(wlName);
+  wlName.setText("Name:");
+  FormData fdlName=new FormData();
+  fdlName.top=new FormAttachment(0,0);
+  fdlName.left=new FormAttachment(0,0);
+  fdlName.right=new FormAttachment(middle,0);
+  wlName.setLayoutData(fdlName);
+  return composite;
+}
