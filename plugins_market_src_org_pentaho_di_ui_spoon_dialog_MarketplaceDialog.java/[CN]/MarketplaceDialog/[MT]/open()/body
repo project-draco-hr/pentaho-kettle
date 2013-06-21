@@ -38,7 +38,7 @@
     public void itemCollapsed(    ExpandEvent e){
     }
     public void itemExpanded(    ExpandEvent e){
-      ExpandItem item=(ExpandItem)e.item;
+      ExpandItem item=(ExpandItem)(e.item == null ? e.getSource() : e.item);
       if (item.getControl() != null)       return;
       initExpandItemControl(item);
     }
@@ -50,6 +50,108 @@
   fdBar.right=new FormAttachment(100,0);
   fdBar.bottom=new FormAttachment(100,-50);
   expandBar.setLayoutData(fdBar);
+  pmd=new ProgressMonitorDialog(shell);
+  upgradeSelectionListener=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      try {
+        final Button button=(Button)(e.item == null ? e.getSource() : e.item);
+        final Composite composite=button.getParent();
+        final MarketEntry marketEntry=(MarketEntry)composite.getData("marketEntry");
+        if (marketEntry.getId().equals("market")) {
+          MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+          mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Message"));
+          mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UpgradeMarket.Title"));
+          int id=mb.open();
+          if (id == SWT.YES) {
+            dispose();
+            Market.upgradeMarket(marketEntry);
+          }
+        }
+ else {
+          try {
+            pmd.run(true,true,new ProgressMonitorRunner(new Runnable(){
+              public void run(){
+                try {
+                  Market.install(marketEntry,pmd);
+                  button.setEnabled(false);
+                }
+ catch (                KettleException ke) {
+                  new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+                }
+              }
+            }
+));
+          }
+ catch (          Exception ex) {
+            new ErrorDialog(shell,"Error with Progress Monitor Dialog","Error with Progress Monitor Dialog",ex);
+          }
+        }
+      }
+ catch (      KettleException ke) {
+        new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+      }
+    }
+  }
+;
+  installSelectionListener=new SelectionAdapter(){
+    public void widgetSelected(    SelectionEvent e){
+      try {
+        final Button button=(Button)(e.item == null ? e.getSource() : e.item);
+        final Composite composite=button.getParent();
+        final MarketEntry marketEntry=(MarketEntry)composite.getData("marketEntry");
+        if (marketEntry.getId().equals("market")) {
+          MessageBox mb=new MessageBox(shell,SWT.NO | SWT.YES | SWT.ICON_WARNING);
+          mb.setMessage(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UninstallMarket.Message"));
+          mb.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.UninstallMarket.Title"));
+          int id=mb.open();
+          if (id == SWT.YES) {
+            dispose();
+            pmd.run(true,true,new ProgressMonitorRunner(new Runnable(){
+              public void run(){
+                try {
+                  Market.uninstallMarket();
+                }
+ catch (                KettleException ke) {
+                  new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+                }
+              }
+            }
+));
+          }
+        }
+ else {
+          pmd.run(true,true,new ProgressMonitorRunner(new Runnable(){
+            public void run(){
+              try {
+                Market.installUninstall(marketEntry,marketEntry.isInstalled(),pmd);
+                Market.discoverInstalledVersion(marketEntry);
+                setButtonLabel(button,marketEntry.isInstalled());
+                setPluginName(marketEntry);
+                Button upgradeButton=null;
+                for (                Control control : composite.getChildren()) {
+                  if (control instanceof Button && "upgradeButton".equals((String)control.getData("id"))) {
+                    upgradeButton=(Button)control;
+                    break;
+                  }
+                }
+                if (upgradeButton != null) {
+                  upgradeButton.setVisible(marketEntry.isInstalled());
+                }
+              }
+ catch (              KettleException ke) {
+                new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+              }
+            }
+          }
+));
+        }
+      }
+ catch (      Throwable ke) {
+        new ErrorDialog(shell,BaseMessages.getString(MARKET_PKG,"Market.error"),BaseMessages.getString(MARKET_PKG,"Market.installUninstall.error"),ke);
+      }
+    }
+  }
+;
   addMarketPlaceEntries();
   SelectionAdapter checkListener=new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
@@ -57,7 +159,6 @@
     }
   }
 ;
-  Rectangle rect=expandBar.getClientArea();
   checkInstalled=new Button(shell,SWT.CHECK);
   checkInstalled.setText(BaseMessages.getString(MARKET_PKG,"MarketplacesDialog.CheckInstalled"));
   checkInstalled.setSelection(true);
