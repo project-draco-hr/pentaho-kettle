@@ -32,6 +32,33 @@
       return result;
     }
   }
+  if (copypreviousfiles) {
+    List<ResultFile> resultFiles=result.getResultFilesList();
+    if (resultFiles == null || resultFiles.size() == 0) {
+      if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.ArgsFromPreviousNothingFiles"));
+      result.setResult(true);
+      return result;
+    }
+    try {
+      for (Iterator<ResultFile> it=resultFiles.iterator(); it.hasNext() && !parentJob.isStopped(); ) {
+        ResultFile resultFile=(ResultFile)it.next();
+        FileObject file=resultFile.getFile();
+        if (file != null) {
+          if (!file.exists())           logError(BaseMessages.getString(PKG,"JobSFTPPUT.Log.FilefromPreviousNotFound",file.toString()));
+ else {
+            myFileList.add(file);
+            if (log.isDebug())             logDebug(BaseMessages.getString(PKG,"JobSFTPPUT.Log.FilenameFromResult",file.toString()));
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      logError(BaseMessages.getString(PKG,"JobSFTPPUT.Error.ArgFromPrevious"));
+      result.setNrErrors(1);
+      myFileList=null;
+      return result;
+    }
+  }
   SFTPClient sftpclient=null;
   String realServerName=environmentSubstitute(serverName);
   String realServerPort=environmentSubstitute(serverPort);
@@ -114,7 +141,7 @@
       sftpclient.chdir(realSftpDirString);
       if (log.isDetailed())       logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.ChangedDirectory",realSftpDirString));
     }
-    if (!copyprevious) {
+    if (!copyprevious && !copypreviousfiles) {
       myFileList=new ArrayList<FileObject>();
       FileObject localFiles=KettleVFS.getFileObject(realLocalDirectory,this);
       FileObject[] children=localFiles.getChildren();
@@ -138,7 +165,7 @@
     }
     if (log.isDetailed())     logDetailed(BaseMessages.getString(PKG,"JobSFTPPUT.Log.RowsFromPreviousResult",myFileList.size()));
     Pattern pattern=null;
-    if (!copyprevious) {
+    if (!copyprevious && !copypreviousfiles) {
       if (!Const.isEmpty(realWildcard)) {
         pattern=Pattern.compile(realWildcard);
       }
