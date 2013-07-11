@@ -4,6 +4,10 @@
   int totalSteps=-1;
   if (transGridView == null || transGridView.isDisposed())   return;
   if (refresh_busy)   return;
+  List<StepMeta> selectedSteps=new ArrayList<StepMeta>();
+  if (showSelectedSteps) {
+    selectedSteps=transGraph.trans.getTransMeta().getSelectedSteps();
+  }
   int topIdx=transGridView.getTable().getTopIndex();
   refresh_busy=true;
   Table table=transGridView.table;
@@ -31,10 +35,28 @@
       return;
     }
     int nr=0;
-    StepInterface baseStep;
     for (int i=0; i < totalSteps; i++) {
-      baseStep=null;
-      if ((hideInactiveSteps && (isRunningLookup[i] || stepStatusLookup[i] != StepExecutionStatus.STATUS_FINISHED)) || (!hideInactiveSteps && stepStatusLookup[i] != StepExecutionStatus.STATUS_EMPTY)) {
+      StepInterface baseStep=transGraph.trans.getRunThread(i);
+      ;
+      boolean showSelected;
+      if (showSelectedSteps) {
+        if (selectedSteps.size() == 0) {
+          showSelected=true;
+        }
+ else {
+          showSelected=false;
+          for (          StepMeta stepMeta : selectedSteps) {
+            if (baseStep.getStepMeta().equals(stepMeta)) {
+              showSelected=true;
+              break;
+            }
+          }
+        }
+      }
+ else {
+        showSelected=true;
+      }
+      if (showSelected && (hideInactiveSteps && (isRunningLookup[i] || stepStatusLookup[i] != StepExecutionStatus.STATUS_FINISHED)) || (!hideInactiveSteps && stepStatusLookup[i] != StepExecutionStatus.STATUS_EMPTY)) {
         TableItem ti=null;
         if (insert) {
           ti=new TableItem(table,SWT.NONE);
@@ -53,9 +75,6 @@
           Integer tIndex=Integer.parseInt(ti.getText(0));
           tIndex--;
           baseStep=transGraph.trans.getRunThread(tIndex);
-        }
-        if (baseStep == null) {
-          baseStep=transGraph.trans.getRunThread(i);
         }
         StepStatus stepStatus=new StepStatus(baseStep);
         String fields[]=stepStatus.getTransLogFields();
