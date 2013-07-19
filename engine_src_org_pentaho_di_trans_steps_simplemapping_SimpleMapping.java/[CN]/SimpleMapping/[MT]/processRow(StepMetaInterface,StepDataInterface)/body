@@ -1,0 +1,39 @@
+{
+  try {
+    meta=(SimpleMappingMeta)smi;
+    data=(SimpleMappingData)sdi;
+    if (first) {
+      first=false;
+      String mappingInputStepname=data.mappingInput.getStepname();
+      RowProducer rowProducer=data.mappingTrans.addRowProducer(mappingInputStepname,0);
+      data.rowDataInputMapper=new RowDataInputMapper(meta.getInputMapping(),rowProducer);
+      String mappingOutputStepname=data.mappingOutput.getStepname();
+      StepInterface outputStepInterface=data.mappingTrans.findStepInterface(mappingOutputStepname,0);
+      RowOutputDataMapper outputDataMapper=new RowOutputDataMapper(meta.getInputMapping(),meta.getOutputMapping(),new PutRowInterface(){
+        @Override public void putRow(        RowMetaInterface rowMeta,        Object[] rowData) throws KettleStepException {
+          SimpleMapping.this.putRow(rowMeta,rowData);
+        }
+      }
+);
+      outputStepInterface.addRowListener(outputDataMapper);
+      data.mappingTrans.startThreads();
+    }
+    Object[] row=getRow();
+    if (row != null) {
+      data.rowDataInputMapper.putRow(getInputRowMeta(),row);
+    }
+ else {
+      data.rowDataInputMapper.finished();
+      data.mappingTrans.waitUntilFinished();
+      setOutputDone();
+      return false;
+    }
+    return true;
+  }
+ catch (  Throwable t) {
+    if (data.mappingTrans != null) {
+      data.mappingTrans.stopAll();
+    }
+    throw new KettleException(t);
+  }
+}

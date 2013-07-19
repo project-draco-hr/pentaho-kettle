@@ -1,0 +1,113 @@
+{
+  final CTabItem wTab;
+  if (index >= wTabFolder.getItemCount()) {
+    wTab=new CTabItem(wTabFolder,SWT.CLOSE);
+  }
+ else {
+    wTab=new CTabItem(wTabFolder,SWT.CLOSE,index);
+  }
+  setMappingDefinitionTabNameAndToolTip(wTab,tabTitle,tabTooltip,definition,input);
+  Composite wInputComposite=new Composite(wTabFolder,SWT.NONE);
+  props.setLook(wInputComposite);
+  FormLayout tabLayout=new FormLayout();
+  tabLayout.marginWidth=Const.FORM_MARGIN;
+  tabLayout.marginHeight=Const.FORM_MARGIN;
+  wInputComposite.setLayout(tabLayout);
+  final Button wbEnterMapping=new Button(wInputComposite,SWT.PUSH);
+  props.setLook(wbEnterMapping);
+  if (input) {
+    wbEnterMapping.setText(BaseMessages.getString(PKG,"SimpleMappingDialog.button.EnterMapping"));
+  }
+ else {
+    wbEnterMapping.setText(BaseMessages.getString(PKG,"SimpleMappingDialog.button.GetFields"));
+  }
+  FormData fdbEnterMapping=new FormData();
+  fdbEnterMapping.top=new FormAttachment(0,margin * 2);
+  fdbEnterMapping.right=new FormAttachment(100,0);
+  wbEnterMapping.setLayoutData(fdbEnterMapping);
+  ColumnInfo[] colinfo=new ColumnInfo[]{new ColumnInfo(sourceColumnLabel,ColumnInfo.COLUMN_TYPE_TEXT,false,false),new ColumnInfo(targetColumnLabel,ColumnInfo.COLUMN_TYPE_TEXT,false,false)};
+  final TableView wFieldMappings=new TableView(transMeta,wInputComposite,SWT.FULL_SELECTION | SWT.SINGLE | SWT.BORDER,colinfo,1,lsMod,props);
+  props.setLook(wFieldMappings);
+  FormData fdMappings=new FormData();
+  fdMappings.left=new FormAttachment(0,0);
+  fdMappings.right=new FormAttachment(wbEnterMapping,-margin);
+  fdMappings.top=new FormAttachment(0,margin * 2);
+  fdMappings.bottom=new FormAttachment(100,-50);
+  wFieldMappings.setLayoutData(fdMappings);
+  Control lastControl=wFieldMappings;
+  for (  MappingValueRename valueRename : definition.getValueRenames()) {
+    TableItem tableItem=new TableItem(wFieldMappings.table,SWT.NONE);
+    tableItem.setText(1,valueRename.getSourceValueName());
+    tableItem.setText(2,valueRename.getTargetValueName());
+  }
+  wFieldMappings.removeEmptyRows();
+  wFieldMappings.setRowNums();
+  wFieldMappings.optWidth(true);
+  wbEnterMapping.addSelectionListener(new SelectionAdapter(){
+    @Override public void widgetSelected(    SelectionEvent arg0){
+      try {
+        if (input) {
+          RowMetaInterface sourceRowMeta=getFieldsFromStep(true,input);
+          RowMetaInterface targetRowMeta=getFieldsFromStep(false,input);
+          String sourceFields[]=sourceRowMeta.getFieldNames();
+          String targetFields[]=targetRowMeta.getFieldNames();
+          EnterMappingDialog dialog=new EnterMappingDialog(shell,sourceFields,targetFields);
+          List<SourceToTargetMapping> mappings=dialog.open();
+          if (mappings != null) {
+            wFieldMappings.clearAll(false);
+            definition.getValueRenames().clear();
+            for (int i=0; i < mappings.size(); i++) {
+              SourceToTargetMapping mapping=mappings.get(i);
+              TableItem item=new TableItem(wFieldMappings.table,SWT.NONE);
+              item.setText(1,mapping.getSourceString(sourceFields));
+              item.setText(2,mapping.getTargetString(targetFields));
+              String source=input ? item.getText(1) : item.getText(2);
+              String target=input ? item.getText(2) : item.getText(1);
+              definition.getValueRenames().add(new MappingValueRename(source,target));
+            }
+            wFieldMappings.removeEmptyRows();
+            wFieldMappings.setRowNums();
+            wFieldMappings.optWidth(true);
+          }
+        }
+ else {
+          RowMetaInterface sourceRowMeta=getFieldsFromStep(true,input);
+          BaseStepDialog.getFieldsFromPrevious(sourceRowMeta,wFieldMappings,1,new int[]{1},new int[]{},-1,-1,null);
+        }
+      }
+ catch (      KettleException e) {
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"System.Dialog.Error.Title"),BaseMessages.getString(PKG,"SimpleMappingDialog.Exception.ErrorGettingMappingSourceAndTargetFields",e.toString()),e);
+      }
+    }
+  }
+);
+  if (input) {
+    Button wRenameOutput=new Button(wInputComposite,SWT.CHECK);
+    props.setLook(wRenameOutput);
+    wRenameOutput.setText(BaseMessages.getString(PKG,"SimpleMappingDialog.input.RenamingOnOutput"));
+    FormData fdRenameOutput=new FormData();
+    fdRenameOutput.top=new FormAttachment(lastControl,margin);
+    fdRenameOutput.left=new FormAttachment(0,0);
+    fdRenameOutput.right=new FormAttachment(100,0);
+    wRenameOutput.setLayoutData(fdRenameOutput);
+    wRenameOutput.setSelection(definition.isRenamingOnOutput());
+    wRenameOutput.addSelectionListener(new SelectionAdapter(){
+      @Override public void widgetSelected(      SelectionEvent event){
+        definition.setRenamingOnOutput(!definition.isRenamingOnOutput());
+      }
+    }
+);
+    lastControl=wRenameOutput;
+  }
+  FormData fdParametersComposite=new FormData();
+  fdParametersComposite.left=new FormAttachment(0,0);
+  fdParametersComposite.top=new FormAttachment(0,0);
+  fdParametersComposite.right=new FormAttachment(100,0);
+  fdParametersComposite.bottom=new FormAttachment(100,0);
+  wInputComposite.setLayoutData(fdParametersComposite);
+  wInputComposite.layout();
+  wTab.setControl(wInputComposite);
+  final ApplyChanges applyChanges=new MappingDefinitionTab(definition,wFieldMappings);
+  changeList.add(applyChanges);
+  wTabFolder.setSelection(wTab);
+}

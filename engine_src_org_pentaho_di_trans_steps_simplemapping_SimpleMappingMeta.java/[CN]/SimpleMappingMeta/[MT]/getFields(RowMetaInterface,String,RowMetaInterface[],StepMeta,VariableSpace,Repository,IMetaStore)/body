@@ -1,0 +1,55 @@
+{
+  TransMeta mappingTransMeta=null;
+  try {
+    mappingTransMeta=loadMappingMeta(this,repository,metaStore,space);
+  }
+ catch (  KettleException e) {
+    throw new KettleStepException(BaseMessages.getString(PKG,"SimpleMappingMeta.Exception.UnableToLoadMappingTransformation"),e);
+  }
+  if (mappingParameters != null) {
+    if (mappingParameters.isInheritingAllVariables()) {
+      mappingTransMeta.copyVariablesFrom(space);
+    }
+    List<String> subParams=Arrays.asList(mappingTransMeta.listParameters());
+    for (int i=0; i < mappingParameters.getVariable().length; i++) {
+      String name=mappingParameters.getVariable()[i];
+      String value=space.environmentSubstitute(mappingParameters.getInputField()[i]);
+      if (!Const.isEmpty(name) && !Const.isEmpty(value)) {
+        if (subParams.contains(name)) {
+          try {
+            mappingTransMeta.setParameterValue(name,value);
+          }
+ catch (          UnknownParamException e) {
+          }
+        }
+        mappingTransMeta.setVariable(name,value);
+      }
+    }
+  }
+  List<MappingValueRename> inputRenameList=new ArrayList<MappingValueRename>();
+  RowMetaInterface inputRowMeta;
+  inputRowMeta=row.clone();
+  if (!inputRowMeta.isEmpty()) {
+    for (    MappingValueRename valueRename : inputMapping.getValueRenames()) {
+      ValueMetaInterface valueMeta=inputRowMeta.searchValueMeta(valueRename.getSourceValueName());
+      if (valueMeta == null) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SimpleMappingMeta.Exception.UnableToFindField",valueRename.getSourceValueName()));
+      }
+      valueMeta.setName(valueRename.getTargetValueName());
+    }
+  }
+  StepMeta mappingInputStep=mappingTransMeta.findMappingInputStep(null);
+  MappingInputMeta mappingInputMeta=(MappingInputMeta)mappingInputStep.getStepMetaInterface();
+  mappingInputMeta.setInputRowMeta(inputRowMeta);
+  mappingInputMeta.setValueRenames(null);
+  if (inputMapping.isRenamingOnOutput()) {
+    SimpleMapping.addInputRenames(inputRenameList,inputMapping.getValueRenames());
+  }
+  StepMeta mappingOutputStep=mappingTransMeta.findMappingOutputStep(null);
+  MappingOutputMeta mappingOutputMeta=(MappingOutputMeta)mappingOutputStep.getStepMetaInterface();
+  mappingOutputMeta.setOutputValueRenames(outputMapping.getValueRenames());
+  mappingOutputMeta.setInputValueRenames(inputRenameList);
+  RowMetaInterface mappingOutputRowMeta=mappingTransMeta.getStepFields(mappingOutputStep);
+  row.clear();
+  row.addRowMeta(mappingOutputRowMeta);
+}
