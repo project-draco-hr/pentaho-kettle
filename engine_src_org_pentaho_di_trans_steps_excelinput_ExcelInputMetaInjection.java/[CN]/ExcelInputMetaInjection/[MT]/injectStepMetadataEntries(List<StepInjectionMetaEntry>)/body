@@ -1,6 +1,7 @@
 {
   List<ExcelInputField> excelInputFields=new ArrayList<ExcelInputField>();
   List<ExcelInputSheet> sheets=new ArrayList<ExcelInputMetaInjection.ExcelInputSheet>();
+  List<FileLine> fileLines=new ArrayList<FileLine>();
   for (  StepInjectionMetaEntry lookFields : all) {
     Entry fieldsEntry=Entry.findEntry(lookFields.getKey());
     if (fieldsEntry != null) {
@@ -85,9 +86,46 @@ sheets.add(new ExcelInputSheet(sheetName,startCol,startRow));
 }
 }
 }
+if (fieldsEntry == Entry.FILENAME_LINES) {
+for (StepInjectionMetaEntry lookField : lookFields.getDetails()) {
+Entry fieldEntry=Entry.findEntry(lookField.getKey());
+if (fieldEntry == Entry.FILENAME_LINE) {
+FileLine fileLine=new FileLine();
+List<StepInjectionMetaEntry> entries=lookField.getDetails();
+for (StepInjectionMetaEntry entry : entries) {
+Entry metaEntry=Entry.findEntry(entry.getKey());
+if (metaEntry != null) {
+String value=(String)entry.getValue();
+switch (metaEntry) {
+case FILENAME:
+fileLine.filename=value;
+break;
+case FILEMASK:
+fileLine.includeMask=value;
+break;
+case EXCLUDE_FILEMASK:
+fileLine.excludeMask=value;
+break;
+case FILE_REQUIRED:
+fileLine.required=value;
+break;
+case INCLUDE_SUBFOLDERS:
+fileLine.includeSubfolders=value;
+break;
 }
 }
+}
+fileLines.add(fileLine);
+}
+}
+}
+break;
+}
+}
+if (excelInputFields.size() > 0) {
 meta.setField(excelInputFields.toArray(new ExcelInputField[excelInputFields.size()]));
+}
+if (sheets.size() > 0) {
 String[] sheetNames=new String[sheets.size()];
 int[] startCols=new int[sheets.size()];
 int[] startRows=new int[sheets.size()];
@@ -99,4 +137,17 @@ startRows[i]=sheets.get(i).startRow;
 meta.setSheetName(sheetNames);
 meta.setStartColumn(startCols);
 meta.setStartRow(startRows);
+}
+if (fileLines.size() > 0) {
+meta.allocateFiles(fileLines.size());
+for (int i=0; i < fileLines.size(); i++) {
+FileLine fileLine=fileLines.get(i);
+meta.getFileName()[i]=fileLine.filename;
+meta.getFileMask()[i]=fileLine.includeMask;
+meta.getExludeFileMask()[i]=fileLine.excludeMask;
+meta.getExludeFileMask()[i]=fileLine.excludeMask;
+meta.getFileRequired()[i]=fileLine.required;
+meta.getIncludeSubFolders()[i]=fileLine.includeSubfolders;
+}
+}
 }
