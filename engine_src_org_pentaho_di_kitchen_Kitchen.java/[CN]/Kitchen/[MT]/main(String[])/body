@@ -1,6 +1,32 @@
 {
-  KettleEnvironment.init();
-  KettleClientEnvironment.getInstance().setClient(KettleClientEnvironment.ClientType.KITCHEN);
+  final ExecutorService executor=ExecutorUtil.getExecutor();
+  final RepositoryPluginType repositoryPluginType=RepositoryPluginType.getInstance();
+  final Future<Pair<KettlePluginException,Future<KettleException>>> repositoryRegisterFuture=executor.submit(new Callable<Pair<KettlePluginException,Future<KettleException>>>(){
+    @Override public Pair<KettlePluginException,Future<KettleException>> call() throws Exception {
+      PluginRegistry.addPluginType(repositoryPluginType);
+      try {
+        KettleClientEnvironment.init();
+      }
+ catch (      KettlePluginException e) {
+        return Pair.of(e,null);
+      }
+      Future<KettleException> kettleEnvironmentInitFuture=executor.submit(new Callable<KettleException>(){
+        @Override public KettleException call() throws Exception {
+          try {
+            KettleEnvironment.init();
+            KettleClientEnvironment.getInstance().setClient(KettleClientEnvironment.ClientType.KITCHEN);
+          }
+ catch (          KettleException e) {
+            return e;
+          }
+          return null;
+        }
+      }
+);
+      return Pair.of(null,kettleEnvironmentInitFuture);
+    }
+  }
+);
   List<String> args=new ArrayList<String>();
   for (int i=0; i < a.length; i++) {
     if (a[i].length() > 0)     args.add(a[i]);
@@ -31,6 +57,12 @@
   if (Const.isEmpty(optionLogfile) && !Const.isEmpty(optionLogfileOld)) {
     optionLogfile=optionLogfileOld;
   }
+  Pair<KettlePluginException,Future<KettleException>> repositoryRegisterResults=repositoryRegisterFuture.get();
+  KettlePluginException repositoryRegisterException=repositoryRegisterResults.getFirst();
+  if (repositoryRegisterException != null) {
+    throw repositoryRegisterException;
+  }
+  Future<KettleException> kettleInitFuture=repositoryRegisterResults.getSecond();
   if (!Const.isEmpty(optionLogfile)) {
     fileAppender=new FileLoggingEventListener(optionLogfile.toString(),true);
     KettleLogStore.getAppender().addLoggingEventListener(fileAppender);
@@ -89,6 +121,7 @@
             if (log.isDebug())             log.logDebug(BaseMessages.getString(PKG,"Kitchen.Log.CheckUserPass"));
             if (!Const.isEmpty(optionJobname)) {
               if (log.isDebug())               log.logDebug(BaseMessages.getString(PKG,"Kitchen.Log.LoadingJobInfo"));
+              blockAndThrow(kettleInitFuture);
               jobMeta=repository.loadJob(optionJobname.toString(),directory,null,null);
               if (log.isDebug())               log.logDebug(BaseMessages.getString(PKG,"Kitchen.Log.AllocateJob"));
               job=new Job(repository,jobMeta);
@@ -117,6 +150,7 @@
         }
       }
       if (!Const.isEmpty(optionFilename) && job == null) {
+        blockAndThrow(kettleInitFuture);
         jobMeta=new JobMeta(optionFilename.toString(),null,null);
         job=new Job(null,jobMeta);
       }
