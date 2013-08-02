@@ -2,18 +2,20 @@
   String parentFolderName=buildPluginsFolderPath(marketEntry);
   File pluginFolder=new File(parentFolderName + File.separator + marketEntry.getId());
   LogChannel.GENERAL.logBasic("Uninstalling plugin in folder: " + pluginFolder.getAbsolutePath());
-  PluginInterface plugin=getPluginObject(marketEntry.getId());
   if (!pluginFolder.exists()) {
     throw new KettleException("No plugin was found in the expected folder : " + pluginFolder.getAbsolutePath());
   }
-  if (plugin != null) {
-    pluginFolder=new File(plugin.getPluginDirectory().getFile());
-    parentFolderName=pluginFolder.getParent();
-    ClassLoader cl=PluginRegistry.getInstance().getClassLoader(plugin);
-    if (cl instanceof KettleURLClassLoader) {
-      ((KettleURLClassLoader)cl).closeClassLoader();
+  try {
+    for (    PluginInterface plugin : PluginRegistry.getInstance().findPluginsByFolder(pluginFolder.toURI().toURL())) {
+      ClassLoader cl=PluginRegistry.getInstance().getClassLoader(plugin);
+      if (cl instanceof KettleURLClassLoader) {
+        ((KettleURLClassLoader)cl).closeClassLoader();
+      }
+      PluginRegistry.getInstance().removePlugin(plugin.getPluginType(),plugin);
     }
-    PluginRegistry.getInstance().removePlugin(plugin.getPluginType(),plugin);
+  }
+ catch (  MalformedURLException e1) {
+    LogChannel.GENERAL.logError(e1.getLocalizedMessage(),e1);
   }
   deleteDirectory(pluginFolder);
   if (refresh) {
