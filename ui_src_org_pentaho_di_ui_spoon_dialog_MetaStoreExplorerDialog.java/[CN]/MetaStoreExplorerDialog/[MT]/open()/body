@@ -38,13 +38,33 @@
   idColumn.setWidth(300);
   tree.addMenuDetectListener(new MenuDetectListener(){
     @Override public void menuDetected(    MenuDetectEvent event){
-      TreeItem treeItem=tree.getItem(new Point(event.x,event.y));
+      if (tree.getSelectionCount() < 1)       return;
+      TreeItem treeItem=tree.getSelection()[0];
       if (treeItem != null) {
-        log.logBasic("hit item : " + treeItem.getText());
+        String[] labels=ConstUI.getTreeStrings(treeItem);
+        int depth=ConstUI.getTreeLevel(treeItem);
+        if (depth == 3) {
+          final String metaStoreName=labels[0];
+          final String namespace=labels[1];
+          final String elementTypeName=labels[2];
+          final String elementName=labels[3];
+          Menu menu=new Menu(tree);
+          MenuItem removeItem=new MenuItem(menu,SWT.POP_UP);
+          removeItem.setText("Remove element");
+          removeItem.addSelectionListener(new SelectionAdapter(){
+            @Override public void widgetSelected(            SelectionEvent arg0){
+              removeElement(metaStoreName,namespace,elementTypeName,elementName);
+            }
+          }
+);
+          tree.setMenu(menu);
+          menu.setVisible(true);
+        }
       }
     }
   }
 );
+  TreeMemory.addTreeListener(tree,META_STORE_EXPLORER_DIALOG_TREE);
   try {
     refreshTree();
   }
