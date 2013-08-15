@@ -1,0 +1,47 @@
+{
+  final TransformationMap transformationMap=CarteSingleton.getInstance().getTransformationMap();
+  final JobMap jobMap=CarteSingleton.getInstance().getJobMap();
+  List<SlaveServerDetection> detections=Collections.synchronizedList(new ArrayList<SlaveServerDetection>());
+  SocketRepository socketRepository=CarteSingleton.getInstance().getSocketRepository();
+  PluginRegistry pluginRegistry=PluginRegistry.getInstance();
+  List<PluginInterface> plugins=pluginRegistry.getPlugins(CartePluginType.class);
+  Map<String,CartePluginInterface> pluginMap=new HashMap<String,CartePluginInterface>();
+  for (  PluginInterface plugin : plugins) {
+    CartePluginInterface servlet;
+    try {
+      servlet=(CartePluginInterface)pluginRegistry.loadClass(plugin);
+      pluginMap.put(getServletKey(servlet),servlet);
+    }
+ catch (    KettlePluginException e) {
+      log.logError("Unable to instantiate plugin for use with CarteServlet " + plugin.getName());
+    }
+  }
+  @SuppressWarnings("unchecked") Enumeration<String> initParameterNames=config.getInitParameterNames();
+  while (initParameterNames.hasMoreElements()) {
+    final String paramName=initParameterNames.nextElement();
+    final String className=config.getInitParameter(paramName);
+    final Class<?> clazz;
+    try {
+      clazz=Class.forName(className);
+      final CartePluginInterface servlet=(CartePluginInterface)clazz.newInstance();
+      pluginMap.put(getServletKey(servlet),servlet);
+    }
+ catch (    ClassNotFoundException e) {
+      log.logError("Unable to find configured " + paramName + " of "+ className,e);
+    }
+catch (    InstantiationException e) {
+      log.logError("Unable to instantiate configured " + paramName + " of "+ className,e);
+    }
+catch (    IllegalAccessException e) {
+      log.logError("Unable to access configured " + paramName + " of "+ className,e);
+    }
+catch (    ClassCastException e) {
+      log.logError("Unable to cast configured " + paramName + " of "+ className+ " to "+ CartePluginInterface.class,e);
+    }
+  }
+  for (  CartePluginInterface servlet : pluginMap.values()) {
+    servlet.setup(transformationMap,jobMap,socketRepository,detections);
+    servlet.setJettyMode(false);
+  }
+  cartePluginRegistry=Collections.unmodifiableMap(pluginMap);
+}
