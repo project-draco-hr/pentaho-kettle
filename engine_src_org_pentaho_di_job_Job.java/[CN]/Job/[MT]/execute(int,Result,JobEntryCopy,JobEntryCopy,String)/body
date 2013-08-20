@@ -5,7 +5,7 @@
     res.stopped=true;
     return res;
   }
-  final Result result;
+  final Result newResult;
   Result prevResult=null;
   if (prev_result != null) {
     prevResult=prev_result.clone();
@@ -15,8 +15,11 @@
   }
   JobExecutionExtension extension=new JobExecutionExtension(this,prevResult,jobEntryCopy,true);
   ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobBeforeJobEntryExecution.id,extension);
+  if (extension.result != null) {
+    prevResult=extension.result;
+  }
   if (!extension.executeEntry) {
-    result=prevResult=extension.result;
+    newResult=prevResult;
   }
  else {
     if (log.isDetailed())     log.logDetailed("exec(" + nr + ", "+ (prev_result != null ? prev_result.getNrErrors() : 0)+ ", "+ (jobEntryCopy != null ? jobEntryCopy.toString() : "null")+ ")");
@@ -47,7 +50,7 @@
       }
     }
     log.snap(Metrics.METRIC_JOBENTRY_START,cloneJei.toString());
-    result=cloneJei.execute(prevResult,nr);
+    newResult=cloneJei.execute(prevResult,nr);
     log.snap(Metrics.METRIC_JOBENTRY_STOP,cloneJei.toString());
     final long end=System.currentTimeMillis();
     if (interactive) {
@@ -59,20 +62,20 @@
       }
     }
     if (cloneJei instanceof JobEntryTrans) {
-      String throughput=result.getReadWriteThroughput((int)((end - start) / 1000));
+      String throughput=newResult.getReadWriteThroughput((int)((end - start) / 1000));
       if (throughput != null) {
         log.logMinimal(throughput);
       }
     }
     for (    JobEntryListener jobEntryListener : jobEntryListeners) {
-      jobEntryListener.afterExecution(this,jobEntryCopy,cloneJei,result);
+      jobEntryListener.afterExecution(this,jobEntryCopy,cloneJei,newResult);
     }
     Thread.currentThread().setContextClassLoader(cl);
-    addErrors((int)result.getNrErrors());
+    addErrors((int)newResult.getNrErrors());
     LoggingBuffer loggingBuffer=KettleLogStore.getAppender();
     StringBuffer logTextBuffer=loggingBuffer.getBuffer(cloneJei.getLogChannel().getLogChannelId(),false);
-    result.setLogText(logTextBuffer.toString() + result.getLogText());
-    JobEntryResult jerAfter=new JobEntryResult(result,cloneJei.getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
+    newResult.setLogText(logTextBuffer.toString() + newResult.getLogText());
+    JobEntryResult jerAfter=new JobEntryResult(newResult,cloneJei.getLogChannel().getLogChannelId(),BaseMessages.getString(PKG,"Job.Comment.JobFinished"),null,jobEntryCopy.getName(),jobEntryCopy.getNr(),environmentSubstitute(jobEntryCopy.getEntry().getFilename()));
     jobTracker.addJobTracker(new JobTracker(jobMeta,jerAfter));
 synchronized (jobEntryResults) {
       jobEntryResults.add(jerAfter);
@@ -98,24 +101,24 @@ synchronized (jobEntryResults) {
       nextComment=BaseMessages.getString(PKG,"Job.Comment.FollowedUnconditional");
     }
  else {
-      if (result.getResult()) {
+      if (newResult.getResult()) {
         nextComment=BaseMessages.getString(PKG,"Job.Comment.FollowedSuccess");
       }
  else {
         nextComment=BaseMessages.getString(PKG,"Job.Comment.FollowedFailure");
       }
     }
-    if (hi.isUnconditional() || (jobEntryCopy.evaluates() && (!(hi.getEvaluation() ^ result.getResult())))) {
+    if (hi.isUnconditional() || (jobEntryCopy.evaluates() && (!(hi.getEvaluation() ^ newResult.getResult())))) {
       if (log.isBasic())       log.logBasic(BaseMessages.getString(PKG,"Job.Log.StartingEntry",nextEntry.getName()));
       if (nextEntry.resetErrorsBeforeExecution()) {
-        result.setNrErrors(0);
+        newResult.setNrErrors(0);
       }
       if (jobEntryCopy.isLaunchingInParallel()) {
         threadEntries.add(nextEntry);
         Runnable runnable=new Runnable(){
           public void run(){
             try {
-              Result threadResult=execute(nr + 1,result,nextEntry,jobEntryCopy,nextComment);
+              Result threadResult=execute(nr + 1,newResult,nextEntry,jobEntryCopy,nextComment);
               threadResults.add(threadResult);
             }
  catch (            Throwable e) {
@@ -136,7 +139,7 @@ synchronized (jobEntryResults) {
       }
  else {
         try {
-          res=execute(nr + 1,result,nextEntry,jobEntryCopy,nextComment);
+          res=execute(nr + 1,newResult,nextEntry,jobEntryCopy,nextComment);
         }
  catch (        Throwable e) {
           log.logError(Const.getStackTracker(e));
