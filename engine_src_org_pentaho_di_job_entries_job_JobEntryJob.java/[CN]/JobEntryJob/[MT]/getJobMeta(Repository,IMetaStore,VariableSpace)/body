@@ -1,30 +1,39 @@
 {
+  JobMeta jobMeta=null;
   try {
 switch (specificationMethod) {
 case FILENAME:
-      return new JobMeta((space != null ? space.environmentSubstitute(getFilename()) : getFilename()),rep,null);
+      jobMeta=new JobMeta((space != null ? space.environmentSubstitute(getFilename()) : getFilename()),rep,null);
+    break;
 case REPOSITORY_BY_NAME:
-    if (rep != null) {
-      String realDirectory=(space != null ? space.environmentSubstitute(getDirectory()) : getDirectory());
-      RepositoryDirectoryInterface repositoryDirectory=rep.loadRepositoryDirectoryTree().findDirectory(realDirectory);
-      if (repositoryDirectory == null) {
-        throw new KettleException("Unable to find repository directory [" + Const.NVL(realDirectory,"") + "]");
-      }
-      return rep.loadJob((space != null ? space.environmentSubstitute(getJobName()) : getJobName()),repositoryDirectory,null,null);
-    }
- else {
-      throw new KettleException("Could not execute job specified in a repository since we're not connected to one");
-    }
-case REPOSITORY_BY_REFERENCE:
   if (rep != null) {
-    return rep.loadJob(jobObjectId,null);
+    String realDirectory=(space != null ? space.environmentSubstitute(getDirectory()) : getDirectory());
+    RepositoryDirectoryInterface repositoryDirectory=rep.loadRepositoryDirectoryTree().findDirectory(realDirectory);
+    if (repositoryDirectory == null) {
+      throw new KettleException("Unable to find repository directory [" + Const.NVL(realDirectory,"") + "]");
+    }
+    jobMeta=rep.loadJob((space != null ? space.environmentSubstitute(getJobName()) : getJobName()),repositoryDirectory,null,null);
+    break;
   }
  else {
     throw new KettleException("Could not execute job specified in a repository since we're not connected to one");
   }
+case REPOSITORY_BY_REFERENCE:
+if (rep != null) {
+  jobMeta=rep.loadJob(jobObjectId,null);
+  break;
+}
+ else {
+  throw new KettleException("Could not execute job specified in a repository since we're not connected to one");
+}
 default :
 throw new KettleException("The specified object location specification method '" + specificationMethod + "' is not yet supported in this job entry.");
 }
+if (jobMeta != null) {
+jobMeta.setRepository(rep);
+jobMeta.setMetaStore(metaStore);
+}
+return jobMeta;
 }
  catch (Exception e) {
 throw new KettleException("Unexpected error during job metadata load",e);
