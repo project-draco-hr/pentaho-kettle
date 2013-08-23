@@ -1,23 +1,26 @@
 {
   try {
-    ObjectId namespaceId=delegate.getNamespaceId(namespace);
-    if (namespaceId == null) {
-      throw new MetaStoreException("Unable to find namespace with name '" + namespace + "'");
-    }
-    Collection<RowMetaAndData> elementTypeRows=delegate.getElementTypes(namespaceId);
-    if (!elementTypeRows.isEmpty()) {
+    ObjectId namespaceId=delegate.verifyNamespace(namespace);
+    List<IMetaStoreElementType> elementTypes=getElementTypes(namespace);
+    if (!elementTypes.isEmpty()) {
       List<String> dependencies=new ArrayList<String>();
-      for (      RowMetaAndData elementTypeRow : elementTypeRows) {
-        Long elementTypeId=elementTypeRow.getInteger(KettleDatabaseRepository.TABLE_R_ELEMENT_TYPE);
-        dependencies.add(Long.toString(elementTypeId));
+      for (      IMetaStoreElementType elementType : elementTypes) {
+        dependencies.add(elementType.getId());
       }
       throw new MetaStoreDependenciesExistsException(dependencies,"The namespace to delete, '" + namespace + "' is not empty");
     }
+    delegate.deleteNamespace(namespaceId);
+    repository.commit();
   }
- catch (  MetaStoreException e) {
+ catch (  MetaStoreDependenciesExistsException e) {
+    throw e;
+  }
+catch (  MetaStoreException e) {
+    repository.rollback();
     throw e;
   }
 catch (  Exception e) {
-    throw new MetaStoreException(e);
+    repository.rollback();
+    throw new MetaStoreException("Unable to delete namespace '" + namespace + "'",e);
   }
 }

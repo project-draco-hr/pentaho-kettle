@@ -1,17 +1,24 @@
 {
   try {
-    ObjectId namespaceId=delegate.getNamespaceId(namespace);
-    ObjectId elementTypeId=delegate.getElementTypeId(namespaceId,elementType.getName());
-    if (elementTypeId != null) {
-      throw new MetaStoreNamespaceExistsException("Element type with name '" + elementType.getName() + "' already exists in namespace '"+ namespace+ "'");
+    ObjectId namespaceId=delegate.verifyNamespace(namespace);
+    IMetaStoreElementType existingType=getElementTypeByName(namespace,elementType.getName());
+    if (existingType != null) {
+      throw new MetaStoreElementTypeExistsException(Arrays.asList(existingType),"Can not create element type with id '" + elementType.getId() + "' because it already exists");
     }
     KDBRMetaStoreElementType newElementType=new KDBRMetaStoreElementType(delegate,namespace,namespaceId,elementType.getName(),elementType.getDescription());
     newElementType.save();
+    elementType.setId(newElementType.getId());
+    repository.commit();
   }
- catch (  MetaStoreException e) {
+ catch (  MetaStoreElementTypeExistsException e) {
+    throw e;
+  }
+catch (  MetaStoreException e) {
+    repository.rollback();
     throw e;
   }
 catch (  Exception e) {
+    repository.rollback();
     throw new MetaStoreException(e);
   }
 }
