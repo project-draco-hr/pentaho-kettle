@@ -5,10 +5,24 @@
     FileObject fileObject=KettleVFS.getFileObject(filename);
     if (fileObject instanceof LocalFile) {
       String localFilename=KettleVFS.getFilename(fileObject);
-      workbook=org.apache.poi.ss.usermodel.WorkbookFactory.create(new File(localFilename));
+      File excelFile=new File(localFilename);
+      try {
+        npoifs=new NPOIFSFileSystem(excelFile);
+        workbook=org.apache.poi.ss.usermodel.WorkbookFactory.create(npoifs);
+      }
+ catch (      Exception ofe) {
+        try {
+          opcpkg=OPCPackage.open(excelFile);
+          workbook=org.apache.poi.ss.usermodel.WorkbookFactory.create(opcpkg);
+        }
+ catch (        Exception ex) {
+          workbook=org.apache.poi.ss.usermodel.WorkbookFactory.create(excelFile);
+        }
+      }
     }
  else {
-      workbook=org.apache.poi.ss.usermodel.WorkbookFactory.create(KettleVFS.getInputStream(filename));
+      internalIS=KettleVFS.getInputStream(filename);
+      workbook=org.apache.poi.ss.usermodel.WorkbookFactory.create(internalIS);
     }
   }
  catch (  Exception e) {
