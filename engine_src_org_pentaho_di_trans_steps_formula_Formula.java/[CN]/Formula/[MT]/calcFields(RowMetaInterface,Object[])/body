@@ -3,13 +3,12 @@
     Object[] outputRowData=RowDataUtil.createResizedCopy(r,data.outputRowMeta.size());
     int tempIndex=rowMeta.size();
     data.context.setRowData(outputRowData);
-    if (data.lValue == null) {
-      data.lValue=new LValue[meta.getFormula().length];
+    if (data.formulas == null) {
+      data.formulas=new org.pentaho.reporting.libraries.formula.Formula[meta.getFormula().length];
       for (int i=0; i < meta.getFormula().length; i++) {
         FormulaMetaFunction fn=meta.getFormula()[i];
         if (!Const.isEmpty(fn.getFieldName())) {
-          data.lValue[i]=data.parser.parse(meta.getFormula()[i].getFormula());
-          data.lValue[i].initialize(data.context);
+          data.formulas[i]=data.createFormula(meta.getFormula()[i].getFormula());
         }
  else {
           throw new KettleException("Unable to find field name for formula [" + Const.NVL(fn.getFormula(),"") + "]");
@@ -19,13 +18,11 @@
     for (int i=0; i < meta.getFormula().length; i++) {
       FormulaMetaFunction fn=meta.getFormula()[i];
       if (!Const.isEmpty(fn.getFieldName())) {
-        if (data.lValue[i] == null) {
-          data.lValue[i]=data.parser.parse(meta.getFormula()[i].getFormula());
-          data.lValue[i].initialize(data.context);
+        if (data.formulas[i] == null) {
+          data.formulas[i]=data.createFormula(meta.getFormula()[i].getFormula());
         }
-        TypeValuePair result=data.lValue[i].evaluate();
         Object value=null;
-        Object formulaResult=result.getValue();
+        Object formulaResult=data.formulas[i].evaluate();
         if (data.returnType[i] < 0) {
           if (formulaResult instanceof String) {
             data.returnType[i]=FormulaData.RETURN_TYPE_STRING;
