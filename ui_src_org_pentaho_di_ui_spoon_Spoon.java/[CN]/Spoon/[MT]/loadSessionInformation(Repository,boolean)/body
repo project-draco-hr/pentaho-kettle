@@ -1,0 +1,94 @@
+{
+  JobMeta jobMetas[]=getLoadedJobs();
+  for (int t=0; t < jobMetas.length; t++) {
+    JobMeta jobMeta=jobMetas[t];
+    for (int i=0; i < jobMeta.nrDatabases(); i++) {
+      jobMeta.getDatabase(i).setObjectId(null);
+    }
+    jobMeta.setObjectId(null);
+    List<DatabaseMeta> oldDatabases=jobMeta.getDatabases();
+    jobMeta.setDatabases(new ArrayList<DatabaseMeta>());
+    jobMeta.setSlaveServers(new ArrayList<SlaveServer>());
+    try {
+      SharedObjects sharedObjects=repository != null ? repository.readJobMetaSharedObjects(jobMeta) : jobMeta.readSharedObjects();
+      sharedObjectsFileMap.put(sharedObjects.getFilename(),sharedObjects);
+    }
+ catch (    KettleException e) {
+      new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.ErrorReadingSharedObjects.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorReadingSharedObjects.Message",makeTabName(jobMeta,true)),e);
+    }
+    for (int i=0; i < oldDatabases.size(); i++) {
+      DatabaseMeta oldDatabase=oldDatabases.get(i);
+      DatabaseMeta newDatabase=DatabaseMeta.findDatabase(jobMeta.getDatabases(),oldDatabase.getName());
+      if (newDatabase != null) {
+        oldDatabase.setDatabaseInterface(newDatabase.getDatabaseInterface());
+      }
+ else {
+        if (saveOldDatabases) {
+          jobMeta.addDatabase(oldDatabase);
+        }
+      }
+    }
+    if (repository != null) {
+      try {
+        RepositoryDirectoryInterface redi=repository.findDirectory(jobMeta.getRepositoryDirectory().getPath());
+        if (redi != null) {
+          jobMeta.setRepositoryDirectory(redi);
+        }
+ else {
+          jobMeta.setRepositoryDirectory(repository.loadRepositoryDirectoryTree());
+        }
+      }
+ catch (      KettleException ke) {
+        rep=null;
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Message",Const.CR),ke);
+      }
+    }
+  }
+  TransMeta transMetas[]=getLoadedTransformations();
+  for (int t=0; t < transMetas.length; t++) {
+    TransMeta transMeta=transMetas[t];
+    for (int i=0; i < transMeta.nrDatabases(); i++) {
+      transMeta.getDatabase(i).setObjectId(null);
+    }
+    transMeta.setObjectId(null);
+    List<DatabaseMeta> oldDatabases=transMeta.getDatabases();
+    transMeta.setDatabases(new ArrayList<DatabaseMeta>());
+    transMeta.setPartitionSchemas(new ArrayList<PartitionSchema>());
+    transMeta.setSlaveServers(new ArrayList<SlaveServer>());
+    transMeta.setClusterSchemas(new ArrayList<ClusterSchema>());
+    try {
+      SharedObjects sharedObjects=repository != null ? repository.readTransSharedObjects(transMeta) : transMeta.readSharedObjects();
+      sharedObjectsFileMap.put(sharedObjects.getFilename(),sharedObjects);
+    }
+ catch (    KettleException e) {
+      new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.ErrorReadingSharedObjects.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorReadingSharedObjects.Message",makeTabName(transMeta,true)),e);
+    }
+    for (int i=0; i < oldDatabases.size(); i++) {
+      DatabaseMeta oldDatabase=oldDatabases.get(i);
+      DatabaseMeta newDatabase=DatabaseMeta.findDatabase(transMeta.getDatabases(),oldDatabase.getName());
+      if (newDatabase != null) {
+        oldDatabase.setDatabaseInterface(newDatabase.getDatabaseInterface());
+      }
+ else {
+        if (saveOldDatabases) {
+          transMeta.addDatabase(oldDatabase);
+        }
+      }
+    }
+    if (repository != null) {
+      try {
+        RepositoryDirectoryInterface redi=repository.findDirectory(transMeta.getRepositoryDirectory().getPath());
+        if (redi != null) {
+          transMeta.setRepositoryDirectory(redi);
+        }
+ else {
+          transMeta.setRepositoryDirectory(repository.loadRepositoryDirectoryTree());
+        }
+      }
+ catch (      KettleException ke) {
+        rep=null;
+        new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorConnectingRepository.Message",Const.CR),ke);
+      }
+    }
+  }
+}
