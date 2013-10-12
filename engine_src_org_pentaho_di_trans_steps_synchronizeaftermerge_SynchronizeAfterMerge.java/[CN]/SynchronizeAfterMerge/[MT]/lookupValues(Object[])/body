@@ -12,14 +12,20 @@
   boolean performDelete=false;
   boolean lineSkipped=false;
   try {
-    if (operation == null)     throw new KettleException(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.OperationFieldEmpty",meta.getOperationOrderField()));
+    if (operation == null) {
+      throw new KettleException(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.OperationFieldEmpty",meta.getOperationOrderField()));
+    }
     if (meta.istablenameInField()) {
       data.realTableName=data.inputRowMeta.getString(row,data.indexOfTableNameField);
-      if (Const.isEmpty(data.realTableName))       throw new KettleStepException("The name of the table is not specified!");
+      if (Const.isEmpty(data.realTableName)) {
+        throw new KettleStepException("The name of the table is not specified!");
+      }
       data.realSchemaTable=data.db.getDatabaseMeta().getQuotedSchemaTableCombination(data.realSchemaName,data.realTableName);
     }
     if (operation.equals(data.insertValue)) {
-      if (log.isRowLevel())       logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.InsertRow",row.toString()));
+      if (log.isRowLevel()) {
+        logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.InsertRow",row.toString()));
+      }
       Object[] insertRowData=new Object[data.valuenrs.length];
       for (int i=0; i < data.valuenrs.length; i++) {
         insertRowData[i]=row[data.valuenrs[i]];
@@ -28,7 +34,9 @@
         data.insertStatement=data.preparedStatements.get(data.realSchemaTable + "insert");
         if (data.insertStatement == null) {
           String sql=data.db.getInsertStatement(data.realSchemaName,data.realTableName,data.insertRowMeta);
-          if (log.isDebug())           logDebug("Preparation of the insert SQL statement: " + sql);
+          if (log.isDebug()) {
+            logDebug("Preparation of the insert SQL statement: " + sql);
+          }
           data.insertStatement=data.db.prepareSQL(sql);
           data.preparedStatements.put(data.realSchemaTable + "insert",data.insertStatement);
         }
@@ -40,7 +48,9 @@
       data.db.insertRow(data.insertStatement,data.batchMode);
       performInsert=true;
       incrementLinesOutput();
-      if (log.isRowLevel())       logRowlevel("Written row: " + data.insertRowMeta.getString(insertRowData));
+      if (log.isRowLevel()) {
+        logRowlevel("Written row: " + data.insertRowMeta.getString(insertRowData));
+      }
     }
  else {
       Object[] lookupRow=new Object[data.keynrs.length];
@@ -61,13 +71,17 @@
           data.lookupStatement=data.preparedStatements.get(data.realSchemaTable + "lookup");
           if (data.lookupStatement == null) {
             String sql=getLookupStatement(data.inputRowMeta);
-            if (log.isDebug())             logDebug("Preparating SQL for insert: " + sql);
+            if (log.isDebug()) {
+              logDebug("Preparating SQL for insert: " + sql);
+            }
             data.lookupStatement=data.db.prepareSQL(sql);
             data.preparedStatements.put(data.realSchemaTable + "lookup",data.lookupStatement);
           }
         }
         data.db.setValues(data.lookupParameterRowMeta,lookupRow,data.lookupStatement);
-        if (log.isRowLevel())         logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.ValuesSetForLookup",data.lookupParameterRowMeta.getString(lookupRow)));
+        if (log.isRowLevel()) {
+          logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.ValuesSetForLookup",data.lookupParameterRowMeta.getString(lookupRow)));
+        }
         Object[] add=data.db.getLookup(data.lookupStatement);
         incrementLinesInput();
         if (add == null) {
@@ -75,7 +89,9 @@
             data.stringErrorKeyNotFound=BaseMessages.getString(PKG,"SynchronizeAfterMerge.Exception.KeyCouldNotFound") + data.lookupParameterRowMeta.getString(lookupRow);
             data.stringFieldnames="";
             for (int i=0; i < data.lookupParameterRowMeta.size(); i++) {
-              if (i > 0)               data.stringFieldnames+=", ";
+              if (i > 0) {
+                data.stringFieldnames+=", ";
+              }
               data.stringFieldnames+=data.lookupParameterRowMeta.getValueMeta(i).getName();
             }
           }
@@ -83,7 +99,9 @@
           throw new KettleDatabaseException(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Exception.KeyCouldNotFound",data.lookupParameterRowMeta.getString(lookupRow)));
         }
  else {
-          if (log.isRowLevel())           logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.FoundRowForUpdate",data.insertRowMeta.getString(row)));
+          if (log.isRowLevel()) {
+            logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.FoundRowForUpdate",data.insertRowMeta.getString(row)));
+          }
           for (int i=0; i < data.valuenrs.length; i++) {
             if (meta.getUpdate()[i].booleanValue()) {
               ValueMetaInterface valueMeta=data.inputRowMeta.getValueMeta(data.valuenrs[i]);
@@ -105,7 +123,9 @@
               String sql=getUpdateStatement(data.inputRowMeta);
               data.updateStatement=data.db.prepareSQL(sql);
               data.preparedStatements.put(data.realSchemaTable + "update",data.updateStatement);
-              if (log.isDebug())               logDebug("Preparation of the Update SQL statement : " + sql);
+              if (log.isDebug()) {
+                logDebug("Preparation of the Update SQL statement : " + sql);
+              }
             }
           }
           Object[] updateRow=new Object[data.updateParameterRowMeta.size()];
@@ -123,7 +143,9 @@
             data.savepoint=data.db.setSavepoint();
           }
           data.db.setValues(data.updateParameterRowMeta,updateRow,data.updateStatement);
-          if (log.isRowLevel())           logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.SetValuesForUpdate",data.updateParameterRowMeta.getString(updateRow),data.inputRowMeta.getString(row)));
+          if (log.isRowLevel()) {
+            logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.SetValuesForUpdate",data.updateParameterRowMeta.getString(updateRow),data.inputRowMeta.getString(row)));
+          }
           data.db.insertRow(data.updateStatement,data.batchMode);
           performUpdate=true;
           incrementLinesUpdated();
@@ -140,7 +162,9 @@
             String sql=getDeleteStatement(data.inputRowMeta);
             data.deleteStatement=data.db.prepareSQL(sql);
             data.preparedStatements.put(data.realSchemaTable + "delete",data.deleteStatement);
-            if (log.isDebug())             logDebug("Preparation of the Delete SQL statement : " + sql);
+            if (log.isDebug()) {
+              logDebug("Preparation of the Delete SQL statement : " + sql);
+            }
           }
         }
         Object[] deleteRow=new Object[data.deleteParameterRowMeta.size()];
@@ -159,7 +183,9 @@
           data.savepoint=data.db.setSavepoint();
         }
         data.db.setValues(data.deleteParameterRowMeta,deleteRow,data.deleteStatement);
-        if (log.isRowLevel())         logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.SetValuesForDelete",data.deleteParameterRowMeta.getString(deleteRow),data.inputRowMeta.getString(row)));
+        if (log.isRowLevel()) {
+          logRowlevel(BaseMessages.getString(PKG,"SynchronizeAfterMerge.Log.SetValuesForDelete",data.deleteParameterRowMeta.getString(deleteRow),data.inputRowMeta.getString(row)));
+        }
         data.db.insertRow(data.deleteStatement,data.batchMode);
         performDelete=true;
         incrementLinesUpdated();
@@ -171,11 +197,19 @@
     }
     if (performInsert || performUpdate || performDelete|| (data.batchBuffer.size() > 0 && lineSkipped)) {
       String tableName=data.realSchemaTable;
-      if (performInsert)       tableName+="insert";
- else       if (performUpdate)       tableName+="update";
-      if (performDelete)       tableName+="delete";
+      if (performInsert) {
+        tableName+="insert";
+      }
+ else       if (performUpdate) {
+        tableName+="update";
+      }
+      if (performDelete) {
+        tableName+="delete";
+      }
       Integer commitCounter=data.commitCounterMap.get(tableName);
-      if (commitCounter == null)       commitCounter=Integer.valueOf(0);
+      if (commitCounter == null) {
+        commitCounter=Integer.valueOf(0);
+      }
       data.commitCounterMap.put(tableName,Integer.valueOf(commitCounter.intValue() + 1));
       if (data.specialErrorHandling) {
         if (data.releaseSavepoint) {
@@ -237,9 +271,15 @@ catch (          Exception ex) {
     sendToErrorRow=true;
     updateCounts=be.getUpdateCounts();
     exceptionsList=be.getExceptionsList();
-    if (data.insertStatement != null)     data.db.clearBatch(data.insertStatement);
-    if (data.updateStatement != null)     data.db.clearBatch(data.updateStatement);
-    if (data.deleteStatement != null)     data.db.clearBatch(data.deleteStatement);
+    if (data.insertStatement != null) {
+      data.db.clearBatch(data.insertStatement);
+    }
+    if (data.updateStatement != null) {
+      data.db.clearBatch(data.updateStatement);
+    }
+    if (data.deleteStatement != null) {
+      data.db.clearBatch(data.deleteStatement);
+    }
     if (getStepMeta().isDoingErrorHandling()) {
       data.db.commit(true);
     }
@@ -250,7 +290,9 @@ catch (          Exception ex) {
       msg.append("Errors encountered (first 10):").append(Const.CR);
       for (int x=0; x < be.getExceptionsList().size() && x < 10; x++) {
         Exception exception=be.getExceptionsList().get(x);
-        if (exception.getMessage() != null)         msg.append(exception.getMessage()).append(Const.CR);
+        if (exception.getMessage() != null) {
+          msg.append(exception.getMessage()).append(Const.CR);
+        }
       }
       throw new KettleException(msg.toString(),be);
     }
@@ -304,8 +346,12 @@ catch (  KettleDatabaseException dbe) {
   }
  else {
     if (sendToErrorRow) {
-      if (data.lookupFailure)       putError(data.inputRowMeta,row,1,data.stringErrorKeyNotFound,data.stringFieldnames,"SUYNC001");
- else       putError(data.inputRowMeta,row,1,errorMessage,null,"SUYNC001");
+      if (data.lookupFailure) {
+        putError(data.inputRowMeta,row,1,data.stringErrorKeyNotFound,data.stringFieldnames,"SUYNC001");
+      }
+ else {
+        putError(data.inputRowMeta,row,1,errorMessage,null,"SUYNC001");
+      }
     }
   }
 }
