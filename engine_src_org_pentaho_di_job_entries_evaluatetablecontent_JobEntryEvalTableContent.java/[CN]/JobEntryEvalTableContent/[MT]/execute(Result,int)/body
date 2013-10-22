@@ -1,9 +1,10 @@
 {
   Result result=previousResult;
   result.setResult(false);
-  result.setNrErrors(1);
+  boolean oldBehavior="Y".equalsIgnoreCase(getVariable(Const.KETTLE_COMPATIBILITY_SET_ERROR_ON_SPECIFIC_JOB_ENTRIES,"N"));
   String countSQLStatement=null;
   long rowsCount=0;
+  long errCount=0;
   boolean successOK=false;
   int nrRowsLimit=Const.toInt(environmentSubstitute(limit),0);
   if (log.isDetailed()) {
@@ -26,6 +27,7 @@
           countSQLStatement=realCustomSQL;
         }
  else {
+          errCount++;
           logError(BaseMessages.getString(PKG,"JobEntryEvalTableContent.Error.NoCustomSQL"));
         }
       }
@@ -41,6 +43,7 @@
           }
         }
  else {
+          errCount++;
           logError(BaseMessages.getString(PKG,"JobEntryEvalTableContent.Error.NoTableName"));
         }
       }
@@ -103,9 +106,13 @@ break;
 default :
 break;
 }
+if (!successOK && oldBehavior) {
+errCount++;
+}
 }
 }
  catch (KettleException dbe) {
+errCount++;
 logError(BaseMessages.getString(PKG,"JobEntryEvalTableContent.Error.RunningEntry",dbe.getMessage()));
 }
  finally {
@@ -115,12 +122,11 @@ db.disconnect();
 }
 }
  else {
+errCount++;
 logError(BaseMessages.getString(PKG,"JobEntryEvalTableContent.NoDbConnection"));
 }
-if (successOK) {
-result.setResult(true);
-result.setNrErrors(0);
-}
+result.setResult(successOK);
 result.setNrLinesRead(rowsCount);
+result.setNrErrors(errCount);
 return result;
 }
