@@ -1,0 +1,30 @@
+{
+  TransHopMeta hi=new TransHopMeta(injectorStep,csvInputStep);
+  transMeta.addTransHop(hi);
+  String dummyStepname1="dummy step 1";
+  DummyTransMeta dm1=new DummyTransMeta();
+  String dummyPid1=registry.getPluginId(StepPluginType.class,dm1);
+  StepMeta dummyStep1=new StepMeta(dummyPid1,dummyStepname1,dm1);
+  transMeta.addStep(dummyStep1);
+  TransHopMeta hi1=new TransHopMeta(csvInputStep,dummyStep1);
+  transMeta.addTransHop(hi1);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(dummyStepname1,0);
+  RowStepCollector dummyRc1=new RowStepCollector();
+  si.addRowListener(dummyRc1);
+  RowProducer rp=trans.addRowProducer(injectorStep.getName(),0);
+  trans.startThreads();
+  List<RowMetaAndData> inputList=createData(fileName);
+  Iterator<RowMetaAndData> it=inputList.iterator();
+  while (it.hasNext()) {
+    RowMetaAndData rm=it.next();
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> resultRows=dummyRc1.getRowsWritten();
+  List<RowMetaAndData> goldenImageRows=createResultData1();
+  checkRows(goldenImageRows,resultRows,numRows);
+  return trans;
+}
