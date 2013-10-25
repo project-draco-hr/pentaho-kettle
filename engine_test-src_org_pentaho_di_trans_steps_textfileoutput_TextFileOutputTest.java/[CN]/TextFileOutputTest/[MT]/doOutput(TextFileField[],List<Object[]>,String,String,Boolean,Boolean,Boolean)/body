@@ -1,0 +1,34 @@
+{
+  TextFileOutputData textFileOutputData=new TextFileOutputData();
+  TextFileOutput textFileOutput=new TextFileOutputTestHandler(stepMockHelper.stepMeta,textFileOutputData,0,stepMockHelper.transMeta,stepMockHelper.trans);
+  when(stepMockHelper.processRowsStepMetaInterface.isDoNotOpenNewFileInit()).thenReturn(isDoNotOpenNewFileInit);
+  when(stepMockHelper.processRowsStepMetaInterface.isFileAppended()).thenReturn(append);
+  when(stepMockHelper.processRowsStepMetaInterface.isHeaderEnabled()).thenReturn(isHeaderEnabled);
+  when(stepMockHelper.processRowsStepMetaInterface.getFileName()).thenReturn(pathToFile);
+  when(stepMockHelper.processRowsStepMetaInterface.buildFilename(anyString(),anyString(),((VariableSpace)anyObject()),anyInt(),anyString(),anyInt(),anyBoolean(),(TextFileOutputMeta)anyObject())).thenReturn(pathToFile);
+  when(stepMockHelper.processRowsStepMetaInterface.getOutputFields()).thenReturn(textFileField);
+  textFileOutput.init(stepMockHelper.processRowsStepMetaInterface,textFileOutputData);
+  RowSet rowSet=stepMockHelper.getMockInputRowSet(rows);
+  RowMetaInterface inputRowMeta=mock(RowMetaInterface.class);
+  textFileOutput.setInputRowMeta(inputRowMeta);
+  when(rowSet.getRowWait(anyInt(),(TimeUnit)anyObject())).thenReturn(rows.isEmpty() ? null : rows.iterator().next());
+  when(rowSet.getRowMeta()).thenReturn(inputRowMeta);
+  when(inputRowMeta.clone()).thenReturn(inputRowMeta);
+  for (int i=0; i < textFileField.length; i++) {
+    String name=textFileField[i].getName();
+    when(inputRowMeta.getValueMeta(i)).thenReturn(new ValueMetaString(name));
+    when(inputRowMeta.indexOfValue(name)).thenReturn(i);
+  }
+  textFileOutput.getInputRowSets().add(rowSet);
+  textFileOutput.getOutputRowSets().add(rowSet);
+  when(stepMockHelper.processRowsStepMetaInterface.getEndedLine()).thenReturn(endedLine);
+  when(stepMockHelper.processRowsStepMetaInterface.isFastDump()).thenReturn(true);
+  for (int i=0; i < rows.size(); i++) {
+    ((TextFileOutputTestHandler)textFileOutput).setRow(rows.get(i));
+    textFileOutput.processRow(stepMockHelper.processRowsStepMetaInterface,textFileOutputData);
+  }
+  ((TextFileOutputTestHandler)textFileOutput).setRow(null);
+  textFileOutput.processRow(stepMockHelper.processRowsStepMetaInterface,textFileOutputData);
+  textFileOutput.dispose(stepMockHelper.processRowsStepMetaInterface,textFileOutputData);
+  return ((TextFileOutputTestHandler)textFileOutput).errors;
+}
