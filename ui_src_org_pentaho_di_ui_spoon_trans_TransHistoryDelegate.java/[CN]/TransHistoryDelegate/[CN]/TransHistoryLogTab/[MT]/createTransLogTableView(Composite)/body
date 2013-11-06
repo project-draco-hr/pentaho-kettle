@@ -1,0 +1,51 @@
+{
+  List<ColumnInfo> columnList=new ArrayList<ColumnInfo>();
+  for (  LogTableField field : logTableFields) {
+    if (!field.isLogField()) {
+      ColumnInfo column=new ColumnInfo(field.getName(),ColumnInfo.COLUMN_TYPE_TEXT,false,true);
+      int valueType=field.getDataType();
+      String conversionMask=null;
+switch (field.getDataType()) {
+case ValueMetaInterface.TYPE_INTEGER:
+        conversionMask="###,###,##0";
+      column.setAllignement(SWT.RIGHT);
+    break;
+case ValueMetaInterface.TYPE_DATE:
+  conversionMask="yyyy/MM/dd HH:mm:ss";
+column.setAllignement(SWT.CENTER);
+break;
+case ValueMetaInterface.TYPE_NUMBER:
+conversionMask=" ###,###,##0.00;-###,###,##0.00";
+column.setAllignement(SWT.RIGHT);
+break;
+case ValueMetaInterface.TYPE_STRING:
+column.setAllignement(SWT.LEFT);
+break;
+case ValueMetaInterface.TYPE_BOOLEAN:
+DatabaseMeta databaseMeta=logTable.getDatabaseMeta();
+if (databaseMeta != null) {
+if (!databaseMeta.supportsBooleanDataType()) {
+valueType=ValueMetaInterface.TYPE_STRING;
+}
+}
+break;
+default :
+break;
+}
+ValueMetaInterface valueMeta=new ValueMeta(field.getFieldName(),valueType,field.getLength(),-1);
+if (conversionMask != null) {
+valueMeta.setConversionMask(conversionMask);
+}
+column.setValueMeta(valueMeta);
+columnList.add(column);
+}
+}
+TableView tableView=new TableView(transMeta,parent,SWT.BORDER | SWT.FULL_SELECTION | SWT.SINGLE,columnList.toArray(new ColumnInfo[columnList.size()]),1,true,null,spoon.props);
+tableView.table.addSelectionListener(new SelectionAdapter(){
+public void widgetSelected(SelectionEvent arg0){
+showLogEntry();
+}
+}
+);
+return tableView;
+}

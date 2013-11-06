@@ -1,7 +1,8 @@
 {
   final int BATCH_SIZE=Props.getInstance().getLinesInHistoryFetchSize();
   boolean moreRows=false;
-  LogTableInterface logTable=models[index].logTable;
+  TransHistoryLogTab model=models[index];
+  LogTableInterface logTable=model.logTable;
   if (transMeta != null && !Const.isEmpty(transMeta.getName()) && logTable.isDefined()) {
     Database database=null;
     try {
@@ -12,15 +13,15 @@
       int queryLimit=0;
 switch (mode) {
 case ALL:
-        models[index].batchCount=0;
+        model.batchCount=0;
       queryLimit=Props.getInstance().getMaxNrLinesInHistory();
     break;
 case NEXT_BATCH:
-  models[index].batchCount++;
-queryLimit=BATCH_SIZE * models[index].batchCount;
+  model.batchCount++;
+queryLimit=BATCH_SIZE * model.batchCount;
 break;
 case INITIAL:
-models[index].batchCount=1;
+model.batchCount=1;
 queryLimit=BATCH_SIZE;
 break;
 default :
@@ -28,37 +29,37 @@ break;
 }
 database.setQueryLimit(queryLimit);
 String schemaTable=logTable.getQuotedSchemaTableCombination();
-String sql="SELECT ";
+StringBuilder sql=new StringBuilder("SELECT ");
 boolean first=true;
 for (LogTableField field : logTable.getFields()) {
 if (field.isEnabled() && field.isVisible()) {
 if (!first) {
-sql+=", ";
+sql.append(", ");
 }
 first=false;
-sql+=logConnection.quoteField(field.getFieldName());
+sql.append(logConnection.quoteField(field.getFieldName()));
 }
 }
-sql+=" FROM " + schemaTable;
+sql.append(" FROM ").append(schemaTable);
 RowMetaAndData params=new RowMetaAndData();
 LogTableField nameField=logTable.getNameField();
 LogTableField keyField=logTable.getKeyField();
 if (nameField != null) {
 if (transMeta.isUsingAClusterSchema()) {
-sql+=" WHERE " + logConnection.quoteField(nameField.getFieldName()) + " LIKE ?";
+sql.append(" WHERE ").append(logConnection.quoteField(nameField.getFieldName())).append(" LIKE ?");
 params.addValue(new ValueMeta("transname_literal",ValueMetaInterface.TYPE_STRING),transMeta.getName());
-sql+=" OR    " + logConnection.quoteField(nameField.getFieldName()) + " LIKE ?";
+sql.append(" OR    ").append(logConnection.quoteField(nameField.getFieldName())).append(" LIKE ?");
 params.addValue(new ValueMeta("transname_cluster",ValueMetaInterface.TYPE_STRING),transMeta.getName() + " (%");
 }
  else {
-sql+=" WHERE " + logConnection.quoteField(nameField.getFieldName()) + " = ?";
+sql.append(" WHERE ").append(logConnection.quoteField(nameField.getFieldName())).append(" = ?");
 params.addValue(new ValueMeta("transname_literal",ValueMetaInterface.TYPE_STRING),transMeta.getName());
 }
 }
 if (keyField != null && keyField.isEnabled()) {
-sql+=" ORDER BY " + logConnection.quoteField(keyField.getFieldName()) + " DESC";
+sql.append(" ORDER BY ").append(logConnection.quoteField(keyField.getFieldName())).append(" DESC");
 }
-ResultSet resultSet=database.openQuery(sql,params.getRowMeta(),params.getData());
+ResultSet resultSet=database.openQuery(sql.toString(),params.getRowMeta(),params.getData());
 List<Object[]> rows=new ArrayList<Object[]>();
 Object[] rowData=database.getRow(resultSet);
 int rowsFetched=1;
@@ -71,11 +72,11 @@ if (rowsFetched >= queryLimit) {
 moreRows=true;
 }
 database.closeQuery(resultSet);
-models[index].rows=rows;
+model.rows=rows;
 }
  catch (Exception e) {
-LogChannel.GENERAL.logError("Unable to get rows of data from logging table " + models[index].logTable,e);
-models[index].rows=new ArrayList<Object[]>();
+LogChannel.GENERAL.logError("Unable to get rows of data from logging table " + model.logTable,e);
+model.rows=new ArrayList<Object[]>();
 }
  finally {
 if (database != null) {
@@ -84,7 +85,7 @@ database.disconnect();
 }
 }
  else {
-models[index].rows=new ArrayList<Object[]>();
+model.rows=new ArrayList<Object[]>();
 }
 return moreRows;
 }
