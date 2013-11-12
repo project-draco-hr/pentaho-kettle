@@ -4,7 +4,14 @@
   for (int i=0; i < meta.getFieldName().length; i++) {
     int valtype=ValueMeta.getType(meta.getFieldType()[i]);
     if (meta.getFieldName()[i] != null) {
-      ValueMetaInterface value=new ValueMeta(meta.getFieldName()[i],valtype);
+      ValueMetaInterface value=null;
+      try {
+        value=ValueMetaFactory.createValueMeta(meta.getFieldName()[i],valtype);
+      }
+ catch (      Exception exception) {
+        remarks.add(new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,exception.getMessage(),null));
+        continue;
+      }
       value.setLength(meta.getFieldLength()[i]);
       value.setPrecision(meta.getFieldPrecision()[i]);
       if (meta.isSetEmptyString()[i]) {
@@ -84,6 +91,15 @@ rowData[i]=Boolean.valueOf("Y".equalsIgnoreCase(stringValue) || "TRUE".equalsIgn
 break;
 case ValueMetaInterface.TYPE_BINARY:
 rowData[i]=stringValue.getBytes();
+break;
+case ValueMetaInterface.TYPE_TIMESTAMP:
+try {
+rowData[i]=Timestamp.valueOf(stringValue);
+}
+ catch (Exception e) {
+String message=BaseMessages.getString(PKG,"Constant.BuildRow.Error.Parsing.Timestamp",value.getName(),stringValue,e.toString());
+remarks.add(new CheckResult(CheckResultInterface.TYPE_RESULT_ERROR,message,null));
+}
 break;
 default :
 String message=BaseMessages.getString(PKG,"Constant.CheckResult.SpecifyTypeError",value.getName(),stringValue);
