@@ -1,0 +1,51 @@
+{
+  KettleEnvironment.init();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("sortrowstest");
+  PluginRegistry registry=PluginRegistry.getInstance();
+  String injectorStepname="injector step";
+  InjectorMeta im=new InjectorMeta();
+  String injectorPid=registry.getPluginId(StepPluginType.class,im);
+  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,im);
+  transMeta.addStep(injectorStep);
+  String sortRowsStepname="sort rows step";
+  SortRowsMeta srm=new SortRowsMeta();
+  srm.setSortSize(Integer.toString(MAX_COUNT / 10));
+  String[] sortFields={"KEY1","KEY2"};
+  boolean[] ascendingFields={true,true};
+  boolean[] caseSensitive={true,true};
+  boolean[] presortedFields={false,false};
+  srm.setFieldName(sortFields);
+  srm.setAscending(ascendingFields);
+  srm.setCaseSensitive(caseSensitive);
+  srm.setPreSortedField(presortedFields);
+  srm.setPrefix("SortRowsTest");
+  srm.setDirectory(".");
+  String sortRowsStepPid=registry.getPluginId(StepPluginType.class,srm);
+  StepMeta sortRowsStep=new StepMeta(sortRowsStepPid,sortRowsStepname,srm);
+  transMeta.addStep(sortRowsStep);
+  TransHopMeta hi=new TransHopMeta(injectorStep,sortRowsStep);
+  transMeta.addTransHop(hi);
+  String dummyStepname="dummy step";
+  DummyTransMeta dm=new DummyTransMeta();
+  String dummyPid=registry.getPluginId(StepPluginType.class,dm);
+  StepMeta dummyStep=new StepMeta(dummyPid,dummyStepname,dm);
+  transMeta.addStep(dummyStep);
+  TransHopMeta hi3=new TransHopMeta(sortRowsStep,dummyStep);
+  transMeta.addTransHop(hi3);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(dummyStepname,0);
+  RowStepCollector dummyRc=new RowStepCollector();
+  si.addRowListener(dummyRc);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  trans.startThreads();
+  List<RowMetaAndData> inputList=createTimestampData();
+  for (  RowMetaAndData rm : inputList) {
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> resultRows=dummyRc.getRowsWritten();
+  checkRows(resultRows,true);
+}
