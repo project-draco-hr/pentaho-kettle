@@ -1,0 +1,21 @@
+{
+  String insert="INSERT INTO " + tableName + " VALUES( ?, ? )";
+  PreparedStatement ps=db.getConnection().prepareStatement(insert);
+  final PreparedStatement psMocked=spy(ps);
+  when(psMocked.executeBatch()).thenAnswer(new Answer<Object>(){
+    @Override public Object answer(    InvocationOnMock invocation) throws Throwable {
+      int[] succ=(int[])invocation.callRealMethod();
+      if (succ.length == 0) {
+        throw new SQLException("Batch is empty");
+      }
+      return succ;
+    }
+  }
+);
+  for (int i=1; i <= insertSize; i++) {
+    psMocked.setInt(1,i);
+    psMocked.setInt(2,i);
+    db.insertRow(psMocked,true,true);
+  }
+  db.emptyAndCommit(psMocked,true);
+}
