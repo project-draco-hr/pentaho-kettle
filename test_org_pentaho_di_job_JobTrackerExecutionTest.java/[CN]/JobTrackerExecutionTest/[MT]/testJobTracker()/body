@@ -1,0 +1,29 @@
+{
+  if (res.setAsVariable != null) {
+    System.getProperties().setProperty(DatabaseLogExceptionFactory.KETTLE_GLOBAL_PROP_NAME,res.setAsVariable.toString());
+  }
+  try {
+    Job job=new Job(null,getJobMeta(res.fileName));
+    job.setLogLevel(LogLevel.BASIC);
+    job.start();
+    job.waitUntilFinished();
+    JobTracker tracker=job.getJobTracker();
+    List<JobTracker> trackers=tracker.getJobTrackers();
+    Assert.assertEquals("Job trackers count is correct: " + res.assertMessage,res.jobTrackerStatus.length,trackers.size());
+    for (int i=0; i < res.jobTrackerStatus.length; i++) {
+      JobTracker record=trackers.get(i);
+      Boolean actual;
+      JobEntryResult jer=record.getJobEntryResult();
+      if (jer == null) {
+        actual=null;
+      }
+ else {
+        actual=record.getJobEntryResult().getResult() == null ? null : Boolean.valueOf(record.getJobEntryResult().getResult().getResult());
+      }
+      Assert.assertEquals(res.assertMessage + ": " + i,res.jobTrackerStatus[i],actual);
+    }
+  }
+  finally {
+    System.getProperties().remove(DatabaseLogExceptionFactory.KETTLE_GLOBAL_PROP_NAME);
+  }
+}
