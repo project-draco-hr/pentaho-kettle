@@ -1,20 +1,45 @@
 {
-  byte[] bytes=new byte[]{};
-  if (loggingString64 != null) {
-    bytes=Base64.decodeBase64(loggingString64.getBytes());
-  }
-  if (bytes.length > 0) {
-    ByteArrayInputStream bais=new ByteArrayInputStream(bytes);
-    GZIPInputStream gzip=new GZIPInputStream(bais);
-    int c;
-    StringBuffer buffer=new StringBuffer();
-    while ((c=gzip.read()) != -1) {
-      buffer.append((char)c);
-    }
-    gzip.close();
-    return buffer.toString();
-  }
- else {
+  if (loggingString64 == null || loggingString64.isEmpty()) {
     return "";
   }
+  StringWriter writer=new StringWriter();
+  byte[] bytes64=Base64.decodeBase64(loggingString64.getBytes());
+  ByteArrayInputStream zip=new ByteArrayInputStream(bytes64);
+  GZIPInputStream unzip=null;
+  InputStreamReader reader=null;
+  BufferedInputStream in=null;
+  try {
+    unzip=new GZIPInputStream(zip,HttpUtil.ZIP_BUFFER_SIZE);
+    in=new BufferedInputStream(unzip,HttpUtil.ZIP_BUFFER_SIZE);
+    reader=new InputStreamReader(in,Const.XML_ENCODING);
+    writer=new StringWriter();
+    char[] buff=new char[HttpUtil.ZIP_BUFFER_SIZE];
+    for (int length=0; (length=reader.read(buff)) > 0; ) {
+      writer.write(buff,0,length);
+    }
+  }
+  finally {
+    if (reader != null) {
+      try {
+        reader.close();
+      }
+ catch (      IOException e) {
+      }
+    }
+    if (in != null) {
+      try {
+        in.close();
+      }
+ catch (      IOException e) {
+      }
+    }
+    if (unzip != null) {
+      try {
+        unzip.close();
+      }
+ catch (      IOException e) {
+      }
+    }
+  }
+  return writer.toString();
 }
