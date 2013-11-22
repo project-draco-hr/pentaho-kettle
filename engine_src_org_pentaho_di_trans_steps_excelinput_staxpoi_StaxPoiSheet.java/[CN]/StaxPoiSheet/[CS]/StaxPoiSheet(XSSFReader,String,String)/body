@@ -1,0 +1,46 @@
+{
+  this.sheetName=sheetName;
+  try {
+    sst=reader.getSharedStringsTable();
+    sheetStream=reader.getSheet(sheetID);
+    XMLInputFactory factory=XMLInputFactory.newInstance();
+    sheetReader=factory.createXMLStreamReader(sheetStream);
+    headerRow=new ArrayList<String>();
+    while (sheetReader.hasNext()) {
+      int event=sheetReader.next();
+      if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("dimension")) {
+        String dim=sheetReader.getAttributeValue(null,"ref").split(":")[1];
+        numRows=Integer.parseInt(dim.substring(1));
+      }
+      if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("row")) {
+        currentRow=Integer.parseInt(sheetReader.getAttributeValue(null,"r"));
+        while (sheetReader.hasNext()) {
+          event=sheetReader.next();
+          if (event == XMLStreamConstants.END_ELEMENT && sheetReader.getLocalName().equals("row")) {
+            break;
+          }
+          if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("c")) {
+            if (sheetReader.getAttributeValue(null,"t").equals("s")) {
+              while (sheetReader.hasNext()) {
+                event=sheetReader.next();
+                if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("v")) {
+                  int idx=Integer.parseInt(sheetReader.getElementText());
+                  String content=new XSSFRichTextString(sst.getEntryAt(idx)).toString();
+                  headerRow.add(content);
+                  break;
+                }
+              }
+            }
+ else             break;
+          }
+        }
+        break;
+      }
+    }
+    numCols=headerRow.size();
+  }
+ catch (  Exception e) {
+    e.printStackTrace();
+    throw new RuntimeException(e.getMessage());
+  }
+}
