@@ -1,0 +1,46 @@
+{
+  SwitchCaseCustom krasavez=new SwitchCaseCustom(mockHelper);
+  krasavez.meta.loadXML(loadStepXmlMetadata(),Collections.<DatabaseMeta>emptyList(),mock(IMetaStore.class));
+  KeyToRowSetMap expectedNN=new KeyToRowSetMap();
+  Set<RowSet> nulls=new HashSet<RowSet>();
+  List<SwitchCaseTarget> list=krasavez.meta.getCaseTargets();
+  for (  SwitchCaseTarget item : list) {
+    StepMetaInterface smInt=new DummyTransMeta();
+    StepMeta stepMeta=new StepMeta(item.caseTargetStepname,smInt);
+    item.caseTargetStep=stepMeta;
+    RowSet rw=new QueueRowSet();
+    krasavez.map.put(item.caseTargetStepname,rw);
+    if (item.caseValue != null) {
+      expectedNN.put(item.caseValue,rw);
+    }
+ else {
+      nulls.add(rw);
+    }
+  }
+  StepMetaInterface smInt=new DummyTransMeta();
+  StepMeta stepMeta=new StepMeta(krasavez.meta.getDefaultTargetStepname(),smInt);
+  krasavez.meta.setDefaultTargetStep(stepMeta);
+  RowSet rw=new QueueRowSet();
+  krasavez.map.put(krasavez.meta.getDefaultTargetStepname(),rw);
+  krasavez.createOutputValueMapping();
+  Set<RowSet> ones=krasavez.data.outputMap.get("1");
+  Assert.assertEquals("Output map for 1 values contains 2 row sets",2,ones.size());
+  Set<RowSet> twos=krasavez.data.outputMap.get("2");
+  Assert.assertEquals("Output map for 2 values contains 1 row sets",1,twos.size());
+  Assert.assertEquals("Null row set contains 2 items: ",2,krasavez.data.nullRowSetSet.size());
+  Assert.assertEquals("We have at least one default rowset",1,krasavez.data.defaultRowSetSet.size());
+  Set<RowSet> rowsets=expectedNN.get("1");
+  for (  RowSet rowset : rowsets) {
+    Assert.assertTrue("Output map for 1 values contains expected row set",ones.contains(rowset));
+  }
+  rowsets=expectedNN.get("2");
+  for (  RowSet rowset : rowsets) {
+    Assert.assertTrue("Output map for 2 values contains expected row set",twos.contains(rowset));
+  }
+  for (  RowSet rowset : krasavez.data.nullRowSetSet) {
+    Assert.assertTrue("Output map for null values contains expected row set",nulls.contains(rowset));
+  }
+  for (  RowSet rowset : krasavez.data.defaultRowSetSet) {
+    Assert.assertTrue("Output map for default case contains expected row set",rowset.equals(rw));
+  }
+}
