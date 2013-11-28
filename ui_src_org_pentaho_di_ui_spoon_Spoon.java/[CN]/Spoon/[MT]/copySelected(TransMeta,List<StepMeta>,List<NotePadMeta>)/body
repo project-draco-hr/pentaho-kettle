@@ -2,37 +2,42 @@
   if (steps == null || steps.size() == 0) {
     return;
   }
-  String xml=XMLHandler.getXMLHeader();
+  StringBuilder xml=new StringBuilder(5000).append(XMLHandler.getXMLHeader());
   try {
-    xml+=XMLHandler.openTag(Spoon.XML_TAG_TRANSFORMATION_STEPS) + Const.CR;
-    xml+=" <steps>" + Const.CR;
-    for (int i=0; i < steps.size(); i++) {
-      xml+=steps.get(i).getXML();
+    xml.append(XMLHandler.openTag(Spoon.XML_TAG_TRANSFORMATION_STEPS)).append(Const.CR);
+    xml.append(XMLHandler.openTag(Spoon.XML_TAG_STEPS)).append(Const.CR);
+    for (    StepMeta step : steps) {
+      xml.append(step.getXML());
     }
-    xml+="    </steps>" + Const.CR;
-    xml+="<order>" + Const.CR;
-    if (steps != null) {
-      for (int i=0; i < steps.size(); i++) {
-        for (int j=0; j < steps.size(); j++) {
-          if (i != j) {
-            TransHopMeta hop=transMeta.findTransHop(steps.get(i),steps.get(j),true);
-            if (hop != null) {
-              xml+=hop.getXML() + Const.CR;
-            }
+    xml.append(XMLHandler.closeTag(Spoon.XML_TAG_STEPS)).append(Const.CR);
+    xml.append(XMLHandler.openTag(TransMeta.XML_TAG_ORDER)).append(Const.CR);
+    for (    StepMeta step1 : steps) {
+      for (      StepMeta step2 : steps) {
+        if (step1 != step2) {
+          TransHopMeta hop=transMeta.findTransHop(step1,step2,true);
+          if (hop != null) {
+            xml.append(hop.getXML()).append(Const.CR);
           }
         }
       }
     }
-    xml+="  </order>" + Const.CR;
-    xml+="  <notepads>" + Const.CR;
+    xml.append(XMLHandler.closeTag(TransMeta.XML_TAG_ORDER)).append(Const.CR);
+    xml.append(XMLHandler.openTag(TransMeta.XML_TAG_NOTEPADS)).append(Const.CR);
     if (notes != null) {
-      for (int i=0; i < notes.size(); i++) {
-        xml+=notes.get(i).getXML();
+      for (      NotePadMeta note : notes) {
+        xml.append(note.getXML());
       }
     }
-    xml+="   </notepads>" + Const.CR;
-    xml+=" " + XMLHandler.closeTag(Spoon.XML_TAG_TRANSFORMATION_STEPS) + Const.CR;
-    toClipboard(xml);
+    xml.append(XMLHandler.closeTag(TransMeta.XML_TAG_NOTEPADS)).append(Const.CR);
+    xml.append(XMLHandler.openTag(TransMeta.XML_TAG_STEP_ERROR_HANDLING)).append(Const.CR);
+    for (    StepMeta step : steps) {
+      if (step.getStepErrorMeta() != null) {
+        xml.append(step.getStepErrorMeta().getXML()).append(Const.CR);
+      }
+    }
+    xml.append(XMLHandler.closeTag(TransMeta.XML_TAG_STEP_ERROR_HANDLING)).append(Const.CR);
+    xml.append(XMLHandler.closeTag(Spoon.XML_TAG_TRANSFORMATION_STEPS)).append(Const.CR);
+    toClipboard(xml.toString());
   }
  catch (  Exception ex) {
     new ErrorDialog(getShell(),"Error","Error encoding to XML",ex);
