@@ -1,0 +1,47 @@
+{
+  data.outputRowMeta=getInputRowMeta().clone();
+  meta.getFields(getInputRowMeta(),getStepname(),null,null,this,repository,metaStore);
+  data.fieldIndex=getInputRowMeta().indexOfValue(meta.getFieldname());
+  if (data.fieldIndex < 0) {
+    throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Exception.UnableToFindFieldName",meta.getFieldname()));
+  }
+  data.inputValueMeta=getInputRowMeta().getValueMeta(data.fieldIndex);
+  try {
+    StepIOMetaInterface ioMeta=meta.getStepIOMeta();
+    List<StreamInterface> targetStreams=ioMeta.getTargetStreams();
+    for (int i=0; i < targetStreams.size(); i++) {
+      SwitchCaseTarget target=(SwitchCaseTarget)targetStreams.get(i).getSubject();
+      if (target == null) {
+        break;
+      }
+      if (target.caseTargetStep == null) {
+        throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.NoTargetStepSpecifiedForValue",target.caseValue));
+      }
+      RowSet rowSet=findOutputRowSet(target.caseTargetStep.getName());
+      if (rowSet == null) {
+        throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.UnableToFindTargetRowSetForStep",target.caseTargetStep));
+      }
+      try {
+        Object value=data.valueMeta.convertDataFromString(target.caseValue,data.stringValueMeta,null,null,ValueMeta.TRIM_TYPE_NONE);
+        if (data.valueMeta.isNull(value)) {
+          data.nullRowSetSet.add(rowSet);
+        }
+ else {
+          data.outputMap.put(value,rowSet);
+        }
+      }
+ catch (      Exception e) {
+        throw new KettleException(BaseMessages.getString(PKG,"SwitchCase.Log.UnableToConvertValue",target.caseValue),e);
+      }
+    }
+    if (meta.getDefaultTargetStep() != null) {
+      RowSet rowSet=findOutputRowSet(meta.getDefaultTargetStep().getName());
+      if (rowSet != null) {
+        data.defaultRowSetSet.add(rowSet);
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+}
