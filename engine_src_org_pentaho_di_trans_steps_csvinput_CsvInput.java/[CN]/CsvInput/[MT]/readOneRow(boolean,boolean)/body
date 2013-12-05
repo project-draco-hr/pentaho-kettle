@@ -1,0 +1,151 @@
+{
+  try {
+    Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    int outputIndex=0;
+    boolean newLineFound=false;
+    boolean endOfBuffer=false;
+    List<Exception> conversionExceptions=null;
+    List<ValueMetaInterface> exceptionFields=null;
+    while (!newLineFound && outputIndex < meta.getInputFields().length) {
+      if (data.resizeBufferIfNeeded()) {
+        if (outputRowData != null) {
+          if (outputIndex > 0) {
+            return outputRowData;
+          }
+        }
+        return null;
+      }
+      boolean delimiterFound=false;
+      boolean enclosureFound=false;
+      boolean doubleLineEnd=false;
+      int escapedEnclosureFound=0;
+      while (!delimiterFound && !newLineFound && !endOfBuffer) {
+        if (data.delimiterFound()) {
+          delimiterFound=true;
+        }
+ else         if ((!meta.isNewlinePossibleInFields() || outputIndex == meta.getInputFields().length - 1) && data.newLineFound()) {
+          newLineFound=true;
+          for (int i=0; i < data.encodingType.getLength(); i++) {
+            data.moveEndBufferPointer();
+          }
+          if (data.newLineFound()) {
+            doubleLineEnd=true;
+          }
+        }
+ else         if (data.enclosureFound() && !ignoreEnclosures) {
+          enclosureFound=true;
+          boolean keepGoing;
+          do {
+            if (data.moveEndBufferPointer()) {
+              enclosureFound=false;
+              break;
+            }
+            keepGoing=!data.enclosureFound();
+            if (!keepGoing) {
+              if (data.moveEndBufferPointer()) {
+                enclosureFound=false;
+                break;
+              }
+              keepGoing=data.enclosureFound();
+              if (keepGoing) {
+                escapedEnclosureFound++;
+              }
+            }
+          }
+ while (keepGoing);
+          if (data.endOfBuffer()) {
+            endOfBuffer=true;
+            break;
+          }
+        }
+ else {
+          if (data.moveEndBufferPointer()) {
+            endOfBuffer=true;
+            break;
+          }
+        }
+      }
+      byte[] field=data.getField(delimiterFound,enclosureFound,newLineFound,endOfBuffer);
+      if (escapedEnclosureFound > 0) {
+        if (log.isRowLevel()) {
+          logRowlevel("Escaped enclosures found in " + new String(field));
+        }
+        field=data.removeEscapedEnclosures(field,escapedEnclosureFound);
+      }
+      if (!skipRow) {
+        if (meta.isLazyConversionActive()) {
+          outputRowData[outputIndex++]=field;
+        }
+ else {
+          ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(outputIndex);
+          try {
+            outputRowData[outputIndex++]=sourceValueMeta.convertBinaryStringToNativeType(field);
+          }
+ catch (          KettleValueException e) {
+            outputRowData[outputIndex++]=null;
+            if (conversionExceptions == null) {
+              conversionExceptions=new ArrayList<Exception>();
+              exceptionFields=new ArrayList<ValueMetaInterface>();
+            }
+            conversionExceptions.add(e);
+            exceptionFields.add(sourceValueMeta);
+          }
+        }
+      }
+ else {
+        outputRowData[outputIndex++]=null;
+      }
+      if ((!newLineFound && outputIndex < meta.getInputFields().length) || (newLineFound && doubleLineEnd)) {
+        data.moveEndBufferPointer();
+      }
+      if (newLineFound && !doubleLineEnd) {
+        data.setStartBuffer(data.getEndBuffer() - (data.encodingType.getLength() - 1));
+      }
+ else {
+        data.setStartBuffer(data.getEndBuffer());
+      }
+    }
+    if (!newLineFound && !data.resizeBufferIfNeeded()) {
+      do {
+        data.moveEndBufferPointer();
+        if (data.resizeBufferIfNeeded()) {
+          break;
+        }
+      }
+ while (!data.newLineFound());
+      if (!data.resizeBufferIfNeeded()) {
+        while (data.newLineFound()) {
+          data.moveEndBufferPointer();
+          if (data.resizeBufferIfNeeded()) {
+            break;
+          }
+        }
+      }
+      data.setStartBuffer(data.getEndBuffer());
+    }
+    if (meta.isIncludingFilename() && !Const.isEmpty(meta.getFilenameField())) {
+      if (meta.isLazyConversionActive()) {
+        outputRowData[data.filenameFieldIndex]=data.binaryFilename;
+      }
+ else {
+        outputRowData[data.filenameFieldIndex]=data.filenames[data.filenr - 1];
+      }
+    }
+    if (data.isAddingRowNumber) {
+      outputRowData[data.rownumFieldIndex]=data.rowNumber++;
+    }
+    if (!ignoreEnclosures) {
+      incrementLinesInput();
+    }
+    if (conversionExceptions != null && conversionExceptions.size() > 0) {
+      throw new KettleConversionException("There were " + conversionExceptions.size() + " conversion errors on line "+ getLinesInput(),conversionExceptions,exceptionFields,outputRowData);
+    }
+    return outputRowData;
+  }
+ catch (  KettleConversionException e) {
+    throw e;
+  }
+catch (  IOException e) {
+    throw new KettleFileException("Exception reading line using NIO",e);
+  }
+}
