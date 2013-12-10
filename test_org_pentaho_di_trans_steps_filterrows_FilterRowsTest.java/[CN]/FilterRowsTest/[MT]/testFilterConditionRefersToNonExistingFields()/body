@@ -1,0 +1,36 @@
+{
+  KettleEnvironment.init();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName("filterrowstest");
+  PluginRegistry registry=PluginRegistry.getInstance();
+  String injectorStepname="injector step";
+  InjectorMeta im=new InjectorMeta();
+  String injectorPid=registry.getPluginId(StepPluginType.class,im);
+  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,im);
+  transMeta.addStep(injectorStep);
+  String filterStepName="filter rows step";
+  FilterRowsMeta frm=new FilterRowsMeta();
+  Condition condition=new Condition();
+  String nonExistingFieldName="non-existing-field";
+  condition.setLeftValuename(nonExistingFieldName);
+  condition.setFunction(8);
+  condition.setRightValuename(null);
+  condition.setOperator(0);
+  frm.setCondition(condition);
+  String filterRowsStepPid=registry.getPluginId(StepPluginType.class,frm);
+  StepMeta filterRowsStep=new StepMeta(filterRowsStepPid,filterStepName,frm);
+  transMeta.addStep(filterRowsStep);
+  TransHopMeta hi=new TransHopMeta(injectorStep,filterRowsStep);
+  transMeta.addTransHop(hi);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  List<RowMetaAndData> inputList=createIntegerData();
+  for (  RowMetaAndData rm : inputList) {
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.startThreads();
+  trans.waitUntilFinished();
+  assertEquals(1,trans.getErrors());
+}
