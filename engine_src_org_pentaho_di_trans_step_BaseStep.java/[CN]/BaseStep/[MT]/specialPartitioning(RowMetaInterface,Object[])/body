@@ -1,0 +1,69 @@
+{
+  if (nextStepPartitioningMeta == null) {
+    List<StepMeta> nextSteps=transMeta.findNextSteps(stepMeta);
+    if (nextSteps.size() > 0) {
+      nextStepPartitioningMeta=nextSteps.get(0).getStepPartitioningMeta();
+    }
+  }
+  int partitionNr;
+  try {
+    partitionNr=nextStepPartitioningMeta.getPartition(rowMeta,row);
+  }
+ catch (  KettleException e) {
+    throw new KettleStepException("Unable to convert a value to integer while calculating the partition number",e);
+  }
+  RowSet selectedRowSet=null;
+  if (clusteredPartitioningFirst) {
+    clusteredPartitioningFirst=false;
+    clusteredPartitioning=transMeta.getSlaveStepCopyPartitionDistribution() != null && !transMeta.getSlaveStepCopyPartitionDistribution().getDistribution().isEmpty();
+  }
+  if (clusteredPartitioning) {
+    if (partitionNrRowSetList == null) {
+      partitionNrRowSetList=new RowSet[outputRowSets.size()];
+      SlaveStepCopyPartitionDistribution distribution=transMeta.getSlaveStepCopyPartitionDistribution();
+      String nextPartitionSchemaName=TransSplitter.createPartitionSchemaNameFromTarget(nextStepPartitioningMeta.getPartitionSchema().getName());
+      for (      RowSet outputRowSet : outputRowSets) {
+        try {
+          int partNr=distribution.getPartition(outputRowSet.getRemoteSlaveServerName(),nextPartitionSchemaName,outputRowSet.getDestinationStepCopy());
+          if (partNr < 0) {
+            throw new KettleStepException("Unable to find partition using rowset data, slave=" + outputRowSet.getRemoteSlaveServerName() + ", partition schema="+ nextStepPartitioningMeta.getPartitionSchema().getName()+ ", copy="+ outputRowSet.getDestinationStepCopy());
+          }
+          partitionNrRowSetList[partNr]=outputRowSet;
+        }
+ catch (        NullPointerException e) {
+          throw (e);
+        }
+      }
+    }
+    if (partitionNr < partitionNrRowSetList.length) {
+      selectedRowSet=partitionNrRowSetList[partitionNr];
+    }
+ else {
+      String rowsets="";
+      for (      RowSet rowSet : partitionNrRowSetList) {
+        rowsets+="[" + rowSet.toString() + "] ";
+      }
+      throw new KettleStepException("Internal error: the referenced partition nr '" + partitionNr + "' is higher than the maximum of '"+ (partitionNrRowSetList.length - 1)+ ".  The available row sets are: {"+ rowsets+ "}");
+    }
+  }
+ else {
+    selectedRowSet=outputRowSets.get(partitionNr);
+  }
+  if (selectedRowSet == null) {
+    logBasic("Target rowset is not available for target partition, partitionNr=" + partitionNr);
+  }
+  while (!selectedRowSet.putRow(rowMeta,row)) {
+    if (isStopped()) {
+      break;
+    }
+  }
+  incrementLinesWritten();
+  if (log.isRowLevel()) {
+    try {
+      logRowlevel("Partitioned #" + partitionNr + " to "+ selectedRowSet+ ", row="+ rowMeta.getString(row));
+    }
+ catch (    KettleValueException e) {
+      throw new KettleStepException(e);
+    }
+  }
+}

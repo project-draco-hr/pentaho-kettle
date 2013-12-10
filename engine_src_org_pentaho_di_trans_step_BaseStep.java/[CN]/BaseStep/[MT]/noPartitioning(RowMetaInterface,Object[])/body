@@ -1,0 +1,60 @@
+{
+  if (distributed) {
+    if (rowDistribution != null) {
+      rowDistribution.distributeRow(rowMeta,row,this);
+      incrementLinesWritten();
+    }
+ else {
+      RowSet rs=outputRowSets.get(currentOutputRowSetNr);
+      if (isUsingThreadPriorityManagment() && !rs.isDone() && rs.size() >= upperBufferBoundary && !isStopped()) {
+        try {
+          Thread.sleep(0,1);
+        }
+ catch (        InterruptedException e) {
+        }
+      }
+      while (!rs.putRow(rowMeta,row)) {
+        if (isStopped()) {
+          break;
+        }
+      }
+      incrementLinesWritten();
+      if (outputRowSets.size() > 1) {
+        currentOutputRowSetNr++;
+        if (currentOutputRowSetNr >= outputRowSets.size()) {
+          currentOutputRowSetNr=0;
+        }
+      }
+    }
+  }
+ else {
+    for (int i=1; i < outputRowSets.size(); i++) {
+      RowSet rs=outputRowSets.get(i);
+      if (isUsingThreadPriorityManagment() && !rs.isDone() && rs.size() >= upperBufferBoundary && !isStopped()) {
+        try {
+          Thread.sleep(0,1);
+        }
+ catch (        InterruptedException e) {
+        }
+      }
+      try {
+        while (!rs.putRow(rowMeta,rowMeta.cloneRow(row))) {
+          if (isStopped()) {
+            break;
+          }
+        }
+        incrementLinesWritten();
+      }
+ catch (      KettleValueException e) {
+        throw new KettleStepException("Unable to clone row while copying rows to multiple target steps",e);
+      }
+    }
+    RowSet rs=outputRowSets.get(0);
+    while (!rs.putRow(rowMeta,row)) {
+      if (isStopped()) {
+        break;
+      }
+    }
+    incrementLinesWritten();
+  }
+}

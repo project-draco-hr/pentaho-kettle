@@ -123,46 +123,46 @@
         if (value == null) {
           continue;
         }
-        if (field.getType().isPrimitive() && "".equals(value)) {
-        }
- else         if ("".equals(value)) {
-          field.set(object,value);
-        }
- else         if (field.getType().isPrimitive()) {
-          if (double.class.isAssignableFrom(field.getType())) {
-            field.set(object,Double.parseDouble(value.toString()));
+        if (!(field.getType().isPrimitive() && "".equals(value))) {
+          if ("".equals(value)) {
+            field.set(object,value);
           }
- else           if (float.class.isAssignableFrom(field.getType())) {
-            field.set(object,Float.parseFloat(value.toString()));
+ else           if (field.getType().isPrimitive()) {
+            if (double.class.isAssignableFrom(field.getType())) {
+              field.set(object,Double.parseDouble(value.toString()));
+            }
+ else             if (float.class.isAssignableFrom(field.getType())) {
+              field.set(object,Float.parseFloat(value.toString()));
+            }
+ else             if (long.class.isAssignableFrom(field.getType())) {
+              field.set(object,Long.parseLong(value.toString()));
+            }
+ else             if (int.class.isAssignableFrom(field.getType())) {
+              field.set(object,Integer.parseInt(value.toString()));
+            }
+ else             if (byte.class.isAssignableFrom(field.getType())) {
+              field.set(object,value.toString().getBytes());
+            }
+ else             if (boolean.class.isAssignableFrom(field.getType())) {
+              field.set(object,"true".equalsIgnoreCase(value.toString()));
+            }
           }
- else           if (long.class.isAssignableFrom(field.getType())) {
-            field.set(object,Long.parseLong(value.toString()));
+ else           if (String.class.isAssignableFrom(field.getType()) || Number.class.isAssignableFrom(field.getType())) {
+            Constructor<?> constructor=field.getType().getConstructor(String.class);
+            Object instance=constructor.newInstance(value);
+            field.set(object,instance);
           }
- else           if (int.class.isAssignableFrom(field.getType())) {
-            field.set(object,Integer.parseInt(value.toString()));
-          }
- else           if (byte.class.isAssignableFrom(field.getType())) {
-            field.set(object,value.toString().getBytes());
-          }
- else           if (boolean.class.isAssignableFrom(field.getType())) {
-            field.set(object,"true".equalsIgnoreCase(value.toString()));
-          }
-        }
- else         if (String.class.isAssignableFrom(field.getType()) || Number.class.isAssignableFrom(field.getType())) {
-          Constructor<?> constructor=field.getType().getConstructor(String.class);
-          Object instance=constructor.newInstance(value);
-          field.set(object,instance);
-        }
  else {
-          Node fieldNode=XMLHandler.getSubNode(node,field.getName());
-          if (fieldNode == null) {
-            continue;
+            Node fieldNode=XMLHandler.getSubNode(node,field.getName());
+            if (fieldNode == null) {
+              continue;
+            }
+            String fieldClassName=XMLHandler.getTagAttribute(fieldNode,"class");
+            Class<?> clazz=Class.forName(fieldClassName);
+            Object instance=clazz.newInstance();
+            field.set(object,instance);
+            read(instance,fieldNode);
           }
-          String fieldClassName=XMLHandler.getTagAttribute(fieldNode,"class");
-          Class<?> clazz=Class.forName(fieldClassName);
-          Object instance=clazz.newInstance();
-          field.set(object,instance);
-          read(instance,fieldNode);
         }
       }
  catch (      Throwable t) {
