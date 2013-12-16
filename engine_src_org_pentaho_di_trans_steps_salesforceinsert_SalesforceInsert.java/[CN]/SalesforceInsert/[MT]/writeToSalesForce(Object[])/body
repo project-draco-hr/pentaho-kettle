@@ -8,13 +8,23 @@
       ArrayList<String> fieldsToNull=new ArrayList<String>();
       for (int i=0; i < data.nrfields; i++) {
         ValueMetaInterface valueMeta=data.inputRowMeta.getValueMeta(data.fieldnrs[i]);
-        Object object=rowData[data.fieldnrs[i]];
-        if (valueMeta.isNull(object)) {
+        Object value=rowData[data.fieldnrs[i]];
+        if (valueMeta.isNull(value)) {
           fieldsToNull.add(meta.getUpdateLookup()[i]);
         }
  else {
-          Object normalObject=valueMeta.convertToNormalStorageType(object);
-          insertfields.add(SalesforceConnection.createMessageElement(meta.getUpdateLookup()[i],normalObject,meta.getUseExternalId()[i]));
+          if (valueMeta.isDate()) {
+            Calendar cal=Calendar.getInstance(valueMeta.getDateFormatTimeZone());
+            cal.setTime(valueMeta.getDate(value));
+            Calendar utc=Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            utc.clear();
+            utc.set(cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DATE));
+            value=utc.getTime();
+          }
+ else           if (valueMeta.isStorageBinaryString()) {
+            value=valueMeta.convertToNormalStorageType(value);
+          }
+          insertfields.add(SalesforceConnection.createMessageElement(meta.getUpdateLookup()[i],value,meta.getUseExternalId()[i]));
         }
       }
       SObject sobjPass=new SObject();
