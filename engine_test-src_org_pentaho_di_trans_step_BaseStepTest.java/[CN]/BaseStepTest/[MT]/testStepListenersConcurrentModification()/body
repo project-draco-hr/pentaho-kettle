@@ -1,0 +1,36 @@
+{
+  when(mockHelper.logChannelInterfaceFactory.create(any(),any(LoggingObjectInterface.class))).thenReturn(mockHelper.logChannelInterface);
+  final BaseStep baseStep=new BaseStep(mockHelper.stepMeta,mockHelper.stepDataInterface,0,mockHelper.transMeta,mockHelper.trans);
+  final AtomicBoolean done=new AtomicBoolean(false);
+  Thread addListeners=new Thread(){
+    @Override public void run(){
+      while (!done.get()) {
+        baseStep.addStepListener(mock(StepListener.class));
+synchronized (done) {
+          done.notify();
+        }
+      }
+    }
+  }
+;
+  try {
+    int numListeners;
+    addListeners.start();
+synchronized (done) {
+      while (baseStep.getStepListeners().size() < 20) {
+        done.wait();
+      }
+    }
+    baseStep.markStart();
+synchronized (done) {
+      while (baseStep.getStepListeners().size() < 100) {
+        done.wait();
+      }
+    }
+    baseStep.markStop();
+  }
+  finally {
+    done.set(true);
+    addListeners.join();
+  }
+}
