@@ -46,36 +46,41 @@
         logDebug(BaseMessages.getString(PKG,"HTTP.Log.ResponseStatusCode","" + statusCode));
       }
       if (statusCode != -1) {
-        if (statusCode != 401) {
-          String encoding=meta.getEncoding();
-          if (Const.isEmpty(encoding)) {
-            String contentType=method.getResponseHeader("Content-Type").getValue();
-            if (contentType != null && contentType.contains("charset")) {
-              encoding=contentType.replaceFirst("^.*;\\s*charset\\s*=\\s*","").replace("\"","").trim();
-            }
-          }
-          if (isDebug()) {
-            log.logDebug(toString(),BaseMessages.getString(PKG,"HTTP.Log.ResponseHeaderEncoding",encoding));
-          }
-          if (!Const.isEmpty(encoding)) {
-            inputStreamReader=new InputStreamReader(method.getResponseBodyAsStream(),encoding);
-          }
- else {
-            inputStreamReader=new InputStreamReader(method.getResponseBodyAsStream());
-          }
-          StringBuffer bodyBuffer=new StringBuffer();
-          int c;
-          while ((c=inputStreamReader.read()) != -1) {
-            bodyBuffer.append((char)c);
-          }
-          inputStreamReader.close();
-          body=bodyBuffer.toString();
-          if (isDebug()) {
-            logDebug("Response body: " + body);
-          }
+        if (statusCode == 204) {
+          body="";
         }
  else {
-          throw new KettleStepException(BaseMessages.getString(PKG,"HTTP.Exception.Authentication",data.realUrl));
+          if (statusCode != 401) {
+            String encoding=meta.getEncoding();
+            if (Const.isEmpty(encoding)) {
+              String contentType=method.getResponseHeader("Content-Type").getValue();
+              if (contentType != null && contentType.contains("charset")) {
+                encoding=contentType.replaceFirst("^.*;\\s*charset\\s*=\\s*","").replace("\"","").trim();
+              }
+            }
+            if (isDebug()) {
+              log.logDebug(toString(),BaseMessages.getString(PKG,"HTTP.Log.ResponseHeaderEncoding",encoding));
+            }
+            if (!Const.isEmpty(encoding)) {
+              inputStreamReader=new InputStreamReader(method.getResponseBodyAsStream(),encoding);
+            }
+ else {
+              inputStreamReader=new InputStreamReader(method.getResponseBodyAsStream());
+            }
+            StringBuffer bodyBuffer=new StringBuffer();
+            int c;
+            while ((c=inputStreamReader.read()) != -1) {
+              bodyBuffer.append((char)c);
+            }
+            inputStreamReader.close();
+            body=bodyBuffer.toString();
+            if (isDebug()) {
+              logDebug("Response body: " + body);
+            }
+          }
+ else {
+            throw new KettleStepException(BaseMessages.getString(PKG,"HTTP.Exception.Authentication",data.realUrl));
+          }
         }
       }
       int returnFieldsOffset=rowMeta.size();
