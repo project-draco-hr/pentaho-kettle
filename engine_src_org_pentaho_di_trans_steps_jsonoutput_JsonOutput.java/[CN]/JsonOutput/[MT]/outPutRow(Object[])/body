@@ -1,8 +1,41 @@
 {
-  data.jg=new JSONObject();
-  data.jg.put(data.realBlocName,data.ja);
-  String value=data.jg.toJSONString();
-  if (data.outputValue) {
+  String value=null;
+  JsonNode jsonDoc;
+  if (!data.realBlocName.isEmpty()) {
+    ObjectNode jsonObj=data.mapper.createObjectNode();
+    if (data.nrRowsInBloc == 1) {
+      if (data.jsonArray.size() > 0) {
+        jsonObj.put(data.realBlocName,data.jsonArray.get(0));
+      }
+ else {
+        jsonObj.put(data.realBlocName,data.mapper.createObjectNode());
+      }
+    }
+ else {
+      jsonObj.put(data.realBlocName,data.jsonArray);
+    }
+    jsonDoc=jsonObj;
+  }
+ else {
+    if (data.nrRowsInBloc == 1) {
+      if (data.jsonArray.size() > 0) {
+        jsonDoc=data.jsonArray.get(0);
+      }
+ else {
+        jsonDoc=data.mapper.createObjectNode();
+      }
+    }
+ else {
+      jsonDoc=data.jsonArray;
+    }
+  }
+  try {
+    value=data.mapper.writeValueAsString(jsonDoc);
+  }
+ catch (  Exception e) {
+    throw new KettleStepException("Cannot encode JSON",e);
+  }
+  if (rowData != null && data.outputValue) {
     Object[] outputRowData=RowDataUtil.addValueData(rowData,data.inputRowMetaSize,value);
     incrementLinesOutput();
     putRow(data.outputRowMeta,outputRowData);
@@ -20,5 +53,5 @@
     closeFile();
   }
   data.rowsAreSafe=true;
-  data.ja=new JSONArray();
+  data.jsonArray=data.mapper.createArrayNode();
 }
