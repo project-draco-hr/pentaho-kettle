@@ -5,10 +5,11 @@
     transMeta.unselectAll();
     Node stepsnode=XMLHandler.getSubNode(transnode,"steps");
     int nr=XMLHandler.countNodes(stepsnode,"step");
-    if (log.isDebug()) {
-      log.logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundSteps","" + nr) + loc);
+    if (getLog().isDebug()) {
+      getLog().logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundSteps","" + nr) + loc);
     }
     StepMeta[] steps=new StepMeta[nr];
+    ArrayList<String> stepOldNames=new ArrayList<String>(nr);
     Point min=new Point(99999999,99999999);
     for (int i=0; i < nr; i++) {
       Node stepnode=XMLHandler.getSubNodeByNr(stepsnode,"step",i);
@@ -25,8 +26,8 @@
     }
     Node hopsnode=XMLHandler.getSubNode(transnode,"order");
     nr=XMLHandler.countNodes(hopsnode,"hop");
-    if (log.isDebug()) {
-      log.logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundHops","" + nr));
+    if (getLog().isDebug()) {
+      getLog().logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundHops","" + nr));
     }
     TransHopMeta[] hops=new TransHopMeta[nr];
     ArrayList<StepMeta> alSteps=new ArrayList<StepMeta>();
@@ -44,18 +45,19 @@
       String name=steps[i].getName();
       steps[i].setLocation(p.x + offset.x,p.y + offset.y);
       steps[i].setDraw(true);
+      stepOldNames.add(name);
       steps[i].setName(transMeta.getAlternativeStepname(name));
       transMeta.addStep(steps[i]);
       position[i]=transMeta.indexOfStep(steps[i]);
       steps[i].setSelected(true);
     }
-    for (int i=0; i < hops.length; i++) {
-      transMeta.addTransHop(hops[i]);
+    for (    TransHopMeta hop : hops) {
+      transMeta.addTransHop(hop);
     }
     Node notesnode=XMLHandler.getSubNode(transnode,"notepads");
     nr=XMLHandler.countNodes(notesnode,"notepad");
-    if (log.isDebug()) {
-      log.logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundNotepads","" + nr));
+    if (getLog().isDebug()) {
+      getLog().logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundNotepads","" + nr));
     }
     NotePadMeta[] notes=new NotePadMeta[nr];
     for (int i=0; i < notes.length; i++) {
@@ -69,6 +71,21 @@
     for (int i=0; i < steps.length; i++) {
       StepMetaInterface smi=steps[i].getStepMetaInterface();
       smi.searchInfoAndTargetSteps(transMeta.getSteps());
+    }
+    Node errorHandlingNode=XMLHandler.getSubNode(transnode,TransMeta.XML_TAG_STEP_ERROR_HANDLING);
+    int nrErrorHandlers=XMLHandler.countNodes(errorHandlingNode,StepErrorMeta.XML_TAG);
+    for (int i=0; i < nrErrorHandlers; i++) {
+      Node stepErrorMetaNode=XMLHandler.getSubNodeByNr(errorHandlingNode,StepErrorMeta.XML_TAG,i);
+      StepErrorMeta stepErrorMeta=new StepErrorMeta(transMeta.getParentVariableSpace(),stepErrorMetaNode,transMeta.getSteps());
+      int srcStepPos=stepOldNames.indexOf(stepErrorMeta.getSourceStep().getName());
+      int tgtStepPos=stepOldNames.indexOf(stepErrorMeta.getTargetStep().getName());
+      StepMeta sourceStep=transMeta.findStep(steps[srcStepPos].getName());
+      if (sourceStep != null) {
+        sourceStep.setStepErrorMeta(stepErrorMeta);
+      }
+      StepMeta targetStep=transMeta.findStep(steps[tgtStepPos].getName());
+      stepErrorMeta.setSourceStep(sourceStep);
+      stepErrorMeta.setTargetStep(targetStep);
     }
     addUndoNew(transMeta,steps,position,false);
     int[] hoppos=new int[hops.length];
