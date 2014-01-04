@@ -35,23 +35,26 @@
  catch (  Exception e) {
     throw new KettleStepException("Cannot encode JSON",e);
   }
-  if (rowData != null && data.outputValue) {
+  boolean notLastCall=rowData != null;
+  if (notLastCall && data.outputValue) {
     Object[] outputRowData=RowDataUtil.addValueData(rowData,data.inputRowMetaSize,value);
-    incrementLinesOutput();
     putRow(data.outputRowMeta,outputRowData);
+    incrementLinesOutput();
   }
   if (data.writeToFile) {
     if (!openNewFile()) {
       throw new KettleStepException(BaseMessages.getString(PKG,"JsonOutput.Error.OpenNewFile",buildFilename()));
     }
     try {
+      System.out.println(value);
       data.writer.write(value);
     }
  catch (    Exception e) {
       throw new KettleStepException(BaseMessages.getString(PKG,"JsonOutput.Error.Writing"),e);
     }
-    closeFile();
   }
   data.rowsAreSafe=true;
-  data.jsonArray=data.mapper.createArrayNode();
+  if (notLastCall) {
+    data.jsonArray=data.mapper.createArrayNode();
+  }
 }
