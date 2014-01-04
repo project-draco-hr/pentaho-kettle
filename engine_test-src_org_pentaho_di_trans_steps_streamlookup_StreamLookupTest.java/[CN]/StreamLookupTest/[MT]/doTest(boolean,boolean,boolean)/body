@@ -1,0 +1,27 @@
+{
+  StreamLookup step=new StreamLookup(smh.stepMeta,smh.stepDataInterface,0,smh.transMeta,smh.trans);
+  step.init(smh.initStepMetaInterface,smh.initStepDataInterface);
+  step.getInputRowSets().add(mockLookupRowSet(binaryLookupStream));
+  step.getInputRowSets().add(mockDataRowSet(binaryDataStream));
+  step.getOutputRowSets().add(new QueueRowSet());
+  StreamLookupMeta meta=mockProcessRowMeta(memoryPreservationActive);
+  StreamLookupData data=new StreamLookupData();
+  data.readLookupValues=true;
+  RowSet outputRowSet=step.getOutputRowSets().get(0);
+  int rowNumber=0;
+  String[] expectedOutput={"Name","","Value"};
+  while (step.processRow(meta,data)) {
+    Object[] rowData=outputRowSet.getRow();
+    if (rowData != null) {
+      RowMetaInterface rowMeta=outputRowSet.getRowMeta();
+      Assert.assertEquals("Output row is of wrong size",3,rowMeta.size());
+      rowNumber++;
+      for (int valueIndex=0; valueIndex < rowMeta.size(); valueIndex++) {
+        String expectedValue=expectedOutput[valueIndex] + rowNumber;
+        Object actualValue=rowMeta.getValueMeta(valueIndex).convertToNormalStorageType(rowData[valueIndex]);
+        Assert.assertEquals("Unexpected value at row " + rowNumber + " position "+ valueIndex,expectedValue,actualValue);
+      }
+    }
+  }
+  Assert.assertEquals("Incorrect output row number",2,rowNumber);
+}
