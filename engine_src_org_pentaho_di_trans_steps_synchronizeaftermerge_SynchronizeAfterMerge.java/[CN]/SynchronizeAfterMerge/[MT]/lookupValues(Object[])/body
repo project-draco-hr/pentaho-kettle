@@ -41,7 +41,7 @@
           data.preparedStatements.put(data.realSchemaTable + "insert",data.insertStatement);
         }
       }
-      if (data.specialErrorHandling) {
+      if (data.specialErrorHandling && data.supportsSavepoints) {
         data.savepoint=data.db.setSavepoint();
       }
       data.db.setValues(data.insertRowMeta,insertRowData,data.insertStatement);
@@ -141,7 +141,7 @@
           for (int i=0; i < lookupRow.length; i++) {
             updateRow[j + i]=lookupRow[i];
           }
-          if (data.specialErrorHandling) {
+          if (data.specialErrorHandling && data.supportsSavepoints) {
             data.savepoint=data.db.setSavepoint();
           }
           data.db.setValues(data.updateParameterRowMeta,updateRow,data.updateStatement);
@@ -181,7 +181,7 @@
             deleteIndex++;
           }
         }
-        if (data.specialErrorHandling) {
+        if (data.specialErrorHandling && data.supportsSavepoints) {
           data.savepoint=data.db.setSavepoint();
         }
         data.db.setValues(data.deleteParameterRowMeta,deleteRow,data.deleteStatement);
@@ -213,7 +213,7 @@
         commitCounter=Integer.valueOf(0);
       }
       data.commitCounterMap.put(tableName,Integer.valueOf(commitCounter.intValue() + 1));
-      if (data.specialErrorHandling) {
+      if (data.specialErrorHandling && data.supportsSavepoints) {
         if (data.releaseSavepoint) {
           data.db.releaseSavepoint(data.savepoint);
         }
@@ -304,10 +304,12 @@ catch (  KettleDatabaseException dbe) {
       if (log.isRowLevel()) {
         logRowlevel("Written row to error handling : " + getInputRowMeta().getString(row));
       }
-      if (data.specialErrorHandling) {
-        data.db.rollback(data.savepoint);
-        if (data.releaseSavepoint) {
-          data.db.releaseSavepoint(data.savepoint);
+      if (data.specialErrorHandling && data.supportsSavepoints) {
+        if (data.savepoint != null || !data.lookupFailure) {
+          data.db.rollback(data.savepoint);
+          if (data.releaseSavepoint) {
+            data.db.releaseSavepoint(data.savepoint);
+          }
         }
       }
       sendToErrorRow=true;
