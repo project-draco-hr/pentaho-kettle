@@ -15,56 +15,55 @@
     data.delimiter=environmentSubstitute(meta.getDelimiter());
     data.enclosure=environmentSubstitute(meta.getEnclosure());
   }
-  String v=data.previousMeta.getString(r,data.fieldnr);
   Object[] outputRow=RowDataUtil.allocateRowData(data.outputMeta.size());
   int nrExtraFields=meta.getFieldID().length - 1;
-  for (int i=0; i < data.fieldnr; i++) {
-    outputRow[i]=r[i];
-  }
-  for (int i=data.fieldnr + 1; i < data.previousMeta.size(); i++) {
-    outputRow[i + nrExtraFields]=r[i];
-  }
-  final boolean use_ids=meta.getFieldID().length > 0 && meta.getFieldID()[0] != null && meta.getFieldID()[0].length() > 0;
+  System.arraycopy(r,0,outputRow,0,data.fieldnr);
+  System.arraycopy(r,data.fieldnr + 1,outputRow,data.fieldnr + 1 + nrExtraFields,data.previousMeta.size() - (data.fieldnr + 1));
+  final boolean selectFieldById=meta.getFieldID().length > 0 && meta.getFieldID()[0] != null && meta.getFieldID()[0].length() > 0;
   if (log.isDebug()) {
-    if (use_ids) {
+    if (selectFieldById) {
       logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.UsingIds"));
     }
  else {
       logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.UsingPositionOfValue"));
     }
   }
-  Object value=null;
-  String[] splits=Const.splitString(v,data.delimiter,data.enclosure);
+  String valueToSplit=data.previousMeta.getString(r,data.fieldnr);
+  String[] valueParts=Const.splitString(valueToSplit,data.delimiter,data.enclosure);
   int prev=0;
   for (int i=0; i < meta.getFieldName().length; i++) {
-    String split=(splits == null || i >= splits.length) ? null : splits[i];
-    if (use_ids) {
-      if (split != null && meta.getFieldRemoveID()[i]) {
-        final StringBuilder sb=new StringBuilder(split);
-        final int idx=sb.indexOf(meta.getFieldID()[i]);
-        sb.delete(idx,idx + meta.getFieldID()[i].length());
-        split=sb.toString();
-      }
-      if (split == null) {
-        split="";
+    String rawValue=null;
+    if (selectFieldById) {
+      for (      String part : valueParts) {
+        if (part.startsWith(meta.getFieldID()[i])) {
+          if (meta.getFieldRemoveID()[i]) {
+            rawValue=part.substring(meta.getFieldID()[i].length());
+          }
+ else {
+            rawValue=part;
+          }
+          break;
+        }
       }
       if (log.isDebug()) {
-        logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitInfo") + split);
+        logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitInfo") + rawValue);
       }
     }
  else {
+      rawValue=(valueParts == null || i >= valueParts.length) ? null : valueParts[i];
+      prev+=(rawValue == null ? 0 : rawValue.length()) + data.delimiter.length();
       if (log.isDebug()) {
-        logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitFieldsInfo",split,String.valueOf(prev)));
+        logDebug(BaseMessages.getString(PKG,"FieldSplitter.Log.SplitFieldsInfo",rawValue,String.valueOf(prev)));
       }
-      prev+=(split == null ? 0 : split.length()) + data.delimiter.length();
     }
+    Object value;
     try {
       ValueMetaInterface valueMeta=data.outputMeta.getValueMeta(data.fieldnr + i);
       ValueMetaInterface conversionValueMeta=data.conversionMeta.getValueMeta(data.fieldnr + i);
-      value=valueMeta.convertDataFromString(split,conversionValueMeta,meta.getFieldNullIf()[i],meta.getFieldIfNull()[i],meta.getFieldTrimType()[i]);
+      value=valueMeta.convertDataFromString(rawValue,conversionValueMeta,meta.getFieldNullIf()[i],meta.getFieldIfNull()[i],meta.getFieldTrimType()[i]);
     }
  catch (    Exception e) {
-      throw new KettleValueException(BaseMessages.getString(PKG,"FieldSplitter.Log.ErrorConvertingSplitValue",split,meta.getSplitField() + "]!"),e);
+      throw new KettleValueException(BaseMessages.getString(PKG,"FieldSplitter.Log.ErrorConvertingSplitValue",rawValue,meta.getSplitField() + "]!"),e);
     }
     outputRow[data.fieldnr + i]=value;
   }
