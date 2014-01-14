@@ -1,5 +1,20 @@
 {
-  for (  TransListener transListener : transListeners) {
-    transListener.transFinished(this);
+synchronized (transListeners) {
+    if (transListeners.size() == 0) {
+      return;
+    }
+    List<KettleException> badGuys=new ArrayList<KettleException>(transListeners.size());
+    for (    TransListener transListener : transListeners) {
+      try {
+        transListener.transFinished(this);
+      }
+ catch (      KettleException e) {
+        badGuys.add(e);
+      }
+    }
+    transFinishedBlockingQueue.add(new Object());
+    if (!badGuys.isEmpty()) {
+      throw new KettleException(badGuys.get(0));
+    }
   }
 }

@@ -11,8 +11,10 @@
       public void stepActive(      Trans trans,      StepMeta stepMeta,      StepInterface step){
         nrOfActiveSteps++;
         if (nrOfActiveSteps == 1) {
-          for (          TransListener listener : transListeners) {
-            listener.transActive(Trans.this);
+synchronized (transListeners) {
+            for (            TransListener listener : transListeners) {
+              listener.transActive(Trans.this);
+            }
           }
         }
       }
@@ -20,7 +22,7 @@
 synchronized (Trans.this) {
           nrOfFinishedSteps++;
           if (nrOfFinishedSteps >= steps.size()) {
-            finished.set(true);
+            setFinished(true);
             addStepPerformanceSnapShot();
             try {
               fireTransFinishedListeners();
@@ -65,7 +67,7 @@ synchronized (Trans.this) {
 ;
     stepPerformanceSnapShotTimer.schedule(timerTask,100,transMeta.getStepPerformanceCapturingDelay());
   }
-  finished.set(false);
+  setFinished(false);
   paused.set(false);
   stopped.set(false);
   transFinishedBlockingQueue=new ArrayBlockingQueue<Object>(10);
@@ -80,7 +82,7 @@ synchronized (Trans.this) {
       if (transMeta.isCapturingStepPerformanceSnapShots() && stepPerformanceSnapShotTimer != null) {
         stepPerformanceSnapShotTimer.cancel();
       }
-      finished.set(true);
+      setFinished(true);
       running=false;
       log.snap(Metrics.METRIC_TRANSFORMATION_EXECUTION_STOP);
       MetricsLogTable metricsLogTable=transMeta.getMetricsLogTable();
@@ -96,7 +98,6 @@ synchronized (Trans.this) {
       if (transMeta.isUsingUniqueConnections()) {
         trans.closeUniqueDatabaseConnections(getResult());
       }
-      transFinishedBlockingQueue.add(new Object());
     }
   }
 ;
