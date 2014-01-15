@@ -1,0 +1,54 @@
+{
+  try {
+    writer.openTrans();
+    monitor.subTask(BaseMessages.getString(PKG,"Repository.Exporter.Monitor.StartTransExport"));
+    ObjectId[] dirids=dirTree.getDirectoryIDs();
+    log.logDebug(BaseMessages.getString(PKG,"Repository.Exporter.Log.DirectoryGoing",dirids.length,dirTree.getPath()));
+    for (int d=0; d < dirids.length; d++) {
+      if (monitor.isCanceled()) {
+        cancelMonitorAction(writer);
+        break;
+      }
+      RepositoryDirectoryInterface repdir=dirTree.findDirectory(dirids[d]);
+      String[] trans=repository.getTransformationNames(dirids[d],false);
+      log.logDebug(BaseMessages.getString(PKG,"Repository.Exporter.Log.FindTrans",trans.length,repdir.getName()));
+      String dirPath=repdir.getPath();
+      for (int i=0; i < trans.length; i++) {
+        if (monitor.isCanceled()) {
+          break;
+        }
+        log.logDebug(BaseMessages.getString(PKG,"Repository.Exporter.Log.LoadingTransformation",dirPath,trans[i]));
+        monitor.subTask(BaseMessages.getString(PKG,"Repository.Exporter.Monitor.ExportTransformation",trans[i]));
+        TransMeta transMeta=repository.loadTransformation(trans[i],repdir,null,true,null);
+        transMeta.setRepository(repository);
+        convertFromFileRepository(transMeta);
+        List<ImportValidationFeedback> errors=this.validateObject(transMeta,feedback);
+        if (errors.isEmpty()) {
+          writer.writeTrans(transMeta.getXML() + Const.CR);
+        }
+ else {
+          log.logError(BaseMessages.getString(PKG,"Repository.Exporter.Log.TransRuleViolation",trans[i],repdir));
+          this.rulesViolation=true;
+          monitor.registerRuleViolation();
+          writer.registerRuleViolation();
+        }
+        if (feedback) {
+          ExportFeedback fb=new ExportFeedback();
+          fb.setType(ExportFeedback.Type.TRANSFORMATION);
+          fb.setItemName(transMeta.getName());
+          fb.setItemPath(dirPath);
+          ExportFeedback.Status status=errors.isEmpty() ? ExportFeedback.Status.EXPORTED : ExportFeedback.Status.REJECTED;
+          fb.setStatus(status);
+          fb.setResult(errors);
+          this.feedbackList.add(fb);
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException("Error while exporting repository transformations",e);
+  }
+ finally {
+    writer.closeTrans();
+  }
+}
