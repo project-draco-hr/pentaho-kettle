@@ -1,0 +1,28 @@
+{
+  Database db=mock(Database.class);
+  RowMeta returnRowMeta=new RowMeta();
+  doReturn(new Object[]{new Timestamp(System.currentTimeMillis())}).when(db).getLookup(any(PreparedStatement.class));
+  returnRowMeta.addValueMeta(new ValueMetaDate("TimeStamp"));
+  doReturn(returnRowMeta).when(db).getReturnRowMeta();
+  ValueMetaString storageMetadata=new ValueMetaString("Date");
+  storageMetadata.setConversionMask("yyyy-MM-dd");
+  ValueMetaDate valueMeta=new ValueMetaDate("Date");
+  valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_BINARY_STRING);
+  valueMeta.setStorageMetadata(storageMetadata);
+  RowMeta inputRowMeta=new RowMeta();
+  inputRowMeta.addValueMeta(valueMeta);
+  InsertUpdateMeta stepMeta=smh.processRowsStepMetaInterface;
+  doReturn(new Boolean[]{true}).when(stepMeta).getUpdate();
+  InsertUpdateData stepData=smh.processRowsStepDataInterface;
+  stepData.lookupParameterRowMeta=inputRowMeta;
+  stepData.db=db;
+  stepData.keynrs=stepData.valuenrs=new int[]{0};
+  stepData.keynrs2=new int[]{-1};
+  stepData.updateParameterRowMeta=when(mock(RowMeta.class).size()).thenReturn(2).getMock();
+  InsertUpdate step=new InsertUpdate(smh.stepMeta,smh.stepDataInterface,0,smh.transMeta,smh.trans);
+  step.setInputRowMeta(inputRowMeta);
+  step.getInputRowSets().add(smh.getMockInputRowSet(new Object[]{"2013-12-20".getBytes()}));
+  step.init(smh.initStepMetaInterface,smh.initStepDataInterface);
+  step.first=false;
+  step.processRow(stepMeta,stepData);
+}
