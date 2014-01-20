@@ -1,0 +1,25 @@
+{
+  final LogChannel log=spy(new LogChannel(this.getClass().getName(),true));
+  log.setLogLevel(channelLogLevel);
+  when(logChannelInterfaceFactory.create(any(),any(LoggingObjectInterface.class))).thenReturn(log);
+  doAnswer(new Answer(){
+    @Override public Object answer(    InvocationOnMock invocation) throws Throwable {
+      Object[] args=invocation.getArguments();
+      LogLevel logLevel=(LogLevel)args[1];
+      LogLevel channelLogLevel=log.getLogLevel();
+      if (!logLevel.isVisible(channelLogLevel)) {
+        return null;
+      }
+      if (channelLogLevel.getLevel() >= logLevel.getLevel()) {
+        LogMessageInterface logMessage=(LogMessageInterface)args[0];
+        out.write(logMessage.getMessage().getBytes());
+        out.write('\n');
+        out.write('\r');
+        out.flush();
+        return true;
+      }
+      return false;
+    }
+  }
+).when(log).println((LogMessageInterface)anyObject(),(LogLevel)anyObject());
+}

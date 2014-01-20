@@ -1,0 +1,42 @@
+{
+  ivwData=new IngresVectorwiseLoaderData();
+  ivwLoader=new IngresVectorwiseLoaderTest(stepMockHelper.stepMeta,ivwData,0,stepMockHelper.transMeta,stepMockHelper.trans);
+  DatabaseMeta defMeta=mock(DatabaseMeta.class);
+  when(stepMockHelper.processRowsStepMetaInterface.getDatabaseMeta()).thenReturn(defMeta);
+  when(defMeta.getQuotedSchemaTableCombination(anyString(),anyString())).thenReturn("test_table");
+  ivwLoader.init(stepMockHelper.processRowsStepMetaInterface,ivwData);
+  RowSet rowSet=stepMockHelper.getMockInputRowSet(rows);
+  ivwLoader.getInputRowSets().add(rowSet);
+  when(stepMockHelper.processRowsStepMetaInterface.isUsingVwload()).thenReturn(true);
+  when(stepMockHelper.processRowsStepMetaInterface.getBufferSize()).thenReturn("5000");
+  when(stepMockHelper.processRowsStepMetaInterface.getMaxNrErrors()).thenReturn(maxErrorsNumber);
+  when(stepMockHelper.processRowsStepMetaInterface.getFieldStream()).thenReturn(fieldStream);
+  when(stepMockHelper.processRowsStepMetaInterface.getFieldDatabase()).thenReturn(fieldStream);
+  File errorFile=new File("/tmp/error.txt");
+  File fifoFile=new File("/tmp/fifo");
+  try {
+    errorFile=createTemplateFile();
+    fifoFile=createTemplateFile();
+    fifoFile.delete();
+  }
+ catch (  IOException e) {
+    e.printStackTrace();
+  }
+  when(stepMockHelper.processRowsStepMetaInterface.getErrorFileName()).thenReturn(errorFile.getPath());
+  when(stepMockHelper.processRowsStepMetaInterface.getFifoFileName()).thenReturn(fifoFile.getPath());
+  RowMetaInterface inputRowMeta=mock(RowMetaInterface.class);
+  ivwLoader.setInputRowMeta(inputRowMeta);
+  when(rowSet.getRowMeta()).thenReturn(inputRowMeta);
+  when(inputRowMeta.getValueMeta(0)).thenReturn(new ValueMetaInteger());
+  when(inputRowMeta.getValueMeta(1)).thenReturn(new ValueMetaString());
+  when(inputRowMeta.indexOfValue(fieldStream[0])).thenReturn(0);
+  when(inputRowMeta.indexOfValue(fieldStream[1])).thenReturn(1);
+  when(inputRowMeta.clone()).thenReturn(inputRowMeta);
+  for (  Object[] row1 : rows) {
+    ivwLoader.processRow(stepMockHelper.processRowsStepMetaInterface,ivwData);
+  }
+  ivwLoader.processRow(stepMockHelper.processRowsStepMetaInterface,ivwData);
+  ivwLoader.dispose(stepMockHelper.processRowsStepMetaInterface,ivwData);
+  ivwLoader.getLogChannel().snap(Metrics.METRIC_STEP_EXECUTION_STOP);
+  return ivwLoader;
+}

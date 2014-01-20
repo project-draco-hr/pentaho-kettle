@@ -26,11 +26,15 @@
         logDetailed("Executing command: " + cmd);
       }
       data.sqlProcess=rt.exec(cmd);
-      data.errorLogger=new StreamLogger(log,data.sqlProcess.getErrorStream(),"ERR_SQL");
+      data.errorLogger=new StreamLogger(log,data.sqlProcess.getErrorStream(),"ERR_SQL",true);
       data.outputLogger=new StreamLogger(log,data.sqlProcess.getInputStream(),"OUT_SQL");
       data.sqlOutputStream=data.sqlProcess.getOutputStream();
       new Thread(data.errorLogger).start();
-      new Thread(data.outputLogger).start();
+      Thread outputLoggerThread=new Thread(data.outputLogger);
+      outputLoggerThread.start();
+      vwLoadMonitor=new VWloadMonitor(data.sqlProcess,data.outputLogger,outputLoggerThread);
+      vwLoadMonitorThread=new Thread(vwLoadMonitor);
+      vwLoadMonitorThread.start();
     }
  catch (    Exception ex) {
       throw new KettleException("Error while executing psql : " + cmd,ex);

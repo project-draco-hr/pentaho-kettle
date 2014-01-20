@@ -1,0 +1,57 @@
+{
+  try {
+    System.out.println("Start executing command " + cmd);
+    int start=cmd.indexOf("FROM ");
+    String fifo;
+    if (start > 0) {
+      start=cmd.indexOf('\'',start);
+      int end=cmd.indexOf('\'',start + 1);
+      fifo=cmd.substring(++start,end);
+    }
+ else {
+      return 1;
+    }
+    processed=0;
+    loaded=0;
+    errors=0;
+    boolean notStopOnError=(errorsAllowed == 0);
+    File raf=new File(fifo);
+    BufferedReader rafR=new BufferedReader(new FileReader(raf),bufferSize);
+    System.out.println("Start reading from file " + fifo);
+    if (!raf.exists()) {
+      System.out.println("Break fifo not exist");
+      return status();
+    }
+    while (true) {
+      String data=rafR.readLine();
+      if (data == null) {
+        System.out.println("Break fifo end");
+        break;
+      }
+      System.out.println("Readed from fifo " + data);
+      processed++;
+      String[] columns=data.trim().split(delimeter);
+      Long col=Long.valueOf(columns[0]);
+      if (col >= 10) {
+        errors++;
+        writeError(data);
+      }
+ else {
+        loaded++;
+        writeSuccess(data);
+      }
+      if (!notStopOnError && errors > errorsAllowed) {
+        System.out.println("Break error count");
+        break;
+      }
+    }
+    return status();
+  }
+ catch (  FileNotFoundException e) {
+    System.err.println(e);
+  }
+catch (  IOException e) {
+    System.err.println(e);
+  }
+  return 1;
+}
