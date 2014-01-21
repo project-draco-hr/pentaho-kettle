@@ -1,21 +1,31 @@
 {
-  String tableFields[]=meta.getFieldTable();
-  boolean matchColumn[]=meta.getMatchColumn();
-  boolean updateColumn[]=meta.getUpdateColumn();
+  String[] tableFields=meta.getFieldTable();
+  boolean[] matchColumn=meta.getMatchColumn();
+  boolean[] updateColumn=meta.getUpdateColumn();
   DatabaseMeta databaseMeta=meta.getDatabaseMeta();
   String schemaName=meta.getSchemaName();
-  String targetTablename=meta.getTableName();
+  String targetTableName=meta.getTableName();
   if (schemaName == null) {
     schemaName="";
   }
-  if (targetTablename == null) {
+  if (targetTableName == null) {
     throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.TargetTableNameMissing"));
   }
-  targetTablename=environmentSubstitute(targetTablename).trim();
-  if (Const.isEmpty(targetTablename)) {
+  targetTableName=environmentSubstitute(targetTableName).trim();
+  if (Const.isEmpty(targetTableName)) {
     throw new KettleException(BaseMessages.getString(PKG,"GPLoad.Exception.TargetTableNameMissing"));
   }
-  targetTablename=databaseMeta.getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTableName()));
+  schemaName=environmentSubstitute(schemaName);
+  if (Const.isEmpty(schemaName)) {
+    schemaName=databaseMeta.getPreferredSchemaName();
+  }
+  if (Const.isEmpty(schemaName)) {
+    schemaName="";
+  }
+ else {
+    schemaName=schemaName + ".";
+  }
+  targetTableName=schemaName + databaseMeta.quoteField(targetTableName);
   String loadAction=meta.getLoadAction();
   if (loadAction.equalsIgnoreCase(GPLoadMeta.ACTION_MERGE) || loadAction.equalsIgnoreCase(GPLoadMeta.ACTION_UPDATE)) {
     if (matchColumn == null) {
@@ -47,7 +57,9 @@
   }
   StringBuffer contents=new StringBuffer(1000);
   contents.append(GPLoad.GPLOAD_YAML_VERSION).append(Const.CR);
-  contents.append("DATABASE: ").append(environmentSubstitute(databaseMeta.getDatabaseName())).append(Const.CR);
+  contents.append("DATABASE: ");
+  contents.append(environmentSubstitute(databaseMeta.getDatabaseName()));
+  contents.append(Const.CR);
   contents.append("USER: ").append(environmentSubstitute(databaseMeta.getUsername())).append(Const.CR);
   contents.append("HOST: ").append(environmentSubstitute(databaseMeta.getHostname())).append(Const.CR);
   contents.append("PORT: ").append(environmentSubstitute(databaseMeta.getDatabasePortNumberString())).append(Const.CR);
@@ -124,8 +136,7 @@
     }
   }
   contents.append(GPLoad.INDENT).append("OUTPUT:").append(Const.CR);
-  String tableName=databaseMeta.getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTableName()));
-  contents.append(GPLoad.INDENT).append("- TABLE: ").append(tableName).append(Const.CR);
+  contents.append(GPLoad.INDENT).append("- TABLE: ").append(targetTableName).append(Const.CR);
   contents.append(GPLoad.INDENT).append("- MODE: ").append(loadAction).append(Const.CR);
   if (loadAction.equals(GPLoadMeta.ACTION_UPDATE) || loadAction.equals(GPLoadMeta.ACTION_MERGE)) {
     if (meta.hasMatchColumn()) {
