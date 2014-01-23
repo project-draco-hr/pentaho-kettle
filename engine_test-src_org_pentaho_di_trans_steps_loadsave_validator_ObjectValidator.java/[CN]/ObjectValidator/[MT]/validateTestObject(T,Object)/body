@@ -1,0 +1,31 @@
+{
+  if (actual == null || !(clazz.isAssignableFrom(actual.getClass()))) {
+    return false;
+  }
+  try {
+    for (    String attribute : fieldNames) {
+      Getter<?> getter=manipulator.getGetter(attribute);
+      FieldLoadSaveValidator<?> validator=fieldLoadSaveValidatorFactory.createValidator(getter);
+      Method validatorMethod=null;
+      for (      Method method : validator.getClass().getMethods()) {
+        if ("validateTestObject".equals(method.getName())) {
+          Class<?>[] types=method.getParameterTypes();
+          if (types.length == 2) {
+            validatorMethod=method;
+            break;
+          }
+        }
+      }
+      if (validatorMethod == null) {
+        throw new RuntimeException("Unable to find validator for " + attribute + " "+ getter.getGenericType());
+      }
+      if (!(Boolean)validatorMethod.invoke(validator,getter.get(testObject),getter.get(actual))) {
+        return false;
+      }
+    }
+    return true;
+  }
+ catch (  Exception e) {
+    throw new RuntimeException("Unable to instantiate " + clazz,e);
+  }
+}

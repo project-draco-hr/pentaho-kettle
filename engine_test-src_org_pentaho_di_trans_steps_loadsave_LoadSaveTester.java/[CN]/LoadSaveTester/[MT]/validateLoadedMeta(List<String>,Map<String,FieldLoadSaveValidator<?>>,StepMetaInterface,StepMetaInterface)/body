@@ -1,0 +1,32 @@
+{
+  for (  String attribute : attributes) {
+    try {
+      Getter<?> getterMethod=manipulator.getGetter(attribute);
+      Object originalValue=getterMethod.get(metaSaved);
+      Object value=getterMethod.get(metaLoaded);
+      FieldLoadSaveValidator<?> validator=validatorMap.get(attribute);
+      Method[] validatorMethods=validator.getClass().getMethods();
+      Method validatorMethod=null;
+      for (      Method method : validatorMethods) {
+        if ("validateTestObject".equals(method.getName())) {
+          Class<?>[] types=method.getParameterTypes();
+          if (types.length == 2) {
+            if (types[1] == Object.class && (originalValue == null || types[0].isAssignableFrom(originalValue.getClass()))) {
+              validatorMethod=method;
+              break;
+            }
+          }
+        }
+      }
+      if (validatorMethod == null) {
+        throw new RuntimeException("Couldn't find proper validateTestObject method on " + validator.getClass().getCanonicalName());
+      }
+      if (!((Boolean)validatorMethod.invoke(validator,originalValue,value))) {
+        throw new KettleException("Attribute " + attribute + " started with value "+ validatorMap.get(attribute).getTestObject()+ " ended with value "+ value);
+      }
+    }
+ catch (    Exception e) {
+      throw new RuntimeException("Error validating " + attribute,e);
+    }
+  }
+}
