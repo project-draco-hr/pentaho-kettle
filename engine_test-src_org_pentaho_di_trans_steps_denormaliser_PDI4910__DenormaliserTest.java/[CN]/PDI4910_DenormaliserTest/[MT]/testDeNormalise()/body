@@ -1,0 +1,41 @@
+{
+  DenormaliserData stepData=new DenormaliserData();
+  stepData.keyFieldNr=0;
+  stepData.keyValue=new HashMap<String,List<Integer>>();
+  stepData.keyValue.put("1",Arrays.asList(new Integer[]{0,1}));
+  stepData.fieldNameIndex=new int[]{1,2};
+  stepData.inputRowMeta=new RowMeta();
+  ValueMetaDate outDateField1=new ValueMetaDate("date_field[yyyy-MM-dd]");
+  ValueMetaDate outDateField2=new ValueMetaDate("date_field[yyyy/MM/dd]");
+  stepData.outputRowMeta=new RowMeta();
+  stepData.outputRowMeta.addValueMeta(0,outDateField1);
+  stepData.outputRowMeta.addValueMeta(1,outDateField2);
+  stepData.removeNrs=new int[]{};
+  stepData.targetResult=new Object[]{null,null};
+  DenormaliserMeta stepMeta=new DenormaliserMeta();
+  DenormaliserTargetField[] denormaliserTargetFields=new DenormaliserTargetField[2];
+  DenormaliserTargetField targetField1=new DenormaliserTargetField();
+  DenormaliserTargetField targetField2=new DenormaliserTargetField();
+  targetField1.setTargetFormat("yyyy-MM-dd");
+  targetField2.setTargetFormat("yyyy/MM/dd");
+  denormaliserTargetFields[0]=targetField1;
+  denormaliserTargetFields[1]=targetField2;
+  stepMeta.setDenormaliserTargetField(denormaliserTargetFields);
+  RowMetaInterface rowMeta=new RowMeta();
+  rowMeta.addValueMeta(0,new ValueMetaInteger("key"));
+  rowMeta.addValueMeta(1,new ValueMetaString("stringDate1"));
+  rowMeta.addValueMeta(2,new ValueMetaString("stringDate2"));
+  Object[] rowData=new Object[]{1L,"2000-10-20","2000/10/20"};
+  denormaliser=new Denormaliser(mockHelper.stepMeta,stepData,0,mockHelper.transMeta,mockHelper.trans);
+  Field metaField=denormaliser.getClass().getDeclaredField("meta");
+  Assert.assertNotNull("Can't find a field 'meta' in class Denormalizer",metaField);
+  metaField.setAccessible(true);
+  metaField.set(denormaliser,stepMeta);
+  Method deNormalise=denormaliser.getClass().getDeclaredMethod("deNormalise",RowMetaInterface.class,Object[].class);
+  Assert.assertNotNull("Can't find a method 'deNormalise' in class Denormalizer",deNormalise);
+  deNormalise.setAccessible(true);
+  deNormalise.invoke(denormaliser,rowMeta,rowData);
+  for (  Object res : stepData.targetResult) {
+    Assert.assertNotNull("Date is null",res);
+  }
+}
