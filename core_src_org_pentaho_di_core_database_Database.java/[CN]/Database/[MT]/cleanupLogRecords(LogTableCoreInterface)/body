@@ -1,23 +1,25 @@
 {
+  double timeout=Const.toDouble(Const.trim(environmentSubstitute(logTable.getTimeoutInDays())),0.0);
+  if (timeout < 0.000001) {
+    return;
+  }
+  String schemaTable=databaseMeta.getQuotedSchemaTableCombination(environmentSubstitute(logTable.getActualSchemaName()),environmentSubstitute(logTable.getActualTableName()));
+  if (schemaTable.isEmpty()) {
+    DatabaseLogExceptionFactory.getExceptionStrategy(logTable).registerException(log,PKG,"DatabaseMeta.Error.LogTableNameNotFound");
+  }
+  LogTableField logField=logTable.getLogDateField();
+  if (logField == null) {
+    DatabaseLogExceptionFactory.getExceptionStrategy(logTable).registerException(log,PKG,"Database.Exception.LogTimeoutDefinedOnTableWithoutLogField");
+  }
+  String sql="DELETE FROM " + schemaTable + " WHERE "+ databaseMeta.quoteField(logField.getFieldName())+ " < ?";
+  long now=System.currentTimeMillis();
+  long limit=now - Math.round(timeout * 24 * 60* 60* 1000);
+  RowMetaAndData row=new RowMetaAndData();
+  row.addValue(logField.getFieldName(),ValueMetaInterface.TYPE_DATE,new Date(limit));
   try {
-    double timeout=Const.toDouble(Const.trim(environmentSubstitute(logTable.getTimeoutInDays())),0.0);
-    if (timeout > 0.000001) {
-      String schemaTable=databaseMeta.getQuotedSchemaTableCombination(environmentSubstitute(logTable.getActualSchemaName()),environmentSubstitute(logTable.getActualTableName()));
-      LogTableField logField=logTable.getLogDateField();
-      if (logField != null) {
-        String sql="DELETE FROM " + schemaTable + " WHERE "+ databaseMeta.quoteField(logField.getFieldName())+ " < ?";
-        long now=System.currentTimeMillis();
-        long limit=now - Math.round(timeout * 24 * 60* 60* 1000);
-        RowMetaAndData row=new RowMetaAndData();
-        row.addValue(logField.getFieldName(),ValueMetaInterface.TYPE_DATE,new Date(limit));
-        execStatement(sql,row.getRowMeta(),row.getData());
-      }
- else {
-        throw new KettleException(BaseMessages.getString(PKG,"Database.Exception.LogTimeoutDefinedOnTableWithoutLogField",environmentSubstitute(logTable.getActualTableName())));
-      }
-    }
+    execStatement(sql,row.getRowMeta(),row.getData());
   }
  catch (  Exception e) {
-    throw new KettleDatabaseException(BaseMessages.getString(PKG,"Database.Exception.UnableToCleanUpOlderRecordsFromLogTable",environmentSubstitute(logTable.getActualTableName())),e);
+    DatabaseLogExceptionFactory.getExceptionStrategy(logTable).registerException(log,PKG,"Database.Exception.UnableToCleanUpOlderRecordsFromLogTable",environmentSubstitute(logTable.getActualTableName()));
   }
 }
