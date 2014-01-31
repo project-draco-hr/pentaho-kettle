@@ -1,34 +1,23 @@
 {
-  HttpClient client=SlaveConnectionManager.getInstance().createHttpClient();
-  addCredentials(client);
-  addProxy(client);
-  GetMethod method=new GetMethod(constructUrl(service));
-  for (  String key : headerValues.keySet()) {
-    method.setRequestHeader(key,headerValues.get(key));
-  }
-  InputStream inputStream=null;
-  BufferedInputStream bufferedInputStream=null;
+  GetMethod method=buildExecuteServiceMethod(service,headerValues);
   try {
-    int result=client.executeMethod(method);
+    int result=getHttpClient().executeMethod(method);
     if (log.isDebug()) {
       log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
     }
-    String body=method.getResponseBodyAsString();
+    String responseBody=getResponseBodyAsString(method.getResponseBodyAsStream());
     if (log.isDetailed()) {
-      log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_FinishedReading",Integer.toString(body.getBytes().length)));
+      log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_FinishedReading",Integer.toString(responseBody.getBytes().length)));
     }
     if (log.isDebug()) {
-      log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",body));
+      log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",responseBody));
     }
-    return body;
+    if (result >= 400) {
+      throw new KettleException(String.format("HTTP Status %d - %s - %s",method.getStatusCode(),method.getPath(),method.getStatusText()));
+    }
+    return responseBody;
   }
   finally {
-    if (bufferedInputStream != null) {
-      bufferedInputStream.close();
-    }
-    if (inputStream != null) {
-      inputStream.close();
-    }
     method.releaseConnection();
     if (log.isDetailed()) {
       log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_ExecutedService",service,hostname));

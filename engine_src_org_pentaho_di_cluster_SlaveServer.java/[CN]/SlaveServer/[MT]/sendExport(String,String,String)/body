@@ -1,72 +1,36 @@
 {
-  String serviceUrl=AddExportServlet.CONTEXT_PATH;
-  if (type != null && load != null) {
-    serviceUrl+="/?" + AddExportServlet.PARAMETER_TYPE + "="+ type+ "&"+ AddExportServlet.PARAMETER_LOAD+ "="+ URLEncoder.encode(load,"UTF-8");
-  }
-  String urlString=constructUrl(serviceUrl);
-  if (log.isDebug()) {
-    log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ConnectingTo",urlString));
-  }
-  PostMethod putMethod=new PostMethod(urlString);
-  FileObject fileObject=KettleVFS.getFileObject(filename);
-  InputStream fis=KettleVFS.getInputStream(fileObject);
+  InputStream is=null;
   try {
-    RequestEntity entity=new InputStreamRequestEntity(fis);
-    putMethod.setRequestEntity(entity);
-    putMethod.setDoAuthentication(true);
-    putMethod.addRequestHeader(new Header("Content-Type","binary/zip"));
-    HttpClient client=SlaveConnectionManager.getInstance().createHttpClient();
-    addCredentials(client);
-    addProxy(client);
-    InputStream inputStream=null;
-    BufferedInputStream bufferedInputStream=null;
+    is=KettleVFS.getInputStream(KettleVFS.getFileObject(filename));
+    PostMethod method=buildSendExportMethod(type,load,is);
     try {
-      int result=client.executeMethod(putMethod);
+      int result=getHttpClient().executeMethod(method);
       if (log.isDebug()) {
         log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
       }
-      inputStream=putMethod.getResponseBodyAsStream();
-      bufferedInputStream=new BufferedInputStream(inputStream,1000);
-      StringBuffer bodyBuffer=new StringBuffer();
-      int c;
-      while ((c=bufferedInputStream.read()) != -1) {
-        bodyBuffer.append((char)c);
+      String responseBody=getResponseBodyAsString(method.getResponseBodyAsStream());
+      if (log.isDebug()) {
+        log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",responseBody));
       }
-      String bodyTmp=bodyBuffer.toString();
-switch (result) {
-case 401:
-        String message="Authentication failed" + Const.DOSCR + Const.DOSCR+ bodyTmp;
-      WebResult webResult=new WebResult(WebResult.STRING_ERROR,message);
-    bodyBuffer.setLength(0);
-  bodyBuffer.append(webResult.getXML());
-break;
-default :
-break;
-}
-String body=bodyBuffer.toString();
-if (log.isDebug()) {
-log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",body));
-}
-return body;
-}
+      if (result >= 400) {
+        throw new KettleException(String.format("HTTP Status %d - %s - %s",method.getStatusCode(),method.getPath(),method.getStatusText()));
+      }
+      return responseBody;
+    }
   finally {
-if (bufferedInputStream != null) {
-bufferedInputStream.close();
-}
-if (inputStream != null) {
-inputStream.close();
-}
-putMethod.releaseConnection();
-if (log.isDetailed()) {
-log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_SentExportToService",AddExportServlet.CONTEXT_PATH,environmentSubstitute(hostname)));
-}
-}
-}
+      method.releaseConnection();
+      if (log.isDetailed()) {
+        log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_SentExportToService",AddExportServlet.CONTEXT_PATH,environmentSubstitute(hostname)));
+      }
+    }
+  }
   finally {
-try {
-fis.close();
-}
- catch (IOException ignored) {
-}
-}
+    try {
+      if (is != null) {
+        is.close();
+      }
+    }
+ catch (    IOException ignored) {
+    }
+  }
 }
