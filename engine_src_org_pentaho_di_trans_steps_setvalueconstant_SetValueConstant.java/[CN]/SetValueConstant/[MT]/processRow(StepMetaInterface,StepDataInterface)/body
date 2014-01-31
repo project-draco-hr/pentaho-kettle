@@ -8,12 +8,12 @@
   }
   if (first) {
     first=false;
-    data.outputRowMeta=getInputRowMeta().clone();
-    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
-    data.convertRowMeta=data.outputRowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+    data.setOutputRowMeta(getInputRowMeta().clone());
+    meta.getFields(data.getOutputRowMeta(),getStepname(),null,null,this,repository,metaStore);
+    data.setConvertRowMeta(data.getOutputRowMeta().cloneToType(ValueMetaInterface.TYPE_STRING));
     if (meta.getFieldName() != null && meta.getFieldName().length > 0) {
-      data.fieldnrs=new int[meta.getFieldName().length];
-      data.realReplaceByvalues=new String[meta.getReplaceValue().length];
+      data.setFieldnrs(new int[meta.getFieldName().length]);
+      data.setRealReplaceByValues(new String[meta.getReplaceValue().length]);
       for (int i=0; i < meta.getFieldName().length; i++) {
         for (int j=0; j < meta.getFieldName().length; j++) {
           if (meta.getFieldName()[j].equals(meta.getFieldName()[i])) {
@@ -22,20 +22,20 @@
             }
           }
         }
-        data.fieldnrs[i]=data.outputRowMeta.indexOfValue(meta.getFieldName()[i]);
-        if (data.fieldnrs[i] < 0) {
+        data.getFieldnrs()[i]=data.getOutputRowMeta().indexOfValue(meta.getFieldName()[i]);
+        if (data.getFieldnrs()[i] < 0) {
           logError(BaseMessages.getString(PKG,"SetValueConstant.Log.CanNotFindField",meta.getFieldName()[i]));
           throw new KettleException(BaseMessages.getString(PKG,"SetValueConstant.Log.CanNotFindField",meta.getFieldName()[i]));
         }
         if (meta.isSetEmptyString()[i]) {
-          data.realReplaceByvalues[i]=StringUtil.EMPTY_STRING;
+          data.getRealReplaceByValues()[i]=StringUtil.EMPTY_STRING;
         }
  else {
           if (meta.isUseVars()) {
-            data.realReplaceByvalues[i]=environmentSubstitute(meta.getReplaceValue()[i]);
+            data.getRealReplaceByValues()[i]=environmentSubstitute(meta.getReplaceValue()[i]);
           }
  else {
-            data.realReplaceByvalues[i]=meta.getReplaceValue()[i];
+            data.getRealReplaceByValues()[i]=meta.getReplaceValue()[i];
           }
         }
       }
@@ -43,18 +43,15 @@
  else {
       throw new KettleException(BaseMessages.getString(PKG,"SetValueConstant.Log.SelectFieldsEmpty"));
     }
-    data.fieldnr=data.fieldnrs.length;
+    data.setFieldnr(data.getFieldnrs().length);
   }
   try {
     updateField(r);
-    putRow(data.outputRowMeta,r);
+    putRow(data.getOutputRowMeta(),r);
   }
  catch (  Exception e) {
-    boolean sendToErrorRow=false;
-    String errorMessage=null;
     if (getStepMeta().isDoingErrorHandling()) {
-      sendToErrorRow=true;
-      errorMessage=e.toString();
+      putError(data.getOutputRowMeta(),r,1,e.toString(),null,"SVC001");
     }
  else {
       logError(BaseMessages.getString(PKG,"SetValueConstant.Log.ErrorInStep",e.getMessage()));
@@ -62,9 +59,6 @@
       stopAll();
       setOutputDone();
       return false;
-    }
-    if (sendToErrorRow) {
-      putError(data.outputRowMeta,r,1,errorMessage,null,"SVC001");
     }
   }
   return true;
