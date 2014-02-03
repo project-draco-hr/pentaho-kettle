@@ -1,16 +1,11 @@
 {
-  if (r != null) {
-    for (int i=0; i < data.fieldnrs.length; i++) {
-      if (data.convertKeysToNative[i]) {
-        int index=data.fieldnrs[i];
-        r[index]=rowMeta.getValueMeta(index).convertBinaryStringToNativeType((byte[])r[index]);
-      }
+  if (data.convertKeysToNative != null) {
+    for (int i=0; i < data.convertKeysToNative.length; i++) {
+      int index=data.convertKeysToNative[i];
+      r[index]=rowMeta.getValueMeta(index).convertBinaryStringToNativeType((byte[])r[index]);
     }
-    data.buffer.add(r);
   }
-  if (data.files.size() == 0 && r == null) {
-    quickSort(data.buffer);
-  }
+  data.buffer.add(r);
   data.freeCounter++;
   if (data.sortSize <= 0 && data.freeCounter >= 1000) {
     data.freeMemoryPct=Const.getPercentageFreeMemory();
@@ -19,17 +14,18 @@
       data.memoryReporting++;
       if (data.memoryReporting >= 10) {
         if (log.isDetailed()) {
-          logDetailed("Available memory : " + data.freeMemoryPct + "%");
+          logDetailed(BaseMessages.getString(PKG,"SortRows.Detailed.AvailableMemory",data.freeMemoryPct));
         }
         data.memoryReporting=0;
       }
     }
   }
   boolean doSort=data.buffer.size() == data.sortSize;
-  doSort|=data.files.size() > 0 && r == null && data.buffer.size() > 0;
   doSort|=data.freeMemoryPctLimit > 0 && data.freeMemoryPct < data.freeMemoryPctLimit && data.buffer.size() >= data.minSortSize;
+  if (log.isDebug()) {
+    this.logDebug(BaseMessages.getString(PKG,"SortRows.Debug.StartDumpToDisk",data.freeMemoryPct,data.buffer.size()));
+  }
   if (doSort) {
     sortExternalRows();
   }
-  return true;
 }
