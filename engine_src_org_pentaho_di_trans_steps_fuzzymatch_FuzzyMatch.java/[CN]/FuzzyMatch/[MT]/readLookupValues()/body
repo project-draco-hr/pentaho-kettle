@@ -18,16 +18,21 @@
         throw new KettleException(BaseMessages.getString(PKG,"FuzzyMatch.Exception.CouldnotFindLookField",meta.getLookupField()));
       }
       data.infoCache=new RowMeta();
-      data.infoCache.addValueMeta(data.infoMeta.getValueMeta(indexOfLookupField));
+      ValueMetaInterface keyValueMeta=data.infoMeta.getValueMeta(indexOfLookupField);
+      keyValueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+      data.infoCache.addValueMeta(keyValueMeta);
       data.indexOfCachedFields[0]=indexOfLookupField;
       if (data.addAdditionalFields) {
+        ValueMetaInterface additionalFieldValueMeta;
         for (int i=0; i < meta.getValue().length; i++) {
           int fi=i + 1;
           data.indexOfCachedFields[fi]=data.infoMeta.indexOfValue(meta.getValue()[i]);
           if (data.indexOfCachedFields[fi] < 0) {
             throw new KettleException(BaseMessages.getString(PKG,"FuzzyMatch.Exception.CouldnotFindLookField",meta.getValue()[i]));
           }
-          data.infoCache.addValueMeta(data.infoMeta.getValueMeta(data.indexOfCachedFields[fi]));
+          additionalFieldValueMeta=data.infoMeta.getValueMeta(data.indexOfCachedFields[fi]);
+          additionalFieldValueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+          data.infoCache.addValueMeta(additionalFieldValueMeta);
         }
         data.nrCachedFields+=meta.getValue().length;
       }
@@ -36,9 +41,26 @@
       logRowlevel(BaseMessages.getString(PKG,"FuzzyMatch.Log.ReadLookupRow") + rowSet.getRowMeta().getString(rowData));
     }
     Object[] storeData=new Object[data.nrCachedFields];
-    storeData[0]=rowData[data.indexOfCachedFields[0]] == null ? "" : rowData[data.indexOfCachedFields[0]];
+    if (rowData[data.indexOfCachedFields[0]] == null) {
+      storeData[0]="";
+    }
+ else {
+      ValueMetaInterface fromStreamRowMeta=rowSet.getRowMeta().getValueMeta(data.indexOfCachedFields[0]);
+      if (fromStreamRowMeta.isStorageBinaryString()) {
+        storeData[0]=fromStreamRowMeta.convertToNormalStorageType(rowData[data.indexOfCachedFields[0]]);
+      }
+ else {
+        storeData[0]=rowData[data.indexOfCachedFields[0]];
+      }
+    }
     for (int i=1; i < data.nrCachedFields; i++) {
-      storeData[i]=rowData[data.indexOfCachedFields[i]];
+      ValueMetaInterface fromStreamRowMeta=rowSet.getRowMeta().getValueMeta(data.indexOfCachedFields[i]);
+      if (fromStreamRowMeta.isStorageBinaryString()) {
+        storeData[i]=fromStreamRowMeta.convertToNormalStorageType(rowData[data.indexOfCachedFields[i]]);
+      }
+ else {
+        storeData[i]=rowData[data.indexOfCachedFields[0]];
+      }
     }
     if (isDebug()) {
       logDebug(BaseMessages.getString(PKG,"FuzzyMatch.Log.AddingValueToCache",data.infoCache.getString(storeData)));

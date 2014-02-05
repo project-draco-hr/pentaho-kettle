@@ -1,0 +1,33 @@
+{
+  FuzzyMatchData data=spy(new FuzzyMatchData());
+  data.indexOfCachedFields=new int[2];
+  data.minimalDistance=0;
+  data.maximalDistance=5;
+  FuzzyMatchMeta meta=spy(new FuzzyMatchMeta());
+  data.readLookupValues=true;
+  fuzzyMatch=new FuzzyMatchHandler(mockHelper.stepMeta,mockHelper.stepDataInterface,0,mockHelper.transMeta,mockHelper.trans);
+  fuzzyMatch.init(meta,data);
+  RowSet lookupRowSet=mockHelper.getMockInputRowSet(binaryLookupRows);
+  fuzzyMatch.getInputRowSets().add(mockHelper.getMockInputRowSet(binaryRows));
+  fuzzyMatch.getInputRowSets().add(lookupRowSet);
+  fuzzyMatch.rowset=lookupRowSet;
+  RowMetaInterface rowMetaInterface=new RowMeta();
+  ValueMetaInterface valueMeta=new ValueMeta("field1",ValueMeta.TYPE_STRING);
+  valueMeta.setStorageMetadata(new ValueMeta("field1",ValueMeta.TYPE_STRING));
+  valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_BINARY_STRING);
+  rowMetaInterface.addValueMeta(valueMeta);
+  when(lookupRowSet.getRowMeta()).thenReturn(rowMetaInterface);
+  when(meta.getLookupField()).thenReturn("field1");
+  when(meta.getMainStreamField()).thenReturn("field1");
+  fuzzyMatch.setInputRowMeta(rowMetaInterface.clone());
+  when(meta.getAlgorithmType()).thenReturn(1);
+  StepIOMetaInterface stepIOMetaInterface=mock(StepIOMetaInterface.class);
+  when(meta.getStepIOMeta()).thenReturn(stepIOMetaInterface);
+  StreamInterface streamInterface=mock(StreamInterface.class);
+  List<StreamInterface> streamInterfaceList=new ArrayList<StreamInterface>();
+  streamInterfaceList.add(streamInterface);
+  when(streamInterface.getStepMeta()).thenReturn(mockHelper.stepMeta);
+  when(stepIOMetaInterface.getInfoStreams()).thenReturn(streamInterfaceList);
+  fuzzyMatch.processRow(meta,data);
+  Assert.assertEquals(rowMetaInterface.getString(row3B,0),data.outputRowMeta.getString(fuzzyMatch.resultRow,1));
+}
