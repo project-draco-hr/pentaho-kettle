@@ -14,13 +14,6 @@
     if (data.posTargetField < 0) {
       throw new KettleStepException(BaseMessages.getString(PKG,"ConcatFields.Error.TargetFieldNotFoundOutputStream","" + meta.getTargetFieldName()));
     }
-    if (!meta.isFileAppended() && (meta.isHeaderEnabled() || meta.isFooterEnabled())) {
-      if (!meta.isFileNameInField() && meta.isHeaderEnabled() && data.outputRowMeta != null) {
-        writeHeader();
-        Object[] row=new Object[data.outputRowMeta.size()];
-        putRowFromStream(row);
-      }
-    }
     data.fieldnrs=new int[meta.getOutputFields().length];
     for (int i=0; i < meta.getOutputFields().length; i++) {
       data.fieldnrs[i]=data.inputRowMetaModified.indexOfValue(meta.getOutputFields()[i].getName());
@@ -37,16 +30,8 @@
         data.targetFieldLengthFastDataDump=50 * meta.getOutputFields().length;
       }
     }
-    if (meta.isRemoveSelectedFields()) {
-      data.remainingFieldsInputOutputMapping=new int[data.outputRowMeta.size() - 1];
-      String[] fieldNames=data.outputRowMeta.getFieldNames();
-      for (int i=0; i < fieldNames.length - 1; i++) {
-        data.remainingFieldsInputOutputMapping[i]=data.inputRowMetaModified.indexOfValue(fieldNames[i]);
-        if (data.remainingFieldsInputOutputMapping[i] < 0) {
-          throw new KettleStepException(BaseMessages.getString(PKG,"ConcatFields.Error.RemainingFieldNotFoundInputStream","" + fieldNames[i]));
-        }
-      }
-    }
+    prepareForReMap();
+    checkAndWriteHeader();
   }
   if ((r == null && data.outputRowMeta != null && meta.isFooterEnabled()) || (r != null && getLinesWritten() > 0 && meta.getSplitEvery() > 0 && ((getLinesWritten() + 1) % meta.getSplitEvery()) == 0)) {
     if (data.outputRowMeta != null) {
