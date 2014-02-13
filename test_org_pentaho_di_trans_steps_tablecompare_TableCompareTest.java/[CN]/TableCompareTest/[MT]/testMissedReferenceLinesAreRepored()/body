@@ -1,0 +1,21 @@
+{
+  executeSqlPrecondition("PDI-7255.sql");
+  TableCompareMeta meta=getTableCompareMeta();
+  List<RowMetaAndData> inputData=new ArrayList<RowMetaAndData>();
+  inputData.add(new RowMetaAndData(getRowMeta(),getData1()));
+  TransMeta trMeta=TransTestFactory.generateTestTransformationError(null,meta,"junit");
+  Map<String,RowStepCollector> result=TransTestFactory.executeTestTransformationError(trMeta,"junit",inputData);
+  List<RowMetaAndData> read=result.get(TransTestFactory.DUMMY_STEPNAME).getRowsRead();
+  Assert.assertTrue("Step achieve comparsion data",read.size() == 1);
+  RowMetaAndData row=read.get(0);
+  Assert.assertEquals("Number of errors",1,row.getInteger(8).intValue());
+  Assert.assertEquals("Reference table row count",3,row.getInteger(9).intValue());
+  Assert.assertEquals("Compare table row count",2,row.getInteger(10).intValue());
+  Assert.assertEquals("Number of left joins errors",0,row.getInteger(11).intValue());
+  Assert.assertEquals("Number of inner joins errors",0,row.getInteger(12).intValue());
+  Assert.assertEquals("Number of right joins errors",1,row.getInteger(13).intValue());
+  List<RowMetaAndData> errors=result.get(TransTestFactory.ERROR_STEPNAME).getRowsRead();
+  Assert.assertTrue("One error output to negative step",errors.size() == 1);
+  row=errors.get(0);
+  Assert.assertEquals("Reported one missing key","KEY1 = '2'",row.getString(ehlkd,null));
+}
