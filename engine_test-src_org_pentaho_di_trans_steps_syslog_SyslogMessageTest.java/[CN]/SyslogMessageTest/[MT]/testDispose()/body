@@ -1,0 +1,34 @@
+{
+  SyslogMessageData data=new SyslogMessageData();
+  SyslogIF syslog=mock(SyslogIF.class);
+  SyslogConfigIF syslogConfigIF=mock(SyslogConfigIF.class,RETURNS_MOCKS);
+  when(syslog.getConfig()).thenReturn(syslogConfigIF);
+  final Boolean[] initialized=new Boolean[]{Boolean.FALSE};
+  doAnswer(new Answer<Object>(){
+    public Object answer(    InvocationOnMock invocation){
+      initialized[0]=true;
+      return initialized;
+    }
+  }
+).when(syslog).initialize(anyString(),(SyslogConfigIF)anyObject());
+  doAnswer(new Answer<Object>(){
+    public Object answer(    InvocationOnMock invocation){
+      if (!initialized[0]) {
+        throw new NullPointerException("this.socket is null");
+      }
+ else {
+        initialized[0]=false;
+      }
+      return initialized;
+    }
+  }
+).when(syslog).shutdown();
+  SyslogMessageMeta meta=new SyslogMessageMeta();
+  SyslogMessage syslogMessage=new SyslogMessage(stepMockHelper.stepMeta,stepMockHelper.stepDataInterface,0,stepMockHelper.transMeta,stepMockHelper.trans);
+  SyslogMessage sysLogMessageSpy=spy(syslogMessage);
+  when(sysLogMessageSpy.getSyslog()).thenReturn(syslog);
+  meta.setServerName("1");
+  meta.setMessageFieldName("1");
+  sysLogMessageSpy.init(meta,data);
+  sysLogMessageSpy.dispose(meta,data);
+}

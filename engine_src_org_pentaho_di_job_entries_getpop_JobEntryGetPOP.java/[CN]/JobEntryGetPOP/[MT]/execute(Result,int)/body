@@ -1,7 +1,6 @@
 {
   Result result=previousResult;
   result.setResult(false);
-  FileObject fileObject=null;
   MailConnection mailConn=null;
   Date beginDate=null;
   Date endDate=null;
@@ -11,47 +10,54 @@
     boolean moveafter=false;
     int nbrmailtoretrieve=usePOP3 ? getRetrievemails() == 2 ? Const.toInt(getFirstMails(),0) : 0 : Const.toInt(getFirstIMAPMails(),0);
     String realOutputFolder=getRealOutputDirectory();
-    fileObject=KettleVFS.getFileObject(realOutputFolder,this);
-    if (fileObject.exists()) {
-      if (fileObject.getType() != FileType.FOLDER) {
-        throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.NotAFolderNot",realOutputFolder));
-      }
-      if (isDebug()) {
-        logDebug(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Log.OutputFolderExists",realOutputFolder));
-      }
-    }
- else {
-      if (isCreateLocalFolder()) {
-        if (isDetailed()) {
-          logDetailed(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Log.OutputFolderNotExist",realOutputFolder));
+    String targetAttachmentFolder=null;
+    if (getActionType() == MailConnectionMeta.ACTION_TYPE_GET) {
+      FileObject fileObject=KettleVFS.getFileObject(realOutputFolder,this);
+      if (fileObject.exists()) {
+        if (fileObject.getType() != FileType.FOLDER) {
+          throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.NotAFolderNot",realOutputFolder));
         }
-        fileObject.createFolder();
+        if (isDebug()) {
+          logDebug(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Log.OutputFolderExists",realOutputFolder));
+        }
       }
  else {
-        throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.FolderNotExists1.Label") + realOutputFolder + BaseMessages.getString(PKG,"JobGetMailsFromPOP.FolderNotExists2.Label"));
-      }
-    }
-    String targetAttachmentFolder=KettleVFS.getFilename(fileObject);
-    boolean useDifferentFolderForAttachment=(isSaveAttachment() && isDifferentFolderForAttachment());
-    if (useDifferentFolderForAttachment) {
-      String realFolderAttachment=environmentSubstitute(getAttachmentFolder());
-      if (Const.isEmpty(realFolderAttachment)) {
-        throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderEmpty"));
-      }
-      fileObject=KettleVFS.getFileObject(realFolderAttachment,this);
-      if (!fileObject.exists()) {
-        throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderNotExist",realFolderAttachment));
-      }
-      if (fileObject.getType() != FileType.FOLDER) {
-        throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderNotAFolder",realFolderAttachment));
+        if (isCreateLocalFolder()) {
+          if (isDetailed()) {
+            logDetailed(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Log.OutputFolderNotExist",realOutputFolder));
+          }
+          fileObject.createFolder();
+        }
+ else {
+          throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.FolderNotExists1.Label") + realOutputFolder + BaseMessages.getString(PKG,"JobGetMailsFromPOP.FolderNotExists2.Label"));
+        }
       }
       targetAttachmentFolder=KettleVFS.getFilename(fileObject);
-    }
-    try {
-      fileObject.close();
-      fileObject=null;
-    }
- catch (    IOException ex) {
+      boolean useDifferentFolderForAttachment=(isSaveAttachment() && isDifferentFolderForAttachment());
+      if (useDifferentFolderForAttachment) {
+        String realFolderAttachment=environmentSubstitute(getAttachmentFolder());
+        if (Const.isEmpty(realFolderAttachment)) {
+          throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderEmpty"));
+        }
+        try {
+          fileObject.close();
+        }
+ catch (        IOException ex) {
+        }
+        fileObject=KettleVFS.getFileObject(realFolderAttachment,this);
+        if (!fileObject.exists()) {
+          throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderNotExist",realFolderAttachment));
+        }
+        if (fileObject.getType() != FileType.FOLDER) {
+          throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderNotAFolder",realFolderAttachment));
+        }
+        targetAttachmentFolder=KettleVFS.getFilename(fileObject);
+      }
+      try {
+        fileObject.close();
+      }
+ catch (      IOException ex) {
+      }
     }
     String realMoveToIMAPFolder=environmentSubstitute(getMoveToIMAPFolder());
     if (getProtocol().equals(MailConnectionMeta.PROTOCOL_STRING_IMAP) && (getActionType() == MailConnectionMeta.ACTION_TYPE_MOVE) || (getActionType() == MailConnectionMeta.ACTION_TYPE_GET && getAfterGetIMAP() == MailConnectionMeta.AFTER_GET_IMAP_MOVE)) {
@@ -204,14 +210,6 @@ logError("Unexpected error: " + e.getMessage());
 logError(Const.getStackTracker(e));
 }
  finally {
-if (fileObject != null) {
-try {
-fileObject.close();
-fileObject=null;
-}
- catch (IOException ex) {
-}
-}
 try {
 if (mailConn != null) {
 mailConn.disconnect();

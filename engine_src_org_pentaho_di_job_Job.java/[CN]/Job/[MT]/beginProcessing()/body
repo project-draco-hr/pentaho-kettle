@@ -40,7 +40,7 @@
       depDate=currentDate;
       ldb.writeLogRecord(jobMeta.getJobLogTable(),LogStatus.START,this,null);
       if (!ldb.isAutoCommit()) {
-        ldb.commit(true);
+        ldb.commitLog(true,jobMeta.getJobLogTable());
       }
       ldb.disconnect();
       if (intervalInSeconds > 0) {
@@ -67,12 +67,13 @@
 );
       }
       addJobListener(new JobAdapter(){
-        public void jobFinished(        Job job){
+        public void jobFinished(        Job job) throws KettleException {
           try {
             endProcessing();
           }
- catch (          Exception e) {
+ catch (          KettleJobException e) {
             log.logError(BaseMessages.getString(PKG,"Job.Exception.UnableToWriteToLoggingTable",jobLogTable.toString()),e);
+            throw new KettleException(e);
           }
         }
       }
