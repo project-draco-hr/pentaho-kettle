@@ -3,18 +3,20 @@
   data=(MetaInjectData)sdi;
   data.rowMap=new HashMap<String,List<RowMetaAndData>>();
   for (  String prevStepName : getTransMeta().getPrevStepNames(getStepMeta())) {
-    List<RowMetaAndData> list=new ArrayList<RowMetaAndData>();
-    RowSet rowSet=findInputRowSet(prevStepName);
-    Object[] row=getRowFrom(rowSet);
-    while (row != null) {
-      RowMetaAndData rd=new RowMetaAndData();
-      rd.setRowMeta(rowSet.getRowMeta());
-      rd.setData(row);
-      list.add(rd);
-      row=getRowFrom(rowSet);
-    }
-    if (!list.isEmpty()) {
-      data.rowMap.put(prevStepName,list);
+    if (!data.streaming || !prevStepName.equalsIgnoreCase(data.streamingSourceStepname)) {
+      List<RowMetaAndData> list=new ArrayList<RowMetaAndData>();
+      RowSet rowSet=findInputRowSet(prevStepName);
+      Object[] row=getRowFrom(rowSet);
+      while (row != null) {
+        RowMetaAndData rd=new RowMetaAndData();
+        rd.setRowMeta(rowSet.getRowMeta());
+        rd.setData(row);
+        list.add(rd);
+        row=getRowFrom(rowSet);
+      }
+      if (!list.isEmpty()) {
+        data.rowMap.put(prevStepName,list);
+      }
     }
   }
   for (  String targetStep : data.stepInjectionMap.keySet()) {
@@ -132,6 +134,10 @@
     }
 );
     injectTrans.prepareExecution(null);
+    RowProducer rowProducer=null;
+    if (data.streaming) {
+      rowProducer=injectTrans.addRowProducer(data.streamingTargetStepname,0);
+    }
     getTrans().getActiveSubtransformations().put(getStepname(),injectTrans);
     if (!Const.isEmpty(meta.getSourceStepName())) {
       StepInterface stepInterface=injectTrans.getStepInterface(meta.getSourceStepName(),0);
@@ -146,7 +152,19 @@
 );
     }
     injectTrans.startThreads();
-    while (!injectTrans.isFinished() && !injectTrans.isStopped()) {
+    if (data.streaming) {
+      RowSet rowSet=findInputRowSet(data.streamingSourceStepname);
+      if (rowSet == null) {
+        throw new KettleException("Unable to find step '" + data.streamingSourceStepname + "' to stream data from");
+      }
+      Object[] row=getRowFrom(rowSet);
+      while (row != null && !isStopped()) {
+        rowProducer.putRow(rowSet.getRowMeta(),row);
+        row=getRowFrom(rowSet);
+      }
+      rowProducer.finished();
+    }
+    while (!injectTrans.isFinished() && !injectTrans.isStopped() && !isStopped()) {
       copyResult(injectTrans);
       try {
         Thread.sleep(50);
