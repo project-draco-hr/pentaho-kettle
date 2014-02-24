@@ -1,0 +1,55 @@
+{
+  final int eventCount=100;
+  final LoggingBuffer buf=new LoggingBuffer(200);
+  final AtomicBoolean done=new AtomicBoolean(false);
+  final KettleLoggingEventListener lsnr=new KettleLoggingEventListener(){
+    @Override public void eventAdded(    KettleLoggingEvent event){
+    }
+  }
+;
+  final KettleLoggingEvent event=new KettleLoggingEvent();
+  final CountDownLatch latch=new CountDownLatch(1);
+  Thread.UncaughtExceptionHandler errorHandler=new Thread.UncaughtExceptionHandler(){
+    @Override public void uncaughtException(    Thread t,    Throwable e){
+      e.printStackTrace();
+    }
+  }
+;
+  Thread addListeners=new Thread(new Runnable(){
+    @Override public void run(){
+      try {
+        while (!done.get()) {
+          buf.addLoggingEventListener(lsnr);
+        }
+      }
+  finally {
+        latch.countDown();
+      }
+    }
+  }
+,"Add Listeners Thread"){
+  }
+;
+  Thread addEvents=new Thread(new Runnable(){
+    @Override public void run(){
+      try {
+        for (int i=0; i < eventCount; i++) {
+          buf.addLogggingEvent(event);
+        }
+        done.set(true);
+      }
+  finally {
+        latch.countDown();
+      }
+    }
+  }
+,"Add Events Thread"){
+  }
+;
+  addListeners.setUncaughtExceptionHandler(errorHandler);
+  addEvents.setUncaughtExceptionHandler(errorHandler);
+  addListeners.start();
+  addEvents.start();
+  latch.await();
+  Assert.assertEquals("Failed",true,done.get());
+}
