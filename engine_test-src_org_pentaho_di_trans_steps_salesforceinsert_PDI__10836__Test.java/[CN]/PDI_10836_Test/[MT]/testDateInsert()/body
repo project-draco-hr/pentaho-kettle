@@ -1,0 +1,28 @@
+{
+  SalesforceInsert step=new SalesforceInsert(smh.stepMeta,smh.stepDataInterface,0,smh.transMeta,smh.trans);
+  SalesforceInsertMeta meta=smh.initStepMetaInterface;
+  doReturn(2).when(meta).getBatchSizeInt();
+  doReturn(new String[]{"Date"}).when(meta).getUpdateLookup();
+  doReturn(new Boolean[]{false}).when(meta).getUseExternalId();
+  SalesforceInsertData data=smh.initStepDataInterface;
+  data.nrfields=1;
+  data.fieldnrs=new int[]{0};
+  data.sfBuffer=new SObject[]{null};
+  data.outputBuffer=new Object[][]{null};
+  step.init(meta,data);
+  RowMeta rowMeta=new RowMeta();
+  ValueMeta valueMeta=new ValueMeta("date",ValueMetaInterface.TYPE_DATE);
+  valueMeta.setDateFormatTimeZone(TimeZone.getTimeZone("Europe/Minsk"));
+  rowMeta.addValueMeta(valueMeta);
+  smh.initStepDataInterface.inputRowMeta=rowMeta;
+  Calendar minskTime=Calendar.getInstance(valueMeta.getDateFormatTimeZone());
+  minskTime.clear();
+  minskTime.set(2013,Calendar.OCTOBER,16);
+  Object[] args=new Object[]{minskTime.getTime()};
+  Method m=SalesforceInsert.class.getDeclaredMethod("writeToSalesForce",Object[].class);
+  m.setAccessible(true);
+  m.invoke(step,new Object[]{args});
+  DateFormat utc=new SimpleDateFormat("yyyy-MM-dd");
+  utc.setTimeZone(TimeZone.getTimeZone("UTC"));
+  Assert.assertEquals("2013-10-16",utc.format(data.sfBuffer[0].get_any()[0].getObjectValue()));
+}
