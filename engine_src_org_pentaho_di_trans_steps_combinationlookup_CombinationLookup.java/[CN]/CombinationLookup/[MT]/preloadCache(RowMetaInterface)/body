@@ -1,0 +1,28 @@
+{
+  if (meta.getPreloadCache() && meta.getCacheSize() >= 0) {
+    if (hashRowMeta == null)     throw new KettleConfigException(BaseMessages.getString(PKG,"CombinationLookup.Log.UnexpectedError"));
+    DatabaseMeta databaseMeta=meta.getDatabaseMeta();
+    if (databaseMeta == null)     throw new KettleConfigException(BaseMessages.getString(PKG,"CombinationLookup.Log.UnexpectedError"));
+    String lookupKeys="";
+    String sql="";
+    List<Object[]> cacheValues;
+    for (int i=0; i < meta.getKeyLookup().length; i++) {
+      lookupKeys+=databaseMeta.quoteField(meta.getKeyLookup()[i]);
+      if (i < meta.getKeyLookup().length - 1)       lookupKeys+="," + Const.CR;
+    }
+    sql+="SELECT " + Const.CR;
+    sql+="MIN(" + databaseMeta.quoteField(meta.getTechnicalKeyField()) + ") as "+ databaseMeta.quoteField(meta.getTechnicalKeyField())+ ","+ Const.CR;
+    sql+=lookupKeys + Const.CR;
+    sql+="FROM " + data.schemaTable + Const.CR;
+    sql+="GROUP BY" + Const.CR;
+    sql+=lookupKeys + Const.CR;
+    if (log.isDebug())     logDebug("Using preload cache statement:" + Const.CR + sql);
+    cacheValues=data.db.getRows(databaseMeta.stripCR(sql),meta.getCacheSize());
+    for (    Object[] cacheRow : cacheValues) {
+      Object[] hashRow=new Object[data.hashRowMeta.size()];
+      System.arraycopy(cacheRow,1,hashRow,0,hashRow.length);
+      addToCache(hashRowMeta,hashRow,(Long)cacheRow[0]);
+      incrementLinesInput();
+    }
+  }
+}
