@@ -47,53 +47,18 @@
     if (log.isBasic()) {
       logBasic("Opening file: " + data.file.getName().getFriendlyURI());
     }
-    data.fr=KettleVFS.getInputStream(data.file);
+    CompressionProvider provider=CompressionProviderFactory.getInstance().getCompressionProviderByName(meta.getFileCompression());
+    data.in=provider.createInputStream(KettleVFS.getInputStream(data.file));
     data.dataErrorLineHandler.handleFile(data.file);
-    String sFileCompression=meta.getFileCompression();
-    if (sFileCompression != null && sFileCompression.equals("Zip")) {
-      if (log.isDetailed()) {
-        logDetailed("This is a zipped file");
-      }
-      data.zi=new ZipInputStream(data.fr);
-      data.zi.getNextEntry();
-      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.zi,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
-      }
- else {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.zi,BUFFER_SIZE_INPUT_STREAM));
-      }
+    data.in.nextEntry();
+    if (log.isDetailed()) {
+      logDetailed("This is a compressed file being handled by the " + provider.getName() + " provider");
     }
- else     if (sFileCompression != null && sFileCompression.equals("GZip")) {
-      if (log.isDetailed()) {
-        logDetailed("This is a gzipped file");
-      }
-      data.gzi=new GZIPInputStream(data.fr);
-      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.gzi,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
-      }
- else {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.gzi,BUFFER_SIZE_INPUT_STREAM));
-      }
-    }
- else     if (sFileCompression != null && sFileCompression.equals("Hadoop-snappy")) {
-      if (log.isDetailed()) {
-        logDetailed("This is a snappy compressed file");
-      }
-      data.sis=HadoopCompression.getSnappyInputStream(data.fr);
-      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.sis,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
-      }
- else {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.sis,BUFFER_SIZE_INPUT_STREAM));
-      }
+    if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+      data.isr=new InputStreamReader(new BufferedInputStream(data.in,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
     }
  else {
-      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.fr,BUFFER_SIZE_INPUT_STREAM),meta.getEncoding());
-      }
- else {
-        data.isr=new InputStreamReader(new BufferedInputStream(data.fr,BUFFER_SIZE_INPUT_STREAM));
-      }
+      data.isr=new InputStreamReader(new BufferedInputStream(data.in,BUFFER_SIZE_INPUT_STREAM));
     }
     String encoding=data.isr.getEncoding();
     data.encodingType=EncodingType.guessEncodingType(encoding);
