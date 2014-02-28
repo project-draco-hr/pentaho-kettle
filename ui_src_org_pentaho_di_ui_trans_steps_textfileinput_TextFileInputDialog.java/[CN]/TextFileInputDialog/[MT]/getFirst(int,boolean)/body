@@ -3,9 +3,7 @@
   getInfo(meta);
   FileInputList textFileList=meta.getTextFileList(transMeta);
   InputStream fi=null;
-  ZipInputStream zi=null;
-  GZIPInputStream gzi=null;
-  InputStream f=null;
+  CompressionInputStream f=null;
   StringBuilder lineStringBuilder=new StringBuilder(256);
   int fileFormatType=meta.getFileFormatTypeNr();
   List<String> retval=new ArrayList<String>();
@@ -13,21 +11,8 @@
     FileObject file=textFileList.getFile(0);
     try {
       fi=KettleVFS.getInputStream(file);
-      if (meta.getFileCompression().equals("Zip")) {
-        zi=new ZipInputStream(fi);
-        zi.getNextEntry();
-        f=zi;
-      }
- else       if (meta.getFileCompression().equals("GZip")) {
-        gzi=new GZIPInputStream(fi);
-        f=gzi;
-      }
- else       if (meta.getFileCompression().equals("Hadoop-snappy") && HadoopCompression.isHadoopSnappyAvailable()) {
-        f=HadoopCompression.getSnappyInputStream(fi);
-      }
- else {
-        f=fi;
-      }
+      CompressionProvider provider=CompressionProviderFactory.getInstance().createCompressionProviderInstance(meta.getFileCompression());
+      f=provider.createInputStream(fi);
       InputStreamReader reader;
       if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
         reader=new InputStreamReader(f,meta.getEncoding());
@@ -68,13 +53,6 @@
     }
  finally {
       try {
-        if (meta.getFileCompression().equals("Zip") && zi != null) {
-          zi.closeEntry();
-          zi.close();
-        }
- else         if (meta.getFileCompression().equals("GZip") && gzi != null) {
-          gzi.close();
-        }
         f.close();
       }
  catch (      Exception e) {
