@@ -1,0 +1,25 @@
+{
+  System.getProperties().setProperty(Const.KETTLE_AGGREGATION_ALL_NULLS_ARE_ZERO,"Y");
+  MemoryGroupByMeta meta=new MemoryGroupByMeta();
+  meta.setSubjectField(new String[]{KEY1,KEY2,KEY3,KEY4});
+  meta.setAggregateField(new String[]{OUT1,OUT2,OUT3,OUT4});
+  meta.setGroupField(new String[]{KEY1});
+  meta.setAggregateType(new int[]{GroupByMeta.TYPE_GROUP_CONCAT_COMMA,GroupByMeta.TYPE_GROUP_SUM,GroupByMeta.TYPE_GROUP_SUM,GroupByMeta.TYPE_GROUP_SUM});
+  TransMeta transMeta=TransTestFactory.generateTestTransformation(null,meta,stepName);
+  List<RowMetaAndData> inputList=getTestRowMetaAndData(2,new Integer[]{0,1});
+  List<RowMetaAndData> ret=TransTestFactory.executeTestTransformation(transMeta,TransTestFactory.INJECTOR_STEPNAME,stepName,TransTestFactory.DUMMY_STEPNAME,inputList);
+  Assert.assertNotNull("At least it is not null",ret);
+  Assert.assertEquals("Ouput is just one row",1,ret.size());
+  RowMetaAndData rmd=ret.get(0);
+  ValueMetaInterface vmi=rmd.getValueMeta(0);
+  Assert.assertEquals("First is usually is grouping field",ValueMetaInterface.TYPE_STRING,vmi.getType());
+  Assert.assertEquals("This is key1 field",KEY1,vmi.getName());
+  vmi=rmd.getValueMeta(1);
+  Assert.assertEquals("The next value is first aggregation",OUT1,vmi.getName());
+  Assert.assertEquals("Since it was null String output will be empty string","",rmd.getData()[1]);
+  vmi=rmd.getValueMeta(2);
+  Assert.assertEquals("Third field is second output field",OUT2,vmi.getName());
+  vmi=rmd.getValueMeta(3);
+  Assert.assertEquals("4 is 3 output field",OUT3,vmi.getName());
+  Assert.assertEquals("And since it was null it become correct 0",0.0,rmd.getData()[3]);
+}
