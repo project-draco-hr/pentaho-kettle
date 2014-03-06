@@ -1,0 +1,66 @@
+{
+  String val=getVariable(Const.KETTLE_AGGREGATION_ALL_NULLS_ARE_ZERO,"N");
+  this.allNullsAreZero=ValueMetaBase.convertStringToBoolean(val);
+  val=getVariable(Const.KETTLE_AGGREGATION_MIN_NULL_IS_VALUED,"N");
+  this.minNullIsValued=ValueMetaBase.convertStringToBoolean(val);
+  data.inputRowMeta=getInputRowMeta();
+  data.outputRowMeta=data.inputRowMeta.clone();
+  meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+  data.keyFieldNr=data.inputRowMeta.indexOfValue(meta.getKeyField());
+  if (data.keyFieldNr < 0) {
+    logError(BaseMessages.getString(PKG,"Denormaliser.Log.KeyFieldNotFound",meta.getKeyField()));
+    setErrors(1);
+    stopAll();
+    return false;
+  }
+  Map<Integer,Integer> subjects=new Hashtable<Integer,Integer>();
+  data.fieldNameIndex=new int[meta.getDenormaliserTargetField().length];
+  for (int i=0; i < meta.getDenormaliserTargetField().length; i++) {
+    DenormaliserTargetField field=meta.getDenormaliserTargetField()[i];
+    int idx=data.inputRowMeta.indexOfValue(field.getFieldName());
+    if (idx < 0) {
+      logError(BaseMessages.getString(PKG,"Denormaliser.Log.UnpivotFieldNotFound",field.getFieldName()));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+    data.fieldNameIndex[i]=idx;
+    subjects.put(Integer.valueOf(idx),Integer.valueOf(idx));
+    if (data.fieldNameIndex[i] == data.keyFieldNr) {
+      logError(BaseMessages.getString(PKG,"Denormaliser.Log.ValueFieldSameAsKeyField",field.getFieldName()));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+    String keyValue=environmentSubstitute(field.getKeyValue());
+    List<Integer> indexes=data.keyValue.get(keyValue);
+    if (indexes == null) {
+      indexes=new ArrayList<Integer>(2);
+    }
+    indexes.add(Integer.valueOf(i));
+    data.keyValue.put(keyValue,indexes);
+  }
+  Set<Integer> subjectSet=subjects.keySet();
+  data.fieldNrs=subjectSet.toArray(new Integer[subjectSet.size()]);
+  data.groupnrs=new int[meta.getGroupField().length];
+  for (int i=0; i < meta.getGroupField().length; i++) {
+    data.groupnrs[i]=data.inputRowMeta.indexOfValue(meta.getGroupField()[i]);
+    if (data.groupnrs[i] < 0) {
+      logError(BaseMessages.getString(PKG,"Denormaliser.Log.GroupingFieldNotFound",meta.getGroupField()[i]));
+      setErrors(1);
+      stopAll();
+      return false;
+    }
+  }
+  List<Integer> removeList=new ArrayList<Integer>();
+  removeList.add(Integer.valueOf(data.keyFieldNr));
+  for (int i=0; i < data.fieldNrs.length; i++) {
+    removeList.add(data.fieldNrs[i]);
+  }
+  Collections.sort(removeList);
+  data.removeNrs=new int[removeList.size()];
+  for (int i=0; i < removeList.size(); i++) {
+    data.removeNrs[i]=removeList.get(i);
+  }
+  return true;
+}
