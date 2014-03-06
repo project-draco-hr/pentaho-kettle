@@ -1,0 +1,52 @@
+{
+  try {
+    final MappingInputData mappingInputData=new MappingInputData();
+    final MappingInput mappingInput=new MappingInput(stepMockHelper.stepMeta,mappingInputData,0,stepMockHelper.transMeta,stepMockHelper.trans);
+    mappingInput.init(stepMockHelper.initStepMetaInterface,mappingInputData);
+    int timeOut=1000;
+    final int junitMaxTimeOut=40000;
+    mappingInput.setTimeOut(timeOut);
+    final MappingInputTest mit=this;
+    final Thread processRow=new Thread(new Runnable(){
+      @Override public void run(){
+        try {
+          mappingInput.processRow(stepMockHelper.initStepMetaInterface,mappingInputData);
+          mit.setProcessRowEnded(true);
+        }
+ catch (        KettleException e) {
+          mit.setProcessRowEnded(true);
+        }
+      }
+    }
+);
+    processRow.start();
+    boolean exception=false;
+    try {
+      mappingInput.setConnectorSteps(null,Collections.<MappingValueRename>emptyList(),"");
+    }
+ catch (    IllegalArgumentException ex1) {
+      try {
+        mappingInput.setConnectorSteps(new StepInterface[0],Collections.<MappingValueRename>emptyList(),"");
+      }
+ catch (      IllegalArgumentException ex2) {
+        try {
+          mappingInput.setConnectorSteps(new StepInterface[0],null,"");
+        }
+ catch (        IllegalArgumentException ex3) {
+          try {
+            mappingInput.setConnectorSteps(new StepInterface[0],Collections.<MappingValueRename>emptyList(),null);
+          }
+ catch (          IllegalArgumentException ignored) {
+            exception=true;
+          }
+        }
+      }
+    }
+    processRow.join(junitMaxTimeOut);
+    assertTrue("not enough IllegalArgumentExceptions",exception);
+    assertTrue("Process wasn`t stopped at null",isProcessRowEnded());
+  }
+ catch (  NullPointerException npe) {
+    fail("Null values are not suitable");
+  }
+}
