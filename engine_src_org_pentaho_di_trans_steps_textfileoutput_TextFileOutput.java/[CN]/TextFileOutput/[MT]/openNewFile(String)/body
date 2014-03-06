@@ -46,65 +46,39 @@
       if (meta.isCreateParentFolder()) {
         createParentFolder(filename);
       }
-      OutputStream outputStream;
-      if (!Const.isEmpty(meta.getFileCompression()) && !meta.getFileCompression().equals(FILE_COMPRESSION_TYPE_NONE)) {
-        if (meta.getFileCompression().equals(FILE_COMPRESSION_TYPE_ZIP)) {
-          if (log.isDetailed()) {
-            logDetailed("Opening output stream in zipped mode");
-          }
-          if (checkPreviouslyOpened(filename)) {
-            data.fos=getOutputStream(filename,getTransMeta(),true);
-          }
- else {
-            data.fos=getOutputStream(filename,getTransMeta(),meta.isFileAppended());
-          }
-          data.zip=new ZipOutputStream(data.fos);
-          File entry=new File(filename + "." + meta.getExtension());
-          ZipEntry zipentry=new ZipEntry(entry.getName());
-          zipentry.setComment("Compressed by Kettle");
-          data.zip.putNextEntry(zipentry);
-          outputStream=data.zip;
-        }
- else         if (meta.getFileCompression().equals(FILE_COMPRESSION_TYPE_GZIP)) {
-          if (log.isDetailed()) {
-            logDetailed("Opening output stream in gzipped mode");
-          }
-          if (checkPreviouslyOpened(filename)) {
-            data.fos=getOutputStream(filename,getTransMeta(),true);
-          }
- else {
-            data.fos=getOutputStream(filename,getTransMeta(),meta.isFileAppended());
-          }
-          data.gzip=new GZIPOutputStream(data.fos);
-          outputStream=data.gzip;
-        }
- else {
-          throw new KettleFileException("No compression method specified!");
-        }
+      String compressionType=meta.getFileCompression();
+      if (Const.isEmpty(compressionType)) {
+        compressionType=FILE_COMPRESSION_TYPE_NONE;
+      }
+      CompressionProvider compressionProvider=CompressionProviderFactory.getInstance().getCompressionProviderByName(compressionType);
+      if (compressionProvider == null) {
+        throw new KettleException("No compression provider found with name = " + compressionType);
+      }
+      if (!compressionProvider.supportsOutput()) {
+        throw new KettleException("Compression provider " + compressionType + " does not support output streams!");
+      }
+      if (log.isDetailed()) {
+        logDetailed("Opening output stream using provider: " + compressionProvider.getName());
+      }
+      if (checkPreviouslyOpened(filename)) {
+        data.fos=getOutputStream(filename,getTransMeta(),true);
       }
  else {
-        if (log.isDetailed()) {
-          logDetailed("Opening output stream in nocompress mode");
-        }
-        if (checkPreviouslyOpened(filename)) {
-          data.fos=getOutputStream(filename,getTransMeta(),true);
-        }
- else {
-          data.fos=getOutputStream(filename,getTransMeta(),meta.isFileAppended());
-        }
-        outputStream=data.fos;
+        data.fos=getOutputStream(filename,getTransMeta(),meta.isFileAppended());
       }
+      data.out=compressionProvider.createOutputStream(data.fos);
+      data.out.addEntry(filename + "." + meta.getExtension());
       if (!Const.isEmpty(meta.getEncoding())) {
         if (log.isDetailed()) {
           logDetailed("Opening output stream in encoding: " + meta.getEncoding());
         }
-        data.writer=new BufferedOutputStream(outputStream,5000);
+        data.writer=new BufferedOutputStream(data.out,5000);
       }
  else {
         if (log.isDetailed()) {
           logDetailed("Opening output stream in default encoding");
         }
-        data.writer=new BufferedOutputStream(outputStream,5000);
+        data.writer=new BufferedOutputStream(data.out,5000);
       }
       if (log.isDetailed()) {
         logDetailed("Opened new file with name [" + filename + "]");

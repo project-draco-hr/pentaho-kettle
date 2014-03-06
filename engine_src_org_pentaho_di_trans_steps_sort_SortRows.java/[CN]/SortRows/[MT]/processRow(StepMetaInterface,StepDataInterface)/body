@@ -1,48 +1,82 @@
 {
-  if (!meta.isGroupSortEnabled()) {
-    boolean retval=this.processSortRow(smi,sdi,getRow(),first);
-    return retval;
-  }
   Object[] r=getRow();
+  List<String> groupFields=null;
   if (first) {
+    this.first=false;
     if (r == null) {
       this.setOutputDone();
       return false;
     }
-    data.groupnrs=new int[meta.getGroupFields().size()];
-    for (int i=0; i < meta.getGroupFields().size(); i++) {
-      data.groupnrs[i]=getInputRowMeta().indexOfValue(meta.getGroupFields().get(i));
-      if (data.groupnrs[i] < 0) {
-        logError(String.format("Presorted Field %s cound not be found",meta.getGroupFields().get(i)));
-        setErrors(1);
-        stopAll();
-        return false;
+    RowMetaInterface inputRowMeta=getInputRowMeta();
+    if (meta.isGroupSortEnabled()) {
+      data.newBatch=true;
+      groupFields=meta.getGroupFields();
+      data.groupnrs=new int[groupFields.size()];
+      for (int i=0; i < groupFields.size(); i++) {
+        data.groupnrs[i]=inputRowMeta.indexOfValue(groupFields.get(i));
+        if (data.groupnrs[i] < 0) {
+          logError(BaseMessages.getString(PKG,"SortRows.Error.PresortedFieldNotFound",groupFields.get(i)));
+          setErrors(1);
+          stopAll();
+          return false;
+        }
+      }
+    }
+    String[] fieldNames=meta.getFieldName();
+    data.fieldnrs=new int[fieldNames.length];
+    List<Integer> toConvert=new ArrayList<Integer>();
+    data.outputRowMeta=inputRowMeta.clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+    data.comparator=new RowTemapFileComparator(data.outputRowMeta,data.fieldnrs);
+    for (int i=0; i < fieldNames.length; i++) {
+      data.fieldnrs[i]=inputRowMeta.indexOfValue(fieldNames[i]);
+      if (data.fieldnrs[i] < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"SortRowsMeta.CheckResult.StepFieldNotInInputStream",meta.getFieldName()[i],getStepname()));
+      }
+      if (inputRowMeta.getValueMeta(data.fieldnrs[i]).isStorageBinaryString()) {
+        toConvert.add(data.fieldnrs[i]);
+      }
+    }
+    data.convertKeysToNative=toConvert.isEmpty() ? null : new int[toConvert.size()];
+    int i=0;
+    for (    Integer in : toConvert) {
+      data.convertKeysToNative[i]=in;
+      i++;
+    }
+    data.rowComparator=new RowObjectArrayComparator(data.outputRowMeta,data.fieldnrs);
+  }
+  if (r == null) {
+    this.preSortBeforeFlush();
+    this.passBuffer();
+    this.setOutputDone();
+    return false;
+  }
+  if (!meta.isGroupSortEnabled()) {
+    this.addBuffer(getInputRowMeta(),r);
+  }
+ else {
+    if (data.newBatch) {
+      data.newBatch=false;
+      setPrevious(r);
+      this.addBuffer(getInputRowMeta(),r);
+    }
+ else {
+      if (this.sameGroup(data.previous,r)) {
+        this.addBuffer(getInputRowMeta(),r);
+      }
+ else {
+        this.preSortBeforeFlush();
+        this.passBuffer();
+        setPrevious(r);
+        data.newBatch=true;
+        this.addBuffer(getInputRowMeta(),r);
       }
     }
   }
-  boolean retval=true;
-  if (first || data.newBatch) {
-    first=false;
-    data.newBatch=false;
-    setPrevious(r);
-    boolean moreInput=(r != null) ? true : false;
-    retval=this.processSortRow(smi,sdi,r,moreInput);
-  }
- else {
-    if (this.sameGroup(data.previous,r)) {
-      setPrevious(r);
-      retval=this.processSortRow(smi,sdi,r,false);
-    }
- else {
-      this.processSortRow(smi,sdi,null,false);
-      setPrevious(r);
-      data.newBatch=true;
-      this.init(smi,sdi);
-      retval=this.processSortRow(smi,sdi,r,true);
+  if (checkFeedback(getLinesRead())) {
+    if (log.isBasic()) {
+      logBasic("Linenr " + getLinesRead());
     }
   }
-  if (r == null) {
-    this.setOutputDone();
-  }
-  return retval;
+  return true;
 }
