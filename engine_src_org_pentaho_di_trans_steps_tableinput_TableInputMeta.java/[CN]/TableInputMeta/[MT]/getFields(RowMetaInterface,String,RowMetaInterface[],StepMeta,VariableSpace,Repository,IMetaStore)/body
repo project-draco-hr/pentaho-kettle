@@ -3,7 +3,7 @@
     return;
   }
   boolean param=false;
-  Database db=new Database(loggingObject,databaseMeta);
+  Database db=getDatabase();
   databases=new Database[]{db};
   String sNewSQL=sql;
   if (isVariableReplacementActive()) {
@@ -51,6 +51,22 @@
     }
  finally {
       db.disconnect();
+    }
+  }
+  if (isLazyConversionActive()) {
+    for (int i=0; i < row.size(); i++) {
+      ValueMetaInterface v=row.getValueMeta(i);
+      try {
+        if (v.getType() == ValueMetaInterface.TYPE_STRING) {
+          ValueMetaInterface storageMeta=ValueMetaFactory.cloneValueMeta(v);
+          storageMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
+          v.setStorageMetadata(storageMeta);
+          v.setStorageType(ValueMetaInterface.STORAGE_TYPE_BINARY_STRING);
+        }
+      }
+ catch (      KettlePluginException e) {
+        throw new KettleStepException("Unable to clone meta for lazy conversion: " + Const.CR + v,e);
+      }
     }
   }
 }
