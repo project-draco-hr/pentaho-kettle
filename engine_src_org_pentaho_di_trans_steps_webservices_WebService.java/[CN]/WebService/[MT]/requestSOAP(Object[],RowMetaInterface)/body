@@ -1,78 +1,50 @@
 {
-  Wsdl wsdl;
+  initWsdlEnv();
+  PostMethod vHttpMethod=null;
   try {
-    wsdl=new Wsdl(new java.net.URI(data.realUrl),null,null,meta.getHttpLogin(),meta.getHttpPassword());
-  }
- catch (  Exception e) {
-    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0013.ExceptionLoadingWSDL"),e);
-  }
-  String vURLService=wsdl.getServiceEndpoint();
-  HttpClient vHttpClient=SlaveConnectionManager.getInstance().createHttpClient();
-  PostMethod vHttpMethod=new PostMethod(vURLService);
-  HostConfiguration vHostConfiguration=new HostConfiguration();
-  String httpLogin=environmentSubstitute(meta.getHttpLogin());
-  if (httpLogin != null && !"".equals(httpLogin)) {
-    vHttpClient.getParams().setAuthenticationPreemptive(true);
-    Credentials defaultcreds=new UsernamePasswordCredentials(httpLogin,environmentSubstitute(meta.getHttpPassword()));
-    vHttpClient.getState().setCredentials(AuthScope.ANY,defaultcreds);
-  }
-  String proxyHost=environmentSubstitute(meta.getProxyHost());
-  if (proxyHost != null && !"".equals(proxyHost)) {
-    vHostConfiguration.setProxy(proxyHost,Const.toInt(environmentSubstitute(meta.getProxyPort()),8080));
-  }
-  try {
-    WsdlOperation operation=wsdl.getOperation(meta.getOperationName());
-    if (operation == null) {
-      throw new KettleException(BaseMessages.getString(PKG,"WebServices.Exception.OperarationNotSupported",meta.getOperationName(),meta.getUrl()));
-    }
-    String xml=getRequestXML(operation,wsdl.getWsdlTypes().isElementFormQualified(wsdl.getTargetNamespace()));
+    String xml=getRequestXML(cachedOperation,cachedWsdl.getWsdlTypes().isElementFormQualified(cachedWsdl.getTargetNamespace()));
     if (log.isDetailed()) {
       logDetailed(BaseMessages.getString(PKG,"WebServices.Log.SOAPEnvelope"));
       logDetailed(xml);
     }
-    data.argumentRows.clear();
-    URI uri=new URI(vURLService,false);
-    vHttpMethod.setURI(uri);
-    vHttpMethod.setRequestHeader("Content-Type","text/xml;charset=UTF-8");
-    String soapAction="\"" + meta.getOperationNamespace();
-    if (!meta.getOperationNamespace().endsWith("/")) {
-      soapAction+="/";
+    try {
+      vHttpMethod=getHttpMethod(cachedURLService);
     }
-    soapAction+=meta.getOperationName() + "\"";
-    logDetailed(BaseMessages.getString(PKG,"WebServices.Log.UsingRequestHeaderSOAPAction",soapAction));
-    vHttpMethod.setRequestHeader("SOAPAction",soapAction);
+ catch (    URIException e) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0002.InvalidURI",cachedURLService),e);
+    }
+catch (    UnsupportedEncodingException e) {
+      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0003.UnsupportedEncoding",cachedURLService),e);
+    }
     RequestEntity requestEntity=new ByteArrayRequestEntity(xml.toString().getBytes("UTF-8"),"UTF-8");
     vHttpMethod.setRequestEntity(requestEntity);
-    int responseCode=vHttpClient.executeMethod(vHostConfiguration,vHttpMethod);
+    int responseCode=cachedHttpClient.executeMethod(cachedHostConfiguration,vHttpMethod);
     if (responseCode == 200) {
-      processRows(vHttpMethod.getResponseBodyAsStream(),rowData,rowMeta,wsdl.getWsdlTypes().isElementFormQualified(wsdl.getTargetNamespace()),vHttpMethod.getResponseCharSet());
+      processRows(vHttpMethod.getResponseBodyAsStream(),rowData,rowMeta,cachedWsdl.getWsdlTypes().isElementFormQualified(cachedWsdl.getTargetNamespace()),vHttpMethod.getResponseCharSet());
     }
  else     if (responseCode == 401) {
-      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0011.Authentication",vURLService));
+      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0011.Authentication",cachedURLService));
     }
  else     if (responseCode == 404) {
-      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0012.NotFound",vURLService));
+      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0012.NotFound",cachedURLService));
     }
  else {
-      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0001.ServerError",Integer.toString(responseCode),Const.NVL(new String(vHttpMethod.getResponseBody()),""),vURLService));
+      throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0001.ServerError",Integer.toString(responseCode),Const.NVL(new String(vHttpMethod.getResponseBody()),""),cachedURLService));
     }
   }
- catch (  URIException e) {
-    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0002.InvalidURI",vURLService),e);
-  }
-catch (  UnsupportedEncodingException e) {
-    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0003.UnsupportedEncoding",vURLService),e);
-  }
-catch (  HttpException e) {
-    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0004.HttpException",vURLService),e);
+ catch (  HttpException e) {
+    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0004.HttpException",cachedURLService),e);
   }
 catch (  UnknownHostException e) {
-    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0013.UnknownHost",vURLService),e);
+    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0013.UnknownHost",cachedURLService),e);
   }
 catch (  IOException e) {
-    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0005.IOException",vURLService),e);
+    throw new KettleStepException(BaseMessages.getString(PKG,"WebServices.ERROR0005.IOException",cachedURLService),e);
   }
  finally {
-    vHttpMethod.releaseConnection();
+    data.argumentRows.clear();
+    if (vHttpMethod != null) {
+      vHttpMethod.releaseConnection();
+    }
   }
 }
