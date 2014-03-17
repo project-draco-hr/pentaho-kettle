@@ -1,0 +1,26 @@
+{
+  Map<Class<?>,AuthenticationConsumerFactory<?,?,?>> createTypeMap=getRelevantConsumerFactoryMap(returnType,createArgType);
+synchronized (createTypeMap) {
+    createTypeMap=new HashMap<Class<?>,AuthenticationConsumerFactory<?,?,?>>(createTypeMap);
+  }
+  List<AuthenticationProvider> authenticationProviders;
+synchronized (this.authenticationProviders) {
+    authenticationProviders=new ArrayList<AuthenticationProvider>(this.authenticationProviders);
+  }
+  List<AuthenticationPerformer<ReturnType,CreateArgType>> result=new ArrayList<AuthenticationPerformer<ReturnType,CreateArgType>>();
+  for (  Entry<Class<?>,AuthenticationConsumerFactory<?,?,?>> entry : createTypeMap.entrySet()) {
+    for (    AuthenticationProvider provider : authenticationProviders) {
+      @SuppressWarnings("unchecked") AuthenticationPerformer<ReturnType,CreateArgType> authenticationPerformer=(AuthenticationPerformer<ReturnType,CreateArgType>)authenticationPerformerFactory.create(provider,entry.getValue());
+      if (authenticationPerformer != null && authenticationPerformer.getDisplayName() != null) {
+        result.add(authenticationPerformer);
+      }
+    }
+  }
+  Collections.sort(result,new Comparator<AuthenticationPerformer<ReturnType,CreateArgType>>(){
+    @Override public int compare(    AuthenticationPerformer<ReturnType,CreateArgType> o1,    AuthenticationPerformer<ReturnType,CreateArgType> o2){
+      return o1.getDisplayName().toUpperCase().compareTo(o2.getDisplayName().toUpperCase());
+    }
+  }
+);
+  return result;
+}
