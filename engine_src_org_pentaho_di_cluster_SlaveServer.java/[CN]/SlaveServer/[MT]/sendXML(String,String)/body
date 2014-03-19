@@ -1,54 +1,23 @@
 {
-  byte[] content=xml.getBytes(Const.XML_ENCODING);
-  PostMethod post=getSendByteArrayMethod(content,service);
-  HttpClient client=SlaveConnectionManager.getInstance().createHttpClient();
-  addCredentials(client);
-  addProxy(client);
-  InputStream inputStream=null;
-  BufferedInputStream bufferedInputStream=null;
+  PostMethod method=buildSendXMLMethod(xml.getBytes(Const.XML_ENCODING),service);
   try {
-    int result=client.executeMethod(post);
+    int result=getHttpClient().executeMethod(method);
     if (log.isDebug()) {
       log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseStatus",Integer.toString(result)));
     }
-    inputStream=post.getResponseBodyAsStream();
-    bufferedInputStream=new BufferedInputStream(inputStream,1000);
-    StringBuffer bodyBuffer=new StringBuffer();
-    int c;
-    while ((c=bufferedInputStream.read()) != -1) {
-      bodyBuffer.append((char)c);
+    String responseBody=getResponseBodyAsString(method.getResponseBodyAsStream());
+    if (log.isDebug()) {
+      log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",responseBody));
     }
-    String bodyTmp=bodyBuffer.toString();
-switch (result) {
-case 401:
-      String message="Authentication failed" + Const.DOSCR + Const.DOSCR+ bodyTmp;
-    WebResult webResult=new WebResult(WebResult.STRING_ERROR,message);
-  bodyBuffer.setLength(0);
-bodyBuffer.append(webResult.getXML());
-break;
-default :
-break;
-}
-String body=bodyBuffer.toString();
-if (log.isDebug()) {
-log.logDebug(BaseMessages.getString(PKG,"SlaveServer.DEBUG_ResponseBody",body));
-}
-return body;
-}
- catch (Exception e) {
-log.logError(toString(),String.format("Exception sending message to service %s",service),e);
-throw e;
-}
- finally {
-if (bufferedInputStream != null) {
-bufferedInputStream.close();
-}
-if (inputStream != null) {
-inputStream.close();
-}
-post.releaseConnection();
-if (log.isDetailed()) {
-log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_SentXmlToService",service,environmentSubstitute(hostname)));
-}
-}
+    if (result >= 400) {
+      throw new KettleException(String.format("HTTP Status %d - %s - %s",method.getStatusCode(),method.getPath(),method.getStatusText()));
+    }
+    return responseBody;
+  }
+  finally {
+    method.releaseConnection();
+    if (log.isDetailed()) {
+      log.logDetailed(BaseMessages.getString(PKG,"SlaveServer.DETAILED_SentXmlToService",service,environmentSubstitute(hostname)));
+    }
+  }
 }
