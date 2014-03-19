@@ -1,0 +1,32 @@
+{
+  String timestampFormatDate;
+  Date tempDate;
+  if (compatibleToSuperPattern) {
+    tempDate=super.parse(text,pos);
+    return new Timestamp(tempDate.getTime());
+  }
+  StringBuilder dateText=new StringBuilder(text.substring(pos.getIndex()));
+  ParsePosition positionError=new ParsePosition(0);
+  tempDate=super.parse(dateText.toString(),positionError);
+  if (tempDate != null) {
+    pos.setErrorIndex(pos.getIndex());
+    return null;
+  }
+  int startNanosecondsPosition=positionError.getErrorIndex();
+  int endNanosecondsPosition=endNanosecondPatternPosition - startNanosecondPatternPosition + 1 + startNanosecondsPosition;
+  endNanosecondsPosition=(endNanosecondsPosition >= dateText.length()) ? dateText.length() : endNanosecondsPosition;
+  String nanoseconds=String.valueOf(dateText.subSequence(startNanosecondsPosition,endNanosecondsPosition));
+  dateText.delete(startNanosecondsPosition,endNanosecondsPosition);
+  ParsePosition position=new ParsePosition(0);
+  dateText.append(NANOSECOND_PLACEHOLDER);
+  tempDate=super.parse(dateText.toString(),position);
+  if (tempDate == null) {
+    pos.setErrorIndex(position.getErrorIndex());
+    return null;
+  }
+  timestampFormatDate=defaultTimestampFormat.format(tempDate);
+  String result=timestampFormatDate + '.' + nanoseconds;
+  Timestamp res=Timestamp.valueOf(timestampFormatDate + '.' + nanoseconds);
+  pos.setIndex(pos.getIndex() + result.length());
+  return res;
+}
