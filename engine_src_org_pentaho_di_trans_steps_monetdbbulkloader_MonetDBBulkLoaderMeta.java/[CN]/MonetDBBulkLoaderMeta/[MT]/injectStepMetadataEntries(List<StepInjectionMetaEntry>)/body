@@ -1,0 +1,77 @@
+{
+  for (  StepInjectionMetaEntry entry : metadata) {
+    KettleAttributeInterface attr=findAttribute(entry.getKey());
+    if (entry.getValueType() != ValueMetaInterface.TYPE_NONE) {
+      if (entry.getKey().equals("SCHEMA")) {
+        schemaName=(String)entry.getValue();
+      }
+ else       if (entry.getKey().equals("TABLE")) {
+        tableName=(String)entry.getValue();
+      }
+ else       if (entry.getKey().equals("LOGFILE")) {
+        logFile=(String)entry.getValue();
+      }
+ else       if (entry.getKey().equals("FIELD_SEPARATOR")) {
+        fieldSeparator=(String)entry.getValue();
+      }
+ else       if (entry.getKey().equals("FIELD_ENCLOSURE")) {
+        fieldEnclosure=(String)entry.getValue();
+      }
+ else       if (entry.getKey().equals("NULL_REPRESENTATION")) {
+        setNULLrepresentation((String)entry.getValue());
+      }
+ else       if (entry.getKey().equals("ENCODING")) {
+        encoding=(String)entry.getValue();
+      }
+ else       if (entry.getKey().equals("BUFFER_SIZE")) {
+        bufferSize=(String)entry.getValue();
+      }
+ else       if (entry.getKey().equals("TRUNCATE")) {
+        truncate=(Boolean)entry.getValue();
+      }
+ else       if (entry.getKey().equals("FULLY_QUOTE_SQL")) {
+        fullyQuoteSQL=(Boolean)entry.getValue();
+      }
+ else {
+        throw new RuntimeException("Unhandled metadata injection of attribute: " + attr.toString() + " - "+ attr.getDescription());
+      }
+    }
+ else {
+      if (attr.getKey().equals("MAPPINGS")) {
+        List<StepInjectionMetaEntry> selectMappings=entry.getDetails();
+        fieldTable=new String[selectMappings.size()];
+        fieldStream=new String[selectMappings.size()];
+        fieldFormatOk=new boolean[selectMappings.size()];
+        for (int row=0; row < selectMappings.size(); row++) {
+          StepInjectionMetaEntry selectField=selectMappings.get(row);
+          List<StepInjectionMetaEntry> fieldAttributes=selectField.getDetails();
+          for (int i=0; i < fieldAttributes.size(); i++) {
+            StepInjectionMetaEntry fieldAttribute=fieldAttributes.get(i);
+            KettleAttributeInterface fieldAttr=findAttribute(fieldAttribute.getKey());
+            Object attributeValue=fieldAttribute.getValue();
+            if (attributeValue == null) {
+              continue;
+            }
+            if (fieldAttr.getKey().equals("STREAMNAME")) {
+              getFieldStream()[row]=(String)attributeValue;
+            }
+ else             if (fieldAttr.getKey().equals("FIELDNAME")) {
+              getFieldTable()[row]=(String)attributeValue;
+            }
+ else             if (fieldAttr.getKey().equals("FIELD_FORMAT_OK")) {
+              getFieldFormatOk()[row]=(Boolean)attributeValue;
+            }
+ else {
+              throw new RuntimeException("Unhandled metadata injection of attribute: " + fieldAttr.toString() + " - "+ fieldAttr.getDescription());
+            }
+          }
+        }
+      }
+      if (!Const.isEmpty(getFieldStream())) {
+        for (int i=0; i < getFieldStream().length; i++) {
+          logDetailed("row " + Integer.toString(i) + ": stream="+ getFieldStream()[i]+ " : table="+ getFieldTable()[i]);
+        }
+      }
+    }
+  }
+}
