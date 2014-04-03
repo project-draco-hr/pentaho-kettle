@@ -8,17 +8,17 @@
   }
   if (first) {
     first=false;
-    data.outputRowMeta=getInputRowMeta().clone();
-    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
-    data.calcRowMeta=meta.getAllFields(getInputRowMeta());
-    data.fieldIndexes=new FieldIndexes[meta.getCalculation().length];
+    data.setOutputRowMeta(getInputRowMeta().clone());
+    meta.getFields(data.getOutputRowMeta(),getStepname(),null,null,this,repository,metaStore);
+    data.setCalcRowMeta(meta.getAllFields(getInputRowMeta()));
+    data.setFieldIndexes(new FieldIndexes[meta.getCalculation().length]);
     List<Integer> tempIndexes=new ArrayList<Integer>();
     for (int i=0; i < meta.getCalculation().length; i++) {
       CalculatorMetaFunction function=meta.getCalculation()[i];
-      data.fieldIndexes[i]=new FieldIndexes();
+      data.getFieldIndexes()[i]=new FieldIndexes();
       if (!Const.isEmpty(function.getFieldName())) {
-        data.fieldIndexes[i].indexName=data.calcRowMeta.indexOfValue(function.getFieldName());
-        if (data.fieldIndexes[i].indexName < 0) {
+        data.getFieldIndexes()[i].indexName=data.getCalcRowMeta().indexOfValue(function.getFieldName());
+        if (data.getFieldIndexes()[i].indexName < 0) {
           throw new KettleStepException(BaseMessages.getString(PKG,"Calculator.Error.UnableFindField",function.getFieldName(),"" + (i + 1)));
         }
       }
@@ -27,48 +27,46 @@
       }
       if (!Const.isEmpty(function.getFieldA())) {
         if (function.getCalcType() != CalculatorMetaFunction.CALC_CONSTANT) {
-          data.fieldIndexes[i].indexA=data.calcRowMeta.indexOfValue(function.getFieldA());
-          if (data.fieldIndexes[i].indexA < 0) {
+          data.getFieldIndexes()[i].indexA=data.getCalcRowMeta().indexOfValue(function.getFieldA());
+          if (data.getFieldIndexes()[i].indexA < 0) {
             throw new KettleStepException("Unable to find the first argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
           }
         }
  else {
-          data.fieldIndexes[i].indexA=-1;
+          data.getFieldIndexes()[i].indexA=-1;
         }
       }
  else {
         throw new KettleStepException("There is no first argument specified for calculated field #" + (i + 1));
       }
       if (!Const.isEmpty(function.getFieldB())) {
-        data.fieldIndexes[i].indexB=data.calcRowMeta.indexOfValue(function.getFieldB());
-        if (data.fieldIndexes[i].indexB < 0) {
+        data.getFieldIndexes()[i].indexB=data.getCalcRowMeta().indexOfValue(function.getFieldB());
+        if (data.getFieldIndexes()[i].indexB < 0) {
           throw new KettleStepException("Unable to find the second argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
         }
       }
-      data.fieldIndexes[i].indexC=-1;
+      data.getFieldIndexes()[i].indexC=-1;
       if (!Const.isEmpty(function.getFieldC())) {
-        data.fieldIndexes[i].indexC=data.calcRowMeta.indexOfValue(function.getFieldC());
-        if (data.fieldIndexes[i].indexC < 0) {
+        data.getFieldIndexes()[i].indexC=data.getCalcRowMeta().indexOfValue(function.getFieldC());
+        if (data.getFieldIndexes()[i].indexC < 0) {
           throw new KettleStepException("Unable to find the third argument field '" + function.getFieldName() + " for calculation #"+ (i + 1));
         }
       }
       if (function.isRemovedFromResult()) {
-        tempIndexes.add(Integer.valueOf(getInputRowMeta().size() + i));
+        tempIndexes.add(getInputRowMeta().size() + i);
       }
     }
-    data.tempIndexes=new int[tempIndexes.size()];
-    for (int i=0; i < data.tempIndexes.length; i++) {
-      data.tempIndexes[i]=tempIndexes.get(i).intValue();
+    data.setTempIndexes(new int[tempIndexes.size()]);
+    for (int i=0; i < data.getTempIndexes().length; i++) {
+      data.getTempIndexes()[i]=tempIndexes.get(i);
     }
   }
   if (log.isRowLevel()) {
     logRowlevel(BaseMessages.getString(PKG,"Calculator.Log.ReadRow") + getLinesRead() + " : "+ getInputRowMeta().getString(r));
   }
-  boolean sendToErrorRow=false;
-  String errorMessage=null;
   try {
     Object[] row=calcFields(getInputRowMeta(),r);
-    putRow(data.outputRowMeta,row);
+    putRow(data.getOutputRowMeta(),row);
     if (log.isRowLevel()) {
       logRowlevel("Wrote row #" + getLinesWritten() + " : "+ getInputRowMeta().getString(r));
     }
@@ -80,15 +78,11 @@
   }
  catch (  KettleException e) {
     if (getStepMeta().isDoingErrorHandling()) {
-      sendToErrorRow=true;
-      errorMessage=e.toString();
+      putError(getInputRowMeta(),r,1,e.toString(),null,"CALC001");
     }
  else {
       logError(BaseMessages.getString(PKG,"Calculator.ErrorInStepRunning" + " : " + e.getMessage()));
       throw new KettleStepException(BaseMessages.getString(PKG,"Calculator.ErrorInStepRunning"),e);
-    }
-    if (sendToErrorRow) {
-      putError(getInputRowMeta(),r,1,errorMessage,null,"CALC001");
     }
   }
   return true;
