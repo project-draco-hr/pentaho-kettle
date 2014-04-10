@@ -2,43 +2,51 @@
   ValueMetaInterface valueMeta=rowMeta.getValueMeta(data.keyFieldNr);
   Object valueData=rowData[data.keyFieldNr];
   String key=valueMeta.getCompatibleString(valueData);
-  if (!Const.isEmpty(key)) {
-    List<Integer> indexes=data.keyValue.get(key);
-    if (indexes != null) {
-      for (int i=0; i < indexes.size(); i++) {
-        Integer keyNr=indexes.get(i);
-        if (keyNr != null) {
-          int idx=keyNr.intValue();
-          DenormaliserTargetField field=meta.getDenormaliserTargetField()[idx];
-          ValueMetaInterface sourceMeta=rowMeta.getValueMeta(data.fieldNameIndex[idx]);
-          Object sourceData=rowData[data.fieldNameIndex[idx]];
-          Object targetData;
-          ValueMetaInterface targetMeta=data.outputRowMeta.getValueMeta(data.inputRowMeta.size() - data.removeNrs.length + idx);
-          Object prevTargetData=data.targetResult[idx];
-          ValueMetaInterface origSourceMeta=sourceMeta;
-          if (targetMeta.isDate()) {
-            sourceMeta=origSourceMeta.clone();
-            sourceMeta.setConversionMetadata(getConversionMeta(field.getTargetFormat()));
-          }
+  if (Const.isEmpty(key)) {
+    return;
+  }
+  List<Integer> indexes=data.keyValue.get(key);
+  if (indexes == null) {
+    return;
+  }
+  for (  Integer keyNr : indexes) {
+    if (keyNr == null) {
+      continue;
+    }
+    int idx=keyNr.intValue();
+    DenormaliserTargetField field=meta.getDenormaliserTargetField()[idx];
+    ValueMetaInterface sourceMeta=rowMeta.getValueMeta(data.fieldNameIndex[idx]);
+    Object sourceData=rowData[data.fieldNameIndex[idx]];
+    Object targetData;
+    ValueMetaInterface targetMeta=data.outputRowMeta.getValueMeta(data.inputRowMeta.size() - data.removeNrs.length + idx);
+    Object prevTargetData=data.targetResult[idx];
+    ValueMetaInterface origSourceMeta=sourceMeta;
+    if (targetMeta.isDate()) {
+      sourceMeta=origSourceMeta.clone();
+      sourceMeta.setConversionMetadata(getConversionMeta(field.getTargetFormat()));
+    }
 switch (field.getTargetAggregationType()) {
 case DenormaliserTargetField.TYPE_AGGR_SUM:
-            targetData=targetMeta.convertData(sourceMeta,sourceData);
-          if (prevTargetData != null) {
-            prevTargetData=ValueDataUtil.plus(targetMeta,prevTargetData,targetMeta,targetData);
-          }
+      targetData=targetMeta.convertData(sourceMeta,sourceData);
+    if (prevTargetData != null) {
+      prevTargetData=ValueDataUtil.sum(targetMeta,prevTargetData,targetMeta,targetData);
+    }
  else {
-            prevTargetData=targetData;
-          }
-        break;
+      prevTargetData=targetData;
+    }
+  break;
 case DenormaliserTargetField.TYPE_AGGR_MIN:
-      if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) < 0) {
-        prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
-      }
-    break;
+if (sourceData == null && !minNullIsValued) {
+  break;
+}
+if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) < 0) {
+prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
+}
+break;
 case DenormaliserTargetField.TYPE_AGGR_MAX:
-  if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) > 0) {
-    prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
-  }
+if (sourceMeta.compare(sourceData,targetMeta,prevTargetData) > 0) {
+prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
+}
 break;
 case DenormaliserTargetField.TYPE_AGGR_COUNT_ALL:
 prevTargetData=++data.counters[idx];
@@ -71,8 +79,5 @@ prevTargetData=targetMeta.convertData(sourceMeta,sourceData);
 break;
 }
 data.targetResult[idx]=prevTargetData;
-}
-}
-}
 }
 }
