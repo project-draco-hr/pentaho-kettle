@@ -1,42 +1,31 @@
 {
-  data.mappingTrans=new Trans(data.mappingTransMeta,this);
-  if (data.mappingTransMeta.getTransformationType() != TransformationType.Normal) {
-    data.mappingTrans.getTransMeta().setUsingThreadPriorityManagment(false);
-  }
-  data.mappingTrans.setParentTrans(getTrans());
-  data.mappingTrans.setSafeModeEnabled(getTrans().isSafeModeEnabled());
-  data.mappingTrans.setGatheringMetrics(getTrans().isGatheringMetrics());
-  data.mappingTrans.setMappingStepName(getStepname());
-  data.mappingTrans.setServletPrintWriter(getTrans().getServletPrintWriter());
-  data.mappingTrans.setServletReponse(getTrans().getServletResponse());
-  data.mappingTrans.setServletRequest(getTrans().getServletRequest());
-  setMappingParameters(data.mappingTrans,data.mappingTransMeta,meta.getMappingParameters());
+  initTransFromMeta();
   try {
-    data.mappingTrans.prepareExecution(getTrans().getArguments());
+    getData().getMappingTrans().prepareExecution(getTrans().getArguments());
   }
  catch (  KettleException e) {
     throw new KettleException(BaseMessages.getString(PKG,"Mapping.Exception.UnableToPrepareExecutionOfMapping"),e);
   }
-switch (data.mappingTransMeta.getTransformationType()) {
+switch (getData().mappingTransMeta.getTransformationType()) {
 case Normal:
 case SerialSingleThreaded:
     break;
 case SingleThreaded:
-  data.singleThreadedTransExcecutor=new SingleThreadedTransExecutor(data.mappingTrans);
-if (!data.singleThreadedTransExcecutor.init()) {
+  getData().singleThreadedTransExcecutor=new SingleThreadedTransExecutor(getData().getMappingTrans());
+if (!getData().singleThreadedTransExcecutor.init()) {
   throw new KettleException(BaseMessages.getString(PKG,"Mapping.Exception.UnableToInitSingleThreadedTransformation"));
 }
 break;
 default :
 break;
 }
-MappingInput[] mappingInputs=data.mappingTrans.findMappingInput();
-LogTableField readField=data.mappingTransMeta.getTransLogTable().findField(TransLogTable.ID.LINES_READ);
+MappingInput[] mappingInputs=getData().getMappingTrans().findMappingInput();
+LogTableField readField=getData().mappingTransMeta.getTransLogTable().findField(TransLogTable.ID.LINES_READ);
 if (readField.getSubject() == null && mappingInputs != null && mappingInputs.length >= 1) {
 readField.setSubject(mappingInputs[0].getStepMeta());
 }
-MappingOutput[] mappingOutputs=data.mappingTrans.findMappingOutput();
-LogTableField writeField=data.mappingTransMeta.getTransLogTable().findField(TransLogTable.ID.LINES_WRITTEN);
+MappingOutput[] mappingOutputs=getData().getMappingTrans().findMappingOutput();
+LogTableField writeField=getData().mappingTransMeta.getTransLogTable().findField(TransLogTable.ID.LINES_WRITTEN);
 if (writeField.getSubject() == null && mappingOutputs != null && mappingOutputs.length >= 1) {
 writeField.setSubject(mappingOutputs[0].getStepMeta());
 }
@@ -57,7 +46,7 @@ sourceSteps[s]=getTrans().findRunThread(prevSteps.get(s).getName());
 }
 }
 MappingInput mappingInputTarget=null;
-MappingInput[] mappingInputSteps=data.mappingTrans.findMappingInput();
+MappingInput[] mappingInputSteps=getData().getMappingTrans().findMappingInput();
 if (Const.isEmpty(inputDefinition.getOutputStepname())) {
 if (mappingInputSteps.length == 0) {
 throw new KettleException(BaseMessages.getString(PKG,"MappingDialog.Exception.OneMappingInputStepRequired"));
@@ -78,14 +67,14 @@ throw new KettleException(BaseMessages.getString(PKG,"MappingDialog.Exception.St
 }
 }
 if (inputDefinition.isRenamingOnOutput()) {
-addInputRenames(data.inputRenameList,inputDefinition.getValueRenames());
+addInputRenames(getData().inputRenameList,inputDefinition.getValueRenames());
 }
 mappingInputTarget.setConnectorSteps(sourceSteps,inputDefinition.getValueRenames(),getStepname());
 }
 for (MappingIODefinition outputDefinition : meta.getOutputMappings()) {
-MappingOutput mappingOutputSource=(MappingOutput)data.mappingTrans.findRunThread(outputDefinition.getInputStepname());
+MappingOutput mappingOutputSource=(MappingOutput)getData().getMappingTrans().findRunThread(outputDefinition.getInputStepname());
 if (mappingOutputSource == null) {
-MappingOutput[] mappingOutputSteps=data.mappingTrans.findMappingOutput();
+MappingOutput[] mappingOutputSteps=getData().getMappingTrans().findMappingOutput();
 if (mappingOutputSteps.length == 0) {
 throw new KettleException(BaseMessages.getString(PKG,"MappingDialog.Exception.OneMappingOutputStepRequired"));
 }
@@ -109,8 +98,8 @@ for (int s=0; s < targetSteps.length; s++) {
 targetSteps[s]=getTrans().findRunThread(nextSteps.get(s).getName());
 }
 }
-mappingOutputSource.setConnectorSteps(targetSteps,data.inputRenameList,outputDefinition.getValueRenames());
+mappingOutputSource.setConnectorSteps(targetSteps,getData().inputRenameList,outputDefinition.getValueRenames());
 mappingOutputSource.setDistributed(isDistributed());
 }
-getTrans().getActiveSubtransformations().put(getStepname(),data.mappingTrans);
+getTrans().getActiveSubtransformations().put(getStepname(),getData().getMappingTrans());
 }
