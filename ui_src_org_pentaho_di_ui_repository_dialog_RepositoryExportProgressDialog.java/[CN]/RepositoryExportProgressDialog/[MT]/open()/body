@@ -1,11 +1,21 @@
 {
   boolean retval=true;
+  final List<ExportFeedback> list=new ArrayList<ExportFeedback>();
+  final IRepositoryExporter exporter=rep.getExporter();
+  final boolean isFeedback=(exporter instanceof IRepositoryExporterFeedback) ? true : false;
   IRunnableWithProgress op=new IRunnableWithProgress(){
     public void run(    IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
       try {
-        IRepositoryExporter exporter=rep.getExporter();
         exporter.setImportRulesToValidate(importRules);
-        exporter.exportAllObjects(new ProgressMonitorAdapter(monitor),filename,dir,"all");
+        ProgressMonitorAdapter pMonitor=new ProgressMonitorAdapter(monitor);
+        if (isFeedback) {
+          IRepositoryExporterFeedback fExporter=IRepositoryExporterFeedback.class.cast(exporter);
+          List<ExportFeedback> ret=fExporter.exportAllObjectsWithFeedback(pMonitor,filename,dir,"all");
+          list.addAll(ret);
+        }
+ else {
+          exporter.exportAllObjects(pMonitor,filename,dir,"all");
+        }
       }
  catch (      KettleException e) {
         throw new InvocationTargetException(e,BaseMessages.getString(PKG,"RepositoryExportDialog.Error.CreateUpdate",Const.getStackTracker(e)));
@@ -16,6 +26,10 @@
   try {
     ProgressMonitorDialog pmd=new ProgressMonitorDialog(shell);
     pmd.run(true,true,op);
+    if (!pmd.getProgressMonitor().isCanceled() && isFeedback) {
+      IRepositoryExporterFeedback fExporter=IRepositoryExporterFeedback.class.cast(exporter);
+      showExportResultStatus(list,fExporter.isRulesViolation());
+    }
   }
  catch (  InvocationTargetException e) {
     log.logError(RepositoryExportProgressDialog.class.toString(),"Error creating repository: " + e.toString());

@@ -1,0 +1,54 @@
+{
+  try {
+    monitor.subTask(BaseMessages.getString(PKG,"Repository.Exporter.Monitor.StartJobsExport"));
+    writer.openJob();
+    ObjectId[] dirids=dirTree.getDirectoryIDs();
+    log.logDebug(BaseMessages.getString(PKG,"Repository.Exporter.Log.DirectoryGoing",dirids.length,dirTree.getPath()));
+    for (int d=0; d < dirids.length; d++) {
+      if (monitor.isCanceled()) {
+        cancelMonitorAction(writer);
+        break;
+      }
+      RepositoryDirectoryInterface repdir=dirTree.findDirectory(dirids[d]);
+      String[] jobs=repository.getJobNames(dirids[d],false);
+      log.logDebug(BaseMessages.getString(PKG,"Repository.Exporter.Log.FindJobs",jobs.length,repdir.getName()));
+      String dirPath=repdir.getPath();
+      for (int i=0; i < jobs.length; i++) {
+        if (monitor.isCanceled()) {
+          break;
+        }
+        monitor.subTask(BaseMessages.getString(PKG,"Repository.Exporter.Monitor.ExportingJob",jobs[i]));
+        log.logDebug(BaseMessages.getString(PKG,"Repository.Exporter.Log.LoadingJob",dirPath,jobs[i]));
+        JobMeta jobMeta=repository.loadJob(jobs[i],repdir,null,null);
+        jobMeta.setRepository(repository);
+        convertFromFileRepository(jobMeta);
+        List<ImportValidationFeedback> errors=this.validateObject(jobMeta,feedback);
+        if (errors.isEmpty()) {
+          writer.writeJob(jobMeta.getXML() + Const.CR);
+        }
+ else {
+          log.logError(BaseMessages.getString(PKG,"Repository.Exporter.Log.JobRuleViolation",jobs[i],repdir));
+          this.rulesViolation=true;
+          monitor.registerRuleViolation();
+          writer.registerRuleViolation();
+        }
+        if (feedback) {
+          ExportFeedback fb=new ExportFeedback();
+          fb.setType(ExportFeedback.Type.JOB);
+          fb.setItemName(jobMeta.getName());
+          fb.setItemPath(dirPath);
+          ExportFeedback.Status status=errors.isEmpty() ? ExportFeedback.Status.EXPORTED : ExportFeedback.Status.REJECTED;
+          fb.setStatus(status);
+          fb.setResult(errors);
+          this.feedbackList.add(fb);
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException("Error while exporting repository jobs",e);
+  }
+ finally {
+    writer.closeJob();
+  }
+}

@@ -1,0 +1,65 @@
+{
+  this.feedbackList.clear();
+  ProgressMonitorDecorator monitor;
+  if (monitorOuter == null) {
+    monitor=new ProgressMonitorDecorator(new ProgressNullMonitorListener());
+  }
+ else {
+    monitor=new ProgressMonitorDecorator(monitorOuter);
+  }
+  monitor.beginTask(BaseMessages.getString(PKG,"Repository.Exporter.Monitor.BeginTask"),104);
+  FileObject output=KettleVFS.getFileObject(xmlFilename);
+  ExportFeedback feed=new ExportFeedback();
+  feed.setItemName(BaseMessages.getString(PKG,"Repository.Exporter.Feedback.CreateExportFile",xmlFilename));
+  feed.setSimpleString(true);
+  this.feedbackList.add(feed);
+  ExportWriter writer=null;
+  try {
+    writer=new ExportWriter(output);
+    monitor.worked(4);
+    monitor.subTask(BaseMessages.getString(PKG,"Repository.Exporter.Monitor.ConnectToRepository"));
+    root=((null == root) ? repository.loadRepositoryDirectoryTree() : root);
+    ExportType type=ExportType.valueOf(exportType.toUpperCase());
+switch (type) {
+case ALL:
+{
+        exportTransformations(monitor,root,writer,feedback);
+        monitor.worked(50);
+        exportJobs(monitor,root,writer,feedback);
+        monitor.worked(50);
+        break;
+      }
+case TRANS:
+{
+      exportTransformations(monitor,root,writer,feedback);
+      monitor.worked(100);
+      break;
+    }
+case JOBS:
+{
+    exportJobs(monitor,root,writer,feedback);
+    monitor.worked(100);
+    break;
+  }
+default :
+{
+  throw new KettleException("Unsupported export type: " + type);
+}
+}
+monitor.subTask(BaseMessages.getString(PKG,"Repository.Exporter.Monitor.SavingResultFile"));
+}
+  finally {
+try {
+if (writer != null) {
+writer.close();
+}
+}
+ catch (Exception e) {
+log.logDebug(BaseMessages.getString(PKG,"Repository.Exporter.Exception.CloseExportFile",xmlFilename));
+}
+}
+if (monitor != null) {
+monitor.done();
+}
+return this.feedbackList;
+}
