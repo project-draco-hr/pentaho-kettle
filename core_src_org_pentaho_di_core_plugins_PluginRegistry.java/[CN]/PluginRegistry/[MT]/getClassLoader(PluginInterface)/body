@@ -7,22 +7,9 @@
       return this.getClass().getClassLoader();
     }
  else {
-      List<String> jarfiles=plugin.getLibraries();
-      int librarySize=0;
-      if (jarfiles != null) {
-        librarySize=jarfiles.size();
-      }
-      URL[] urls=new URL[librarySize];
-      if (jarfiles != null) {
-        for (int i=0; i < jarfiles.size(); i++) {
-          File jarfile=new File(jarfiles.get(i));
-          urls[i]=new URL(URLDecoder.decode(jarfile.toURI().toURL().toString(),"UTF-8"));
-        }
-      }
-      ClassLoader classLoader=getClass().getClassLoader();
       URLClassLoader ucl=null;
       if (plugin.isSeparateClassLoaderNeeded()) {
-        ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+        ucl=createClassLoader(plugin);
       }
  else {
         Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
@@ -37,7 +24,7 @@
           if (!Const.isEmpty(plugin.getClassLoaderGroup())) {
             ucl=classLoaderGroupsMap.get(plugin.getClassLoaderGroup());
             if (ucl == null) {
-              ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+              ucl=createClassLoader(plugin);
               classLoaders.put(plugin,ucl);
               classLoaderGroupsMap.put(plugin.getClassLoaderGroup(),ucl);
             }
@@ -46,7 +33,7 @@
             if (plugin.getPluginDirectory() != null) {
               ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
               if (ucl == null) {
-                ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+                ucl=createClassLoader(plugin);
                 classLoaders.put(plugin,ucl);
                 folderBasedClassLoaderMap.put(plugin.getPluginDirectory().toString(),ucl);
               }
@@ -54,12 +41,12 @@
  else {
               ucl=classLoaders.get(plugin);
               if (ucl == null) {
-                if (urls.length == 0) {
+                if (plugin.getLibraries().size() == 0) {
                   if (plugin instanceof ClassLoadingPluginInterface) {
                     return ((ClassLoadingPluginInterface)plugin).getClassLoader();
                   }
                 }
-                ucl=new KettleURLClassLoader(urls,classLoader,plugin.getDescription());
+                ucl=createClassLoader(plugin);
                 classLoaders.put(plugin,ucl);
               }
             }
