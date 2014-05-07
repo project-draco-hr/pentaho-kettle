@@ -1,10 +1,10 @@
 {
   try {
     Document doc=XMLHandler.loadXMLString(clipcontent);
-    Node transnode=XMLHandler.getSubNode(doc,Spoon.XML_TAG_TRANSFORMATION_STEPS);
+    Node transNode=XMLHandler.getSubNode(doc,Spoon.XML_TAG_TRANSFORMATION_STEPS);
     transMeta.unselectAll();
-    Node stepsnode=XMLHandler.getSubNode(transnode,"steps");
-    int nr=XMLHandler.countNodes(stepsnode,"step");
+    Node stepsNode=XMLHandler.getSubNode(transNode,"steps");
+    int nr=XMLHandler.countNodes(stepsNode,"step");
     if (getLog().isDebug()) {
       getLog().logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundSteps","" + nr) + loc);
     }
@@ -12,8 +12,8 @@
     ArrayList<String> stepOldNames=new ArrayList<String>(nr);
     Point min=new Point(99999999,99999999);
     for (int i=0; i < nr; i++) {
-      Node stepnode=XMLHandler.getSubNodeByNr(stepsnode,"step",i);
-      steps[i]=new StepMeta(stepnode,transMeta.getDatabases(),metaStore);
+      Node stepNode=XMLHandler.getSubNodeByNr(stepsNode,"step",i);
+      steps[i]=new StepMeta(stepNode,transMeta.getDatabases(),metaStore);
       if (loc != null) {
         Point p=steps[i].getLocation();
         if (min.x > p.x) {
@@ -24,19 +24,17 @@
         }
       }
     }
-    Node hopsnode=XMLHandler.getSubNode(transnode,"order");
-    nr=XMLHandler.countNodes(hopsnode,"hop");
+    Node hopsNode=XMLHandler.getSubNode(transNode,"order");
+    nr=XMLHandler.countNodes(hopsNode,"hop");
     if (getLog().isDebug()) {
       getLog().logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundHops","" + nr));
     }
     TransHopMeta[] hops=new TransHopMeta[nr];
     ArrayList<StepMeta> alSteps=new ArrayList<StepMeta>();
-    for (int i=0; i < steps.length; i++) {
-      alSteps.add(steps[i]);
-    }
+    Collections.addAll(alSteps,steps);
     for (int i=0; i < nr; i++) {
-      Node hopnode=XMLHandler.getSubNodeByNr(hopsnode,"hop",i);
-      hops[i]=new TransHopMeta(hopnode,alSteps);
+      Node hopNode=XMLHandler.getSubNodeByNr(hopsNode,"hop",i);
+      hops[i]=new TransHopMeta(hopNode,alSteps);
     }
     Point offset=new Point(loc.x - min.x,loc.y - min.y);
     int[] position=new int[steps.length];
@@ -54,25 +52,25 @@
     for (    TransHopMeta hop : hops) {
       transMeta.addTransHop(hop);
     }
-    Node notesnode=XMLHandler.getSubNode(transnode,"notepads");
-    nr=XMLHandler.countNodes(notesnode,"notepad");
+    Node notesNode=XMLHandler.getSubNode(transNode,"notepads");
+    nr=XMLHandler.countNodes(notesNode,"notepad");
     if (getLog().isDebug()) {
       getLog().logDebug(BaseMessages.getString(PKG,"Spoon.Log.FoundNotepads","" + nr));
     }
     NotePadMeta[] notes=new NotePadMeta[nr];
     for (int i=0; i < notes.length; i++) {
-      Node notenode=XMLHandler.getSubNodeByNr(notesnode,"notepad",i);
-      notes[i]=new NotePadMeta(notenode);
+      Node noteNode=XMLHandler.getSubNodeByNr(notesNode,"notepad",i);
+      notes[i]=new NotePadMeta(noteNode);
       Point p=notes[i].getLocation();
       notes[i].setLocation(p.x + offset.x,p.y + offset.y);
       transMeta.addNote(notes[i]);
       notes[i].setSelected(true);
     }
-    for (int i=0; i < steps.length; i++) {
-      StepMetaInterface smi=steps[i].getStepMetaInterface();
+    for (    StepMeta step : steps) {
+      StepMetaInterface smi=step.getStepMetaInterface();
       smi.searchInfoAndTargetSteps(transMeta.getSteps());
     }
-    Node errorHandlingNode=XMLHandler.getSubNode(transnode,TransMeta.XML_TAG_STEP_ERROR_HANDLING);
+    Node errorHandlingNode=XMLHandler.getSubNode(transNode,TransMeta.XML_TAG_STEP_ERROR_HANDLING);
     int nrErrorHandlers=XMLHandler.countNodes(errorHandlingNode,StepErrorMeta.XML_TAG);
     for (int i=0; i < nrErrorHandlers; i++) {
       Node stepErrorMetaNode=XMLHandler.getSubNodeByNr(errorHandlingNode,StepErrorMeta.XML_TAG,i);
@@ -88,16 +86,16 @@
       stepErrorMeta.setTargetStep(targetStep);
     }
     addUndoNew(transMeta,steps,position,false);
-    int[] hoppos=new int[hops.length];
+    int[] hopPos=new int[hops.length];
     for (int i=0; i < hops.length; i++) {
-      hoppos[i]=transMeta.indexOfTransHop(hops[i]);
+      hopPos[i]=transMeta.indexOfTransHop(hops[i]);
     }
-    addUndoNew(transMeta,hops,hoppos,true);
-    int[] notepos=new int[notes.length];
+    addUndoNew(transMeta,hops,hopPos,true);
+    int[] notePos=new int[notes.length];
     for (int i=0; i < notes.length; i++) {
-      notepos[i]=transMeta.indexOfNote(notes[i]);
+      notePos[i]=transMeta.indexOfNote(notes[i]);
     }
-    addUndoNew(transMeta,notes,notepos,true);
+    addUndoNew(transMeta,notes,notePos,true);
     if (transMeta.haveStepsChanged()) {
       refreshTree();
       refreshGraph();
