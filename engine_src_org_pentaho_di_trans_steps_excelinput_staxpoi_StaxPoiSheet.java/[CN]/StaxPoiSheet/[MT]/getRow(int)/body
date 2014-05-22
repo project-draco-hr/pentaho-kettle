@@ -4,12 +4,10 @@
     while (sheetReader.hasNext()) {
       int event=sheetReader.next();
       if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("row")) {
-        currentRow=Integer.parseInt(sheetReader.getAttributeValue(null,"r"));
+        String rowIndicator=sheetReader.getAttributeValue(null,"r");
+        currentRow=Integer.parseInt(rowIndicator);
         if (currentRow < rownr) {
           continue;
-        }
-        if (currentRow > rownr) {
-          throw new KettleException("Going back in stream is not supported yet");
         }
         KCell[] cells=new StaxPoiCell[numCols];
         for (int i=0; i < numCols; i++) {
@@ -19,6 +17,8 @@
             }
             event=sheetReader.next();
           }
+          String cellLocation=sheetReader.getAttributeValue(null,"r");
+          int columnIndex=StaxUtil.extractColumnNumber(cellLocation) - 1;
           String cellType=sheetReader.getAttributeValue(null,"t");
           while (sheetReader.hasNext()) {
             event=sheetReader.next();
@@ -38,7 +38,7 @@
  else {
             content=sheetReader.getElementText();
           }
-          cells[i]=new StaxPoiCell(content,currentRow);
+          cells[columnIndex]=new StaxPoiCell(content,currentRow);
         }
         return cells;
       }
