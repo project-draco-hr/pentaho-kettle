@@ -18,6 +18,7 @@
   wClose=new Button(shell,SWT.PUSH);
   wClose.setText(BaseMessages.getString(PKG,"System.Button.Close"));
   BaseStepDialog.positionBottomButtons(shell,new Button[]{wClose},Const.MARGIN,(Control)null);
+  wClose.setEnabled(false);
   wClose.addSelectionListener(new SelectionAdapter(){
     public void widgetSelected(    SelectionEvent e){
       dispose();
@@ -45,11 +46,19 @@
 );
   BaseStepDialog.setSize(shell,1024,768,true);
   shell.open();
-  display.asyncExec(new Runnable(){
-    public void run(){
+  ExecutorUtil.getExecutor().submit(new Runnable(){
+    @Override public void run(){
       IRepositoryImporter importer=rep.getImporter();
       importer.setImportRules(importRules);
-      importer.importAll(RepositoryImportProgressDialog.this,fileDirectory,filenames,baseDirectory,false,false,versionComment);
+      importer.importAll(DisplayInvocationHandler.forObject(RepositoryImportFeedbackInterface.class,RepositoryImportProgressDialog.this,display,rep.getLog(),true),fileDirectory,filenames,baseDirectory,false,false,versionComment);
+      if (!shell.isDisposed()) {
+        display.asyncExec(new Runnable(){
+          @Override public void run(){
+            wClose.setEnabled(true);
+          }
+        }
+);
+      }
     }
   }
 );

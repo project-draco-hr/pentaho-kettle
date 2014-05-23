@@ -1,5 +1,7 @@
 {
+  BufferedReader reader=new BufferedReader(new InputStreamReader(System.in));
   KettleEnvironment.init();
+  Props.init(Props.TYPE_PROPERTIES_SPOON);
   List<String> args=new ArrayList<String>();
   for (int i=0; i < a.length; i++) {
     if (a[i].length() > 0) {
@@ -132,33 +134,17 @@ catch (  Exception e) {
       log.logError(BaseMessages.getString(PKG,"Import.Error.UnableToFindTargetDirectoryInRepository",optionDirname.toString()));
       exitJVM(1);
     }
-    RepositoryImporter importer=new RepositoryImporter(repository,importRules,limitDirs);
-    RepositoryImportFeedbackInterface feedbackInterface=new RepositoryImportFeedbackInterface(){
-      @Override public void updateDisplay(){
+    IRepositoryImporter importer=repository.getImporter();
+    importer.setImportRules(importRules);
+    if (limitDirs.size() > 0) {
+      if (importer instanceof CanLimitDirs) {
+        ((CanLimitDirs)importer).setLimitDirs(limitDirs);
       }
-      @Override public boolean transOverwritePrompt(      TransMeta transMeta){
-        return replace;
-      }
-      @Override public void showError(      String title,      String message,      Exception e){
-        log.logError(title + " : " + message,e);
-      }
-      @Override public void setLabel(      String labelText){
-        log.logBasic(labelText);
-      }
-      @Override public boolean jobOverwritePrompt(      JobMeta jobMeta){
-        return replace;
-      }
-      @Override public boolean askContinueOnErrorQuestion(      String title,      String message){
-        return continueOnError;
-      }
-      @Override public void addLog(      String line){
-        log.logBasic(line);
-      }
-      @Override public boolean isAskingOverwriteConfirmation(){
-        return false;
+ else {
+        throw new KettleException(BaseMessages.getString(PKG,"Import.CouldntLimitDirs",importer.getClass().getCanonicalName()));
       }
     }
-;
+    RepositoryImportFeedbackInterface feedbackInterface=new ImportFeedback(log,continueOnError,replace,reader);
     importer.importAll(feedbackInterface,optionFileDir.toString(),filenames.toArray(new String[filenames.size()]),targetDirectory,replace,continueOnError,optionComment.toString());
     List<Exception> exceptions=importer.getExceptions();
     if (exceptions != null && !exceptions.isEmpty()) {
