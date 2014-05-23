@@ -1,11 +1,11 @@
 {
-  meta=(DatabaseLookupMeta)smi;
-  data=(DatabaseLookupData)sdi;
   Object[] r=getRow();
   if (r == null) {
     setOutputDone();
     return false;
   }
+  meta=(DatabaseLookupMeta)smi;
+  data=(DatabaseLookupData)sdi;
   if (first) {
     first=false;
     data.outputRowMeta=getInputRowMeta().clone();
@@ -37,52 +37,10 @@
         logDebug(BaseMessages.getString(PKG,"DatabaseLookup.Log.FieldHasIndex1") + meta.getStreamKeyField1()[i] + BaseMessages.getString(PKG,"DatabaseLookup.Log.FieldHasIndex2")+ data.keynrs[i]);
       }
     }
-    data.nullif=new Object[meta.getReturnValueField().length];
-    for (int i=0; i < meta.getReturnValueField().length; i++) {
-      ValueMetaInterface stringMeta=new ValueMeta("string",ValueMetaInterface.TYPE_STRING);
-      ValueMetaInterface returnMeta=data.outputRowMeta.getValueMeta(i + getInputRowMeta().size());
-      if (!Const.isEmpty(meta.getReturnValueDefault()[i])) {
-        data.nullif[i]=returnMeta.convertData(stringMeta,meta.getReturnValueDefault()[i]);
-      }
- else {
-        data.nullif[i]=null;
-      }
-    }
-    data.keytypes=new int[meta.getTableKeyField().length];
-    String schemaTable=meta.getDatabaseMeta().getQuotedSchemaTableCombination(environmentSubstitute(meta.getSchemaName()),environmentSubstitute(meta.getTablename()));
-    RowMetaInterface fields=data.db.getTableFields(schemaTable);
-    if (fields != null) {
-      for (int i=0; i < meta.getTableKeyField().length; i++) {
-        ValueMetaInterface key=fields.searchValueMeta(meta.getTableKeyField()[i]);
-        if (key != null) {
-          data.keytypes[i]=key.getType();
-        }
- else {
-          throw new KettleStepException(BaseMessages.getString(PKG,"DatabaseLookup.ERROR0001.FieldRequired5.Exception") + meta.getTableKeyField()[i] + BaseMessages.getString(PKG,"DatabaseLookup.ERROR0001.FieldRequired6.Exception"));
-        }
-      }
-    }
- else {
-      throw new KettleStepException(BaseMessages.getString(PKG,"DatabaseLookup.ERROR0002.UnableToDetermineFieldsOfTable") + schemaTable + "]");
-    }
-    data.lookupMeta=new RowMeta();
-    for (int i=0; i < meta.getStreamKeyField1().length; i++) {
-      if (data.keynrs[i] >= 0) {
-        ValueMetaInterface inputValueMeta=getInputRowMeta().getValueMeta(data.keynrs[i]);
-        ValueMetaInterface value=ValueMetaFactory.cloneValueMeta(inputValueMeta,data.keytypes[i]);
-        data.lookupMeta.addValueMeta(value);
-      }
-      if (data.keynrs2[i] >= 0) {
-        ValueMetaInterface inputValueMeta=getInputRowMeta().getValueMeta(data.keynrs2[i]);
-        ValueMetaInterface value=ValueMetaFactory.cloneValueMeta(inputValueMeta,data.keytypes[i]);
-        data.lookupMeta.addValueMeta(value);
-      }
-    }
-    data.returnMeta=new RowMeta();
-    for (int i=0; i < meta.getReturnValueField().length; i++) {
-      ValueMetaInterface v=data.outputRowMeta.getValueMeta(getInputRowMeta().size() + i).clone();
-      data.returnMeta.addValueMeta(v);
-    }
+    determineFieldsTypesQueryingDb();
+    initNullIf();
+    initLookupMeta();
+    initReturnMeta();
     if (meta.isCached() && meta.isLoadingAllDataInCache()) {
       loadAllTableDataIntoTheCache();
     }
