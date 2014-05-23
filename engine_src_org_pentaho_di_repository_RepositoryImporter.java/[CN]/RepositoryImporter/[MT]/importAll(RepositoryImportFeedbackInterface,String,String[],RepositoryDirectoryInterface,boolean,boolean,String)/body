@@ -3,6 +3,33 @@
   this.overwrite=overwrite;
   this.continueOnError=continueOnError;
   this.versionComment=versionComment;
+  boolean askReplace=Props.getInstance().askAboutReplacingDatabaseConnections();
+  if (askReplace) {
+    if (feedback instanceof HasOverwritePrompter) {
+      Props.getInstance().setProperty(IMPORT_ASK_ABOUT_REPLACE_CS,"Y");
+      Props.getInstance().setProperty(IMPORT_ASK_ABOUT_REPLACE_DB,"Y");
+      Props.getInstance().setProperty(IMPORT_ASK_ABOUT_REPLACE_PS,"Y");
+      Props.getInstance().setProperty(IMPORT_ASK_ABOUT_REPLACE_SS,"Y");
+      this.overwritePrompter=((HasOverwritePrompter)feedback).getOverwritePrompter();
+    }
+ else {
+      this.overwritePrompter=new OverwritePrompter(){
+        @Override public boolean overwritePrompt(        String arg0,        String arg1,        String arg2){
+          throw new RuntimeException(BaseMessages.getString(PKG,"RepositoryImporter.CannotPrompt.Label"));
+        }
+      }
+;
+    }
+  }
+ else {
+    final boolean replaceExisting=Props.getInstance().replaceExistingDatabaseConnections();
+    this.overwritePrompter=new OverwritePrompter(){
+      @Override public boolean overwritePrompt(      String arg0,      String arg1,      String arg2){
+        return replaceExisting;
+      }
+    }
+;
+  }
   referencingObjects=new ArrayList<RepositoryObject>();
   feedback.setLabel(BaseMessages.getString(PKG,"RepositoryImporter.ImportXML.Label"));
   try {
@@ -19,15 +46,8 @@
         RepositoryExportSaxParser parser=new RepositoryExportSaxParser(filename,feedback);
         parser.parse(this);
       }
- catch (      FileNotFoundException fnfe) {
-        addException(fnfe);
-        feedback.showError(BaseMessages.getString(PKG,"PurRepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"PurRepositoryImporter.FileNotFound.Message",filename),fnfe);
-      }
-catch (      SAXParseException spe) {
-        addException(spe);
-        feedback.showError(BaseMessages.getString(PKG,"PurRepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"PurRepositoryImporter.ParseError.Message",filename),spe);
-      }
-catch (      Exception e) {
+ catch (      Exception e) {
+        addException(e);
         feedback.showError(BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Message"),e);
       }
     }
@@ -55,7 +75,8 @@ catch (      Exception e) {
     }
     feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ImportFinished.Log"));
   }
- catch (  KettleException e) {
+ catch (  Exception e) {
+    addException(e);
     feedback.showError(BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Message"),e);
   }
  finally {
