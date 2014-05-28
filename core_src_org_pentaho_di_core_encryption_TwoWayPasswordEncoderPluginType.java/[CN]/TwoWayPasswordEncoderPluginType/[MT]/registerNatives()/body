@@ -1,0 +1,33 @@
+{
+  String passwordEncoderPluginsXmlFile=Const.XML_FILE_KETTLE_PASSWORD_ENCODER_PLUGINS;
+  String alternative=System.getProperty(Const.KETTLE_PASSWORD_ENCODER_PLUGINS_FILE,null);
+  if (!Const.isEmpty(alternative)) {
+    passwordEncoderPluginsXmlFile=alternative;
+  }
+  try {
+    InputStream inputStream=getClass().getResourceAsStream(passwordEncoderPluginsXmlFile);
+    if (inputStream == null) {
+      inputStream=getClass().getResourceAsStream("/" + passwordEncoderPluginsXmlFile);
+    }
+    if (inputStream == null && !Const.isEmpty(alternative)) {
+      try {
+        inputStream=new FileInputStream(passwordEncoderPluginsXmlFile);
+      }
+ catch (      Exception e) {
+        throw new KettlePluginException("Unable to load native password encoder plugins '" + passwordEncoderPluginsXmlFile + "'",e);
+      }
+    }
+    if (inputStream == null) {
+      return;
+    }
+    Document document=XMLHandler.loadXMLFile(inputStream,null,true,false);
+    Node stepsNode=XMLHandler.getSubNode(document,"password-encoder-plugins");
+    List<Node> stepNodes=XMLHandler.getNodes(stepsNode,"password-encoder-plugin");
+    for (    Node stepNode : stepNodes) {
+      registerPluginFromXmlResource(stepNode,null,this.getClass(),true,null);
+    }
+  }
+ catch (  KettleXMLException e) {
+    throw new KettlePluginException("Unable to read the kettle metadata plugins XML config file: " + passwordEncoderPluginsXmlFile,e);
+  }
+}
