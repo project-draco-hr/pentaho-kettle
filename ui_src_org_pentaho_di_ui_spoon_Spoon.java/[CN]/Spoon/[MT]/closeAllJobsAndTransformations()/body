@@ -1,15 +1,34 @@
 {
-  if (props.showCloseAllFilesWarning()) {
-    MessageDialogWithToggle md=new MessageDialogWithToggle(getShell(),BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.Title"),null,BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.Message"),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"Spoon.Message.Warning.Yes"),BaseMessages.getString(PKG,"Spoon.Message.Warning.No"),BaseMessages.getString(PKG,"Spoon.Message.Warning.Cancel")},1,BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.DontAskAgain.Label"),!props.showCloseAllFilesWarning());
+  if (getActiveMeta() == null) {
+    return true;
+  }
+  boolean operationsNotAllowed=RepositorySecurityUI.verifyOperations(shell,rep,false,RepositoryOperation.EXECUTE_TRANSFORMATION,RepositoryOperation.EXECUTE_JOB);
+  MessageDialog md;
+  final int answer;
+  if (operationsNotAllowed) {
+    md=new MessageDialog(getShell(),BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAll.Title"),null,BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAll.Message"),MessageDialog.WARNING,new String[]{BaseMessages.getString(PKG,"Spoon.Message.Warning.Yes"),BaseMessages.getString(PKG,"Spoon.Message.Warning.No")},0);
+    answer=md.open();
+  }
+ else   if (props.showCloseAllFilesWarning()) {
+    md=new MessageDialogWithToggle(getShell(),BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.Title"),null,BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.Message"),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"Spoon.Message.Warning.Yes"),BaseMessages.getString(PKG,"Spoon.Message.Warning.No"),BaseMessages.getString(PKG,"Spoon.Message.Warning.Cancel")},0,BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.DontAskAgain.Label"),!props.showCloseAllFilesWarning());
     MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
-    final int answer=md.open();
-    if ((answer & 0xFF) == 0) {
-      Spoon.getInstance().closeAllFiles();
-    }
-    props.showSetCloseAllFilesWarning(!md.getToggleState());
+    answer=md.open();
+    boolean closeAllFilesOption=((MessageDialogWithToggle)md).getToggleState();
+    props.showSetCloseAllFilesWarning(!closeAllFilesOption);
     props.saveProps();
   }
  else {
     Spoon.getInstance().closeAllFiles();
+    return true;
   }
+  if ((answer & 0xFF) == 0) {
+    Spoon.getInstance().closeAllFiles();
+  }
+ else   if (answer == Spoon.MESSAGE_DIALOG_WITH_TOGGLE_NO_BUTTON_ID) {
+    return true;
+  }
+ else {
+    return false;
+  }
+  return true;
 }
