@@ -2,28 +2,25 @@
   if (getActiveMeta() == null) {
     return true;
   }
-  boolean operationsNotAllowed=RepositorySecurityUI.verifyOperations(shell,rep,false,RepositoryOperation.EXECUTE_TRANSFORMATION,RepositoryOperation.EXECUTE_JOB);
-  MessageDialog md;
-  final int answer;
-  if (operationsNotAllowed) {
-    md=new MessageDialog(getShell(),BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAll.Title"),null,BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAll.Message"),MessageDialog.WARNING,new String[]{BaseMessages.getString(PKG,"Spoon.Message.Warning.Yes"),BaseMessages.getString(PKG,"Spoon.Message.Warning.No")},0);
-    answer=md.open();
+  boolean createPerms=!RepositorySecurityUI.verifyOperations(shell,rep,false,RepositoryOperation.MODIFY_TRANSFORMATION,RepositoryOperation.MODIFY_JOB);
+  boolean executePerms=!RepositorySecurityUI.verifyOperations(shell,rep,false,RepositoryOperation.EXECUTE_TRANSFORMATION,RepositoryOperation.EXECUTE_JOB);
+  boolean readPerms=!RepositorySecurityUI.verifyOperations(shell,rep,false,RepositoryOperation.READ_TRANSFORMATION,RepositoryOperation.READ_JOB);
+  String warningTitle=BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAllForce.Disconnect.Title");
+  String warningText=BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAllForce.Disconnect.Message");
+  int buttons=SWT.OK;
+  if ((readPerms && createPerms && executePerms) || (readPerms && executePerms)) {
+    warningTitle=BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAllOption.Disconnect.Title");
+    warningText=BaseMessages.getString(PKG,"Spoon.Dialog.WarnToCloseAllOption.Disconnect.Message");
+    buttons=SWT.YES | SWT.NO;
   }
- else   if (props.showCloseAllFilesWarning()) {
-    md=new MessageDialogWithToggle(getShell(),BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.Title"),null,BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.Message"),MessageDialog.QUESTION,new String[]{BaseMessages.getString(PKG,"Spoon.Message.Warning.Yes"),BaseMessages.getString(PKG,"Spoon.Message.Warning.No"),BaseMessages.getString(PKG,"Spoon.Message.Warning.Cancel")},0,BaseMessages.getString(PKG,"Spoon.Dialog.PromptToCloseAll.DontAskAgain.Label"),!props.showCloseAllFilesWarning());
-    MessageDialogWithToggle.setDefaultImage(GUIResource.getInstance().getImageSpoon());
-    answer=md.open();
-    boolean closeAllFilesOption=((MessageDialogWithToggle)md).getToggleState();
-    props.showSetCloseAllFilesWarning(!closeAllFilesOption);
-    props.saveProps();
-  }
- else {
+  MessageBox mb=new MessageBox(Spoon.getInstance().getShell(),buttons | SWT.ICON_WARNING);
+  mb.setMessage(warningText);
+  mb.setText(warningTitle);
+  final int isCloseAllFiles=mb.open();
+  if (isCloseAllFiles == SWT.YES) {
     return Spoon.getInstance().closeAllFiles();
   }
-  if ((answer & 0xFF) == 0) {
-    return Spoon.getInstance().closeAllFiles();
-  }
- else   if ((answer == Spoon.MESSAGE_DIALOG_WITH_TOGGLE_NO_BUTTON_ID) && (operationsNotAllowed == false)) {
+ else   if ((isCloseAllFiles == SWT.NO) && (executePerms)) {
     return true;
   }
  else {
