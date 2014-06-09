@@ -1,8 +1,10 @@
 {
+  boolean isBatchUpdate=false;
   try {
     if (ps != null) {
       if (!isAutoCommit()) {
         if (batch && getDatabaseMetaData().supportsBatchUpdates() && batchCounter > 0) {
+          isBatchUpdate=true;
           ps.executeBatch();
           commit();
           ps.clearBatch();
@@ -15,20 +17,14 @@
     }
   }
  catch (  BatchUpdateException ex) {
-    KettleDatabaseBatchException kdbe=new KettleDatabaseBatchException("Error updating batch",ex);
-    kdbe.setUpdateCounts(ex.getUpdateCounts());
-    List<Exception> exceptions=new ArrayList<Exception>();
-    SQLException nextException=ex.getNextException();
-    SQLException oldException=null;
-    while ((nextException != null) && (oldException != nextException)) {
-      exceptions.add(nextException);
-      oldException=nextException;
-      nextException=nextException.getNextException();
-    }
-    kdbe.setExceptionsList(exceptions);
-    throw kdbe;
+    throw createKettleDatabaseBatchException("Error updating batch",ex);
   }
 catch (  SQLException ex) {
-    throw new KettleDatabaseException("Unable to empty ps and commit connection.",ex);
+    if (isBatchUpdate) {
+      throw createKettleDatabaseBatchException("Error updating batch",ex);
+    }
+ else {
+      throw new KettleDatabaseException("Unable to empty ps and commit connection.",ex);
+    }
   }
 }
