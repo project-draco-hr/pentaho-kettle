@@ -1,6 +1,7 @@
 {
   String debug="insertRow start";
   boolean rowsAreSafe=false;
+  boolean isBatchUpdate=false;
   try {
     boolean useBatchInsert=batch && getDatabaseMetaData().supportsBatchUpdates() && databaseMeta.supportsBatchUpdates()&& Const.isEmpty(connectionGroup);
     if (!isAutoCommit()) {
@@ -20,6 +21,7 @@
     if (handleCommit) {
       if (!isAutoCommit() && (written % commitsize) == 0) {
         if (useBatchInsert) {
+          isBatchUpdate=true;
           debug="insertRow executeBatch commit";
           ps.executeBatch();
           commit();
@@ -36,19 +38,15 @@
     return rowsAreSafe;
   }
  catch (  BatchUpdateException ex) {
-    KettleDatabaseBatchException kdbe=new KettleDatabaseBatchException("Error updating batch",ex);
-    kdbe.setUpdateCounts(ex.getUpdateCounts());
-    List<Exception> exceptions=new ArrayList<Exception>();
-    SQLException nextException=ex;
-    do {
-      exceptions.add(nextException);
-    }
- while ((nextException=nextException.getNextException()) != null);
-    kdbe.setExceptionsList(exceptions);
-    throw kdbe;
+    throw createKettleDatabaseBatchException("Error updating batch",ex);
   }
 catch (  SQLException ex) {
-    throw new KettleDatabaseException("Error inserting/updating row",ex);
+    if (isBatchUpdate) {
+      throw createKettleDatabaseBatchException("Error updating batch",ex);
+    }
+ else {
+      throw new KettleDatabaseException("Error inserting/updating row",ex);
+    }
   }
 catch (  Exception e) {
     throw new KettleDatabaseException("Unexpected error inserting/updating row in part [" + debug + "]",e);
