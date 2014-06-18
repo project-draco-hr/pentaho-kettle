@@ -1,35 +1,9 @@
 {
-  if (shell.isDisposed()) {
-    return;
-  }
-  if (!viewSelected) {
+  if (shell.isDisposed() || !viewSelected) {
     return;
   }
   if (selectionTree == null || selectionTree.isDisposed()) {
-    selectionTree=new Tree(variableComposite,SWT.SINGLE);
-    props.setLook(selectionTree);
-    selectionTree.setLayout(new FillLayout());
-    addDefaultKeyListeners(selectionTree);
-    TreeMemory.addTreeListener(selectionTree,STRING_SPOON_MAIN_TREE);
-    selectionTree.addMenuDetectListener(new MenuDetectListener(){
-      public void menuDetected(      MenuDetectEvent e){
-        setMenu(selectionTree);
-      }
-    }
-);
-    selectionTree.addSelectionListener(new SelectionAdapter(){
-      public void widgetSelected(      SelectionEvent e){
-        showSelection();
-      }
-    }
-);
-    selectionTree.addSelectionListener(new SelectionAdapter(){
-      public void widgetDefaultSelected(      SelectionEvent e){
-        doubleClickedInTree(selectionTree);
-      }
-    }
-);
-    addDragSourceToTree(selectionTree);
+    createSelectionTree();
   }
   GUIResource guiResource=GUIResource.getInstance();
   TransMeta activeTransMeta=getActiveTransformation();
@@ -52,129 +26,16 @@
           if (Const.isEmpty(name)) {
             name=STRING_TRANS_NO_NAME;
           }
-          TreeItem tiTransName=new TreeItem(tiTrans,SWT.NONE);
-          tiTransName.setText(name);
-          tiTransName.setImage(guiResource.getImageTransGraph());
+          TreeItem tiTransName=createTreeItem(tiTrans,name,guiResource.getImageTransGraph());
           if (props.isOnlyActiveFileShownInTree()) {
             TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiTransName,true);
           }
-          TreeItem tiDbTitle=new TreeItem(tiTransName,SWT.NONE);
-          tiDbTitle.setText(STRING_CONNECTIONS);
-          tiDbTitle.setImage(guiResource.getImageBol());
-          String[] dbNames=new String[transMeta.nrDatabases()];
-          for (int i=0; i < dbNames.length; i++) {
-            dbNames[i]=transMeta.getDatabase(i).getName();
-          }
-          Arrays.sort(dbNames,new Comparator<String>(){
-            public int compare(            String o1,            String o2){
-              return o1.compareToIgnoreCase(o2);
-            }
-          }
-);
-          for (          String dbName : dbNames) {
-            DatabaseMeta databaseMeta=transMeta.findDatabase(dbName);
-            if (!filterMatch(dbName)) {
-              continue;
-            }
-            TreeItem tiDb=new TreeItem(tiDbTitle,SWT.NONE);
-            tiDb.setText(databaseMeta.getDisplayName());
-            if (databaseMeta.isShared()) {
-              tiDb.setFont(guiResource.getFontBold());
-            }
-            tiDb.setImage(guiResource.getImageConnection());
-          }
-          TreeItem tiStepTitle=new TreeItem(tiTransName,SWT.NONE);
-          tiStepTitle.setText(STRING_STEPS);
-          tiStepTitle.setImage(guiResource.getImageBol());
-          for (int i=0; i < transMeta.nrSteps(); i++) {
-            StepMeta stepMeta=transMeta.getStep(i);
-            PluginInterface stepPlugin=PluginRegistry.getInstance().findPluginWithId(StepPluginType.class,stepMeta.getStepID());
-            if (!filterMatch(stepMeta.getName()) && !filterMatch(stepMeta.getName())) {
-              continue;
-            }
-            TreeItem tiStep=new TreeItem(tiStepTitle,SWT.NONE);
-            tiStep.setText(stepMeta.getName());
-            if (stepMeta.isShared()) {
-              tiStep.setFont(guiResource.getFontBold());
-            }
-            if (!stepMeta.isDrawn()) {
-              tiStep.setForeground(guiResource.getColorDarkGray());
-            }
-            Image stepIcon=guiResource.getImagesStepsSmall().get(stepPlugin.getIds()[0]);
-            if (stepIcon == null) {
-              stepIcon=guiResource.getImageBol();
-            }
-            tiStep.setImage(stepIcon);
-          }
-          TreeItem tiHopTitle=new TreeItem(tiTransName,SWT.NONE);
-          tiHopTitle.setText(STRING_HOPS);
-          tiHopTitle.setImage(guiResource.getImageBol());
-          for (int i=0; i < transMeta.nrTransHops(); i++) {
-            TransHopMeta hopMeta=transMeta.getTransHop(i);
-            if (!filterMatch(hopMeta.toString())) {
-              continue;
-            }
-            TreeItem tiHop=new TreeItem(tiHopTitle,SWT.NONE);
-            tiHop.setText(hopMeta.toString());
-            if (hopMeta.isEnabled()) {
-              tiHop.setImage(guiResource.getImageHop());
-            }
- else {
-              tiHop.setImage(guiResource.getImageDisabledHop());
-            }
-          }
-          TreeItem tiPartitionTitle=new TreeItem(tiTransName,SWT.NONE);
-          tiPartitionTitle.setText(STRING_PARTITIONS);
-          tiPartitionTitle.setImage(guiResource.getImageBol());
-          for (int i=0; i < transMeta.getPartitionSchemas().size(); i++) {
-            PartitionSchema partitionSchema=transMeta.getPartitionSchemas().get(i);
-            if (!filterMatch(partitionSchema.getName())) {
-              continue;
-            }
-            TreeItem tiPartition=new TreeItem(tiPartitionTitle,SWT.NONE);
-            tiPartition.setText(partitionSchema.getName());
-            tiPartition.setImage(guiResource.getImageFolderConnections());
-            if (partitionSchema.isShared()) {
-              tiPartition.setFont(guiResource.getFontBold());
-            }
-          }
-          TreeItem tiSlaveTitle=new TreeItem(tiTransName,SWT.NONE);
-          tiSlaveTitle.setText(STRING_SLAVES);
-          tiSlaveTitle.setImage(guiResource.getImageBol());
-          String[] slaveNames=transMeta.getSlaveServerNames();
-          Arrays.sort(slaveNames,new Comparator<String>(){
-            public int compare(            String o1,            String o2){
-              return o1.compareToIgnoreCase(o2);
-            }
-          }
-);
-          for (          String slaveName : slaveNames) {
-            SlaveServer slaveServer=transMeta.findSlaveServer(slaveName);
-            if (!filterMatch(slaveServer.getName())) {
-              continue;
-            }
-            TreeItem tiSlave=new TreeItem(tiSlaveTitle,SWT.NONE);
-            tiSlave.setText(slaveServer.getName());
-            tiSlave.setImage(guiResource.getImageSlave());
-            if (slaveServer.isShared()) {
-              tiSlave.setFont(guiResource.getFontBold());
-            }
-          }
-          TreeItem tiClusterTitle=new TreeItem(tiTransName,SWT.NONE);
-          tiClusterTitle.setText(STRING_CLUSTERS);
-          tiClusterTitle.setImage(guiResource.getImageBol());
-          for (int i=0; i < transMeta.getClusterSchemas().size(); i++) {
-            ClusterSchema clusterSchema=transMeta.getClusterSchemas().get(i);
-            if (!filterMatch(clusterSchema.getName())) {
-              continue;
-            }
-            TreeItem tiCluster=new TreeItem(tiClusterTitle,SWT.NONE);
-            tiCluster.setText(clusterSchema.toString());
-            tiCluster.setImage(guiResource.getImageCluster());
-            if (clusterSchema.isShared()) {
-              tiCluster.setFont(guiResource.getFontBold());
-            }
-          }
+          refreshDbConnectionsSubtree(tiTransName,transMeta,guiResource);
+          refreshStepsSubtree(tiTransName,transMeta,guiResource);
+          refreshHopsSubtree(tiTransName,transMeta,guiResource);
+          refreshPartitionsSubtree(tiTransName,transMeta,guiResource);
+          refreshSlavesSubtree(tiTransName,transMeta,guiResource);
+          refreshClustersSubtree(tiTransName,transMeta,guiResource);
         }
       }
     }
@@ -199,85 +60,13 @@
           if (!filterMatch(name)) {
             continue;
           }
-          TreeItem tiJobName=new TreeItem(tiJobs,SWT.NONE);
-          tiJobName.setText(name);
-          tiJobName.setImage(guiResource.getImageJobGraph());
+          TreeItem tiJobName=createTreeItem(tiJobs,name,guiResource.getImageJobGraph());
           if (props.isOnlyActiveFileShownInTree()) {
             TreeMemory.getInstance().storeExpanded(STRING_SPOON_MAIN_TREE,tiJobName,true);
           }
-          TreeItem tiDbTitle=new TreeItem(tiJobName,SWT.NONE);
-          tiDbTitle.setText(STRING_CONNECTIONS);
-          tiDbTitle.setImage(guiResource.getImageBol());
-          String[] dbNames=new String[jobMeta.nrDatabases()];
-          for (int i=0; i < dbNames.length; i++) {
-            dbNames[i]=jobMeta.getDatabase(i).getName();
-          }
-          Arrays.sort(dbNames,new Comparator<String>(){
-            public int compare(            String o1,            String o2){
-              return o1.compareToIgnoreCase(o2);
-            }
-          }
-);
-          for (          String dbName : dbNames) {
-            DatabaseMeta databaseMeta=jobMeta.findDatabase(dbName);
-            if (!filterMatch(databaseMeta.getName())) {
-              continue;
-            }
-            TreeItem tiDb=new TreeItem(tiDbTitle,SWT.NONE);
-            tiDb.setText(databaseMeta.getDisplayName());
-            if (databaseMeta.isShared()) {
-              tiDb.setFont(guiResource.getFontBold());
-            }
-            tiDb.setImage(guiResource.getImageConnection());
-          }
-          TreeItem tiJobEntriesTitle=new TreeItem(tiJobName,SWT.NONE);
-          tiJobEntriesTitle.setText(STRING_JOB_ENTRIES);
-          tiJobEntriesTitle.setImage(guiResource.getImageBol());
-          for (int i=0; i < jobMeta.nrJobEntries(); i++) {
-            JobEntryCopy jobEntry=jobMeta.getJobEntry(i);
-            if (!filterMatch(jobEntry.getName()) && !filterMatch(jobEntry.getDescription())) {
-              continue;
-            }
-            TreeItem tiJobEntry=ConstUI.findTreeItem(tiJobEntriesTitle,jobEntry.getName());
-            if (tiJobEntry != null) {
-              continue;
-            }
-            tiJobEntry=new TreeItem(tiJobEntriesTitle,SWT.NONE);
-            tiJobEntry.setText(jobEntry.getName());
-            if (jobEntry.isStart()) {
-              tiJobEntry.setImage(GUIResource.getInstance().getImageStart());
-            }
- else             if (jobEntry.isDummy()) {
-              tiJobEntry.setImage(GUIResource.getInstance().getImageDummy());
-            }
- else {
-              String key=jobEntry.getEntry().getPluginId();
-              Image image=GUIResource.getInstance().getImagesJobentriesSmall().get(key);
-              tiJobEntry.setImage(image);
-            }
-          }
-          TreeItem tiSlaveTitle=new TreeItem(tiJobName,SWT.NONE);
-          tiSlaveTitle.setText(STRING_SLAVES);
-          tiSlaveTitle.setImage(guiResource.getImageBol());
-          String[] slaveNames=jobMeta.getSlaveServerNames();
-          Arrays.sort(slaveNames,new Comparator<String>(){
-            public int compare(            String o1,            String o2){
-              return o1.compareToIgnoreCase(o2);
-            }
-          }
-);
-          for (          String slaveName : slaveNames) {
-            SlaveServer slaveServer=jobMeta.findSlaveServer(slaveName);
-            if (!filterMatch(slaveServer.getName())) {
-              continue;
-            }
-            TreeItem tiSlave=new TreeItem(tiSlaveTitle,SWT.NONE);
-            tiSlave.setText(slaveServer.getName());
-            tiSlave.setImage(guiResource.getImageSlave());
-            if (slaveServer.isShared()) {
-              tiSlave.setFont(guiResource.getFontBold());
-            }
-          }
+          refreshDbConnectionsSubtree(tiJobName,jobMeta,guiResource);
+          refreshJobEntriesSubtree(tiJobName,jobMeta,guiResource);
+          refreshSlavesSubtree(tiJobName,jobMeta,guiResource);
         }
       }
     }
