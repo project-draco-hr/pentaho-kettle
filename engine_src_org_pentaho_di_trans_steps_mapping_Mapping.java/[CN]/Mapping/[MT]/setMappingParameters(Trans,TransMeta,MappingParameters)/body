@@ -2,16 +2,27 @@
   if (mappingParameters == null) {
     return;
   }
+  Map<String,String> parameters=new HashMap<String,String>();
+  Set<String> subTransParameters=new HashSet<String>(Arrays.asList(transMeta.listParameters()));
   if (mappingParameters.isInheritingAllVariables()) {
-    trans.copyVariablesFrom(this.getTrans());
+    for (    String variableName : listVariables()) {
+      parameters.put(variableName,getVariable(variableName));
+    }
   }
-  String[] childParameters=mappingParameters.getVariable();
-  String[] inputValues=mappingParameters.getInputField();
-  for (int i=0; i < childParameters.length; i++) {
-    String value=this.environmentSubstitute(inputValues[i]);
-    String key=childParameters[i];
-    transMeta.setParameterValue(key,value);
-    trans.setParameterValue(key,value);
-    trans.setVariable(key,value);
+  String[] mappingVariables=mappingParameters.getVariable();
+  String[] inputFields=mappingParameters.getInputField();
+  for (int i=0; i < mappingVariables.length; i++) {
+    parameters.put(mappingVariables[i],environmentSubstitute(inputFields[i]));
   }
+  for (  Entry<String,String> entry : parameters.entrySet()) {
+    String key=entry.getKey();
+    String value=Const.NVL(entry.getValue(),"");
+    if (subTransParameters.contains(key)) {
+      trans.setParameterValue(key,Const.NVL(entry.getValue(),""));
+    }
+ else {
+      trans.setVariable(key,value);
+    }
+  }
+  trans.activateParameters();
 }
