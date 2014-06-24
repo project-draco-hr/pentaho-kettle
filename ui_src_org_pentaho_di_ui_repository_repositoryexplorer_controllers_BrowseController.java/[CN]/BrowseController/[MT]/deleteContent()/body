@@ -4,36 +4,18 @@
       if (object instanceof UIRepositoryObject) {
         final UIRepositoryObject repoObject=(UIRepositoryObject)object;
         if (repoObject != null) {
-          if (repoObject instanceof UIRepositoryDirectory && (((UIRepositoryDirectory)repoObject).getChildren().size() > 0 || ((UIRepositoryDirectory)repoObject).getRepositoryObjects().size() > 0)) {
-            confirmBox=(XulConfirmBox)document.createElement("confirmbox");
-            confirmBox.setTitle(BaseMessages.getString(PKG,"BrowseController.DeleteNonEmptyFolderWarningTitle"));
-            confirmBox.setMessage(BaseMessages.getString(PKG,"BrowseController.DeleteNonEmptyFolderWarningMessage"));
-            confirmBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
-            confirmBox.setCancelLabel(BaseMessages.getString(PKG,"Dialog.Cancel"));
-            confirmBox.addDialogCallback(new XulDialogCallback<Object>(){
-              public void onClose(              XulComponent sender,              Status returnCode,              Object retVal){
-                if (returnCode == Status.ACCEPT) {
-                  try {
-                    deleteContent(repoObject);
-                  }
- catch (                  Exception e) {
-                    messageBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
-                    messageBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
-                    messageBox.setMessage(BaseMessages.getString(PKG,e.getLocalizedMessage()));
-                    messageBox.open();
-                  }
-                }
-              }
-              public void onError(              XulComponent sender,              Throwable t){
-                throw new RuntimeException(t);
-              }
+          Callable<Void> deleteCallable=new Callable<Void>(){
+            @Override public Void call() throws Exception {
+              deleteContent(repoObject);
+              return null;
             }
-);
-            confirmBox.open();
-            break;
+          }
+;
+          if (repoObject instanceof UIRepositoryDirectory && (((UIRepositoryDirectory)repoObject).getChildren().size() > 0 || ((UIRepositoryDirectory)repoObject).getRepositoryObjects().size() > 0)) {
+            confirm("BrowseController.DeleteNonEmptyFolderWarningTitle","BrowseController.DeleteNonEmptyFolderWarningMessage",deleteCallable);
           }
  else {
-            deleteContent(repoObject);
+            confirm("BrowseController.DeleteFileWarningTitle","BrowseController.DeleteFileWarningMessage",deleteCallable);
           }
         }
       }
