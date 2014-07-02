@@ -1,0 +1,56 @@
+{
+  UnivariateStatsMeta meta=new UnivariateStatsMeta();
+  UnivariateStatsMetaFunction[] functions=univariateFunctionArrayFieldLoadSaveValidator.getTestObject();
+  meta.setInputFieldMetaFunctions(functions);
+  RowMetaInterface mockRowMetaInterface=mock(RowMetaInterface.class);
+  final AtomicBoolean clearCalled=new AtomicBoolean(false);
+  final List<ValueMetaInterface> valueMetaInterfaces=new ArrayList<ValueMetaInterface>();
+  doAnswer(new Answer<Void>(){
+    @Override public Void answer(    InvocationOnMock invocation) throws Throwable {
+      clearCalled.set(true);
+      return null;
+    }
+  }
+).when(mockRowMetaInterface).clear();
+  doAnswer(new Answer<Void>(){
+    @Override public Void answer(    InvocationOnMock invocation) throws Throwable {
+      if (!clearCalled.get()) {
+        throw new RuntimeException("Clear not called before adding value metas");
+      }
+      valueMetaInterfaces.add((ValueMetaInterface)invocation.getArguments()[0]);
+      return null;
+    }
+  }
+).when(mockRowMetaInterface).addValueMeta(any(ValueMetaInterface.class));
+  meta.getFields(mockRowMetaInterface,null,null,null,null,null,null);
+  Map<String,Integer> valueMetas=new HashMap<String,Integer>();
+  for (  ValueMetaInterface vmi : valueMetaInterfaces) {
+    valueMetas.put(vmi.getName(),vmi.getType());
+  }
+  for (  UnivariateStatsMetaFunction function : functions) {
+    if (function.getCalcN()) {
+      assertContains(valueMetas,function.getSourceFieldName() + "(N)",ValueMetaInterface.TYPE_NUMBER);
+    }
+    if (function.getCalcMean()) {
+      assertContains(valueMetas,function.getSourceFieldName() + "(mean)",ValueMetaInterface.TYPE_NUMBER);
+    }
+    if (function.getCalcStdDev()) {
+      assertContains(valueMetas,function.getSourceFieldName() + "(stdDev)",ValueMetaInterface.TYPE_NUMBER);
+    }
+    if (function.getCalcMin()) {
+      assertContains(valueMetas,function.getSourceFieldName() + "(min)",ValueMetaInterface.TYPE_NUMBER);
+    }
+    if (function.getCalcMax()) {
+      assertContains(valueMetas,function.getSourceFieldName() + "(max)",ValueMetaInterface.TYPE_NUMBER);
+    }
+    if (function.getCalcMedian()) {
+      assertContains(valueMetas,function.getSourceFieldName() + "(median)",ValueMetaInterface.TYPE_NUMBER);
+    }
+    if (function.getCalcPercentile() >= 0) {
+      NumberFormat pF=NumberFormat.getInstance();
+      pF.setMaximumFractionDigits(2);
+      String res=pF.format(function.getCalcPercentile() * 100);
+      assertContains(valueMetas,function.getSourceFieldName() + "(" + res+ "th percentile)",ValueMetaInterface.TYPE_NUMBER);
+    }
+  }
+}
