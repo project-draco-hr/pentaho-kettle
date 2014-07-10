@@ -3,12 +3,24 @@
   result.setResult(false);
   logBasic(BaseMessages.getString(PKG,"JobHTTP.StartJobEntry"));
   List<RowMetaAndData> resultRows;
-  String urlFieldnameToUse;
+  String urlFieldnameToUse, uploadFieldnameToUse, destinationFieldnameToUse;
   if (Const.isEmpty(urlFieldname)) {
     urlFieldnameToUse=URL_FIELDNAME;
   }
  else {
     urlFieldnameToUse=urlFieldname;
+  }
+  if (Const.isEmpty(uploadFieldname)) {
+    uploadFieldnameToUse=UPLOADFILE_FIELDNAME;
+  }
+ else {
+    uploadFieldnameToUse=uploadFieldname;
+  }
+  if (Const.isEmpty(destinationFieldname)) {
+    destinationFieldnameToUse=TARGETFILE_FIELDNAME;
+  }
+ else {
+    destinationFieldnameToUse=destinationFieldname;
   }
   if (runForEveryRow) {
     resultRows=previousResult.getRows();
@@ -22,6 +34,8 @@
     resultRows=new ArrayList<RowMetaAndData>();
     RowMetaAndData row=new RowMetaAndData();
     row.addValue(new ValueMetaString(urlFieldnameToUse),environmentSubstitute(url));
+    row.addValue(new ValueMetaString(uploadFieldnameToUse),environmentSubstitute(uploadFilename));
+    row.addValue(new ValueMetaString(destinationFieldnameToUse),environmentSubstitute(targetFilename));
     resultRows.add(row);
   }
   URL server=null;
@@ -36,6 +50,8 @@
     InputStream input=null;
     try {
       String urlToUse=environmentSubstitute(row.getString(urlFieldnameToUse,""));
+      String realUploadFile=environmentSubstitute(row.getString(uploadFieldnameToUse,""));
+      String realTargetFile=environmentSubstitute(row.getString(destinationFieldnameToUse,""));
       logBasic(BaseMessages.getString(PKG,"JobHTTP.Log.ConnectingURL",urlToUse));
       if (!Const.isEmpty(proxyHostname)) {
         System.setProperty("http.proxyHost",environmentSubstitute(proxyHostname));
@@ -53,7 +69,6 @@
         }
 );
       }
-      String realTargetFile=environmentSubstitute(targetFilename);
       if (dateTimeAdded) {
         SimpleDateFormat daf=new SimpleDateFormat();
         Date now=new Date();
@@ -61,8 +76,8 @@
         realTargetFile+="_" + daf.format(now);
         daf.applyPattern("HHmmss");
         realTargetFile+="_" + daf.format(now);
-        if (!Const.isEmpty(targetFilenameExtention)) {
-          realTargetFile+="." + environmentSubstitute(targetFilenameExtention);
+        if (!Const.isEmpty(targetFilenameExtension)) {
+          realTargetFile+="." + environmentSubstitute(targetFilenameExtension);
         }
       }
       outputFile=KettleVFS.getOutputStream(realTargetFile,this,fileAppended);
@@ -82,13 +97,12 @@
         }
       }
       connection.setDoOutput(true);
-      String realUploadFilename=environmentSubstitute(uploadFilename);
-      if (!Const.isEmpty(realUploadFilename)) {
+      if (!Const.isEmpty(realUploadFile)) {
         if (log.isDetailed()) {
-          logDetailed(BaseMessages.getString(PKG,"JobHTTP.Log.SendingFile",realUploadFilename));
+          logDetailed(BaseMessages.getString(PKG,"JobHTTP.Log.SendingFile",realUploadFile));
         }
         uploadStream=connection.getOutputStream();
-        fileStream=new BufferedInputStream(new FileInputStream(new File(realUploadFilename)));
+        fileStream=new BufferedInputStream(new FileInputStream(new File(realUploadFile)));
         try {
           int c;
           while ((c=fileStream.read()) >= 0) {
