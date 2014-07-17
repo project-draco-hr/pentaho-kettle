@@ -4,34 +4,16 @@
     setData((TransExecutorData)sdi);
     Object[] row=getRow();
     if (row == null) {
-      if (!getData().groupBuffer.isEmpty()) {
-        executeTrans();
-      }
+      executeTransformation();
       setOutputDone();
       return false;
     }
     if (first) {
       first=false;
-      getData().inputRowMeta=getInputRowMeta();
-      getData().executionResultsOutputRowMeta=getData().inputRowMeta.clone();
-      getData().resultRowsOutputRowMeta=getData().inputRowMeta.clone();
-      getData().resultFilesOutputRowMeta=getData().inputRowMeta.clone();
-      if (meta.getExecutionResultTargetStepMeta() != null) {
-        meta.getFields(getData().executionResultsOutputRowMeta,getStepname(),null,meta.getExecutionResultTargetStepMeta(),this,repository,metaStore);
-        getData().executionResultRowSet=findOutputRowSet(meta.getExecutionResultTargetStepMeta().getName());
-      }
-      if (meta.getResultFilesTargetStepMeta() != null) {
-        meta.getFields(getData().resultFilesOutputRowMeta,getStepname(),null,meta.getResultFilesTargetStepMeta(),this,repository,metaStore);
-        getData().resultFilesRowSet=findOutputRowSet(meta.getResultFilesTargetStepMeta().getName());
-      }
-      getData().groupFieldIndex=-1;
-      if (!Const.isEmpty(getData().groupField)) {
-        getData().groupFieldIndex=getInputRowMeta().indexOfValue(getData().groupField);
-        if (getData().groupFieldIndex < 0) {
-          throw new KettleException(BaseMessages.getString(PKG,"TransExecutor.Exception.GroupFieldNotFound",getData().groupField));
-        }
-        getData().groupFieldMeta=getInputRowMeta().getValueMeta(getData().groupFieldIndex);
-      }
+      initOnFirstProcessingIteration();
+    }
+    if (getData().getExecutorStepOutputRowMeta() != null) {
+      putRowTo(getData().getExecutorStepOutputRowMeta(),row,getData().getExecutorStepOutputRowSet());
     }
     boolean newGroup=false;
     if (getData().groupSize >= 0) {
@@ -57,7 +39,7 @@
       }
     }
     if (newGroup) {
-      executeTrans();
+      executeTransformation();
     }
     getData().groupBuffer.add(new RowMetaAndData(getInputRowMeta(),row));
     return true;
