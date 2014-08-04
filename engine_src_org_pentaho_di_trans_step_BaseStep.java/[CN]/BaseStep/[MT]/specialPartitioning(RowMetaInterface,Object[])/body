@@ -45,25 +45,49 @@
       }
       throw new KettleStepException("Internal error: the referenced partition nr '" + partitionNr + "' is higher than the maximum of '"+ (partitionNrRowSetList.length - 1)+ ".  The available row sets are: {"+ rowsets+ "}");
     }
+    if (selectedRowSet == null) {
+      logBasic(BaseMessages.getString(PKG,"BaseStep.TargetRowsetIsNotAvailable",partitionNr));
+    }
+ else {
+      while (!selectedRowSet.putRow(rowMeta,row)) {
+        if (isStopped()) {
+          break;
+        }
+      }
+      incrementLinesWritten();
+      if (log.isRowLevel()) {
+        try {
+          logRowlevel("Partitioned #" + partitionNr + " to "+ selectedRowSet+ ", row="+ rowMeta.getString(row));
+        }
+ catch (        KettleValueException e) {
+          throw new KettleStepException(e);
+        }
+      }
+    }
   }
  else {
-    selectedRowSet=outputRowSets.get(partitionNr);
-  }
-  if (selectedRowSet == null) {
-    logBasic("Target rowset is not available for target partition, partitionNr=" + partitionNr);
-  }
-  while (!selectedRowSet.putRow(rowMeta,row)) {
-    if (isStopped()) {
-      break;
-    }
-  }
-  incrementLinesWritten();
-  if (log.isRowLevel()) {
-    try {
-      logRowlevel("Partitioned #" + partitionNr + " to "+ selectedRowSet+ ", row="+ rowMeta.getString(row));
-    }
- catch (    KettleValueException e) {
-      throw new KettleStepException(e);
+    int partCount=((BasePartitioner)nextStepPartitioningMeta.getPartitioner()).getNrPartitions();
+    for (int i=0; i < nextSteps.length; i++) {
+      selectedRowSet=outputRowSets.get(partitionNr + i * partCount);
+      if (selectedRowSet == null) {
+        logBasic(BaseMessages.getString(PKG,"BaseStep.TargetRowsetIsNotAvailable",partitionNr));
+      }
+ else {
+        while (!selectedRowSet.putRow(rowMeta,row)) {
+          if (isStopped()) {
+            break;
+          }
+        }
+        incrementLinesWritten();
+        if (log.isRowLevel()) {
+          try {
+            logRowlevel(BaseMessages.getString(PKG,"BaseStep.PartitionedToRow",partitionNr,selectedRowSet,rowMeta.getString(row)));
+          }
+ catch (          KettleValueException e) {
+            throw new KettleStepException(e);
+          }
+        }
+      }
     }
   }
 }
