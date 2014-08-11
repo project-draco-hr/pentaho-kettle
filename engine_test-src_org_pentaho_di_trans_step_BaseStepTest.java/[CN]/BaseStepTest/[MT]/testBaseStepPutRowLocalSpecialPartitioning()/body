@@ -1,0 +1,44 @@
+{
+  List<StepMeta> stepMetas=new ArrayList<>();
+  stepMetas.add(mockHelper.stepMeta);
+  stepMetas.add(mockHelper.stepMeta);
+  StepPartitioningMeta stepPartitioningMeta=spy(new StepPartitioningMeta());
+  BasePartitioner partitioner=mock(BasePartitioner.class);
+  when(mockHelper.logChannelInterfaceFactory.create(any(),any(LoggingObjectInterface.class))).thenAnswer(new Answer<LogChannelInterface>(){
+    @Override public LogChannelInterface answer(    InvocationOnMock invocation) throws Throwable {
+      ((BaseStep)invocation.getArguments()[0]).getLogLevel();
+      return mockHelper.logChannelInterface;
+    }
+  }
+);
+  when(mockHelper.trans.isRunning()).thenReturn(true);
+  when(mockHelper.transMeta.findNextSteps(any(StepMeta.class))).thenReturn(stepMetas);
+  when(mockHelper.stepMeta.getStepPartitioningMeta()).thenReturn(stepPartitioningMeta);
+  when(stepPartitioningMeta.getPartitioner()).thenReturn(partitioner);
+  when(partitioner.getNrPartitions()).thenReturn(2);
+  Object object0="name0";
+  ValueMetaInterface meta0=new ValueMetaBase(object0.toString());
+  Object object1="name1";
+  ValueMetaInterface meta2=new ValueMetaBase(object1.toString());
+  RowMetaInterface rowMeta0=new RowMeta();
+  rowMeta0.addValueMeta(meta0);
+  Object[] objects0={object0};
+  RowMetaInterface rowMeta1=new RowMeta();
+  rowMeta1.addValueMeta(meta2);
+  Object[] objects1={object1};
+  when(stepPartitioningMeta.getPartition(rowMeta0,objects0)).thenReturn(0);
+  when(stepPartitioningMeta.getPartition(rowMeta1,objects1)).thenReturn(1);
+  BlockingRowSet[] rowSet={new BlockingRowSet(2),new BlockingRowSet(2),new BlockingRowSet(2),new BlockingRowSet(2)};
+  List<RowSet> outputRowSets=new ArrayList<>();
+  outputRowSets.addAll(Arrays.asList(rowSet));
+  BaseStep baseStep=new BaseStep(mockHelper.stepMeta,mockHelper.stepDataInterface,0,mockHelper.transMeta,mockHelper.trans);
+  baseStep.setStopped(false);
+  baseStep.setRepartitioning(StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL);
+  baseStep.setOutputRowSets(outputRowSets);
+  baseStep.putRow(rowMeta0,objects0);
+  baseStep.putRow(rowMeta1,objects1);
+  assertEquals(object0,baseStep.getOutputRowSets().get(0).getRow()[0]);
+  assertEquals(object1,baseStep.getOutputRowSets().get(1).getRow()[0]);
+  assertEquals(object0,baseStep.getOutputRowSets().get(2).getRow()[0]);
+  assertEquals(object1,baseStep.getOutputRowSets().get(3).getRow()[0]);
+}
