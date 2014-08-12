@@ -91,8 +91,8 @@ synchronized (jobEntryResults) {
   extension=new JobExecutionExtension(this,prevResult,jobEntryCopy,extension.executeEntry);
   ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobAfterJobEntryExecution.id,extension);
   final List<Thread> threads=new ArrayList<Thread>();
-  final List<Result> threadResults=new ArrayList<Result>();
-  final List<KettleException> threadExceptions=new ArrayList<KettleException>();
+  final Queue<Result> threadResults=new ConcurrentLinkedQueue<Result>();
+  final Queue<KettleException> threadExceptions=new ConcurrentLinkedQueue<KettleException>();
   final List<JobEntryCopy> threadEntries=new ArrayList<JobEntryCopy>();
   int nrNext=jobMeta.findNrNextJobEntries(jobEntryCopy);
   for (int i=0; i < nrNext && !isStopped(); i++) {
@@ -179,7 +179,7 @@ synchronized (jobEntryResults) {
     for (    KettleException e : threadExceptions) {
       log.logError(jobMeta.toString(),e.getMessage(),e);
     }
-    throw threadExceptions.get(0);
+    throw threadExceptions.poll();
   }
   for (  Result threadResult : threadResults) {
     res.add(threadResult);
