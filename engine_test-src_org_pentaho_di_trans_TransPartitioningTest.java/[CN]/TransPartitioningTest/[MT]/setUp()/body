@@ -1,0 +1,61 @@
+{
+  MockitoAnnotations.initMocks(this);
+  trans=new Trans(){
+    @Override public void calculateBatchIdAndDateRange() throws KettleTransException {
+    }
+    @Override public void beginProcessing() throws KettleTransException {
+    }
+  }
+;
+  TransMeta meta=Mockito.mock(TransMeta.class);
+  Mockito.when(meta.getName()).thenReturn("junit meta");
+  Mockito.when(meta.getTransformationType()).thenReturn(TransformationType.Normal);
+  Mockito.when(meta.getSizeRowset()).thenReturn(13);
+  Mockito.when(meta.getTransHopSteps(Mockito.anyBoolean())).thenAnswer(new Answer<List<StepMeta>>(){
+    @Override public List<StepMeta> answer(    InvocationOnMock invocation) throws Throwable {
+      return (new ArrayList<StepMeta>(chain));
+    }
+  }
+);
+  Mockito.when(meta.findNextSteps(Mockito.any(StepMeta.class))).then(new Answer<List<StepMeta>>(){
+    @Override public List<StepMeta> answer(    InvocationOnMock invocation) throws Throwable {
+      Object obj=invocation.getArguments()[0];
+      StepMeta findFor=StepMeta.class.cast(obj);
+      List<StepMeta> ret=new ArrayList<StepMeta>();
+      StepMeta nextStep=chain.higher(findFor);
+      if (nextStep != null) {
+        ret.add(nextStep);
+      }
+      return ret;
+    }
+  }
+);
+  Mockito.when(meta.findPreviousSteps(Mockito.any(StepMeta.class),Mockito.anyBoolean())).thenAnswer(new Answer<List<StepMeta>>(){
+    @Override public List<StepMeta> answer(    InvocationOnMock invocation) throws Throwable {
+      Object obj=invocation.getArguments()[0];
+      StepMeta findFor=StepMeta.class.cast(obj);
+      List<StepMeta> ret=new ArrayList<StepMeta>();
+      StepMeta prevStep=chain.lower(findFor);
+      if (prevStep != null) {
+        ret.add(prevStep);
+      }
+      return ret;
+    }
+  }
+);
+  Mockito.when(meta.findStep(Mockito.anyString())).thenAnswer(new Answer<StepMeta>(){
+    @Override public StepMeta answer(    InvocationOnMock invocation) throws Throwable {
+      Object obj=invocation.getArguments()[0];
+      String findFor=String.class.cast(obj);
+      for (      StepMeta item : chain) {
+        if (item.getName().equals(findFor)) {
+          return item;
+        }
+      }
+      return null;
+    }
+  }
+);
+  trans.setLog(log);
+  trans.setTransMeta(meta);
+}
