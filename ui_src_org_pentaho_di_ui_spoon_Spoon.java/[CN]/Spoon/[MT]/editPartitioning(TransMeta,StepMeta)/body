@@ -1,86 +1,27 @@
 {
-  String[] schemaNames=transMeta.getPartitionSchemasNames();
-  if (schemaNames.length == 0) {
-    MessageBox box=new MessageBox(shell,SWT.ICON_ERROR | SWT.OK);
-    box.setText("Create a partition schema");
-    box.setMessage("You first need to create one or more partition schemas in " + "the transformation settings dialog before you can select one!");
-    box.open();
-    return;
-  }
-  StepPartitioningMeta stepPartitioningMeta=stepMeta.getStepPartitioningMeta();
-  if (stepPartitioningMeta == null) {
-    stepPartitioningMeta=new StepPartitioningMeta();
-  }
-  StepMeta before=(StepMeta)stepMeta.clone();
-  PluginRegistry registry=PluginRegistry.getInstance();
-  List<PluginInterface> plugins=registry.getPlugins(PartitionerPluginType.class);
-  String[] options=new String[StepPartitioningMeta.methodDescriptions.length + plugins.size()];
-  String[] codes=new String[StepPartitioningMeta.methodDescriptions.length + plugins.size()];
-  System.arraycopy(StepPartitioningMeta.methodDescriptions,0,options,0,StepPartitioningMeta.methodDescriptions.length);
-  System.arraycopy(StepPartitioningMeta.methodCodes,0,codes,0,StepPartitioningMeta.methodCodes.length);
-  Iterator<PluginInterface> it=plugins.iterator();
-  int idx=0;
-  while (it.hasNext()) {
-    PluginInterface entry=it.next();
-    options[StepPartitioningMeta.methodDescriptions.length + idx]=entry.getDescription();
-    codes[StepPartitioningMeta.methodCodes.length + idx]=entry.getIds()[0];
-    idx++;
-  }
-  for (int i=0; i < codes.length; i++) {
-    if (codes[i].equals(stepPartitioningMeta.getMethod())) {
-      idx=i;
-      break;
-    }
-  }
-  EnterSelectionDialog dialog=new EnterSelectionDialog(shell,options,"Partioning method","Select the partitioning method");
-  String methodDescription=dialog.open(idx);
-  if (methodDescription != null) {
-    String method=StepPartitioningMeta.methodCodes[StepPartitioningMeta.PARTITIONING_METHOD_NONE];
-    for (int i=0; i < options.length; i++) {
-      if (options[i].equals(methodDescription)) {
-        method=codes[i];
+  try {
+    String[] schemaNames=transMeta.getPartitionSchemasNames();
+    if (isDefinedSchemaExist(schemaNames)) {
+      PluginRegistry registry=PluginRegistry.getInstance();
+      List<PluginInterface> plugins=registry.getPlugins(PartitionerPluginType.class);
+      int exactSize=StepPartitioningMeta.methodDescriptions.length + plugins.size();
+      PartitionSettings settings=new PartitionSettings(exactSize,transMeta,stepMeta);
+      settings.fillOptionsAndCodesByPlugins(plugins);
+      PartitionMethodSelector methodSelector=new PartitionMethodSelector();
+      String partitionMethodDescription=methodSelector.askForPartitionMethod(shell,settings);
+      if (!StringUtil.isEmpty(partitionMethodDescription)) {
+        String method=settings.getMethodByMethodDescription(partitionMethodDescription);
+        int methodType=StepPartitioningMeta.getMethodType(method);
+        settings.updateMethodType(methodType);
+        settings.updateMethod(method);
+        MethodProcessor methodProcessor=MethodProcessorFactory.create(methodType);
+        methodProcessor.schemaSelection(settings,shell,delegates);
       }
+      addUndoChange(settings.getTransMeta(),new StepMeta[]{settings.getBefore()},new StepMeta[]{settings.getAfter()},new int[]{settings.getTransMeta().indexOfStep(settings.getStepMeta())});
+      refreshGraph();
     }
-    try {
-      int methodType=StepPartitioningMeta.getMethodType(method);
-      stepPartitioningMeta.setMethodType(methodType);
-      stepPartitioningMeta.setMethod(method);
-switch (methodType) {
-case StepPartitioningMeta.PARTITIONING_METHOD_NONE:
-        break;
-case StepPartitioningMeta.PARTITIONING_METHOD_MIRROR:
-case StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL:
-      PartitionSchema partitionSchema=stepPartitioningMeta.getPartitionSchema();
-    idx=-1;
-  if (partitionSchema != null) {
-    idx=Const.indexOfString(partitionSchema.getName(),schemaNames);
   }
-EnterSelectionDialog askSchema=new EnterSelectionDialog(shell,schemaNames,"Select a partition schema","Select the partition schema to use:");
-String schemaName=askSchema.open(idx);
-if (schemaName != null) {
-idx=Const.indexOfString(schemaName,schemaNames);
-stepPartitioningMeta.setPartitionSchema(transMeta.getPartitionSchemas().get(idx));
-}
-if (methodType == StepPartitioningMeta.PARTITIONING_METHOD_SPECIAL) {
-StepDialogInterface partitionerDialog;
-try {
-partitionerDialog=delegates.steps.getPartitionerDialog(stepMeta,stepPartitioningMeta,transMeta);
-partitionerDialog.open();
-}
- catch (Exception e) {
-new ErrorDialog(shell,"Error","There was an unexpected error while editing the partitioning method specifics:",e);
-}
-}
-break;
-default :
-break;
-}
-StepMeta after=(StepMeta)stepMeta.clone();
-addUndoChange(transMeta,new StepMeta[]{before},new StepMeta[]{after},new int[]{transMeta.indexOfStep(stepMeta)});
-refreshGraph();
-}
- catch (Exception e) {
-new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.ErrorEditingStepPartitioning.Title"),BaseMessages.getString(PKG,"Spoon.ErrorEditingStepPartitioning.Message"),e);
-}
-}
+ catch (  Exception e) {
+    new ErrorDialog(shell,"Error","There was an unexpected error while editing the partitioning method specifics:",e);
+  }
 }
