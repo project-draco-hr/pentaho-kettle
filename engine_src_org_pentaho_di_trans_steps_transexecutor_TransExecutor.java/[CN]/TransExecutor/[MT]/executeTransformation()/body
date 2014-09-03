@@ -1,0 +1,45 @@
+{
+  if (getData().groupBuffer.isEmpty()) {
+    return;
+  }
+  getData().groupTimeStart=System.currentTimeMillis();
+  Trans executorTrans=getData().getExecutorTrans();
+  if (executorTrans != null) {
+    KettleLogStore.discardLines(executorTrans.getLogChannelId(),false);
+    LoggingRegistry.getInstance().removeIncludingChildren(executorTrans.getLogChannelId());
+  }
+  executorTrans=createInternalTrans();
+  getData().setExecutorTrans(executorTrans);
+  passParametersToTrans();
+  getTrans().getActiveSubtransformations().put(getStepname(),executorTrans);
+  Result result=new Result();
+  result.setRows(getData().groupBuffer);
+  executorTrans.setPreviousResult(result);
+  try {
+    executorTrans.prepareExecution(getTrans().getArguments());
+    if (meta.getOutputRowsSourceStepMeta() != null) {
+      List<StepMetaDataCombi> internalTransformationSteps=executorTrans.getSteps();
+      StepInterface stepInterface=internalTransformationSteps.get(internalTransformationSteps.size() - 1).step;
+      stepInterface.addRowListener(new RowAdapter(){
+        @Override public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
+          putRowTo(rowMeta,row,getData().getResultRowsRowSet());
+        }
+      }
+);
+    }
+    executorTrans.startThreads();
+    for (    DelegationListener delegationListener : getTrans().getDelegationListeners()) {
+      delegationListener.transformationDelegationStarted(executorTrans,new TransExecutionConfiguration());
+    }
+    executorTrans.waitUntilFinished();
+    result=executorTrans.getResult();
+  }
+ catch (  KettleException e) {
+    log.logError("An error occurred executing the transformation: ",e);
+    result.setResult(false);
+    result.setNrErrors(1);
+  }
+  collectExecutionResults(result);
+  collectExecutionResultFiles(result);
+  getData().groupBuffer.clear();
+}
