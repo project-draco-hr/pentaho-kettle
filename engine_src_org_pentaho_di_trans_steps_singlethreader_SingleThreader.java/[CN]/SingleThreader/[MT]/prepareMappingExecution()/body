@@ -1,31 +1,32 @@
 {
-  getData().mappingTransMeta.setTransformationType(TransformationType.SingleThreaded);
-  getData().mappingTrans=new Trans(getData().mappingTransMeta,getTrans());
+  SingleThreaderData singleThreaderData=getData();
+  singleThreaderData.mappingTransMeta.setTransformationType(TransformationType.SingleThreaded);
+  singleThreaderData.mappingTrans=new Trans(singleThreaderData.mappingTransMeta,getTrans());
   passParameters();
-  getData().mappingTrans.getTransMeta().setUsingThreadPriorityManagment(false);
-  getData().mappingTrans.setParentTrans(getTrans());
-  getData().mappingTrans.setSafeModeEnabled(getTrans().isSafeModeEnabled());
-  getData().mappingTrans.setGatheringMetrics(getTrans().isGatheringMetrics());
-  getData().mappingTrans.setMappingStepName(getStepname());
+  singleThreaderData.mappingTrans.getTransMeta().setUsingThreadPriorityManagment(false);
+  singleThreaderData.mappingTrans.setParentTrans(getTrans());
+  singleThreaderData.mappingTrans.setSafeModeEnabled(getTrans().isSafeModeEnabled());
+  singleThreaderData.mappingTrans.setGatheringMetrics(getTrans().isGatheringMetrics());
+  singleThreaderData.mappingTrans.setMappingStepName(getStepname());
   initServletConfig();
-  getData().mappingTrans.prepareExecution(null);
-  if (getData().injectStepMeta.isMappingInput()) {
-    MappingInputData mappingInputData=(MappingInputData)getData().mappingTrans.findDataInterface(getData().injectStepMeta.getName());
+  singleThreaderData.mappingTrans.prepareExecution(null);
+  if (singleThreaderData.injectStepMeta.isMappingInput()) {
+    MappingInputData mappingInputData=(MappingInputData)singleThreaderData.mappingTrans.findDataInterface(singleThreaderData.injectStepMeta.getName());
     mappingInputData.sourceSteps=new StepInterface[0];
     mappingInputData.valueRenames=new ArrayList<MappingValueRename>();
   }
-  getData().rowProducer=getData().mappingTrans.addRowProducer(meta.getInjectStep(),0);
-  StepInterface retrieveStep=getData().mappingTrans.getStepInterface(meta.getRetrieveStep(),0);
+  singleThreaderData.rowProducer=singleThreaderData.mappingTrans.addRowProducer(meta.getInjectStep(),0);
+  StepInterface retrieveStep=singleThreaderData.mappingTrans.getStepInterface(meta.getRetrieveStep(),0);
   retrieveStep.addRowListener(new RowAdapter(){
     @Override public void rowWrittenEvent(    RowMetaInterface rowMeta,    Object[] row) throws KettleStepException {
       SingleThreader.this.putRow(rowMeta,row);
     }
   }
 );
-  getData().mappingTrans.startThreads();
-  getData().executor=new SingleThreadedTransExecutor(getData().mappingTrans);
+  singleThreaderData.mappingTrans.startThreads();
+  singleThreaderData.executor=new SingleThreadedTransExecutor(singleThreaderData.mappingTrans);
   try {
-    boolean ok=getData().executor.init();
+    boolean ok=singleThreaderData.executor.init();
     if (!ok) {
       throw new KettleException(BaseMessages.getString(PKG,"SingleThreader.Exception.UnableToInitSingleThreadedTransformation"));
     }
@@ -33,5 +34,5 @@
  catch (  KettleException e) {
     throw new KettleException(BaseMessages.getString(PKG,"SingleThreader.Exception.UnableToPrepareExecutionOfMapping"),e);
   }
-  getTrans().getActiveSubtransformations().put(getStepname(),getData().mappingTrans);
+  getTrans().getActiveSubtransformations().put(getStepname(),singleThreaderData.mappingTrans);
 }

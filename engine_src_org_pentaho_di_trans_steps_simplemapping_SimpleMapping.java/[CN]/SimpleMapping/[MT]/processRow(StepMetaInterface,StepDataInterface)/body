@@ -2,14 +2,15 @@
   try {
     meta=(SimpleMappingMeta)smi;
     setData((SimpleMappingData)sdi);
+    SimpleMappingData simpleMappingData=getData();
     if (first) {
       first=false;
-      getData().wasStarted=true;
-      String mappingInputStepname=getData().mappingInput.getStepname();
-      RowProducer rowProducer=getData().mappingTrans.addRowProducer(mappingInputStepname,0);
-      getData().rowDataInputMapper=new RowDataInputMapper(meta.getInputMapping(),rowProducer);
-      String mappingOutputStepname=getData().mappingOutput.getStepname();
-      StepInterface outputStepInterface=getData().mappingTrans.findStepInterface(mappingOutputStepname,0);
+      simpleMappingData.wasStarted=true;
+      String mappingInputStepname=simpleMappingData.mappingInput.getStepname();
+      RowProducer rowProducer=simpleMappingData.mappingTrans.addRowProducer(mappingInputStepname,0);
+      simpleMappingData.rowDataInputMapper=new RowDataInputMapper(meta.getInputMapping(),rowProducer);
+      String mappingOutputStepname=simpleMappingData.mappingOutput.getStepname();
+      StepInterface outputStepInterface=simpleMappingData.mappingTrans.findStepInterface(mappingOutputStepname,0);
       RowOutputDataMapper outputDataMapper=new RowOutputDataMapper(meta.getInputMapping(),meta.getOutputMapping(),new PutRowInterface(){
         @Override public void putRow(        RowMetaInterface rowMeta,        Object[] rowData) throws KettleStepException {
           SimpleMapping.this.putRow(rowMeta,rowData);
@@ -17,7 +18,7 @@
       }
 );
       outputStepInterface.addRowListener(outputDataMapper);
-      getData().mappingTrans.startThreads();
+      simpleMappingData.mappingTrans.startThreads();
     }
     Object[] row=getRow();
     boolean rowWasPut=false;
@@ -27,16 +28,16 @@
       }
     }
     if (!rowWasPut) {
-      getData().rowDataInputMapper.finished();
-      getData().mappingTrans.waitUntilFinished();
+      simpleMappingData.rowDataInputMapper.finished();
+      simpleMappingData.mappingTrans.waitUntilFinished();
       setOutputDone();
       return false;
     }
     return true;
   }
  catch (  Throwable t) {
-    if (getData().mappingTrans != null) {
-      getData().mappingTrans.stopAll();
+    if (simpleMappingData.mappingTrans != null) {
+      simpleMappingData.mappingTrans.stopAll();
     }
     throw new KettleException(t);
   }

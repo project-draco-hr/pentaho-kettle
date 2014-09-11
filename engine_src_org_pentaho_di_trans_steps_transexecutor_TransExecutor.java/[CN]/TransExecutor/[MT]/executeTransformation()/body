@@ -1,19 +1,20 @@
 {
-  if (getData().groupBuffer.isEmpty()) {
+  final TransExecutorData transExecutorData=getData();
+  if (transExecutorData.groupBuffer.isEmpty()) {
     return;
   }
-  getData().groupTimeStart=System.currentTimeMillis();
-  Trans executorTrans=getData().getExecutorTrans();
+  transExecutorData.groupTimeStart=System.currentTimeMillis();
+  Trans executorTrans=transExecutorData.getExecutorTrans();
   if (executorTrans != null) {
     KettleLogStore.discardLines(executorTrans.getLogChannelId(),false);
     LoggingRegistry.getInstance().removeIncludingChildren(executorTrans.getLogChannelId());
   }
   executorTrans=createInternalTrans();
-  getData().setExecutorTrans(executorTrans);
+  transExecutorData.setExecutorTrans(executorTrans);
   passParametersToTrans();
   getTrans().getActiveSubtransformations().put(getStepname(),executorTrans);
   Result result=new Result();
-  result.setRows(getData().groupBuffer);
+  result.setRows(transExecutorData.groupBuffer);
   executorTrans.setPreviousResult(result);
   try {
     executorTrans.prepareExecution(getTrans().getArguments());
@@ -22,7 +23,7 @@
       StepInterface stepInterface=internalTransformationSteps.get(internalTransformationSteps.size() - 1).step;
       stepInterface.addRowListener(new RowAdapter(){
         @Override public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
-          putRowTo(rowMeta,row,getData().getResultRowsRowSet());
+          putRowTo(rowMeta,row,transExecutorData.getResultRowsRowSet());
         }
       }
 );
@@ -41,5 +42,5 @@
   }
   collectExecutionResults(result);
   collectExecutionResultFiles(result);
-  getData().groupBuffer.clear();
+  transExecutorData.groupBuffer.clear();
 }
