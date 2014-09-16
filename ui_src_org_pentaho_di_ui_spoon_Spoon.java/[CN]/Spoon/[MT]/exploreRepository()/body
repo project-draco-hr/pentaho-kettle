@@ -1,7 +1,7 @@
 {
   if (rep != null) {
     final RepositoryExplorerCallback cb=new RepositoryExplorerCallback(){
-      public boolean open(      UIRepositoryContent element,      String revision){
+      @Override public boolean open(      UIRepositoryContent element,      String revision) throws Exception {
         String objName=element.getName();
         if (objName != null) {
           RepositoryObjectType objectType=element.getRepositoryElementType();
@@ -14,6 +14,10 @@
           }
         }
         return false;
+      }
+      @Override public boolean error(      String message) throws Exception {
+        closeRepository();
+        return true;
       }
     }
 ;
@@ -31,7 +35,18 @@
               try {
                 RepositoryExplorer explorer=new RepositoryExplorer(shell,rep,cb,Variables.getADefaultVariableSpace());
                 box.stop();
-                explorer.show();
+                if (explorer.isInitialized()) {
+                  explorer.show();
+                }
+ else {
+                  shell.getDisplay().asyncExec(new Runnable(){
+                    public void run(){
+                      new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Error"),BaseMessages.getString(PKG,"Spoon.RepExplorer.Lost.Error"),null);
+                    }
+                  }
+);
+                  closeRepository();
+                }
                 explorer.dispose();
               }
  catch (              final Throwable e) {
