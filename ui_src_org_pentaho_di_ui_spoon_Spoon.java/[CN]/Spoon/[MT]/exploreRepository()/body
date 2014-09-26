@@ -32,20 +32,29 @@
         @Override public void run(){
           shell.getDisplay().syncExec(new Runnable(){
             public void run(){
+              RepositoryExplorer explorer;
               try {
-                RepositoryExplorer explorer=new RepositoryExplorer(shell,rep,cb,Variables.getADefaultVariableSpace());
-                box.stop();
-                if (explorer.isInitialized()) {
-                  explorer.show();
+                try {
+                  explorer=new RepositoryExplorer(shell,rep,cb,Variables.getADefaultVariableSpace());
                 }
- else {
+ catch (                final KettleRepositoryLostException krle) {
                   shell.getDisplay().asyncExec(new Runnable(){
                     public void run(){
-                      new ErrorDialog(shell,BaseMessages.getString(PKG,"Spoon.Error"),BaseMessages.getString(PKG,"Spoon.RepExplorer.Lost.Error"),null);
+                      new ErrorDialog(getShell(),BaseMessages.getString(PKG,"Spoon.Error"),krle.getPrefaceMessage(),krle);
                     }
                   }
 );
                   closeRepository();
+                  return;
+                }
+ finally {
+                  box.stop();
+                }
+                if (explorer.isInitialized()) {
+                  explorer.show();
+                }
+ else {
+                  return;
                 }
                 explorer.dispose();
               }
