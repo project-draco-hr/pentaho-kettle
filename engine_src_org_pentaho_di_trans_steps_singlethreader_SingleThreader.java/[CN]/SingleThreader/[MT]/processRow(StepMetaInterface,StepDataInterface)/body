@@ -1,10 +1,11 @@
 {
   meta=(SingleThreaderMeta)smi;
   setData((SingleThreaderData)sdi);
+  SingleThreaderData singleThreaderData=getData();
   Object[] row=getRow();
   if (row == null) {
-    if (getData().batchCount > 0) {
-      getData().batchCount=0;
+    if (singleThreaderData.batchCount > 0) {
+      singleThreaderData.batchCount=0;
       return execOneIteration();
     }
     setOutputDone();
@@ -12,23 +13,23 @@
   }
   if (first) {
     first=false;
-    getData().startTime=System.currentTimeMillis();
+    singleThreaderData.startTime=System.currentTimeMillis();
   }
-  getData().rowProducer.putRow(getInputRowMeta(),row);
-  getData().batchCount++;
+  singleThreaderData.rowProducer.putRow(getInputRowMeta(),row);
+  singleThreaderData.batchCount++;
   if (getStepMeta().isDoingErrorHandling()) {
-    getData().errorBuffer.add(row);
+    singleThreaderData.errorBuffer.add(row);
   }
-  boolean countWindow=getData().batchSize > 0 && getData().batchCount >= getData().batchSize;
-  boolean timeWindow=getData().batchTime > 0 && (System.currentTimeMillis() - getData().startTime) > getData().batchTime;
+  boolean countWindow=singleThreaderData.batchSize > 0 && singleThreaderData.batchCount >= singleThreaderData.batchSize;
+  boolean timeWindow=singleThreaderData.batchTime > 0 && (System.currentTimeMillis() - singleThreaderData.startTime) > singleThreaderData.batchTime;
   if (countWindow || timeWindow) {
-    getData().batchCount=0;
+    singleThreaderData.batchCount=0;
     boolean more=execOneIteration();
     if (!more) {
       setOutputDone();
       return false;
     }
-    getData().startTime=System.currentTimeMillis();
+    singleThreaderData.startTime=System.currentTimeMillis();
   }
   return true;
 }
