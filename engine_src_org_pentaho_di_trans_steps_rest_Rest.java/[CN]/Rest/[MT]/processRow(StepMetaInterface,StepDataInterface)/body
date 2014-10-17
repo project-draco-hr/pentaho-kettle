@@ -2,6 +2,7 @@
   meta=(RestMeta)smi;
   data=(RestData)sdi;
   Object[] r=getRow();
+  logBasic(Arrays.toString(r));
   if (r == null) {
     setOutputDone();
     return false;
@@ -74,6 +75,24 @@
         }
         data.useParams=true;
       }
+    }
+    int nrmatrixmatrixparams=meta.getMatrixParameterField() == null ? 0 : meta.getMatrixParameterField().length;
+    if (nrmatrixmatrixparams > 0) {
+      data.nrMatrixParams=nrmatrixmatrixparams;
+      data.matrixParamNames=new String[nrmatrixmatrixparams];
+      data.indexOfMatrixParamFields=new int[nrmatrixmatrixparams];
+      for (int i=0; i < nrmatrixmatrixparams; i++) {
+        data.matrixParamNames[i]=environmentSubstitute(meta.getMatrixParameterName()[i]);
+        String field=environmentSubstitute(meta.getMatrixParameterField()[i]);
+        if (Const.isEmpty(field)) {
+          throw new KettleException(BaseMessages.getString(PKG,"Rest.Exception.MatrixParamFieldEmpty"));
+        }
+        data.indexOfMatrixParamFields[i]=data.inputRowMeta.indexOfValue(field);
+        if (data.indexOfMatrixParamFields[i] < 0) {
+          throw new KettleException(BaseMessages.getString(PKG,"Rest.Exception.ErrorFindingField",field));
+        }
+      }
+      data.useMatrixParams=true;
     }
     if (RestMeta.isActiveBody(meta.getMethod())) {
       String field=environmentSubstitute(meta.getBodyField());
