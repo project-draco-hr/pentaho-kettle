@@ -1,0 +1,26 @@
+{
+  ExecutorService executorService=Executors.newFixedThreadPool(COUNT_OF_STEPS_WITH_DATABASE);
+  List<Callable<Connection>> tasks=new ArrayList<Callable<Connection>>();
+  for (int i=0; i < COUNT_OF_STEPS_WITH_DATABASE; i++) {
+    tasks.add(new Callable<Connection>(){
+      @Override public Connection call() throws Exception {
+        Database db=setupDatabase();
+        db.normalConnect(null);
+        return db.getConnection();
+      }
+    }
+);
+    tasks.add(new Callable<Connection>(){
+      @Override public Connection call() throws Exception {
+        Database db2=setupPoolingDatabaseWOConnect();
+        db2.normalConnect(null);
+        return db2.getConnection();
+      }
+    }
+);
+  }
+  List<Future<Connection>> futures=executorService.invokeAll(tasks);
+  for (  Future<Connection> future : futures) {
+    assertNotNull(future.get());
+  }
+}
