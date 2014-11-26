@@ -1,0 +1,32 @@
+{
+  final LogChannelInterface logChannelInterface=mock(LogChannelInterface.class,RETURNS_MOCKS);
+  ArgumentCaptor<String> captorLogMessage=ArgumentCaptor.forClass(String.class);
+  final DatabaseMeta dbMeta=mock(DatabaseMeta.class,RETURNS_MOCKS);
+  when(dbMeta.getDriverClass()).thenReturn(driver.getClass().getCanonicalName());
+  when(dbMeta.getConnectionPoolingProperties()).thenReturn(new Properties());
+  when(dbMeta.environmentSubstitute(anyString())).thenAnswer(new Answer<Object>(){
+    @Override public Object answer(    InvocationOnMock invocation) throws Throwable {
+      return invocation.getArguments()[0];
+    }
+  }
+);
+  when(dbMeta.getName()).thenReturn("CP1");
+  when(dbMeta.getPassword()).thenReturn(PASSWORD);
+  Callable<Connection> task=new Callable<Connection>(){
+    @Override public Connection call() throws Exception {
+      return ConnectionPoolUtil.getConnection(logChannelInterface,dbMeta,"",INITIAL_POOL_SIZE,threadCount);
+    }
+  }
+;
+  List<Callable<Connection>> tasks=Collections.nCopies(threadCount,task);
+  ExecutorService executorService=Executors.newFixedThreadPool(threadCount);
+  List<Future<Connection>> futures=executorService.invokeAll(tasks);
+  assertNotNull(futures);
+  assertEquals(threadCount,futures.size());
+  verify(logChannelInterface,atMost(2)).logBasic(captorLogMessage.capture());
+  List<String> capturedLogEntry=captorLogMessage.getAllValues();
+  if (capturedLogEntry != null && !capturedLogEntry.isEmpty()) {
+    assertEquals(BaseMessages.getString(PKG,"Database.CreatingConnectionPool",dbMeta.getName()),capturedLogEntry.get(0));
+    assertEquals(BaseMessages.getString(PKG,"Database.CreatedConnectionPool",dbMeta.getName()),capturedLogEntry.get(1));
+  }
+}
