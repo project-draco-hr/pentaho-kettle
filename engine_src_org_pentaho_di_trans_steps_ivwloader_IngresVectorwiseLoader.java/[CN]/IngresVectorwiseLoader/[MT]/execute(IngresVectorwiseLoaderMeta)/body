@@ -19,19 +19,22 @@
     }
     String cmd=createCommandLine(meta);
     try {
-      String logMessage=cmd;
+      String logMessage=masqueradPassword(cmd);
       if (meta.isUseDynamicVNode()) {
-        logMessage=masqueradPassword(logMessage);
+        logMessage=masqueradPassword(cmd);
+        logDetailed("Executing command: " + logMessage);
       }
-      logDetailed("Executing command: " + logMessage);
+ else {
+        logDetailed("Executing command: " + cmd);
+      }
       data.sqlProcess=rt.exec(cmd);
       data.errorLogger=new StreamLogger(log,data.sqlProcess.getErrorStream(),"ERR_SQL",true);
-      data.outputLogger=new StreamLogger(log,data.sqlProcess.getInputStream(),"OUT_SQL");
-      data.sqlOutputStream=data.sqlProcess.getOutputStream();
       new Thread(data.errorLogger).start();
-      Thread outputLoggerThread=new Thread(data.outputLogger);
-      outputLoggerThread.start();
-      vwLoadMonitor=new VWloadMonitor(data.sqlProcess,data.outputLogger,outputLoggerThread);
+      data.sqlOutputStream=data.sqlProcess.getOutputStream();
+      logWriter=new LogWriter(data.sqlProcess.getInputStream());
+      logWriteThread=new Thread(logWriter,"IngresVecorWiseStepLogWriter");
+      logWriteThread.start();
+      vwLoadMonitor=new VWloadMonitor(data.sqlProcess,data.outputLogger,logWriteThread);
       vwLoadMonitorThread=new Thread(vwLoadMonitor);
       vwLoadMonitorThread.start();
     }
