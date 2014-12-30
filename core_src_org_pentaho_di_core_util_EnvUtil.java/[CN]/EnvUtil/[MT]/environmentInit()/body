@@ -3,7 +3,27 @@
     Thread.currentThread().setContextClassLoader(ClassLoader.getSystemClassLoader());
   }
   Map<?,?> kettleProperties=EnvUtil.readProperties(Const.KETTLE_PROPERTIES);
-  applyKettleProperties(kettleProperties);
+  Variables variables=new Variables();
+  for (  Object key : kettleProperties.keySet()) {
+    String variable=(String)key;
+    String value=variables.environmentSubstitute((String)kettleProperties.get(key));
+    variables.setVariable(variable,value);
+  }
+  for (  String variable : variables.listVariables()) {
+    String value=variables.getVariable(variable);
+    if (variable.equals(Const.KETTLE_PLUGIN_CLASSES) || variable.equals(Const.KETTLE_PLUGIN_PACKAGES)) {
+      String jvmValue=System.getProperty(variable);
+      if (!Const.isEmpty(jvmValue)) {
+        if (!Const.isEmpty(value)) {
+          value+="," + jvmValue;
+        }
+ else {
+          value=jvmValue;
+        }
+      }
+    }
+    System.setProperty(variable,value);
+  }
   System.getProperties().put(Const.INTERNAL_VARIABLE_CLUSTER_SIZE,"1");
   System.getProperties().put(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NUMBER,"0");
   System.getProperties().put(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NAME,"slave-trans-name");
