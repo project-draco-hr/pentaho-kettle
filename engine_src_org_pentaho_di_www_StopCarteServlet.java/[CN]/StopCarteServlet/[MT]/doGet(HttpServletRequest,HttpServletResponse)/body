@@ -1,0 +1,49 @@
+{
+  if (isJettyMode() && !request.getContextPath().startsWith(CONTEXT_PATH)) {
+    return;
+  }
+  if (log.isDebug()) {
+    logDebug(BaseMessages.getString(PKG,"StopCarteServlet.shutdownRequest"));
+  }
+  response.setStatus(HttpServletResponse.SC_OK);
+  boolean useXML="Y".equalsIgnoreCase(request.getParameter("xml"));
+  if (useXML) {
+    response.setContentType("text/xml");
+    response.setCharacterEncoding(Const.XML_ENCODING);
+  }
+ else {
+    response.setContentType("text/html");
+  }
+  PrintStream out=new PrintStream(response.getOutputStream());
+  final Carte carte=CarteSingleton.getCarte();
+  if (useXML) {
+    out.print(XMLHandler.getXMLHeader(Const.XML_ENCODING));
+    out.print(XMLHandler.addTagValue(REQUEST_ACCEPTED,carte != null));
+    out.flush();
+  }
+ else {
+    out.println("<HTML>");
+    out.println("<HEAD><TITLE>" + BaseMessages.getString(PKG,"StopCarteServlet.shutdownRequest") + "</TITLE></HEAD>");
+    out.println("<BODY>");
+    out.println("<H1>" + BaseMessages.getString(PKG,"StopCarteServlet.status.label") + "</H1>");
+    out.println("<p>");
+    if (carte != null) {
+      out.println(BaseMessages.getString(PKG,"StopCarteServlet.shutdownRequest.status.ok"));
+    }
+ else {
+      out.println(BaseMessages.getString(PKG,"StopCarteServlet.shutdownRequest.status.notFound"));
+    }
+    out.println("</p>");
+    out.println("</BODY>");
+    out.println("</HTML>");
+    out.flush();
+  }
+  if (carte != null) {
+    delayedExecutor.execute(new Runnable(){
+      @Override public void run(){
+        carte.getWebServer().stopServer();
+      }
+    }
+,1000);
+  }
+}
