@@ -1,0 +1,40 @@
+{
+  ZipOutputStream out=null;
+  try {
+    Map<String,ResourceDefinition> definitions=new HashMap<String,ResourceDefinition>();
+    ResourceNamingInterface namingInterface=new SequenceResourceNaming();
+    String topLevelResource=resourceExportInterface.exportResources(space,definitions,namingInterface,repository,metaStore);
+    if (topLevelResource != null && !definitions.isEmpty()) {
+      FileObject fileObject=KettleVFS.getFileObject(zipFilename,space);
+      out=new ZipOutputStream(KettleVFS.getOutputStream(fileObject,false));
+      for (      String filename : definitions.keySet()) {
+        ResourceDefinition resourceDefinition=definitions.get(filename);
+        EngineMetaInterface meta=resourceDefinition.getMeta();
+        if (passingExport || resourceDefinition.isExportRequired() || meta == resourceExportInterface) {
+          zipFile(out,resourceDefinition.getOrigin(),resourceDefinition.getFilename(),filename,meta.getXML());
+        }
+      }
+      if (!StringUtils.isBlank(injectXML)) {
+        zipFile(out,null,injectFilename,injectFilename,injectXML);
+      }
+      String zipURL=fileObject.getName().toString();
+      return new TopLevelResource(topLevelResource,zipURL,"zip:" + zipURL + "!"+ topLevelResource);
+    }
+ else {
+      throw new KettleException(BaseMessages.getString(PKG,"ResourceUtil.Exception.NoResourcesFoundToExport"));
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"ResourceUtil.Exception.ErrorSerializingExportInterface",resourceExportInterface.toString()),e);
+  }
+ finally {
+    if (out != null) {
+      try {
+        out.close();
+      }
+ catch (      IOException e) {
+        throw new KettleException(BaseMessages.getString(PKG,"ResourceUtil.Exception.ErrorClosingZipStream",zipFilename));
+      }
+    }
+  }
+}
