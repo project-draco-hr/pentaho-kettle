@@ -1,0 +1,50 @@
+{
+  options=new Options();
+  options.addOption(OptionBuilder.withLongOpt("stop").withDescription(BaseMessages.getString(PKG,"Carte.ParamDescription.stop")).hasArg(false).isRequired(false).create('s'));
+  options.addOption(OptionBuilder.withLongOpt("userName").withDescription(BaseMessages.getString(PKG,"Carte.ParamDescription.userName")).hasArg(true).isRequired(false).create('u'));
+  options.addOption(OptionBuilder.withLongOpt("password").withDescription(BaseMessages.getString(PKG,"Carte.ParamDescription.password")).hasArg(true).isRequired(false).create('p'));
+  options.addOption(OptionBuilder.withLongOpt("help").withDescription(BaseMessages.getString(PKG,"Carte.ParamDescription.help")).create('h'));
+  CommandLineParser parser=new BasicParser();
+  CommandLine cmd=parser.parse(options,args);
+  if (cmd.hasOption('h')) {
+    displayHelpAndAbort();
+  }
+  String[] arguments=cmd.getArgs();
+  boolean usingConfigFile=false;
+  SlaveServerConfig config=null;
+  if (arguments.length == 1 && !Const.isEmpty(arguments[0])) {
+    if (cmd.hasOption('s')) {
+      throw new Carte.CarteCommandException(BaseMessages.getString(PKG,"Carte.Error.illegalStop"));
+    }
+    usingConfigFile=true;
+    FileObject file=KettleVFS.getFileObject(arguments[0]);
+    Document document=XMLHandler.loadXMLFile(file);
+    setKettleEnvironment();
+    Node configNode=XMLHandler.getSubNode(document,SlaveServerConfig.XML_TAG);
+    config=new SlaveServerConfig(new LogChannel("Slave server config"),configNode);
+    if (config.getAutoSequence() != null) {
+      config.readAutoSequences();
+    }
+    config.setFilename(arguments[0]);
+  }
+  if (arguments.length == 2 && !Const.isEmpty(arguments[0]) && !Const.isEmpty(arguments[1])) {
+    String hostname=arguments[0];
+    String port=arguments[1];
+    if (cmd.hasOption('s')) {
+      String user=cmd.getOptionValue('u');
+      String password=cmd.getOptionValue('p');
+      shutdown(hostname,port,user,password);
+      System.exit(0);
+    }
+    SlaveServer slaveServer=new SlaveServer(hostname + ":" + port,hostname,port,null,null);
+    config=new SlaveServerConfig();
+    config.setSlaveServer(slaveServer);
+  }
+  if (config == null) {
+    displayHelpAndAbort();
+  }
+  if (!usingConfigFile) {
+    setKettleEnvironment();
+  }
+  runCarte(config);
+}
