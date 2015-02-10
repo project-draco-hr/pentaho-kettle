@@ -1,0 +1,27 @@
+{
+  final TransMeta transMeta=new TransMeta();
+  StepMeta sourceStep=new StepMeta("CsvInput","Step1",new CsvInputMeta());
+  StepMeta targetStep=new StepMeta("Dummy","Dummy Step1",new DummyTransMeta());
+  sourceStep.setSelected(true);
+  transMeta.addStep(sourceStep);
+  transMeta.addStep(targetStep);
+  StepErrorMeta errorMeta=new StepErrorMeta(transMeta,sourceStep,targetStep);
+  sourceStep.setStepErrorMeta(errorMeta);
+  errorMeta.setSourceStep(sourceStep);
+  errorMeta.setTargetStep(targetStep);
+  final int stepsSizeBefore=transMeta.getSteps().size();
+  doAnswer(new Answer(){
+    @Override public Object answer(    InvocationOnMock invocation) throws Throwable {
+      spoon.pasteXML(transMeta,(String)invocation.getArguments()[0],mock(Point.class));
+      assertTrue("Steps was not copied",stepsSizeBefore < transMeta.getSteps().size());
+      for (      StepMeta s : transMeta.getSelectedSteps()) {
+        if (s.getStepMetaInterface() instanceof CsvInputMeta) {
+          assertNull(" Error hop was not copied",s.getStepErrorMeta());
+        }
+      }
+      return null;
+    }
+  }
+).when(spoon).toClipboard(anyString());
+  spoon.copySelected(transMeta,transMeta.getSelectedSteps(),Collections.<NotePadMeta>emptyList());
+}
