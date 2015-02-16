@@ -1,0 +1,32 @@
+{
+  FileObject tempFile=KettleVFS.createTempFile("export",".zip",System.getProperty("java.io.tmpdir"));
+  OutputStream out=KettleVFS.getOutputStream(tempFile,false);
+  IOUtils.copy(request.getInputStream(),out);
+  out.flush();
+  IOUtils.closeQuietly(out);
+  String archiveUrl=tempFile.getName().toString();
+  String load=request.getParameter(PARAMETER_LOAD);
+  if (!Const.isEmpty(load)) {
+    String fileUrl=MessageFormat.format(ZIP_CONT,archiveUrl,load);
+    boolean isJob=TYPE_JOB.equalsIgnoreCase(request.getParameter(PARAMETER_TYPE));
+    String resultId;
+    if (isJob) {
+      Node node=getConfigNodeFromZIP(archiveUrl,Job.CONFIGURATION_IN_EXPORT_FILENAME,JobExecutionConfiguration.XML_TAG);
+      JobExecutionConfiguration jobExecutionConfiguration=new JobExecutionConfiguration(node);
+      JobMeta jobMeta=new JobMeta(fileUrl,jobExecutionConfiguration.getRepository());
+      JobConfiguration jobConfiguration=new JobConfiguration(jobMeta,jobExecutionConfiguration);
+      Job job=createJob(jobConfiguration);
+      resultId=job.getContainerObjectId();
+    }
+ else {
+      Node node=getConfigNodeFromZIP(archiveUrl,Trans.CONFIGURATION_IN_EXPORT_FILENAME,TransExecutionConfiguration.XML_TAG);
+      TransExecutionConfiguration transExecutionConfiguration=new TransExecutionConfiguration(node);
+      TransMeta transMeta=new TransMeta(fileUrl,transExecutionConfiguration.getRepository());
+      TransConfiguration transConfiguration=new TransConfiguration(transMeta,transExecutionConfiguration);
+      Trans trans=createTrans(transConfiguration);
+      resultId=trans.getContainerObjectId();
+    }
+    return new WebResult(WebResult.STRING_OK,fileUrl,resultId);
+  }
+  return null;
+}
