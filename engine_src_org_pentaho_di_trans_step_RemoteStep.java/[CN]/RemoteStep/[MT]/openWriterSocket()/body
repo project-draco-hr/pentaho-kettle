@@ -6,14 +6,42 @@
     public void run(){
       try {
         socket=serverSocket.accept();
+        OutputStream socketOut=socket.getOutputStream();
         if (compressingStreams) {
-          gzipOutputStream=new GZIPOutputStream(socket.getOutputStream(),50000);
+          gzipOutputStream=new GZIPOutputStream(socketOut,50000);
           bufferedOutputStream=new BufferedOutputStream(gzipOutputStream,bufferSize);
         }
  else {
-          bufferedOutputStream=new BufferedOutputStream(socket.getOutputStream(),bufferSize);
+          bufferedOutputStream=new BufferedOutputStream(socketOut,bufferSize);
         }
-        outputStream=new DataOutputStream(bufferedOutputStream);
+        socketOut=bufferedOutputStream;
+        if (encryptingStreams && key != null) {
+          byte[] transKey=baseStep.getTransMeta().getKey();
+          Key unwrappedKey=null;
+          try {
+            unwrappedKey=CertificateGenEncryptUtil.decodeTransmittedKey(transKey,key,baseStep.getTransMeta().isPrivateKey());
+          }
+ catch (          InvalidKeyException ex) {
+            baseStep.logError("Invalid key was received",ex);
+          }
+catch (          InvalidKeySpecException ex) {
+            baseStep.logError("Invalid key specification was received. Most probably public key was " + "sent instead of private or vice versa",ex);
+          }
+catch (          Exception ex) {
+            baseStep.logError("Error occurred during encryption initialization",ex);
+          }
+          try {
+            Cipher decryptionCip=CertificateGenEncryptUtil.initDecryptionCipher(unwrappedKey,key);
+            socketOut=cipherOutputStream=new CipherOutputStream(bufferedOutputStream,decryptionCip);
+          }
+ catch (          InvalidKeyException ex) {
+            baseStep.logError("Invalid key was received",ex);
+          }
+catch (          Exception ex) {
+            baseStep.logError("Error occurred during encryption initialization",ex);
+          }
+        }
+        outputStream=new DataOutputStream(socketOut);
         baseStep.logBasic("Server socket accepted for port [" + port + "], reading from server "+ targetSlaveServerName);
         Object[] rowData=baseStep.getRowFrom(rowSet);
         if (rowData != null) {
@@ -57,6 +85,9 @@
           if (outputStream != null) {
             outputStream.flush();
             outputStream.close();
+            if (cipherOutputStream != null) {
+              cipherOutputStream.close();
+            }
             bufferedOutputStream.close();
             if (gzipOutputStream != null) {
               gzipOutputStream.close();
@@ -71,6 +102,7 @@
         outputStream=null;
         bufferedOutputStream=null;
         gzipOutputStream=null;
+        cipherOutputStream=null;
       }
     }
   }
