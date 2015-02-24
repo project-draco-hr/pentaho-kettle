@@ -1,0 +1,40 @@
+{
+  if (isJettyMode() && !request.getContextPath().startsWith(getContextPath())) {
+    return;
+  }
+  if (log.isDebug()) {
+    logDebug(messages.getString("Log.Execute"));
+  }
+  boolean useXML=useXML(request);
+  PrintWriter out=new PrintWriter(response.getOutputStream());
+  try {
+    if (useXML) {
+      startXml(response,out);
+    }
+ else {
+      beginHtml(response,out);
+    }
+    WebResult result=generateBody(request,response,useXML);
+    if (result != null) {
+      out.println(result.getXML());
+    }
+  }
+ catch (  Exception e) {
+    String st=ExceptionUtils.getFullStackTrace(e);
+    if (useXML) {
+      out.println(new WebResult(WebResult.STRING_ERROR,st).getXML());
+    }
+ else {
+      out.println("<p><pre>");
+      out.println(ENCODER.encodeForHTML(st));
+      out.println("</pre>");
+    }
+  }
+ finally {
+    if (!useXML) {
+      endHtml(out);
+    }
+    out.flush();
+    IOUtils.closeQuietly(out);
+  }
+}

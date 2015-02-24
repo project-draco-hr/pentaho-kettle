@@ -16,14 +16,42 @@
       baseStep.logDetailed("Opening client (reader) socket to server [" + Const.NVL(realHostname,"") + ":"+ port+ "]");
       socket.connect(new InetSocketAddress(realHostname,portNumber),5000);
       connected=true;
+      InputStream socketStream=socket.getInputStream();
       if (compressingStreams) {
-        gzipInputStream=new GZIPInputStream(socket.getInputStream());
+        gzipInputStream=new GZIPInputStream(socketStream);
         bufferedInputStream=new BufferedInputStream(gzipInputStream,bufferSize);
       }
  else {
-        bufferedInputStream=new BufferedInputStream(socket.getInputStream(),bufferSize);
+        bufferedInputStream=new BufferedInputStream(socketStream,bufferSize);
       }
-      inputStream=new DataInputStream(bufferedInputStream);
+      socketStream=bufferedInputStream;
+      if (encryptingStreams && key != null) {
+        byte[] transKey=baseStep.getTransMeta().getKey();
+        Key unwrappedKey=null;
+        try {
+          unwrappedKey=CertificateGenEncryptUtil.decodeTransmittedKey(transKey,key,baseStep.getTransMeta().isPrivateKey());
+        }
+ catch (        InvalidKeyException ex) {
+          baseStep.logError("Invalid key was received",ex);
+        }
+catch (        InvalidKeySpecException ex) {
+          baseStep.logError("Invalid key specification was received. Most probably public key was " + "sent instead of private or vice versa",ex);
+        }
+catch (        Exception ex) {
+          baseStep.logError("Error occurred during encryption initialization",ex);
+        }
+        try {
+          Cipher decryptionCip=CertificateGenEncryptUtil.initDecryptionCipher(unwrappedKey,key);
+          socketStream=cipherInputStream=new CipherInputStream(bufferedInputStream,decryptionCip);
+        }
+ catch (        InvalidKeyException ex) {
+          baseStep.logError("Invalid key was received",ex);
+        }
+catch (        Exception ex) {
+          baseStep.logError("Error occurred during encryption initialization",ex);
+        }
+      }
+      inputStream=new DataInputStream(socketStream);
       lastException=null;
     }
  catch (    Exception e) {
@@ -131,6 +159,15 @@ catch (      Exception e) {
           }
           inputStream=null;
         }
+        if (cipherInputStream != null) {
+          try {
+            cipherInputStream.close();
+          }
+ catch (          Exception e) {
+            baseStep.logError("Error closing input stream on socket connection to remote step",e);
+          }
+        }
+        cipherInputStream=null;
         if (bufferedInputStream != null) {
           try {
             bufferedInputStream.close();
