@@ -1,60 +1,60 @@
 {
   Result result=new Result();
-  String all=SqlCommentScrubber.removeComments(script);
-  String[] statements=all.split(";");
-  String stat;
+  List<String> statements=SqlScriptParser.getInstance().split(script);
   int nrstats=0;
-  for (int i=0; i < statements.length; i++) {
-    stat=statements[i];
-    if (!Const.onlySpaces(stat)) {
-      String sql=Const.trim(stat);
-      if (sql.toUpperCase().startsWith("SELECT")) {
-        if (log.isDetailed()) {
-          log.logDetailed("launch SELECT statement: " + Const.CR + sql);
-        }
-        nrstats++;
-        ResultSet rs=null;
-        try {
-          rs=openQuery(sql,params,data);
-          if (rs != null) {
-            Object[] row=getRow(rs);
-            while (row != null) {
-              result.setNrLinesRead(result.getNrLinesRead() + 1);
-              if (log.isDetailed()) {
-                log.logDetailed(rowMeta.getString(row));
-              }
-              row=getRow(rs);
-            }
+  if (statements != null) {
+    for (    String stat : statements) {
+      stat=SqlScriptParser.getInstance().removeComments(stat);
+      if (!Const.onlySpaces(stat)) {
+        String sql=Const.trim(stat);
+        if (sql.toUpperCase().startsWith("SELECT")) {
+          if (log.isDetailed()) {
+            log.logDetailed("launch SELECT statement: " + Const.CR + sql);
           }
- else {
-            if (log.isDebug()) {
-              log.logDebug("Error executing query: " + Const.CR + sql);
-            }
-          }
-        }
- catch (        KettleValueException e) {
-          throw new KettleDatabaseException(e);
-        }
- finally {
+          nrstats++;
+          ResultSet rs=null;
           try {
+            rs=openQuery(sql,params,data);
             if (rs != null) {
-              rs.close();
+              Object[] row=getRow(rs);
+              while (row != null) {
+                result.setNrLinesRead(result.getNrLinesRead() + 1);
+                if (log.isDetailed()) {
+                  log.logDetailed(rowMeta.getString(row));
+                }
+                row=getRow(rs);
+              }
             }
-          }
- catch (          SQLException ex) {
-            if (log.isDebug()) {
-              log.logDebug("Error closing query: " + Const.CR + sql);
-            }
-          }
-        }
-      }
  else {
-        if (log.isDetailed()) {
-          log.logDetailed("launch DDL statement: " + Const.CR + sql);
+              if (log.isDebug()) {
+                log.logDebug("Error executing query: " + Const.CR + sql);
+              }
+            }
+          }
+ catch (          KettleValueException e) {
+            throw new KettleDatabaseException(e);
+          }
+ finally {
+            try {
+              if (rs != null) {
+                rs.close();
+              }
+            }
+ catch (            SQLException ex) {
+              if (log.isDebug()) {
+                log.logDebug("Error closing query: " + Const.CR + sql);
+              }
+            }
+          }
         }
-        nrstats++;
-        Result res=execStatement(sql,params,data);
-        result.add(res);
+ else {
+          if (log.isDetailed()) {
+            log.logDetailed("launch DDL statement: " + Const.CR + sql);
+          }
+          nrstats++;
+          Result res=execStatement(sql,params,data);
+          result.add(res);
+        }
       }
     }
   }

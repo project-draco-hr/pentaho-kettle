@@ -1,0 +1,37 @@
+{
+  JobExecutionConfiguration jobExecutionConfiguration=jobConfiguration.getJobExecutionConfiguration();
+  JobMeta jobMeta=jobConfiguration.getJobMeta();
+  jobMeta.setLogLevel(jobExecutionConfiguration.getLogLevel());
+  jobMeta.injectVariables(jobExecutionConfiguration.getVariables());
+  final Repository repository=jobConfiguration.getJobExecutionConfiguration().getRepository();
+  String carteObjectId=UUID.randomUUID().toString();
+  SimpleLoggingObject servletLoggingObject=getServletLogging(carteObjectId,jobExecutionConfiguration.getLogLevel());
+  final Job job=new Job(repository,jobMeta,servletLoggingObject);
+  job.initializeVariablesFrom(null);
+  job.getJobMeta().setInternalKettleVariables(job);
+  job.injectVariables(jobConfiguration.getJobExecutionConfiguration().getVariables());
+  job.setArguments(jobExecutionConfiguration.getArgumentStrings());
+  job.setSocketRepository(getSocketRepository());
+  copyJobParameters(job,jobExecutionConfiguration.getParams());
+  String startCopyName=jobExecutionConfiguration.getStartCopyName();
+  if (startCopyName != null && !startCopyName.isEmpty()) {
+    int startCopyNr=jobExecutionConfiguration.getStartCopyNr();
+    JobEntryCopy startJobEntryCopy=jobMeta.findJobEntry(startCopyName,startCopyNr,false);
+    job.setStartJobEntryCopy(startJobEntryCopy);
+  }
+  if (jobExecutionConfiguration.isExpandingRemoteJob()) {
+    job.addDelegationListener(new CarteDelegationHandler(getTransformationMap(),getJobMap()));
+  }
+  if (repository != null) {
+    job.addJobListener(new JobAdapter(){
+      public void jobFinished(      Job job){
+        repository.disconnect();
+      }
+    }
+);
+  }
+synchronized (getJobMap()) {
+    getJobMap().addJob(job.getJobname(),carteObjectId,job,jobConfiguration);
+  }
+  return job;
+}
