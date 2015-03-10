@@ -1,6 +1,6 @@
 {
-  kettleLifecycleListeners=LifecycleSupport.loadPlugins(KettleLifecyclePluginType.class,KettleLifecycleListener.class);
-  final PluginRegistry registry=PluginRegistry.getInstance();
+  Set<KettleLifecycleListener> listeners=LifecycleSupport.loadPlugins(KettleLifecyclePluginType.class,KettleLifecycleListener.class);
+  kettleLifecycleListeners=new ConcurrentHashMap<KettleLifecycleListener,Boolean>(Maps.asMap(listeners,Functions.constant(false)));
   registry.addPluginListener(KettleLifecyclePluginType.class,new PluginTypeListener(){
     @Override public void pluginAdded(    Object serviceObject){
       KettleLifecycleListener listener=null;
@@ -11,14 +11,13 @@
         e.printStackTrace();
         return;
       }
-      kettleLifecycleListeners.add(listener);
-      if (KettleEnvironment.isInitialized()) {
+      kettleLifecycleListeners.put(listener,false);
+      if (initialized.get()) {
         try {
-          listener.onEnvironmentInit();
+          onEnvironmentInit(listener);
         }
- catch (        LifecycleException ex) {
-          String message=BaseMessages.getString(PKG,"LifecycleSupport.ErrorInvokingKettleLifecycleListener",listener);
-          LogChannel.GENERAL.logError(message,ex);
+ catch (        Throwable e) {
+          Throwables.propagate(e);
         }
       }
     }
