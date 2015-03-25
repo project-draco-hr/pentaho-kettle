@@ -1,0 +1,31 @@
+{
+  DatabaseMeta meta=mock(DatabaseMeta.class);
+  when(meta.getStartQuote()).thenReturn("");
+  when(meta.getEndQuote()).thenReturn("");
+  when(meta.getQuotedSchemaTableCombination(anyString(),anyString())).thenAnswer(new Answer<String>(){
+    @Override public String answer(    InvocationOnMock invocation) throws Throwable {
+      return invocation.getArguments()[1].toString();
+    }
+  }
+);
+  when(meta.getDatabaseInterface()).thenReturn(new OracleDatabaseMeta());
+  Database db=mock(Database.class);
+  when(db.getDatabaseMeta()).thenReturn(meta);
+  when(db.getDDL(anyString(),any(RowMetaInterface.class),anyString(),anyBoolean(),anyString(),anyBoolean())).thenReturn("### CREATE TABLE;");
+  when(repository.getDatabase()).thenReturn(db);
+  when(repository.getDatabaseMeta()).thenReturn(meta);
+  when(db.getCreateIndexStatement(anyString(),anyString(),any(String[].class),anyBoolean(),anyBoolean(),anyBoolean(),anyBoolean())).thenAnswer(lan);
+  KettleDatabaseRepositoryCreationHelper helper=new KettleDatabaseRepositoryCreationHelper(repository);
+  PluginRegistry.addPluginType(TwoWayPasswordEncoderPluginType.getInstance());
+  PluginRegistry.init(true);
+  String passwordEncoderPluginID=Const.NVL(EnvUtil.getSystemProperty(Const.KETTLE_PASSWORD_ENCODER_PLUGIN),"Kettle");
+  Encr.init(passwordEncoderPluginID);
+  List<String> statements=new ArrayList<String>();
+  helper.createRepositorySchema(null,false,statements,true);
+  for (  String st : statements) {
+    if (st == null || st.startsWith("#")) {
+      continue;
+    }
+    assertTrue("Index name is not overlenght!: " + st,st.length() <= 30);
+  }
+}
