@@ -1,0 +1,27 @@
+{
+  String schemaName="";
+  String tableName="tableName";
+  String schemaTable="default.tableName";
+  String technicalKeyField="technicalKeyField";
+  DatabaseMeta databaseMeta=spy(new DatabaseMeta(databasesXML[0]){
+    public String getFieldDefinition(    ValueMetaInterface v,    String tk,    String pk,    boolean use_autoinc){
+      return "someValue";
+    }
+  }
+);
+  when(databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName)).thenReturn(schemaTable);
+  CombinationLookupMeta clm=new CombinationLookupMeta();
+  clm.setTechnicalKeyField(technicalKeyField);
+  clm.setKeyLookup(new String[]{"keyLookup1","keyLookup2"});
+  clm.setDatabaseMeta(databaseMeta);
+  clm.setTablename(tableName);
+  clm.setSchemaName(schemaName);
+  StepMeta stepMeta=mock(StepMeta.class);
+  RowMetaInterface rowMetaInterface=mock(RowMetaInterface.class);
+  when(rowMetaInterface.size()).thenReturn(1);
+  Repository repository=mock(Repository.class);
+  IMetaStore metaStore=mock(IMetaStore.class);
+  SQLStatement sqlStatement=clm.getSQLStatements(new TransMeta(),stepMeta,rowMetaInterface,repository,metaStore);
+  String sql=sqlStatement.getSQL();
+  Assert.assertTrue(StringUtils.countMatches(sql,schemaTable) == 3);
+}
