@@ -1,0 +1,28 @@
+{
+  String schemaName="";
+  String tableName="tableName";
+  String schemaTable="default.tableName";
+  DatabaseMeta databaseMeta=spy(new DatabaseMeta(databaseXML){
+    public String getFieldDefinition(    ValueMetaInterface v,    String tk,    String pk,    boolean use_autoinc){
+      return "someValue";
+    }
+  }
+);
+  when(databaseMeta.getQuotedSchemaTableCombination(schemaName,tableName)).thenReturn(schemaTable);
+  ValueMetaInterface valueMeta=mock(ValueMetaInterface.class);
+  when(valueMeta.clone()).thenReturn(mock(ValueMetaInterface.class));
+  RowMetaInterface rowMetaInterface=mock(RowMetaInterface.class);
+  when(rowMetaInterface.size()).thenReturn(1);
+  when(rowMetaInterface.searchValueMeta(anyString())).thenReturn(valueMeta);
+  UpdateMeta updateMeta=new UpdateMeta();
+  updateMeta.setDatabaseMeta(databaseMeta);
+  updateMeta.setTableName(tableName);
+  updateMeta.setSchemaName(schemaName);
+  updateMeta.setKeyLookup(new String[]{"KeyLookup1","KeyLookup2"});
+  updateMeta.setKeyStream(new String[]{"KeyStream1","KeyStream2"});
+  updateMeta.setUpdateLookup(new String[]{"updateLookup1","updateLookup2"});
+  updateMeta.setUpdateStream(new String[]{"UpdateStream1","UpdateStream2"});
+  SQLStatement sqlStatement=updateMeta.getSQLStatements(new TransMeta(),mock(StepMeta.class),rowMetaInterface,mock(Repository.class),mock(IMetaStore.class));
+  String sql=sqlStatement.getSQL();
+  Assert.assertTrue(StringUtils.countMatches(sql,schemaTable) == 2);
+}
