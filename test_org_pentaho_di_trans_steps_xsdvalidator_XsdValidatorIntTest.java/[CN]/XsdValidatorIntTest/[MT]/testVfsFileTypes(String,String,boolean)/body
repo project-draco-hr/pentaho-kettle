@@ -1,0 +1,47 @@
+{
+  assertNotNull(dataFilename);
+  assertNotNull(schemaFilename);
+  try {
+    assertTrue(KettleVFS.getFileObject(dataFilename).exists());
+    assertTrue(KettleVFS.getFileObject(schemaFilename).exists());
+  }
+ catch (  Exception e) {
+    fail();
+  }
+  RowMetaInterface inputRowMeta=new RowMeta();
+  inputRowMeta.addValueMeta(new ValueMetaString("DataFile"));
+  inputRowMeta.addValueMeta(new ValueMetaString("SchemaFile"));
+  List<RowMetaAndData> inputData=new ArrayList<RowMetaAndData>();
+  inputData.add(new RowMetaAndData(inputRowMeta,new Object[]{dataFilename,schemaFilename}));
+  String stepName="XSD Validator";
+  XsdValidatorMeta meta=new XsdValidatorMeta();
+  meta.setDefault();
+  meta.setXMLSourceFile(true);
+  meta.setXMLStream("DataFile");
+  meta.setXSDSource(meta.SPECIFY_FIELDNAME);
+  meta.setXSDDefinedField("SchemaFile");
+  TransMeta transMeta=TransTestFactory.generateTestTransformation(null,meta,stepName);
+  List<RowMetaAndData> result=null;
+  try {
+    result=TransTestFactory.executeTestTransformation(transMeta,TransTestFactory.INJECTOR_STEPNAME,stepName,TransTestFactory.DUMMY_STEPNAME,inputData);
+  }
+ catch (  KettleException e) {
+    fail();
+  }
+  assertNotNull(result);
+  assertEquals(1,result.size());
+  assertEquals(ValueMetaInterface.TYPE_STRING,result.get(0).getValueMeta(0).getType());
+  assertEquals(ValueMetaInterface.TYPE_STRING,result.get(0).getValueMeta(1).getType());
+  assertEquals(ValueMetaInterface.TYPE_BOOLEAN,result.get(0).getValueMeta(2).getType());
+  assertEquals("DataFile",result.get(0).getValueMeta(0).getName());
+  assertEquals("SchemaFile",result.get(0).getValueMeta(1).getName());
+  assertEquals("result",result.get(0).getValueMeta(2).getName());
+  try {
+    assertEquals(dataFilename,result.get(0).getString(0,"default"));
+    assertEquals(schemaFilename,result.get(0).getString(1,"default"));
+    assertEquals(expected,result.get(0).getBoolean(2,!expected));
+  }
+ catch (  KettleValueException e) {
+    fail();
+  }
+}

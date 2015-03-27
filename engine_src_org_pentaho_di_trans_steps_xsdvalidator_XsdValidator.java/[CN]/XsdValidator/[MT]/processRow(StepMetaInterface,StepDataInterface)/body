@@ -85,19 +85,16 @@
       xsdfile=KettleVFS.getFileObject(xsdfilename,getTransMeta());
       Source sourceXML=new StreamSource(new StringReader(XMLFieldvalue));
       if (meta.getXMLSourceFile()) {
-        File xmlfileValidator=new File(XMLFieldvalue);
-        if (!xmlfileValidator.exists()) {
+        FileObject xmlfileValidator=KettleVFS.getFileObject(XMLFieldvalue);
+        if (xmlfileValidator == null || !xmlfileValidator.exists()) {
           logError(BaseMessages.getString(PKG,"XsdValidator.Log.Error.XMLfileMissing",XMLFieldvalue));
           throw new KettleStepException(BaseMessages.getString(PKG,"XsdValidator.Exception.XMLfileMissing",XMLFieldvalue));
         }
-        sourceXML=new StreamSource(xmlfileValidator);
+        sourceXML=new StreamSource(xmlfileValidator.getContent().getInputStream());
       }
       Schema SchematXSD=null;
-      if (xsdfile instanceof LocalFile) {
-        SchematXSD=factoryXSDValidator.newSchema(new File(KettleVFS.getFilename(xsdfile)));
-      }
- else       if (xsdfile instanceof HttpFileObject) {
-        SchematXSD=factoryXSDValidator.newSchema(new URL(KettleVFS.getFilename(xsdfile)));
+      if (xsdfile instanceof AbstractFileObject) {
+        SchematXSD=factoryXSDValidator.newSchema(new StreamSource(xsdfile.getContent().getInputStream()));
       }
  else {
         throw new KettleStepException(BaseMessages.getString(PKG,"XsdValidator.Exception.CannotCreateSchema",xsdfile.getClass().getName()));
