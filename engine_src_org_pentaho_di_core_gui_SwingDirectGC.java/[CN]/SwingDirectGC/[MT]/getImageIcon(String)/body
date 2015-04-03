@@ -1,35 +1,78 @@
 {
+  SwingUniversalImage image=null;
   InputStream inputStream=null;
-  try {
-    BufferedImage image=ImageIO.read(new File(fileName));
-    if (image == null) {
-      image=ImageIO.read(new File("/" + fileName));
+  if (fileName == null) {
+    throw new KettleException("Image icon file name can not be null");
+  }
+  if (SvgSupport.isSvgEnabled() && SvgSupport.isSvgName(fileName)) {
+    try {
+      inputStream=new FileInputStream(fileName);
     }
-    if (image == null) {
+ catch (    FileNotFoundException ex) {
+    }
+    if (inputStream == null) {
+      try {
+        inputStream=new FileInputStream("/" + fileName);
+      }
+ catch (      FileNotFoundException ex) {
+      }
+    }
+    if (inputStream == null) {
       inputStream=getClass().getResourceAsStream(fileName);
-      if (inputStream == null) {
-        inputStream=getClass().getResourceAsStream("/" + fileName);
-      }
-      if (inputStream == null) {
-        throw new KettleException("Unable to load image from file : '" + fileName + "'");
-      }
-      image=ImageIO.read(inputStream);
     }
-    WaitingImageObserver observer=new WaitingImageObserver(image);
-    observer.waitImageLoaded();
-    return image;
-  }
- catch (  Throwable e) {
-    throw new KettleException("Unable to load image from file : '" + fileName + "'",e);
-  }
- finally {
+    if (inputStream == null) {
+      inputStream=getClass().getResourceAsStream("/" + fileName);
+    }
     if (inputStream != null) {
       try {
-        inputStream.close();
+        SvgImage svg=SvgSupport.loadSvgImage(inputStream);
+        image=new SwingUniversalImageSvg(svg);
       }
- catch (      IOException e) {
-        throw new KettleException("Unable to close image reading stream",e);
+ catch (      Exception ex) {
+        throw new KettleException("Unable to load image from classpath : '" + fileName + "'",ex);
+      }
+ finally {
+        IOUtils.closeQuietly(inputStream);
       }
     }
   }
+  if (image == null) {
+    fileName=SvgSupport.toPngName(fileName);
+    try {
+      inputStream=new FileInputStream(fileName);
+    }
+ catch (    FileNotFoundException ex) {
+    }
+    if (inputStream == null) {
+      try {
+        inputStream=new FileInputStream("/" + fileName);
+      }
+ catch (      FileNotFoundException ex) {
+      }
+    }
+    if (inputStream == null) {
+      inputStream=getClass().getResourceAsStream(fileName);
+    }
+    if (inputStream == null) {
+      inputStream=getClass().getResourceAsStream("/" + fileName);
+    }
+    if (inputStream != null) {
+      try {
+        BufferedImage bitmap=ImageIO.read(inputStream);
+        WaitingImageObserver wia=new WaitingImageObserver(bitmap);
+        wia.waitImageLoaded();
+        image=new SwingUniversalImageBitmap(bitmap);
+      }
+ catch (      Exception ex) {
+        throw new KettleException("Unable to load image from classpath : '" + fileName + "'",ex);
+      }
+ finally {
+        IOUtils.closeQuietly(inputStream);
+      }
+    }
+  }
+  if (image == null) {
+    throw new KettleException("Unable to load image from classpath : '" + fileName + "'");
+  }
+  return image;
 }

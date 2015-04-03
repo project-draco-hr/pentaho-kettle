@@ -1,0 +1,74 @@
+{
+  try {
+    PluginRegistry registry=PluginRegistry.getInstance();
+    String filename=plugin.getImageFile();
+    ClassLoader classLoader=registry.getClassLoader(plugin);
+    SwingUniversalImage image=null;
+    if (SvgSupport.isSvgEnabled() && SvgSupport.isSvgName(filename)) {
+      InputStream inputStream=classLoader.getResourceAsStream(filename);
+      if (inputStream == null) {
+        inputStream=classLoader.getResourceAsStream("/" + filename);
+      }
+      if (inputStream == null) {
+        inputStream=registry.getClass().getResourceAsStream(filename);
+      }
+      if (inputStream == null) {
+        inputStream=registry.getClass().getResourceAsStream("/" + filename);
+      }
+      if (inputStream == null) {
+        try {
+          inputStream=new FileInputStream(filename);
+        }
+ catch (        FileNotFoundException e) {
+        }
+      }
+      if (inputStream != null) {
+        try {
+          SvgImage svg=SvgSupport.loadSvgImage(inputStream);
+          image=new SwingUniversalImageSvg(svg);
+        }
+  finally {
+          IOUtils.closeQuietly(inputStream);
+        }
+      }
+    }
+    if (image == null) {
+      filename=SvgSupport.toPngName(filename);
+      InputStream inputStream=classLoader.getResourceAsStream(filename);
+      if (inputStream == null) {
+        inputStream=classLoader.getResourceAsStream("/" + filename);
+      }
+      if (inputStream == null) {
+        inputStream=registry.getClass().getResourceAsStream(filename);
+      }
+      if (inputStream == null) {
+        inputStream=registry.getClass().getResourceAsStream("/" + filename);
+      }
+      if (inputStream == null) {
+        try {
+          inputStream=new FileInputStream(filename);
+        }
+ catch (        FileNotFoundException e) {
+        }
+      }
+      if (inputStream != null) {
+        try {
+          BufferedImage bitmap=ImageIO.read(inputStream);
+          WaitingImageObserver wia=new WaitingImageObserver(bitmap);
+          wia.waitImageLoaded();
+          image=new SwingUniversalImageBitmap(bitmap);
+        }
+  finally {
+          IOUtils.closeQuietly(inputStream);
+        }
+      }
+    }
+    if (image == null) {
+      throw new KettleException("Unable to find file: " + plugin.getImageFile() + " for plugin: "+ plugin);
+    }
+    return image;
+  }
+ catch (  Throwable e) {
+    throw new KettleException("Unable to load image from file : '" + plugin.getImageFile() + "' for plugin: "+ plugin,e);
+  }
+}
