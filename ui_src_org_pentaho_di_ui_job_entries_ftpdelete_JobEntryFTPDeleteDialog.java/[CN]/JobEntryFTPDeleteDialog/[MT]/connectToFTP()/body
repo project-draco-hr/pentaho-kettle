@@ -1,9 +1,10 @@
 {
   boolean retval=false;
+  String realServername=null;
   try {
     if (ftpclient == null || !ftpclient.connected()) {
       ftpclient=new FTPClient();
-      String realServername=jobMeta.environmentSubstitute(wServerName.getText());
+      realServername=jobMeta.environmentSubstitute(wServerName.getText());
       int realPort=Const.toInt(jobMeta.environmentSubstitute(wPort.getText()),21);
       ftpclient.setRemoteAddr(InetAddress.getByName(realServername));
       ftpclient.setRemotePort(realPort);
@@ -24,8 +25,16 @@
     retval=true;
   }
  catch (  Exception e) {
+    if (ftpclient != null) {
+      try {
+        ftpclient.quit();
+      }
+ catch (      Exception ignored) {
+      }
+      ftpclient=null;
+    }
     MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage(BaseMessages.getString(PKG,"JobFTPDelete.ErrorConnect.NOK",e.getMessage()) + Const.CR);
+    mb.setMessage(BaseMessages.getString(PKG,"JobFTPDelete.ErrorConnect.NOK",realServername,e.getMessage()) + Const.CR);
     mb.setText(BaseMessages.getString(PKG,"JobFTPDelete.ErrorConnect.Title.Bad"));
     mb.open();
   }

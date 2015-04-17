@@ -1,0 +1,66 @@
+{
+  if ((folderType != JobEntryGetPOP.FOLDER_OUTPUT) && (folderType != JobEntryGetPOP.FOLDER_ATTACHMENTS)) {
+    throw new IllegalArgumentException("Invalid folderType argument");
+  }
+  String folderName="";
+switch (folderType) {
+case JobEntryGetPOP.FOLDER_OUTPUT:
+    folderName=getOutputDirectory();
+  break;
+case JobEntryGetPOP.FOLDER_ATTACHMENTS:
+if (isSaveAttachment() && isDifferentFolderForAttachment()) {
+  folderName=getAttachmentFolder();
+}
+ else {
+  folderName=getOutputDirectory();
+}
+break;
+}
+if (Const.isEmpty(folderName)) {
+switch (folderType) {
+case JobEntryGetPOP.FOLDER_OUTPUT:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.OutputFolderEmpty"));
+case JobEntryGetPOP.FOLDER_ATTACHMENTS:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderEmpty"));
+}
+}
+FileObject folder=KettleVFS.getFileObject(folderName,this);
+if (folder.exists()) {
+if (folder.getType() != FileType.FOLDER) {
+switch (folderType) {
+case JobEntryGetPOP.FOLDER_OUTPUT:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.NotAFolderNot",folderName));
+case JobEntryGetPOP.FOLDER_ATTACHMENTS:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderNotAFolder",folderName));
+}
+}
+if (isDebug()) {
+switch (folderType) {
+case JobEntryGetPOP.FOLDER_OUTPUT:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Log.OutputFolderExists",folderName));
+case JobEntryGetPOP.FOLDER_ATTACHMENTS:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Log.AttachmentFolderExists",folderName));
+}
+}
+}
+ else {
+if (isCreateLocalFolder()) {
+folder.createFolder();
+}
+ else {
+switch (folderType) {
+case JobEntryGetPOP.FOLDER_OUTPUT:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.OutputFolderNotExist",folderName));
+case JobEntryGetPOP.FOLDER_ATTACHMENTS:
+throw new KettleException(BaseMessages.getString(PKG,"JobGetMailsFromPOP.Error.AttachmentFolderNotExist",folderName));
+}
+}
+}
+String returnValue=KettleVFS.getFilename(folder);
+try {
+folder.close();
+}
+ catch (IOException ignore) {
+}
+return returnValue;
+}

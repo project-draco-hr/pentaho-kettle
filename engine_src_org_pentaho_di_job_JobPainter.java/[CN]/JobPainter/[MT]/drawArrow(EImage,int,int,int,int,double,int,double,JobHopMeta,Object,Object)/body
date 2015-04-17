@@ -1,0 +1,69 @@
+{
+  int mx, my;
+  int a, b, dist;
+  double angle;
+  gc.drawLine(x1,y1,x2,y2);
+  a=Math.abs(x2 - x1);
+  b=Math.abs(y2 - y1);
+  dist=(int)Math.sqrt(a * a + b * b);
+  if (factor < 0) {
+    if (dist >= 2 * iconsize) {
+      factor=1.3;
+    }
+ else {
+      factor=1.2;
+    }
+  }
+  mx=(int)(x1 + factor * (x2 - x1) / 2);
+  my=(int)(y1 + factor * (y2 - y1) / 2);
+  angle=Math.atan2(y2 - y1,x2 - x1) + (Math.PI / 2);
+  boolean q1=Math.toDegrees(angle) >= 0 && Math.toDegrees(angle) <= 90;
+  boolean q2=Math.toDegrees(angle) > 90 && Math.toDegrees(angle) <= 180;
+  boolean q3=Math.toDegrees(angle) > 180 && Math.toDegrees(angle) <= 270;
+  boolean q4=Math.toDegrees(angle) > 270 || Math.toDegrees(angle) < 0;
+  if (q1 || q3) {
+    gc.drawImage(arrow,mx + 1,my,magnification,angle);
+  }
+ else   if (q2 || q4) {
+    gc.drawImage(arrow,mx,my,magnification,angle);
+  }
+  factor=0.8;
+  mx=(int)(x1 + factor * (x2 - x1) / 2) - 8;
+  my=(int)(y1 + factor * (y2 - y1) / 2) - 8;
+  if (jobHop != null) {
+    EImage hopsIcon;
+    if (jobHop.isUnconditional()) {
+      hopsIcon=EImage.UNCONDITIONAL;
+    }
+ else {
+      if (jobHop.getEvaluation()) {
+        hopsIcon=EImage.TRUE;
+      }
+ else {
+        hopsIcon=EImage.FALSE;
+      }
+    }
+    Point bounds=gc.getImageBounds(hopsIcon);
+    gc.drawImage(hopsIcon,mx,my,magnification);
+    if (!shadow) {
+      areaOwners.add(new AreaOwner(AreaType.JOB_HOP_ICON,mx,my,bounds.x,bounds.y,offset,subject,jobHop));
+    }
+    if (jobHop.getFromEntry().isLaunchingInParallel()) {
+      factor=1;
+      mx=(int)(x1 + factor * (x2 - x1) / 2) - 8;
+      my=(int)(y1 + factor * (y2 - y1) / 2) - 8;
+      hopsIcon=EImage.PARALLEL;
+      gc.drawImage(hopsIcon,mx,my,magnification);
+      if (!shadow) {
+        areaOwners.add(new AreaOwner(AreaType.JOB_HOP_PARALLEL_ICON,mx,my,bounds.x,bounds.y,offset,subject,jobHop));
+      }
+    }
+    JobPainterExtension extension=new JobPainterExtension(gc,shadow,areaOwners,jobMeta,jobHop,x1,y1,x2,y2,mx,my,offset);
+    try {
+      ExtensionPointHandler.callExtensionPoint(LogChannel.GENERAL,KettleExtensionPoint.JobPainterArrow.id,extension);
+    }
+ catch (    Exception e) {
+      LogChannel.GENERAL.logError("Error calling extension point(s) for the job painter arrow",e);
+    }
+  }
+}
