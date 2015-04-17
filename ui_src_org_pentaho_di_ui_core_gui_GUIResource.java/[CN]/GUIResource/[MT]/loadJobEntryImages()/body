@@ -1,5 +1,5 @@
 {
-  imagesJobentries=new Hashtable<String,Image>();
+  imagesJobentries=new Hashtable<String,SwtUniversalImage>();
   imagesJobentriesSmall=new Hashtable<String,Image>();
   PluginRegistry registry=PluginRegistry.getInstance();
   List<PluginInterface> plugins=registry.getPlugins(JobEntryPluginType.class);
@@ -8,29 +8,25 @@
     if ("SPECIAL".equals(plugin.getIds()[0])) {
       continue;
     }
-    Image image=null;
+    SwtUniversalImage image=null;
     Image small_image=null;
     String filename=plugin.getImageFile();
     try {
       ClassLoader classLoader=registry.getClassLoader(plugin);
-      image=ImageUtil.getImage(display,classLoader,filename);
+      image=SwtSvgImageUtil.getUniversalImage(display,classLoader,filename);
     }
- catch (    Exception e) {
-      log.logError("Unable to find required job entry image file [" + filename + "] for id ["+ plugin.getIds()[0]+ "] : "+ e.toString());
-      image=new Image(display,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
-      GC gc=new GC(image);
+ catch (    Throwable t) {
+      log.logError("Unable to find required job entry image file [" + filename + "] for id ["+ plugin.getIds()[0]+ "] : "+ t.toString());
+      Image img=new Image(display,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
+      GC gc=new GC(img);
       gc.drawRectangle(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
       gc.drawLine(0,0,ConstUI.ICON_SIZE,ConstUI.ICON_SIZE);
       gc.drawLine(ConstUI.ICON_SIZE,0,0,ConstUI.ICON_SIZE);
       gc.dispose();
+      image=new SwtUniversalImageBitmap(img);
     }
     if (image != null) {
-      int xsize=image.getBounds().width;
-      int ysize=image.getBounds().height;
-      small_image=new Image(display,16,16);
-      GC gc=new GC(small_image);
-      gc.drawImage(image,0,0,xsize,ysize,0,0,16,16);
-      gc.dispose();
+      small_image=image.getAsBitmapForSize(display,ConstUI.MEDIUM_ICON_SIZE,ConstUI.MEDIUM_ICON_SIZE);
     }
     imagesJobentries.put(plugin.getIds()[0],image);
     imagesJobentriesSmall.put(plugin.getIds()[0],small_image);

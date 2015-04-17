@@ -19,7 +19,6 @@
       continue;
     }
     String name=per.getDisplayName(LanguageChoice.getInstance().getDefaultLocale());
-    InputStream in=per.getPerspectiveIcon();
     SwtToolbarbutton btn=null;
     try {
       btn=(SwtToolbarbutton)domContainer.getDocumentRoot().createElement("toolbarbutton");
@@ -33,12 +32,23 @@
     btn.setOnclick("spoon.loadPerspective(" + y + ")");
     btn.setId("perspective-btn-" + per.getId());
     mainToolbar.addChild(btn);
-    if (in != null) {
-      btn.setImageFromStream(in);
-      try {
-        in.close();
+    boolean iconSet=false;
+    if (AbstractSpoonPerspective.class.isAssignableFrom(per.getClass())) {
+      Image ic=((AbstractSpoonPerspective)per).getIcon();
+      if (ic != null) {
+        btn.setImage(ic);
+        iconSet=true;
       }
- catch (      IOException e1) {
+    }
+    if (!iconSet) {
+      InputStream in=per.getPerspectiveIcon();
+      if (in != null) {
+        try {
+          btn.setImageFromStream(in);
+        }
+  finally {
+          IOUtils.closeQuietly(in);
+        }
       }
     }
     XulVbox box=deck.createVBoxCard();

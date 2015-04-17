@@ -1,0 +1,25 @@
+{
+  RowSet rs1=new SingleRowRowSet();
+  RowSet rs2=new SingleRowRowSet();
+  when(mockHelper.logChannelInterfaceFactory.create(any(),any(LoggingObjectInterface.class))).thenReturn(mockHelper.logChannelInterface);
+  when(mockHelper.trans.isRunning()).thenReturn(true);
+  BaseStep baseStep=new BaseStep(mockHelper.stepMeta,mockHelper.stepDataInterface,0,mockHelper.transMeta,mockHelper.trans);
+  baseStep.setStopped(false);
+  baseStep.setRepartitioning(StepPartitioningMeta.PARTITIONING_METHOD_NONE);
+  baseStep.setOutputRowSets(Arrays.asList(rs1,rs2));
+  for (  RowSet rowSet : baseStep.getOutputRowSets()) {
+    assertNull("RowMeta should be null, since no calls were done",rowSet.getRowMeta());
+  }
+  RowMetaInterface rowMeta=new RowMeta();
+  rowMeta.addValueMeta(new ValueMetaString("string"));
+  rowMeta.addValueMeta(new ValueMetaInteger("integer"));
+  baseStep.putRow(rowMeta,new Object[]{"a",1});
+  RowMetaInterface meta1=rs1.getRowMeta();
+  RowMetaInterface meta2=rs2.getRowMeta();
+  assertNotNull(meta1);
+  assertNotNull(meta2);
+  for (  ValueMetaInterface meta : meta1.getValueMetaList()) {
+    assertTrue(meta.getName(),meta2.exists(meta));
+  }
+  assertFalse(meta1 == meta2);
+}
