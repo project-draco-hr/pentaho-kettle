@@ -1,0 +1,24 @@
+{
+  final String localDir=TestUtils.createTempDir();
+  KettleVFS.getFileObject(localDir).createFolder();
+  final String myVar="my-var";
+  final String sftpDir="job-entry-sftp-test";
+  final String fileName="file.txt";
+  uploadFile(sftpDir,fileName);
+  JobEntrySFTP job=new JobEntrySFTP();
+  job.setVariable(myVar,localDir);
+  Job parent=mock(Job.class);
+  when(parent.isStopped()).thenReturn(false);
+  job.setParentJob(parent);
+  job.setLogLevel(LogLevel.NOTHING);
+  job.setUserName(server.getUsername());
+  job.setPassword(server.getPassword());
+  job.setServerName("localhost");
+  job.setServerPort(Integer.toString(server.getPort()));
+  job.setScpDirectory(sftpDir);
+  job.setTargetDirectory(String.format("${%s}",myVar));
+  job.execute(new Result(),1);
+  FileObject downloaded=KettleVFS.getFileObject(localDir + "/" + fileName);
+  assertTrue(downloaded.exists());
+  downloaded.delete();
+}
