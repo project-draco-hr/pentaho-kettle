@@ -54,11 +54,16 @@
     int index=data.metanrs[i];
     ValueMetaInterface fromMeta=rowMeta.getValueMeta(index);
     ValueMetaInterface toMeta=data.metadataRowMeta.getValueMeta(index);
-    if (fromMeta.isStorageBinaryString() && meta.getMeta()[i].getStorageType() == ValueMetaInterface.STORAGE_TYPE_NORMAL) {
-      rowData[index]=fromMeta.convertBinaryStringToNativeType((byte[])rowData[index]);
+    try {
+      if (fromMeta.isStorageBinaryString() && meta.getMeta()[i].getStorageType() == ValueMetaInterface.STORAGE_TYPE_NORMAL) {
+        rowData[index]=fromMeta.convertBinaryStringToNativeType((byte[])rowData[index]);
+      }
+      if (meta.getMeta()[i].getType() != ValueMetaInterface.TYPE_NONE && fromMeta.getType() != toMeta.getType()) {
+        rowData[index]=toMeta.convertData(fromMeta,rowData[index]);
+      }
     }
-    if (meta.getMeta()[i].getType() != ValueMetaInterface.TYPE_NONE && fromMeta.getType() != toMeta.getType()) {
-      rowData[index]=toMeta.convertData(fromMeta,rowData[index]);
+ catch (    KettleValueException e) {
+      throw new KettleConversionException(e.getMessage(),Collections.<Exception>singletonList(e),Collections.singletonList(toMeta),rowData);
     }
   }
   return rowData;
