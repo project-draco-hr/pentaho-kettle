@@ -270,22 +270,43 @@
   table.setMenu(mRow);
   lsFocusText=new FocusAdapter(){
     public void focusLost(    FocusEvent e){
+      final Display d=Display.getCurrent();
       if (table.isDisposed()) {
         return;
       }
-      TableItem row=activeTableItem;
+      final TableItem row=activeTableItem;
       if (row == null) {
         return;
       }
-      int colnr=activeTableColumn;
-      int rownr=table.indexOf(row);
+      final int colnr=activeTableColumn;
+      final int rownr=table.indexOf(row);
+      final Control ftext=text;
+      final String[] fBeforeEdit=beforeEdit;
       textWidgetCaretPosition=getTextWidgetCaretPosition(colnr);
-      if (!row.isDisposed()) {
-        row.setText(colnr,getTextWidgetValue(colnr));
+      final String value=getTextWidgetValue(colnr);
+      Runnable r=new Runnable(){
+        public void run(){
+          try {
+            Thread.sleep(250);
+          }
+ catch (          InterruptedException ignored) {
+          }
+          d.asyncExec(new Runnable(){
+            public void run(){
+              if (!row.isDisposed()) {
+                row.setText(colnr,value);
+              }
+              ftext.dispose();
+              String[] afterEdit=getItemText(row);
+              checkChanged(new String[][]{fBeforeEdit},new String[][]{afterEdit},new int[]{rownr});
+            }
+          }
+);
+        }
       }
-      text.dispose();
-      String[] afterEdit=getItemText(row);
-      checkChanged(new String[][]{beforeEdit},new String[][]{afterEdit},new int[]{rownr});
+;
+      Thread t=new Thread(r);
+      t.start();
     }
   }
 ;
