@@ -1,0 +1,33 @@
+{
+  final int groupsAmount=30;
+  Map<String,Connection> groups=new HashMap<String,Connection>(groupsAmount);
+  for (int i=0; i < groupsAmount; i++) {
+    groups.put(Integer.toString(i),mock(Connection.class));
+  }
+  try {
+    ExecutorService pool=Executors.newFixedThreadPool(groupsAmount);
+    try {
+      CompletionService<DatabaseStub> service=new ExecutorCompletionService<DatabaseStub>(pool);
+      Map<DatabaseStub,String> mapping=new HashMap<DatabaseStub,String>(groupsAmount);
+      for (      Map.Entry<String,Connection> entry : groups.entrySet()) {
+        DatabaseStub stub=createStubDatabase(entry.getValue());
+        mapping.put(stub,entry.getKey());
+        service.submit(stub);
+      }
+      Set<String> unmatchedGroups=new HashSet<String>(groups.keySet());
+      for (int i=0; i < groupsAmount; i++) {
+        DatabaseStub stub=service.take().get();
+        assertTrue(unmatchedGroups.remove(mapping.get(stub)));
+      }
+      assertTrue(unmatchedGroups.isEmpty());
+    }
+  finally {
+      pool.shutdown();
+    }
+  }
+  finally {
+    for (    String group : groups.keySet()) {
+      removeFromSharedConnectionMap(group);
+    }
+  }
+}
