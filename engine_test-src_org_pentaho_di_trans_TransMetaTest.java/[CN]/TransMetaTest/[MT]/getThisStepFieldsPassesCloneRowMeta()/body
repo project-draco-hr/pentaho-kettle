@@ -1,0 +1,23 @@
+{
+  final String overriddenValue="overridden";
+  StepMeta nextStep=mockStepMeta("nextStep");
+  StepMetaInterface smi=mock(StepMetaInterface.class);
+  StepIOMeta ioMeta=mock(StepIOMeta.class);
+  when(smi.getStepIOMeta()).thenReturn(ioMeta);
+  doAnswer(new Answer(){
+    @Override public Object answer(    InvocationOnMock invocation) throws Throwable {
+      RowMetaInterface rmi=(RowMetaInterface)invocation.getArguments()[0];
+      rmi.clear();
+      rmi.addValueMeta(new ValueMetaString(overriddenValue));
+      return null;
+    }
+  }
+).when(smi).getFields(any(RowMetaInterface.class),anyString(),any(RowMetaInterface[].class),eq(nextStep),any(VariableSpace.class),any(Repository.class),any(IMetaStore.class));
+  StepMeta thisStep=mockStepMeta("thisStep");
+  when(thisStep.getStepMetaInterface()).thenReturn(smi);
+  RowMeta rowMeta=new RowMeta();
+  rowMeta.addValueMeta(new ValueMetaString("value"));
+  RowMetaInterface thisStepsFields=transMeta.getThisStepFields(thisStep,nextStep,rowMeta);
+  assertEquals(1,thisStepsFields.size());
+  assertEquals(overriddenValue,thisStepsFields.getValueMeta(0).getName());
+}
