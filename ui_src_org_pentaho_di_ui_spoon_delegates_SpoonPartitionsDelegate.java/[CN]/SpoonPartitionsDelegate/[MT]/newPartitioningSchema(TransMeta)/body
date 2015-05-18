@@ -1,0 +1,26 @@
+{
+  PartitionSchema partitionSchema=new PartitionSchema();
+  PartitionSchemaDialog dialog=new PartitionSchemaDialog(spoon.getShell(),partitionSchema,transMeta.getDatabases(),transMeta);
+  if (dialog.open()) {
+    List<PartitionSchema> partitions=transMeta.getPartitionSchemas();
+    if (isDuplicate(partitions,partitionSchema)) {
+      new ErrorDialog(spoon.getShell(),getMessage("Spoon.Dialog.ErrorSavingPartition.Title"),getMessage("Spoon.Dialog.ErrorSavingPartition.Message",partitionSchema.getName()),new KettleException(getMessage("Spoon.Dialog.ErrorSavingPartition.NotUnique")));
+      return;
+    }
+    partitions.add(partitionSchema);
+    if (spoon.rep != null) {
+      try {
+        if (!spoon.rep.getSecurityProvider().isReadOnly()) {
+          spoon.rep.save(partitionSchema,Const.VERSION_COMMENT_INITIAL_VERSION,null);
+        }
+ else {
+          throw new KettleException(BaseMessages.getString(PKG,"Spoon.Dialog.Exception.ReadOnlyRepositoryUser"));
+        }
+      }
+ catch (      KettleException e) {
+        new ErrorDialog(spoon.getShell(),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorSavingPartition.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.ErrorSavingPartition.Message",partitionSchema.getName()),e);
+      }
+    }
+    spoon.refreshTree();
+  }
+}
