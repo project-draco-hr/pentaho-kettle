@@ -16,13 +16,17 @@
     }
  else     if (databaseMeta.getAccessType() == DatabaseMeta.TYPE_ACCESS_JNDI) {
       final String jndiName=environmentSubstitute(databaseMeta.getDatabaseName());
-      connectUsingJNDIDataSource(jndiName);
+      try {
+        connectUsingJNDIDataSource(jndiName);
+      }
+ catch (      KettleDatabaseException kde) {
+        log.logDetailed("Unable to find datasource using JNDI. Cause: " + kde.getLocalizedMessage());
+        log.logDetailed("Attempting to connect using the class");
+        connectUsingClass();
+      }
     }
  else {
-      connectUsingClass(databaseMeta.getDriverClass(),partitionId);
-      if (log.isDetailed()) {
-        log.logDetailed("Connected to database.");
-      }
+      connectUsingClass();
     }
     String sql=environmentSubstitute(databaseMeta.getConnectSQL());
     if (!Const.isEmpty(sql) && !Const.onlySpaces(sql)) {
