@@ -1,14 +1,14 @@
 {
   final ExecutorService executor=ExecutorUtil.getExecutor();
   final RepositoryPluginType repositoryPluginType=RepositoryPluginType.getInstance();
-  final Future<Pair<KettlePluginException,Future<KettleException>>> repositoryRegisterFuture=executor.submit(new Callable<Pair<KettlePluginException,Future<KettleException>>>(){
-    @Override public Pair<KettlePluginException,Future<KettleException>> call() throws Exception {
+  final Future<Map.Entry<KettlePluginException,Future<KettleException>>> repositoryRegisterFuture=executor.submit(new Callable<Map.Entry<KettlePluginException,Future<KettleException>>>(){
+    @Override public Map.Entry<KettlePluginException,Future<KettleException>> call() throws Exception {
       PluginRegistry.addPluginType(repositoryPluginType);
       try {
         KettleClientEnvironment.init();
       }
  catch (      KettlePluginException e) {
-        return Pair.of(e,null);
+        return new AbstractMap.SimpleImmutableEntry<KettlePluginException,Future<KettleException>>(e,null);
       }
       Future<KettleException> kettleEnvironmentInitFuture=executor.submit(new Callable<KettleException>(){
         @Override public KettleException call() throws Exception {
@@ -23,7 +23,7 @@
         }
       }
 );
-      return Pair.of(null,kettleEnvironmentInitFuture);
+      return new AbstractMap.SimpleImmutableEntry<KettlePluginException,Future<KettleException>>(null,kettleEnvironmentInitFuture);
     }
   }
 );
@@ -68,12 +68,12 @@
   if (Const.isEmpty(optionLogfile) && !Const.isEmpty(optionLogfileOld)) {
     optionLogfile=optionLogfileOld;
   }
-  Pair<KettlePluginException,Future<KettleException>> repositoryRegisterResults=repositoryRegisterFuture.get();
-  KettlePluginException repositoryRegisterException=repositoryRegisterResults.getFirst();
+  Map.Entry<KettlePluginException,Future<KettleException>> repositoryRegisterResults=repositoryRegisterFuture.get();
+  KettlePluginException repositoryRegisterException=repositoryRegisterResults.getKey();
   if (repositoryRegisterException != null) {
     throw repositoryRegisterException;
   }
-  Future<KettleException> kettleInitFuture=repositoryRegisterResults.getSecond();
+  Future<KettleException> kettleInitFuture=repositoryRegisterResults.getValue();
   if (!Const.isEmpty(optionLogfile)) {
     fileAppender=new FileLoggingEventListener(optionLogfile.toString(),true);
     KettleLogStore.getAppender().addLoggingEventListener(fileAppender);
