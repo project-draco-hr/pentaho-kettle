@@ -1,0 +1,118 @@
+{
+  beforeEdit=getItemText(row);
+  fieldChanged=false;
+  ColumnInfo colinfo=columns[colnr - 1];
+  if (colinfo.isReadOnly()) {
+    return;
+  }
+  if (colinfo.getDisabledListener() != null) {
+    boolean disabled=colinfo.getDisabledListener().isFieldDisabled(rownr);
+    if (disabled) {
+      return;
+    }
+  }
+  if (text != null && !text.isDisposed()) {
+    text.dispose();
+  }
+  if (colinfo.getSelectionAdapter() != null) {
+    Event e=new Event();
+    e.widget=this;
+    e.x=colnr;
+    e.y=rownr;
+    columns[colnr - 1].getSelectionAdapter().widgetSelected(new SelectionEvent(e));
+    return;
+  }
+  String content=row.getText(colnr) + (extra != 0 ? "" + extra : "");
+  String tooltip=columns[colnr - 1].getToolTip();
+  final boolean useVariables=columns[colnr - 1].isUsingVariables();
+  final boolean passwordField=columns[colnr - 1].isPasswordField();
+  final ModifyListener modifyListener=new ModifyListener(){
+    public void modifyText(    ModifyEvent me){
+      setColumnWidthBasedOnTextField(colnr,useVariables);
+    }
+  }
+;
+  if (useVariables) {
+    GetCaretPositionInterface getCaretPositionInterface=new GetCaretPositionInterface(){
+      public int getCaretPosition(){
+        return ((TextVar)text).getTextWidget().getCaretPosition();
+      }
+    }
+;
+    InsertTextInterface insertTextInterface=new InsertTextInterface(){
+      public void insertText(      String string,      int position){
+        StringBuffer buffer=new StringBuffer(table.getItem(rownr).getText(colnr));
+        buffer.insert(position,string);
+        table.getItem(rownr).setText(colnr,buffer.toString());
+        int newPosition=position + string.length();
+        edit(rownr,colnr);
+        ((TextVar)text).setSelection(newPosition);
+        ((TextVar)text).showSelection();
+        setColumnWidthBasedOnTextField(colnr,useVariables);
+      }
+    }
+;
+    final TextVar textWidget;
+    if (passwordField) {
+      textWidget=new PasswordTextVar(variables,table,SWT.NONE,getCaretPositionInterface,insertTextInterface);
+    }
+ else     if (isTextButton) {
+      textWidget=new TextVarButton(variables,table,SWT.NONE,getCaretPositionInterface,insertTextInterface,columnInfo.getTextVarButtonSelectionListener());
+    }
+ else {
+      textWidget=new TextVar(variables,table,SWT.NONE,getCaretPositionInterface,insertTextInterface);
+    }
+    text=textWidget;
+    textWidget.setText(content);
+    if (lsMod != null) {
+      textWidget.addModifyListener(lsMod);
+    }
+    textWidget.addModifyListener(lsUndo);
+    textWidget.setSelection(content.length());
+    textWidget.addKeyListener(lsKeyText);
+    textWidget.addModifyListener(modifyListener);
+    if (selectText) {
+      textWidget.selectAll();
+    }
+    if (tooltip != null) {
+      textWidget.setToolTipText(tooltip);
+    }
+ else {
+      textWidget.setToolTipText("");
+    }
+    textWidget.addTraverseListener(lsTraverse);
+    textWidget.addFocusListener(lsFocusText);
+  }
+ else {
+    Text textWidget=new Text(table,SWT.NONE);
+    text=textWidget;
+    textWidget.setText(content);
+    if (lsMod != null) {
+      textWidget.addModifyListener(lsMod);
+    }
+    textWidget.addModifyListener(lsUndo);
+    textWidget.setSelection(content.length());
+    textWidget.addKeyListener(lsKeyText);
+    textWidget.addModifyListener(modifyListener);
+    if (selectText) {
+      textWidget.selectAll();
+    }
+    if (tooltip != null) {
+      textWidget.setToolTipText(tooltip);
+    }
+ else {
+      textWidget.setToolTipText("");
+    }
+    textWidget.addTraverseListener(lsTraverse);
+    textWidget.addFocusListener(lsFocusText);
+  }
+  props.setLook(text,Props.WIDGET_STYLE_TABLE);
+  int width=tablecolumn[colnr].getWidth();
+  int height=30;
+  editor.horizontalAlignment=SWT.LEFT;
+  editor.grabHorizontal=true;
+  editor.setEditor(text,row,colnr);
+  text.setFocus();
+  text.setSize(width,height);
+  editor.layout();
+}
