@@ -1,0 +1,34 @@
+{
+  if (data.query == null) {
+    data.query=getQuery(analytics);
+    if (log.isDetailed()) {
+      logDetailed("querying google analytics: " + data.query.buildHttpRequestUrl().toURI().toString());
+    }
+    try {
+      data.feed=data.query.execute();
+      data.entryIndex=0;
+    }
+ catch (    IOException e2) {
+      throw new KettleException(e2);
+    }
+  }
+ else   if (data.entryIndex >= data.feed.getItemsPerPage()) {
+    try {
+      if (data.query.getStartIndex() + data.entryIndex <= data.feed.getTotalResults()) {
+        data.query.setStartIndex(data.query.getStartIndex() + data.entryIndex);
+        data.feed=data.query.execute();
+        data.entryIndex=0;
+      }
+    }
+ catch (    IOException e2) {
+      throw new KettleException(e2);
+    }
+  }
+  List<List<String>> entries=data.feed.getRows();
+  if (data.entryIndex < entries.size()) {
+    return entries.get(data.entryIndex++);
+  }
+ else {
+    return null;
+  }
+}

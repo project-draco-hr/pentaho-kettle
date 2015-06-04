@@ -1,0 +1,65 @@
+{
+  meta=(GaInputStepMeta)smi;
+  data=(GaInputStepData)sdi;
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+    data.conversionMeta=new ValueMetaInterface[meta.getFeedField().length];
+    for (int i=0; i < meta.getFeedField().length; i++) {
+      ValueMetaInterface returnMeta=data.outputRowMeta.getValueMeta(i);
+      ValueMetaInterface conversionMeta;
+      conversionMeta=ValueMetaFactory.cloneValueMeta(returnMeta,ValueMetaInterface.TYPE_STRING);
+      conversionMeta.setConversionMask(meta.getConversionMask()[i]);
+      conversionMeta.setDecimalSymbol(".");
+      conversionMeta.setGroupingSymbol(null);
+      data.conversionMeta[i]=conversionMeta;
+    }
+  }
+  Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+  List<String> entry=getNextDataEntry();
+  if (entry != null && (meta.getRowLimit() <= 0 || getLinesWritten() < meta.getRowLimit())) {
+    for (int i=0, j=0; i < meta.getFeedField().length; i++) {
+      String fieldName=environmentSubstitute(meta.getFeedField()[i]);
+      Object dataObject;
+      String type=environmentSubstitute(meta.getFeedFieldType()[i]);
+      if (GaInputStepMeta.FIELD_TYPE_DATA_SOURCE_PROPERTY.equals(type)) {
+        if (GaInputStepMeta.PROPERTY_DATA_SOURCE_ACCOUNT_NAME.equals(fieldName)) {
+          dataObject=accountName;
+        }
+ else {
+          dataObject=data.feed.getProfileInfo().get(removeClassifier(fieldName));
+        }
+      }
+ else       if (GaInputStepMeta.FIELD_TYPE_DATA_SOURCE_FIELD.equals(type)) {
+        if (GaInputStepMeta.FIELD_DATA_SOURCE_TABLE_ID.equals(fieldName)) {
+          dataObject=data.feed.getProfileInfo().get(removeClassifier(fieldName));
+        }
+ else {
+          dataObject=data.feed.getProfileInfo().getProfileName();
+        }
+      }
+ else       if (GaInputStepMeta.DEPRECATED_FIELD_TYPE_CONFIDENCE_INTERVAL.equals(type)) {
+        dataObject=null;
+        if (log.isRowLevel()) {
+          logRowlevel(BaseMessages.getString(PKG,"GoogleAnalytics.Warn.FieldTypeNotSupported",GaInputStepMeta.DEPRECATED_FIELD_TYPE_CONFIDENCE_INTERVAL));
+        }
+      }
+ else {
+        dataObject=entry.get(j++);
+      }
+      outputRow[i]=data.outputRowMeta.getValueMeta(i).convertData(data.conversionMeta[i],dataObject);
+    }
+    putRow(data.outputRowMeta,outputRow);
+    if (checkFeedback(getLinesWritten())) {
+      if (log.isBasic()) {
+        logBasic("Linenr " + getLinesWritten());
+      }
+    }
+    return true;
+  }
+ else {
+    setOutputDone();
+    return false;
+  }
+}
