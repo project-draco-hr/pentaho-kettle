@@ -4,20 +4,12 @@
     if (!Const.isEmpty(group)) {
       this.connectionGroup=group;
       this.partitionId=partitionId;
-      DatabaseConnectionMap map=DatabaseConnectionMap.getInstance();
-      Database lookup=map.getDatabase(group,partitionId,this);
+      Database lookup=DatabaseConnectionMap.getInstance().getOrStoreIfAbsent(group,partitionId,this);
       if (lookup == null) {
-        normalConnect(partitionId);
-        opened++;
-        copy=opened;
-        map.storeDatabase(group,partitionId,this);
+        lookup=this;
       }
- else {
-        connection=lookup.getConnection();
-        lookup.setOpened(lookup.getOpened() + 1);
-        copy=lookup.getOpened();
-      }
-      setAutoCommit(false);
+      this.connection=lookup.getOrCreateSharedConnection(partitionId);
+      this.copy=lookup.opened;
     }
  else {
       normalConnect(partitionId);
