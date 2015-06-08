@@ -11,41 +11,47 @@
       throw new KettlePluginException(BaseMessages.getString(PKG,"PluginRegistry.RuntimeError.NoValidClassRequested.PLUGINREGISTRY002",pluginClass.getName()));
     }
     try {
-      Class<? extends T> cl=null;
+      Class<? extends T> cl;
       if (plugin.isNativePlugin()) {
         cl=(Class<? extends T>)Class.forName(className);
       }
  else {
         URLClassLoader ucl=null;
-        if (plugin.isSeparateClassLoaderNeeded()) {
-          ucl=createClassLoader(plugin);
-        }
- else {
-          Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
-          if (classLoaders == null) {
-            classLoaders=new HashMap<PluginInterface,URLClassLoader>();
-            classLoaderMap.put(plugin.getPluginType(),classLoaders);
+        lock.writeLock().lock();
+        try {
+          if (plugin.isSeparateClassLoaderNeeded()) {
+            ucl=createClassLoader(plugin);
           }
  else {
-            ucl=classLoaders.get(plugin);
-          }
-          if (ucl == null) {
-            if (plugin.getPluginDirectory() != null) {
-              ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
-              if (ucl == null) {
-                ucl=createClassLoader(plugin);
-                classLoaders.put(plugin,ucl);
-                folderBasedClassLoaderMap.put(plugin.getPluginDirectory().toString(),ucl);
-              }
+            Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
+            if (classLoaders == null) {
+              classLoaders=new HashMap<PluginInterface,URLClassLoader>();
+              classLoaderMap.put(plugin.getPluginType(),classLoaders);
             }
  else {
               ucl=classLoaders.get(plugin);
-              if (ucl == null) {
-                ucl=createClassLoader(plugin);
-                classLoaders.put(plugin,ucl);
+            }
+            if (ucl == null) {
+              if (plugin.getPluginDirectory() != null) {
+                ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
+                if (ucl == null) {
+                  ucl=createClassLoader(plugin);
+                  classLoaders.put(plugin,ucl);
+                  folderBasedClassLoaderMap.put(plugin.getPluginDirectory().toString(),ucl);
+                }
+              }
+ else {
+                ucl=classLoaders.get(plugin);
+                if (ucl == null) {
+                  ucl=createClassLoader(plugin);
+                  classLoaders.put(plugin,ucl);
+                }
               }
             }
           }
+        }
+  finally {
+          lock.writeLock().unlock();
         }
         cl=(Class<? extends T>)ucl.loadClass(className);
       }

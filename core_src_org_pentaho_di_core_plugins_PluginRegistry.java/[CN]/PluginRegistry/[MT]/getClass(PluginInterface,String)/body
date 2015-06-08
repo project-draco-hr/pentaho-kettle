@@ -5,19 +5,25 @@
     }
  else {
       URLClassLoader ucl=null;
-      Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
-      if (classLoaders == null) {
-        classLoaders=new HashMap<PluginInterface,URLClassLoader>();
-        classLoaderMap.put(plugin.getPluginType(),classLoaders);
-      }
- else {
-        ucl=classLoaders.get(plugin);
-      }
-      if (ucl == null) {
-        if (plugin.getPluginDirectory() != null) {
-          ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
-          classLoaders.put(plugin,ucl);
+      lock.writeLock().lock();
+      try {
+        Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
+        if (classLoaders == null) {
+          classLoaders=new HashMap<PluginInterface,URLClassLoader>();
+          classLoaderMap.put(plugin.getPluginType(),classLoaders);
         }
+ else {
+          ucl=classLoaders.get(plugin);
+        }
+        if (ucl == null) {
+          if (plugin.getPluginDirectory() != null) {
+            ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
+            classLoaders.put(plugin,ucl);
+          }
+        }
+      }
+  finally {
+        lock.writeLock().unlock();
       }
       if (ucl == null) {
         throw new KettlePluginException("Unable to find class loader for plugin: " + plugin);

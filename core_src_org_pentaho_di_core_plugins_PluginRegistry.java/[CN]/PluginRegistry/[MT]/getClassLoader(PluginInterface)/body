@@ -8,50 +8,56 @@
     }
  else {
       URLClassLoader ucl=null;
-      if (plugin.isSeparateClassLoaderNeeded()) {
-        ucl=createClassLoader(plugin);
-      }
- else {
-        Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
-        if (classLoaders == null) {
-          classLoaders=new HashMap<PluginInterface,URLClassLoader>();
-          classLoaderMap.put(plugin.getPluginType(),classLoaders);
+      lock.writeLock().lock();
+      try {
+        if (plugin.isSeparateClassLoaderNeeded()) {
+          ucl=createClassLoader(plugin);
         }
  else {
-          ucl=classLoaders.get(plugin);
-        }
-        if (ucl == null) {
-          if (!Const.isEmpty(plugin.getClassLoaderGroup())) {
-            ucl=classLoaderGroupsMap.get(plugin.getClassLoaderGroup());
-            if (ucl == null) {
-              ucl=createClassLoader(plugin);
-              classLoaders.put(plugin,ucl);
-              classLoaderGroupsMap.put(plugin.getClassLoaderGroup(),ucl);
-            }
+          Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
+          if (classLoaders == null) {
+            classLoaders=new HashMap<PluginInterface,URLClassLoader>();
+            classLoaderMap.put(plugin.getPluginType(),classLoaders);
           }
  else {
-            if (plugin.getPluginDirectory() != null) {
-              ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
+            ucl=classLoaders.get(plugin);
+          }
+          if (ucl == null) {
+            if (!Const.isEmpty(plugin.getClassLoaderGroup())) {
+              ucl=classLoaderGroupsMap.get(plugin.getClassLoaderGroup());
               if (ucl == null) {
                 ucl=createClassLoader(plugin);
                 classLoaders.put(plugin,ucl);
-                folderBasedClassLoaderMap.put(plugin.getPluginDirectory().toString(),ucl);
+                classLoaderGroupsMap.put(plugin.getClassLoaderGroup(),ucl);
               }
             }
  else {
-              ucl=classLoaders.get(plugin);
-              if (ucl == null) {
-                if (plugin.getLibraries().size() == 0) {
-                  if (plugin instanceof ClassLoadingPluginInterface) {
-                    return ((ClassLoadingPluginInterface)plugin).getClassLoader();
-                  }
+              if (plugin.getPluginDirectory() != null) {
+                ucl=folderBasedClassLoaderMap.get(plugin.getPluginDirectory().toString());
+                if (ucl == null) {
+                  ucl=createClassLoader(plugin);
+                  classLoaders.put(plugin,ucl);
+                  folderBasedClassLoaderMap.put(plugin.getPluginDirectory().toString(),ucl);
                 }
-                ucl=createClassLoader(plugin);
-                classLoaders.put(plugin,ucl);
+              }
+ else {
+                ucl=classLoaders.get(plugin);
+                if (ucl == null) {
+                  if (plugin.getLibraries().size() == 0) {
+                    if (plugin instanceof ClassLoadingPluginInterface) {
+                      return ((ClassLoadingPluginInterface)plugin).getClassLoader();
+                    }
+                  }
+                  ucl=createClassLoader(plugin);
+                  classLoaders.put(plugin,ucl);
+                }
               }
             }
           }
         }
+      }
+  finally {
+        lock.writeLock().unlock();
       }
       return ucl;
     }
