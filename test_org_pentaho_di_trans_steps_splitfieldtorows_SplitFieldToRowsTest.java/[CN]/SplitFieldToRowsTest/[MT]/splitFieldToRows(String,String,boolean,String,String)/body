@@ -1,62 +1,54 @@
 {
-  KettleEnvironment.init();
-  TransMeta transMeta=new TransMeta();
-  transMeta.setName("Split field to rows test");
-  PluginRegistry registry=PluginRegistry.getInstance();
-  String injectorStepname="injector step";
-  InjectorMeta im=new InjectorMeta();
-  String injectorPid=registry.getPluginId(StepPluginType.class,im);
-  StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,im);
-  transMeta.addStep(injectorStep);
-  String splitfieldToRowsName="Split field to rows";
-  SplitFieldToRowsMeta splitFieldtoRowsMeta=new SplitFieldToRowsMeta();
-  splitFieldtoRowsMeta.setDelimiter(delimiter);
-  splitFieldtoRowsMeta.setDelimiterRegex(isDelimiterRegex);
-  splitFieldtoRowsMeta.setSplitField(FIELD_TO_SPLIT_NAME);
-  splitFieldtoRowsMeta.setNewFieldname(NEW_FIELD_NAME);
-  String splitFieldTotRowsPid=registry.getPluginId(StepPluginType.class,splitFieldtoRowsMeta);
-  StepMeta splitFieldToRows=new StepMeta(splitFieldTotRowsPid,splitfieldToRowsName,splitFieldtoRowsMeta);
-  transMeta.addStep(splitFieldToRows);
-  TransHopMeta hop_injector_splitfieldToRows=new TransHopMeta(injectorStep,splitFieldToRows);
-  transMeta.addTransHop(hop_injector_splitfieldToRows);
-  String dummyStepname="dummy step";
-  DummyTransMeta dm=new DummyTransMeta();
-  String dummyPid=registry.getPluginId(StepPluginType.class,dm);
-  StepMeta dummyStep=new StepMeta(dummyPid,dummyStepname,dm);
-  transMeta.addStep(dummyStep);
-  TransHopMeta hop_SplitFieldToRows_Dummy=new TransHopMeta(splitFieldToRows,dummyStep);
-  transMeta.addTransHop(hop_SplitFieldToRows_Dummy);
-  if (!Const.isEmpty(delimiterVariableValue)) {
-    String delimiterVariableName=delimiter.replace("${","");
-    delimiterVariableName=delimiterVariableName.replace("}","");
-    transMeta.setVariable(delimiterVariableName,delimiterVariableValue);
-  }
-  System.out.println(transMeta.environmentSubstitute(delimiter));
-  Trans trans=new Trans(transMeta);
-  trans.prepareExecution(null);
-  StepInterface si=trans.getStepInterface(dummyStepname,0);
   RowStepCollector rc=new RowStepCollector();
-  si.addRowListener(rc);
-  RowProducer rowProducer=trans.addRowProducer(injectorStepname,0);
-  trans.startThreads();
-  List<RowMetaAndData> inputList=createData(stringToSplit);
-  for (  RowMetaAndData rm : inputList) {
-    rowProducer.putRow(rm.getRowMeta(),rm.getData());
-  }
-  rowProducer.finished();
-  trans.waitUntilFinished();
-  printTestInfo(testName,stringToSplit,splitFieldtoRowsMeta,transMeta);
-  List<RowMetaAndData> resultRows=rc.getRowsWritten();
-  if (resultRows != null && resultRows.size() > 0) {
-    print("Rows produced:");
-    for (    RowMetaAndData row : resultRows) {
-      String string=row.getString(1,"");
-      print((string == null ? "     [null]" : "     " + string));
+  try {
+    KettleEnvironment.init();
+    TransMeta transMeta=new TransMeta();
+    transMeta.setName("Split field to rows test");
+    PluginRegistry registry=PluginRegistry.getInstance();
+    String injectorStepname="injector step";
+    InjectorMeta im=new InjectorMeta();
+    String injectorPid=registry.getPluginId(StepPluginType.class,im);
+    StepMeta injectorStep=new StepMeta(injectorPid,injectorStepname,im);
+    transMeta.addStep(injectorStep);
+    String splitfieldToRowsName="Split field to rows";
+    SplitFieldToRowsMeta splitFieldtoRowsMeta=new SplitFieldToRowsMeta();
+    splitFieldtoRowsMeta.setDelimiter(delimiter);
+    splitFieldtoRowsMeta.setDelimiterRegex(isDelimiterRegex);
+    splitFieldtoRowsMeta.setSplitField(FIELD_TO_SPLIT_NAME);
+    splitFieldtoRowsMeta.setNewFieldname(NEW_FIELD_NAME);
+    String splitFieldTotRowsPid=registry.getPluginId(StepPluginType.class,splitFieldtoRowsMeta);
+    StepMeta splitFieldToRows=new StepMeta(splitFieldTotRowsPid,splitfieldToRowsName,splitFieldtoRowsMeta);
+    transMeta.addStep(splitFieldToRows);
+    TransHopMeta hop_injector_splitfieldToRows=new TransHopMeta(injectorStep,splitFieldToRows);
+    transMeta.addTransHop(hop_injector_splitfieldToRows);
+    String dummyStepname="dummy step";
+    DummyTransMeta dm=new DummyTransMeta();
+    String dummyPid=registry.getPluginId(StepPluginType.class,dm);
+    StepMeta dummyStep=new StepMeta(dummyPid,dummyStepname,dm);
+    transMeta.addStep(dummyStep);
+    TransHopMeta hop_SplitFieldToRows_Dummy=new TransHopMeta(splitFieldToRows,dummyStep);
+    transMeta.addTransHop(hop_SplitFieldToRows_Dummy);
+    if (!Const.isEmpty(delimiterVariableValue)) {
+      String delimiterVariableName=delimiter.replace("${","");
+      delimiterVariableName=delimiterVariableName.replace("}","");
+      transMeta.setVariable(delimiterVariableName,delimiterVariableValue);
     }
+    Trans trans=new Trans(transMeta);
+    trans.prepareExecution(null);
+    StepInterface si=trans.getStepInterface(dummyStepname,0);
+    si.addRowListener(rc);
+    RowProducer rowProducer=trans.addRowProducer(injectorStepname,0);
+    trans.startThreads();
+    List<RowMetaAndData> inputList=createData(stringToSplit);
+    for (    RowMetaAndData rm : inputList) {
+      rowProducer.putRow(rm.getRowMeta(),rm.getData());
+    }
+    rowProducer.finished();
+    trans.waitUntilFinished();
   }
- else {
-    print("No rows were produced.");
+ catch (  KettleException e) {
+    fail("KettleEnvironment exception" + e.getMessage());
   }
-  print(TEST_OUTPUT_HEADER_FOOTER);
+  List<RowMetaAndData> resultRows=rc.getRowsWritten();
   return resultRows;
 }
