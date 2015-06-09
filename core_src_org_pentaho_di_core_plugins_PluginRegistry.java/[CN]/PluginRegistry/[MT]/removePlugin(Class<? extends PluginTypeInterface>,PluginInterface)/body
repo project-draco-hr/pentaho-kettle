@@ -1,20 +1,25 @@
 {
-  List<PluginInterface> list=pluginMap.get(pluginType);
-  if (list != null) {
-    list.remove(plugin);
-  }
-  Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
-  if (classLoaders != null) {
-    classLoaders.remove(plugin);
-  }
-  if (!Const.isEmpty(plugin.getClassLoaderGroup())) {
-    classLoaderGroupsMap.remove(plugin.getClassLoaderGroup());
-  }
-  List<PluginTypeListener> listeners=this.getListenersForType(pluginType);
-  if (listeners != null) {
-    for (    PluginTypeListener listener : listeners) {
-      listener.pluginRemoved(plugin);
+  lock.writeLock().lock();
+  try {
+    List<PluginInterface> list=pluginMap.get(pluginType);
+    if (list != null) {
+      list.remove(plugin);
+    }
+    Map<PluginInterface,URLClassLoader> classLoaders=classLoaderMap.get(plugin.getPluginType());
+    if (classLoaders != null) {
+      classLoaders.remove(plugin);
+    }
+    if (!Const.isEmpty(plugin.getClassLoaderGroup())) {
+      classLoaderGroupsMap.remove(plugin.getClassLoaderGroup());
+    }
+    List<PluginTypeListener> listeners=(List<PluginTypeListener>)this.listeners.get(pluginType);
+    if (listeners != null) {
+      for (      PluginTypeListener listener : listeners) {
+        listener.pluginRemoved(plugin);
+      }
     }
   }
-  notifyAll();
+  finally {
+    lock.writeLock().unlock();
+  }
 }

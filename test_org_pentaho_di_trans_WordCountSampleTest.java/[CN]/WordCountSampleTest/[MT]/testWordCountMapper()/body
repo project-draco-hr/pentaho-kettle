@@ -1,0 +1,62 @@
+{
+  TransMeta transMeta=new TransMeta("testfiles/wordcount-mapper.ktr");
+  transMeta.setTransformationType(TransformationType.SingleThreaded);
+  long transStart=System.currentTimeMillis();
+  Trans trans=new Trans(transMeta);
+  trans.setLogLevel(LogLevel.MINIMAL);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface("Output",0);
+  RowStepCollector rc=new RowStepCollector();
+  si.addRowListener(rc);
+  RowProducer rp=trans.addRowProducer("Injector",0);
+  trans.startThreads();
+  String metricsStep="Remove garbage";
+  SingleThreadedTransExecutor executor=new SingleThreadedTransExecutor(trans);
+  executor.init();
+  int iterations=1000000;
+  long totalWait=0;
+  List<RowMetaAndData> inputList=createMapperData();
+  for (int i=0; i < iterations; i++) {
+    for (    RowMetaAndData rm : inputList) {
+      Object[] copy=rm.getRowMeta().cloneRow(rm.getData());
+      rp.putRow(rm.getRowMeta(),copy);
+    }
+    long start=System.currentTimeMillis();
+    boolean cont=executor.oneIteration();
+    if (!cont) {
+      fail("We don't expect any step or the transformation to be done before the end of all iterations.");
+    }
+    long end=System.currentTimeMillis();
+    long delay=end - start;
+    totalWait+=delay;
+    if (i > 0 && (i % 100000) == 0) {
+      long rowsProcessed=trans.findRunThread(metricsStep).getLinesRead();
+      double speed=Const.round((rowsProcessed) / ((double)(end - transStart) / 1000),1);
+      int totalRows=0;
+      for (      StepMetaDataCombi combi : trans.getSteps()) {
+        for (        RowSet rowSet : combi.step.getInputRowSets()) {
+          totalRows+=rowSet.size();
+        }
+        for (        RowSet rowSet : combi.step.getOutputRowSets()) {
+          totalRows+=rowSet.size();
+        }
+      }
+      System.out.println("#" + i + " : Finished processing one iteration in "+ delay+ "ms, average is: "+ Const.round(((double)totalWait / (i + 1)),1)+ ", speed="+ speed+ " row/s, total rows buffered: "+ totalRows);
+    }
+    List<RowMetaAndData> resultRows=rc.getRowsWritten();
+    assertEquals("Error found in iteration " + i + " : not the expected amount of output rows.",9,resultRows.size());
+    rc.clear();
+  }
+  rp.finished();
+  executor.dispose();
+  long rowsProcessed=trans.findRunThread(metricsStep).getLinesRead();
+  long transEnd=System.currentTimeMillis();
+  long transTime=transEnd - transStart;
+  System.out.println("Average delay before idle : " + Const.round(((double)totalWait / iterations),1));
+  double transTimeSeconds=Const.round(((double)transTime / 1000),1);
+  System.out.println("Total transformation runtime for " + iterations + " iterations :"+ transTimeSeconds+ " seconds");
+  double transTimePerIteration=Const.round(((double)transTime / iterations),2);
+  System.out.println("Runtime per iteration: " + transTimePerIteration + " miliseconds");
+  double rowsPerSecond=Const.round((rowsProcessed) / ((double)transTime / 1000),1);
+  System.out.println("Average speed: " + rowsPerSecond + " rows/second");
+}

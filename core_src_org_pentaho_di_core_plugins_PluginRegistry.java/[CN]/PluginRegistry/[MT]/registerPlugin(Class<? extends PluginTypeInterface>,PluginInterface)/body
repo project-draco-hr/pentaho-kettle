@@ -1,68 +1,73 @@
 {
-  boolean changed=false;
-  if (plugin.getIds()[0] == null) {
-    throw new KettlePluginException("Not a valid id specified in plugin :" + plugin);
-  }
-  List<PluginInterface> list=pluginMap.get(pluginType);
-  if (list == null) {
-    list=new ArrayList<PluginInterface>();
-    pluginMap.put(pluginType,list);
-  }
-  int index=list.indexOf(plugin);
-  if (index < 0) {
-    list.add(plugin);
-  }
+  lock.writeLock().lock();
+  try {
+    boolean changed=false;
+    if (plugin.getIds()[0] == null) {
+      throw new KettlePluginException("Not a valid id specified in plugin :" + plugin);
+    }
+    List<PluginInterface> list=pluginMap.get(pluginType);
+    if (list == null) {
+      list=new ArrayList<PluginInterface>();
+      pluginMap.put(pluginType,list);
+    }
+    int index=list.indexOf(plugin);
+    if (index < 0) {
+      list.add(plugin);
+    }
  else {
-    list.set(index,plugin);
-    changed=true;
-  }
-  Collections.sort(list,new Comparator<PluginInterface>(){
-    @Override public int compare(    PluginInterface p1,    PluginInterface p2){
-      return p1.getName().compareToIgnoreCase(p2.getName());
+      list.set(index,plugin);
+      changed=true;
     }
-  }
-);
-  if (!Const.isEmpty(plugin.getCategory())) {
-    List<String> categories=categoryMap.get(pluginType);
-    if (categories == null) {
-      categories=new ArrayList<String>();
-      categoryMap.put(pluginType,categories);
-    }
-    if (!categories.contains(plugin.getCategory())) {
-      categories.add(plugin.getCategory());
-      String[] naturalOrder=null;
-      PluginTypeCategoriesOrder naturalOrderAnnotation=pluginType.getAnnotation(PluginTypeCategoriesOrder.class);
-      if (naturalOrderAnnotation != null) {
-        String[] naturalOrderKeys=naturalOrderAnnotation.getNaturalCategoriesOrder();
-        Class<?> i18nClass=naturalOrderAnnotation.i18nPackageClass();
-        naturalOrder=new String[naturalOrderKeys.length];
-        for (int i=0; i < naturalOrderKeys.length; i++) {
-          naturalOrder[i]=BaseMessages.getString(i18nClass,naturalOrderKeys[i]);
-        }
+    Collections.sort(list,new Comparator<PluginInterface>(){
+      @Override public int compare(      PluginInterface p1,      PluginInterface p2){
+        return p1.getName().compareToIgnoreCase(p2.getName());
       }
-      if (naturalOrder != null) {
-        final String[] fNaturalOrder=naturalOrder;
-        Collections.sort(categories,new Comparator<String>(){
-          @Override public int compare(          String one,          String two){
-            int idx1=Const.indexOfString(one,fNaturalOrder);
-            int idx2=Const.indexOfString(two,fNaturalOrder);
-            return idx1 - idx2;
+    }
+);
+    if (!Const.isEmpty(plugin.getCategory())) {
+      List<String> categories=categoryMap.get(pluginType);
+      if (categories == null) {
+        categories=new ArrayList<String>();
+        categoryMap.put(pluginType,categories);
+      }
+      if (!categories.contains(plugin.getCategory())) {
+        categories.add(plugin.getCategory());
+        String[] naturalOrder=null;
+        PluginTypeCategoriesOrder naturalOrderAnnotation=pluginType.getAnnotation(PluginTypeCategoriesOrder.class);
+        if (naturalOrderAnnotation != null) {
+          String[] naturalOrderKeys=naturalOrderAnnotation.getNaturalCategoriesOrder();
+          Class<?> i18nClass=naturalOrderAnnotation.i18nPackageClass();
+          naturalOrder=new String[naturalOrderKeys.length];
+          for (int i=0; i < naturalOrderKeys.length; i++) {
+            naturalOrder[i]=BaseMessages.getString(i18nClass,naturalOrderKeys[i]);
           }
         }
+        if (naturalOrder != null) {
+          final String[] fNaturalOrder=naturalOrder;
+          Collections.sort(categories,new Comparator<String>(){
+            @Override public int compare(            String one,            String two){
+              int idx1=Const.indexOfString(one,fNaturalOrder);
+              int idx2=Const.indexOfString(two,fNaturalOrder);
+              return idx1 - idx2;
+            }
+          }
 );
+        }
       }
     }
-  }
-  List<PluginTypeListener> listeners=this.getListenersForType(pluginType);
-  if (listeners != null) {
-    for (    PluginTypeListener listener : listeners) {
-      if (changed) {
-        listener.pluginChanged(plugin);
-      }
+    List<PluginTypeListener> listeners=this.listeners.get(pluginType);
+    if (listeners != null) {
+      for (      PluginTypeListener listener : listeners) {
+        if (changed) {
+          listener.pluginChanged(plugin);
+        }
  else {
-        listener.pluginAdded(plugin);
+          listener.pluginAdded(plugin);
+        }
       }
     }
   }
-  notifyAll();
+  finally {
+    lock.writeLock().unlock();
+  }
 }

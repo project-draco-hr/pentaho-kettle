@@ -1,0 +1,28 @@
+{
+  final Connection shared=mock(Connection.class);
+  final int threadsAmount=30;
+  List<DatabaseStub> dbs=new ArrayList<DatabaseStub>(threadsAmount);
+  Set<Integer> copies=new HashSet<Integer>(threadsAmount);
+  ExecutorService pool=Executors.newFixedThreadPool(threadsAmount);
+  try {
+    CompletionService<DatabaseStub> service=new ExecutorCompletionService<DatabaseStub>(pool);
+    for (int i=0; i < threadsAmount; i++) {
+      service.submit(createStubDatabase(shared));
+      copies.add(i + 1);
+    }
+    for (int i=0; i < threadsAmount; i++) {
+      DatabaseStub db=service.take().get();
+      assertEquals(shared,db.getConnection());
+      dbs.add(db);
+    }
+  }
+  finally {
+    pool.shutdown();
+  }
+  for (  DatabaseStub db : dbs) {
+    String message=String.format("There should be %d shares of the connection, but found %d",threadsAmount,db.getOpened());
+    assertTrue(message,db.getOpened() == 0 || db.getOpened() == threadsAmount);
+    assertTrue("Each instance should have a unique 'copy' value",copies.remove(db.getCopy()));
+  }
+  assertTrue(copies.isEmpty());
+}

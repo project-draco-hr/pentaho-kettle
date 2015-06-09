@@ -1,0 +1,28 @@
+{
+  ValueMetaInterface v=mock(ValueMetaInterface.class);
+  DatabaseMeta dbMeta=mock(DatabaseMeta.class);
+  DatabaseInterface databaseInterface=mock(DatabaseInterface.class);
+  doReturn(" ").when(databaseInterface).getDataTablespaceDDL(any(VariableSpace.class),eq(dbMeta));
+  doReturn(databaseInterface).when(dbMeta).getDatabaseInterface();
+  DatabaseMetaData dbMetaData=mock(DatabaseMetaData.class);
+  Database db=new Database(mockLogger(),dbMeta);
+  db.setConnection(mockConnection(dbMetaData));
+  db.setCommit(1);
+  String tableName="DUMMY", tk="tKey", pk="pKey";
+  RowMetaInterface fields=mock(RowMetaInterface.class);
+  doReturn(1).when(fields).size();
+  doReturn(v).when(fields).getValueMeta(0);
+  boolean useAutoInc=true, semiColon=true;
+  doReturn("double foo").when(dbMeta).getFieldDefinition(v,tk,pk,useAutoInc);
+  doReturn(true).when(dbMeta).requiresCreateTablePrimaryKeyAppend();
+  String statement=db.getCreateTableStatement(tableName,fields,tk,useAutoInc,pk,semiColon);
+  String expectedStatRegexp=concatWordsForRegexp("CREATE TABLE DUMMY","\\(","double foo",",","PRIMARY KEY \\(tKey\\)",",","PRIMARY KEY \\(pKey\\)","\\)",";");
+  assertTrue(statement.matches(expectedStatRegexp));
+  DatabaseInterfaceExtended databaseInterfaceExtended=mock(DatabaseInterfaceExtended.class);
+  doReturn("CREATE COLUMN TABLE ").when(databaseInterfaceExtended).getCreateTableStatement();
+  doReturn(" ").when(databaseInterfaceExtended).getDataTablespaceDDL(any(VariableSpace.class),eq(dbMeta));
+  doReturn(databaseInterfaceExtended).when(dbMeta).getDatabaseInterface();
+  statement=db.getCreateTableStatement(tableName,fields,tk,useAutoInc,pk,semiColon);
+  expectedStatRegexp=concatWordsForRegexp("CREATE COLUMN TABLE DUMMY","\\(","double foo",",","PRIMARY KEY \\(tKey\\)",",","PRIMARY KEY \\(pKey\\)","\\)",";");
+  assertTrue(statement.matches(expectedStatRegexp));
+}

@@ -14,11 +14,20 @@
         throw new KettleDatabaseException("Error occurred while trying to connect to the database",e);
       }
     }
- else {
-      connectUsingClass(databaseMeta.getDriverClass(),partitionId);
-      if (log.isDetailed()) {
-        log.logDetailed("Connected to database.");
+ else     if (databaseMeta.getAccessType() == DatabaseMeta.TYPE_ACCESS_JNDI) {
+      final String jndiName=environmentSubstitute(databaseMeta.getDatabaseName());
+      try {
+        connectUsingJNDIDataSource(jndiName);
       }
+ catch (      KettleDatabaseException kde) {
+        if (log.isDetailed()) {
+          log.logDetailed("Unable to find datasource using JNDI. Cause: " + kde.getLocalizedMessage());
+        }
+        connectUsingClass();
+      }
+    }
+ else {
+      connectUsingClass();
     }
     String sql=environmentSubstitute(databaseMeta.getConnectSQL());
     if (!Const.isEmpty(sql) && !Const.onlySpaces(sql)) {
