@@ -3,9 +3,35 @@
     return;
   }
   getControls();
-  for (  String key : connectionMap.keySet()) {
+  final SortedSet<String> keys=new TreeSet<String>(connectionMap.keySet());
+  for (  String key : keys) {
     connectionBox.addItem(key);
   }
+  PluginRegistry registry=PluginRegistry.getInstance();
+  registry.addPluginListener(DatabasePluginType.class,new DatabaseTypeListener(registry){
+    @Override public void databaseTypeAdded(    String pluginName,    DatabaseInterface databaseInterface){
+      if (keys.add(pluginName)) {
+        update();
+      }
+    }
+    @Override public void databaseTypeRemoved(    String pluginName){
+      if (keys.remove(pluginName)) {
+        update();
+      }
+    }
+    private void update(){
+      Display.getDefault().syncExec(new Runnable(){
+        @Override public void run(){
+          connectionBox.removeItems();
+          for (          String key : keys) {
+            connectionBox.addItem(key);
+          }
+        }
+      }
+);
+    }
+  }
+);
   connectionBox.setRows(connectionBox.getRows());
   Object key=connectionBox.getSelectedItem();
   if (key == null) {

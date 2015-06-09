@@ -1,0 +1,28 @@
+{
+  final ScheduledExecutorService heartbeat=Executors.newSingleThreadScheduledExecutor(new ThreadFactory(){
+    @Override public Thread newThread(    Runnable r){
+      Thread thread=new Thread(r,"Job Heartbeat Thread for: " + getName());
+      thread.setDaemon(true);
+      return thread;
+    }
+  }
+);
+  heartbeat.scheduleAtFixedRate(new Runnable(){
+    public void run(){
+      if (Job.this.isFinished()) {
+        log.logBasic("Shutting down heartbeat signal for " + jobMeta.getName());
+        shutdownHeartbeat(heartbeat);
+        return;
+      }
+      try {
+        log.logDebug("Triggering heartbeat signal for " + jobMeta.getName() + " at every "+ intervalInSeconds+ " seconds");
+        ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobHeartbeat.id,Job.this);
+      }
+ catch (      KettleException e) {
+        log.logError(e.getMessage(),e);
+      }
+    }
+  }
+,intervalInSeconds,intervalInSeconds,TimeUnit.SECONDS);
+  return heartbeat;
+}

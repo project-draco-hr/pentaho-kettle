@@ -1,0 +1,22 @@
+{
+  try {
+    ClientConfig clientConfig=new DefaultClientConfig();
+    clientConfig.getFeatures().put(JSONConfiguration.FEATURE_POJO_MAPPING,Boolean.TRUE);
+    Client client=Client.create(clientConfig);
+    client.addFilter(new HTTPBasicAuthFilter(username,password));
+    String contextURL="http://" + hostname + ":"+ port+ "/kettle";
+    WebResource resource=client.resource(contextURL + "/status/?xml=Y");
+    String response=resource.get(String.class);
+    if (response == null || !response.contains("<serverstatus>")) {
+      throw new Carte.CarteCommandException(BaseMessages.getString(PKG,"Carte.Error.NoServerFound",hostname,"" + port));
+    }
+    resource=client.resource(contextURL + "/stopCarte");
+    response=resource.get(String.class);
+    if (response == null || !response.contains("Shutting Down")) {
+      throw new Carte.CarteCommandException(BaseMessages.getString(PKG,"Carte.Error.NoShutdown",hostname,"" + port));
+    }
+  }
+ catch (  Exception e) {
+    throw new Carte.CarteCommandException(BaseMessages.getString(PKG,"Carte.Error.NoServerFound",hostname,"" + port),e);
+  }
+}

@@ -1,5 +1,6 @@
 {
-  if (initialized == null) {
+  SettableFuture<Boolean> ready;
+  if (initialized.compareAndSet(null,ready=SettableFuture.create())) {
     if (!KettleClientEnvironment.isInitialized()) {
       KettleClientEnvironment.init();
     }
@@ -22,6 +23,16 @@
     PluginRegistry.init();
     KettleVariablesList.init();
     initLifecycleListeners();
-    initialized=true;
+    ready.set(true);
+  }
+ else {
+    ready=initialized.get();
+    try {
+      ready.get();
+    }
+ catch (    Throwable e) {
+      Throwables.propagateIfPossible(e);
+      throw new KettleException(e);
+    }
   }
 }

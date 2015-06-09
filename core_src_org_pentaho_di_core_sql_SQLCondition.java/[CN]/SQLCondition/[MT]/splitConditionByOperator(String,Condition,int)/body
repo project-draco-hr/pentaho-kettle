@@ -18,30 +18,12 @@
     if (lastIndex == 0) {
       String cleaned=Const.trim(clause);
       boolean negation=false;
-      if (Pattern.matches("^PARAMETER\\s*\\(.*\\)\\s*=\\s*'.*'$",cleaned)) {
-        int startParamIndex=cleaned.indexOf('(') + 1;
-        int endParamIndex=ThinUtil.skipChars(cleaned,startParamIndex,'(','\'');
-        String quotedParameter=Const.trim(cleaned.substring(startParamIndex,endParamIndex));
-        if (quotedParameter.startsWith("'") && quotedParameter.endsWith("'")) {
-          String parameterName=quotedParameter.substring(1,quotedParameter.length() - 1);
-          int startValueIndex=cleaned.indexOf('=',endParamIndex + 1) + 1;
-          String quotedValue=Const.trim(cleaned.substring(startValueIndex));
-          if (quotedValue.startsWith("'") && quotedValue.endsWith("'")) {
-            String parameterValue=quotedValue.substring(1,quotedValue.length() - 1);
-            Condition subCondition=new Condition(parameterName,Condition.FUNC_TRUE,parameterName,new ValueMetaAndData(new ValueMeta("string",ValueMetaInterface.TYPE_STRING),Const.NVL(parameterValue,"")));
-            subCondition.setOperator(orConditionOperator);
-            parentCondition.addCondition(subCondition);
-            if (Const.isEmpty(parameterName)) {
-              throw new KettleSQLException("A parameter name can not be empty in : " + clause);
-            }
-          }
- else {
-            throw new KettleSQLException("A parameter value has to always be a string between single quotes in : " + clause);
-          }
-        }
- else {
-          throw new KettleSQLException("Parameter name between single quotes expected in : " + clause);
-        }
+      Matcher paramMatcher=PARAMETER_REGEX_PATTERN.matcher(cleaned);
+      if (paramMatcher.matches()) {
+        String parameterName=paramMatcher.group(1);
+        String parameterValue=paramMatcher.group(2);
+        validateParam(clause,parameterName,parameterValue);
+        parentCondition.addCondition(createParameterCondition(orConditionOperator,parameterName,parameterValue));
       }
  else {
         if (Pattern.matches("^NOT\\s*\\(.*\\)$",cleaned.toUpperCase())) {
