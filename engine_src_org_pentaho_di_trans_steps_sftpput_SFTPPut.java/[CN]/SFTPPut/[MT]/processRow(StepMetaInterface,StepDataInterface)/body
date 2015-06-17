@@ -29,7 +29,7 @@
         }
         realPassPhrase=environmentSubstitute(meta.getKeyPassPhrase());
       }
-      data.sftpclient=new SFTPClient(InetAddress.getByName(realServerName),Const.toInt(realServerPort,22),realUsername,realKeyFilename,realPassPhrase);
+      data.sftpclient=createSftpClient(realServerName,realServerPort,realUsername,realKeyFilename,realPassPhrase);
       if (isDetailed()) {
         logDetailed(BaseMessages.getString(PKG,"SFTPPUT.Log.OpenedConnection",realServerName,realServerPort,realUsername));
       }
@@ -59,6 +59,7 @@
     if (data.indexOfRemoteDirectory < -1) {
       throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.CanNotFindField",remoteFoldernameFieldName));
     }
+    checkRemoteFilenameField(meta.getRemoteFilenameFieldName(),data);
     if (meta.getAfterFTPS() == JobEntrySFTPPUT.AFTER_FTPSPUT_MOVE) {
       String realDestinationFoldernameFieldName=environmentSubstitute(meta.getDestinationFolderFieldName());
       if (Const.isEmpty(realDestinationFoldernameFieldName)) {
@@ -73,6 +74,7 @@
   String sourceData=getInputRowMeta().getString(r,data.indexOfSourceFileFieldName);
   InputStream inputStream=null;
   FileObject destinationFolder=null;
+  String destinationFilename;
   FileObject file=null;
   try {
     if (Const.isEmpty(sourceData)) {
@@ -80,6 +82,10 @@
     }
     if (meta.isInputStream()) {
       inputStream=new ByteArrayInputStream(sourceData.getBytes());
+      if (data.indexOfRemoteFilename == -1) {
+        throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.RemoteFilenameFieldMissing"));
+      }
+      destinationFilename=getInputRowMeta().getString(r,data.indexOfRemoteFilename);
     }
  else {
       file=KettleVFS.getFileObject(sourceData);
@@ -87,6 +93,7 @@
         throw new KettleStepException(BaseMessages.getString(PKG,"SFTPPut.Error.CanNotFindField",sourceData));
       }
       inputStream=KettleVFS.getInputStream(file);
+      destinationFilename=file.getName().getBaseName();
     }
     if (file != null) {
       if (meta.getAfterFTPS() == JobEntrySFTPPUT.AFTER_FTPSPUT_MOVE) {
@@ -101,7 +108,6 @@
       }
     }
     setSFTPDirectory(getInputRowMeta().getString(r,data.indexOfRemoteDirectory));
-    String destinationFilename=file.getName().getBaseName();
     data.sftpclient.put(inputStream,destinationFilename);
     if (file != null) {
       finishTheJob(file,sourceData,destinationFolder);
