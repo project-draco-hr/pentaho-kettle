@@ -1,27 +1,38 @@
 {
-  List<StreamInterface> infoStreams=meta.getStepIOMeta().getInfoStreams();
-  if (infoStreams.size() == 0) {
-    if (inputSteps != null && inputSteps.length != 0) {
-      for (int i=0; i < inputSteps.length; i++) {
-        meta.getStepIOMeta().addStream(new Stream(StreamType.INFO,null,BaseMessages.getString(PKG,"MultiMergeJoin.InfoStream.Description"),StreamIcon.INFO,null));
-      }
-      infoStreams=meta.getStepIOMeta().getInfoStreams();
+  StepIOMetaInterface stepIOMeta=meta.getStepIOMeta();
+  List<StreamInterface> infoStreams=stepIOMeta.getInfoStreams();
+  StreamInterface stream;
+  String streamDescription;
+  ArrayList<String> inputStepNameList=new ArrayList<String>();
+  ArrayList<String> keyList=new ArrayList<String>();
+  CCombo wInputStep;
+  String inputStepName;
+  for (int i=0; i < wInputStepArray.length; i++) {
+    wInputStep=wInputStepArray[i];
+    inputStepName=wInputStep.getText();
+    if (Const.isEmpty(inputStepName)) {
+      continue;
+    }
+    inputStepNameList.add(inputStepName);
+    keyList.add(keyValTextBox[i].getText());
+    if (infoStreams.size() < inputStepNameList.size()) {
+      streamDescription=BaseMessages.getString(PKG,"MultiMergeJoin.InfoStream.Description");
+      stream=new Stream(StreamType.INFO,null,streamDescription,StreamIcon.INFO,null);
+      stepIOMeta.addStream(stream);
     }
   }
- else   if (inputSteps != null && infoStreams.size() < inputSteps.length) {
-    int requiredStreams=inputSteps.length - infoStreams.size();
-    for (int i=0; i < requiredStreams; i++) {
-      meta.getStepIOMeta().addStream(new Stream(StreamType.INFO,null,BaseMessages.getString(PKG,"MultiMergeJoin.InfoStream.Description"),StreamIcon.INFO,null));
-    }
-    infoStreams=meta.getStepIOMeta().getInfoStreams();
-  }
-  int streamCount=infoStreams.size();
-  meta.allocateInputSteps(streamCount);
-  meta.allocateKeys(streamCount);
-  for (int i=0; i < streamCount; i++) {
-    meta.getInputSteps()[i]=wInputStepArray[i].getText();
-    infoStreams.get(i).setStepMeta(transMeta.findStep(wInputStepArray[i].getText()));
-    meta.getKeyFields()[i]=keyValTextBox[i].getText();
+  int inputStepCount=inputStepNameList.size();
+  meta.allocateInputSteps(inputStepCount);
+  meta.allocateKeys(inputStepCount);
+  String[] inputSteps=meta.getInputSteps();
+  String[] keyFields=meta.getKeyFields();
+  infoStreams=stepIOMeta.getInfoStreams();
+  for (int i=0; i < inputStepCount; i++) {
+    inputStepName=inputStepNameList.get(i);
+    inputSteps[i]=inputStepName;
+    stream=infoStreams.get(i);
+    stream.setStepMeta(transMeta.findStep(inputStepName));
+    keyFields[i]=keyList.get(i);
   }
   meta.setJoinType(joinTypeCombo.getText());
 }
