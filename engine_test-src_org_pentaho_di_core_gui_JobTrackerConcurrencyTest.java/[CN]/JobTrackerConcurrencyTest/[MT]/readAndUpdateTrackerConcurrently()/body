@@ -1,0 +1,28 @@
+{
+  final AtomicBoolean condition=new AtomicBoolean(true);
+  List<Getter> getters=new ArrayList<Getter>(gettersAmount);
+  for (int i=0; i < gettersAmount; i++) {
+    getters.add(new Getter(condition,tracker));
+  }
+  List<Searcher> searchers=new ArrayList<Searcher>(searchersAmount);
+  for (int i=0; i < searchersAmount; i++) {
+    int lookingFor=updatersAmount * updatersCycles / 2 + i;
+    assertTrue("We are looking for reachable index",lookingFor < updatersAmount * updatersCycles);
+    searchers.add(new Searcher(condition,tracker,mockJobEntryCopy("job-entry-" + lookingFor,lookingFor)));
+  }
+  final AtomicInteger generator=new AtomicInteger(0);
+  List<Updater> updaters=new ArrayList<Updater>(updatersAmount);
+  for (int i=0; i < updatersAmount; i++) {
+    updaters.add(new Updater(tracker,updatersCycles,generator,"job-entry-%d"));
+  }
+  TestRunner runner=new TestRunner(updaters,concat(getters,searchers),condition);
+  runner.runConcurrentTest();
+  List<Exception> exceptions=runner.getExceptions();
+  if (!exceptions.isEmpty()) {
+    for (    Exception exception : exceptions) {
+      exception.printStackTrace();
+    }
+    fail("There is expected no exceptions during the test, but " + exceptions.size() + " exception occurred");
+  }
+  assertEquals(updatersAmount * updatersCycles,generator.get());
+}
