@@ -1,0 +1,99 @@
+{
+  log=new LogChannel(Spoon.APP_NAME);
+  Rectangle displayBounds=display.getPrimaryMonitor().getBounds();
+  kettle_image=loadAsResource(display,BasePropertyHandler.getProperty("splash_image"));
+  kettle_icon=loadAsResource(display,BasePropertyHandler.getProperty("splash_icon"));
+  exclamation_image=loadAsResource(display,BasePropertyHandler.getProperty("exclamation_image"));
+  verFont=new Font(display,"Helvetica",11,SWT.BOLD);
+  licFont=new Font(display,"Helvetica",licFontSize,SWT.NORMAL);
+  devWarningFont=new Font(display,"Helvetica",10,SWT.NORMAL);
+  versionWarningBackgroundColor=new Color(display,255,255,255);
+  versionWarningForegroundColor=new Color(display,220,177,20);
+  splash=splashShell;
+  splash.setImage(kettle_icon);
+  splash.setText(BaseMessages.getString(PKG,"SplashDialog.Title"));
+  splash.addPaintListener(new PaintListener(){
+    public void paintControl(    PaintEvent e){
+      String versionText=BaseMessages.getString(PKG,"SplashDialog.Version") + " " + BuildVersion.getInstance().getVersion();
+      StringBuilder sb=new StringBuilder();
+      String line=null;
+      try {
+        BufferedReader reader=new BufferedReader(new InputStreamReader(Splash.class.getClassLoader().getResourceAsStream("org/pentaho/di/ui/core/dialog/license/license.txt")));
+        while ((line=reader.readLine()) != null) {
+          sb.append(line + System.getProperty("line.separator"));
+        }
+      }
+ catch (      Exception ex) {
+        sb.append("");
+        log.logError(BaseMessages.getString(PKG,"SplashDialog.LicenseTextNotFound"),ex);
+      }
+      Calendar cal=Calendar.getInstance();
+      String licenseText=String.format(sb.toString(),cal);
+      e.gc.drawImage(kettle_image,0,0);
+      if (Const.RELEASE.equals(Const.ReleaseType.MILESTONE)) {
+        versionText=BaseMessages.getString(PKG,"SplashDialog.DeveloperRelease") + " - " + versionText;
+        drawVersionWarning(e);
+      }
+ else       if (Const.RELEASE.equals(Const.ReleaseType.RELEASE_CANDIDATE)) {
+        versionText=BaseMessages.getString(PKG,"SplashDialog.ReleaseCandidate") + " - " + versionText;
+      }
+ else       if (Const.RELEASE.equals(Const.ReleaseType.PREVIEW)) {
+        versionText=BaseMessages.getString(PKG,"SplashDialog.PreviewRelease") + " - " + versionText;
+      }
+ else       if (Const.RELEASE.equals(Const.ReleaseType.GA)) {
+        versionText=BaseMessages.getString(PKG,"SplashDialog.GA") + " - " + versionText;
+      }
+      e.gc.setFont(verFont);
+      e.gc.drawText(versionText,290,205,true);
+      e.gc.setFont(licFont);
+      while (!willLicenseTextFit(licenseText,e.gc)) {
+        licFontSize--;
+        if (licFont != null) {
+          licFont.dispose();
+        }
+        licFont=new Font(e.display,"Helvetica",licFontSize,SWT.NORMAL);
+        e.gc.setFont(licFont);
+      }
+      e.gc.drawText(licenseText,290,290,true);
+    }
+  }
+);
+  splash.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent arg0){
+      kettle_image.dispose();
+      kettle_icon.dispose();
+      exclamation_image.dispose();
+      verFont.dispose();
+      licFont.dispose();
+      devWarningFont.dispose();
+      versionWarningForegroundColor.dispose();
+      versionWarningBackgroundColor.dispose();
+    }
+  }
+);
+  Rectangle bounds=kettle_image.getBounds();
+  int x=(displayBounds.width - bounds.width) / 2;
+  int y=(displayBounds.height - bounds.height) / 2;
+  splash.setSize(bounds.width,bounds.height);
+  splash.setLocation(x,y);
+  splash.open();
+  TimerTask timerTask=new TimerTask(){
+    @Override public void run(){
+      try {
+        splash.redraw();
+        LogChannel.UI.logBasic("Redraw!");
+      }
+ catch (      Throwable e) {
+      }
+    }
+  }
+;
+  final Timer timer=new Timer();
+  timer.schedule(timerTask,0,100);
+  splash.addDisposeListener(new DisposeListener(){
+    public void widgetDisposed(    DisposeEvent arg0){
+      timer.cancel();
+    }
+  }
+);
+}
