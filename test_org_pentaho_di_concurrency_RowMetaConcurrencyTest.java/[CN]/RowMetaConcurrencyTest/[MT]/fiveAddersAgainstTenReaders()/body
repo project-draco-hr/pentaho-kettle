@@ -1,0 +1,28 @@
+{
+  final int addersAmount=5;
+  final int readersAmount=10;
+  final AtomicBoolean condition=new AtomicBoolean(true);
+  final RowMeta rowMeta=new RowMeta();
+  List<Adder> adders=new ArrayList<Adder>(addersAmount);
+  for (int i=0; i < addersAmount; i++) {
+    adders.add(new Adder(condition,rowMeta,cycles,"adder" + i));
+  }
+  List<Getter> getters=new ArrayList<Getter>(readersAmount);
+  for (int i=0; i < readersAmount; i++) {
+    getters.add(new Getter(condition,rowMeta));
+  }
+  ConcurrencyTestRunner<List<ValueMetaInterface>,?> runner=new ConcurrencyTestRunner<List<ValueMetaInterface>,Object>(adders,getters,condition);
+  runner.runConcurrentTest();
+  runner.checkNoExceptionRaised();
+  Set<ValueMetaInterface> results=new HashSet<ValueMetaInterface>(cycles * addersAmount);
+  for (  List<ValueMetaInterface> list : runner.getMonitoredTasksResults()) {
+    results.addAll(list);
+  }
+  List<ValueMetaInterface> metas=rowMeta.getValueMetaList();
+  assertEquals(cycles * addersAmount,metas.size());
+  assertEquals(cycles * addersAmount,results.size());
+  for (  ValueMetaInterface meta : metas) {
+    assertTrue(meta.getName(),results.remove(meta));
+  }
+  assertTrue(results.isEmpty());
+}

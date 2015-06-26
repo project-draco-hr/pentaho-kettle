@@ -1,21 +1,27 @@
 {
-  Object[] data=new Object[size()];
-  for (int i=0; i < size(); i++) {
-    data[i]=getValueMeta(i).readData(inputStream);
+  lock.readLock().lock();
+  try {
+    Object[] data=new Object[size()];
+    for (int i=0; i < size(); i++) {
+      data[i]=getValueMeta(i).readData(inputStream);
+    }
+    if (size() == 0) {
+      try {
+        inputStream.readBoolean();
+      }
+ catch (      EOFException e) {
+        throw new KettleEOFException(e);
+      }
+catch (      SocketTimeoutException e) {
+        throw e;
+      }
+catch (      IOException e) {
+        throw new KettleFileException(toString() + " : Unable to read the marker flag data from input stream",e);
+      }
+    }
+    return data;
   }
-  if (size() == 0) {
-    try {
-      inputStream.readBoolean();
-    }
- catch (    EOFException e) {
-      throw new KettleEOFException(e);
-    }
-catch (    SocketTimeoutException e) {
-      throw e;
-    }
-catch (    IOException e) {
-      throw new KettleFileException(toString() + " : Unable to read the marker flag data from input stream",e);
-    }
+  finally {
+    lock.readLock().unlock();
   }
-  return data;
 }
