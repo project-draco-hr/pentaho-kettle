@@ -7,18 +7,18 @@
   ConstraintMapping constraintMapping=new ConstraintMapping();
   constraintMapping.setConstraint(constraint);
   constraintMapping.setPathSpec("/*");
-  SecurityHandler securityHandler=new SecurityHandler();
+  ConstraintSecurityHandler securityHandler=new ConstraintSecurityHandler();
   if (System.getProperty("loginmodulename") != null && System.getProperty("java.security.auth.login.config") != null) {
-    JAASUserRealm jaasRealm=new JAASUserRealm("Kettle");
-    jaasRealm.setLoginModuleName(System.getProperty("loginmodulename"));
-    securityHandler.setUserRealm(jaasRealm);
+    JAASLoginService jaasLoginService=new JAASLoginService("Kettle");
+    jaasLoginService.setLoginModuleName(System.getProperty("loginmodulename"));
+    securityHandler.setLoginService(jaasLoginService);
   }
  else {
-    HashUserRealm hashUserRealm;
+    HashLoginService hashLoginService;
     SlaveServer slaveServer=transformationMap.getSlaveServerConfig().getSlaveServer();
     if (!Const.isEmpty(slaveServer.getPassword())) {
-      hashUserRealm=new HashUserRealm("Kettle");
-      hashUserRealm.put(slaveServer.getUsername(),slaveServer.getPassword());
+      hashLoginService=new HashLoginService("Kettle");
+      hashLoginService.putUser(slaveServer.getUsername(),new Password(slaveServer.getPassword()),new String[]{});
     }
  else {
       if (Const.isEmpty(passwordFile)) {
@@ -30,13 +30,13 @@
           passwordFile=Const.getKettleLocalCartePasswordFile();
         }
       }
-      hashUserRealm=new HashUserRealm("Kettle",passwordFile);
+      hashLoginService=new HashLoginService("Kettle",passwordFile);
     }
-    securityHandler.setUserRealm(hashUserRealm);
+    securityHandler.setLoginService(hashLoginService);
   }
   securityHandler.setConstraintMappings(new ConstraintMapping[]{constraintMapping});
   ContextHandlerCollection contexts=new ContextHandlerCollection();
-  Context root=new Context(contexts,GetRootServlet.CONTEXT_PATH,Context.SESSIONS);
+  ServletContextHandler root=new ServletContextHandler(contexts,GetRootServlet.CONTEXT_PATH,ServletContextHandler.SESSIONS);
   GetRootServlet rootServlet=new GetRootServlet();
   rootServlet.setJettyMode(true);
   root.addServlet(new ServletHolder(rootServlet),"/*");
@@ -46,7 +46,7 @@
     CartePluginInterface servlet=(CartePluginInterface)pluginRegistry.loadClass(plugin);
     servlet.setup(transformationMap,jobMap,socketRepository,detections);
     servlet.setJettyMode(true);
-    Context servletContext=new Context(contexts,servlet.getContextPath(),Context.SESSIONS);
+    ServletContextHandler servletContext=new ServletContextHandler(contexts,servlet.getContextPath(),ServletContextHandler.SESSIONS);
     ServletHolder servletHolder=new ServletHolder((Servlet)servlet);
     servletContext.addServlet(servletHolder,"/*");
   }
@@ -56,7 +56,9 @@
   root.addServlet(jerseyServletHolder,"/api/*");
   ResourceHandler resourceHandler=new ResourceHandler();
   resourceHandler.setResourceBase("temp");
-  server.setHandlers(new Handler[]{securityHandler,contexts,resourceHandler});
+  HandlerList handlers=new HandlerList();
+  handlers.setHandlers(new Handler[]{securityHandler,contexts,resourceHandler});
+  server.setHandler(handlers);
   createListeners();
   server.start();
 }
