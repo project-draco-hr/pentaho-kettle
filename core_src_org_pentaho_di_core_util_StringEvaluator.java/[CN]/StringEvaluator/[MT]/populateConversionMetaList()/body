@@ -14,27 +14,15 @@
       conversionMeta.setDateFormatLenient(false);
       evaluationResults.add(new StringEvaluationResult(conversionMeta));
     }
+    EvalResultBuilder numberUsBuilder=new EvalResultBuilder("number-us",ValueMetaInterface.TYPE_NUMBER,15,trimType,".",",");
+    EvalResultBuilder numberEuBuilder=new EvalResultBuilder("number-eu",ValueMetaInterface.TYPE_NUMBER,15,trimType,",",".");
     for (    String format : getNumberFormats()) {
       if (format.equals("#") || format.equals("0")) {
         continue;
       }
-      ValueMetaInterface conversionMeta=new ValueMeta("number-us",ValueMetaInterface.TYPE_NUMBER);
       int precision=determinePrecision(format);
-      conversionMeta.setConversionMask(format);
-      conversionMeta.setTrimType(trimType);
-      conversionMeta.setDecimalSymbol(".");
-      conversionMeta.setGroupingSymbol(",");
-      conversionMeta.setLength(15);
-      conversionMeta.setPrecision(precision);
-      evaluationResults.add(new StringEvaluationResult(conversionMeta));
-      conversionMeta=new ValueMeta("number-eu",ValueMetaInterface.TYPE_NUMBER);
-      conversionMeta.setConversionMask(format);
-      conversionMeta.setTrimType(trimType);
-      conversionMeta.setDecimalSymbol(",");
-      conversionMeta.setGroupingSymbol(".");
-      conversionMeta.setLength(15);
-      conversionMeta.setPrecision(precision);
-      evaluationResults.add(new StringEvaluationResult(conversionMeta));
+      evaluationResults.add(numberUsBuilder.format(format,precision).build());
+      evaluationResults.add(numberEuBuilder.format(format,precision).build());
     }
     DecimalFormat currencyFormat=((DecimalFormat)NumberFormat.getCurrencyInstance());
     ValueMetaInterface conversionMeta=new ValueMeta("number-currency",ValueMetaInterface.TYPE_NUMBER);
@@ -45,8 +33,12 @@
     conversionMeta.setGroupingSymbol(String.valueOf(currencyFormat.getDecimalFormatSymbols().getGroupingSeparator()));
     conversionMeta.setCurrencySymbol(currencyFormat.getCurrency().getSymbol());
     conversionMeta.setLength(15);
-    conversionMeta.setPrecision(currencyFormat.getCurrency().getDefaultFractionDigits());
+    int currencyPrecision=currencyFormat.getCurrency().getDefaultFractionDigits();
+    conversionMeta.setPrecision(currencyPrecision);
     evaluationResults.add(new StringEvaluationResult(conversionMeta));
+    String currencyMaskAsNumeric=currencyMask.replaceAll(Pattern.quote(currencyFormat.getCurrency().getSymbol()),"");
+    evaluationResults.add(numberUsBuilder.format(currencyMaskAsNumeric,currencyPrecision).build());
+    evaluationResults.add(numberEuBuilder.format(currencyMaskAsNumeric,currencyPrecision).build());
     conversionMeta=new ValueMeta("integer",ValueMetaInterface.TYPE_INTEGER);
     conversionMeta.setConversionMask("#");
     conversionMeta.setLength(15);
