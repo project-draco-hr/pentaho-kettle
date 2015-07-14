@@ -13,30 +13,81 @@
       }
     }
   }
-  ToolItem perspectivesItem=(ToolItem)domContainer.getDocumentRoot().getElementById("toolbar-perspectives").getManagedObject();
-  MenuManager menu=(MenuManager)domContainer.getDocumentRoot().getElementById("toolbar-perspectives-popup").getManagedObject();
+  ToolItem perspectivesItem=null;
+  MenuManager menu=null;
+  if (PropsUI.getInstance().isLegacyPerspectiveMode()) {
+    log.logDebug("Use legacy perspective switcher");
+    mainToolbar.removeChild(domContainer.getDocumentRoot().getElementById("toolbar-perspectives"));
+  }
+ else {
+    log.logDebug("Use new perspective switcher");
+    perspectivesItem=(ToolItem)domContainer.getDocumentRoot().getElementById("toolbar-perspectives").getManagedObject();
+    menu=(MenuManager)domContainer.getDocumentRoot().getElementById("toolbar-perspectives-popup").getManagedObject();
+    SwtToolbaritem oldLabel=(SwtToolbaritem)domContainer.getDocumentRoot().getElementById("toolbar-perspectives-old");
+    oldLabel.getItem().dispose();
+  }
   for (  final SpoonPerspective per : getPerspectives()) {
     if (installedPerspectives.contains(per)) {
       y++;
       continue;
     }
     String name=per.getDisplayName(LanguageChoice.getInstance().getDefaultLocale());
-    menu.add(new Action(name){
-      @Override public void run(){
-        Spoon.getInstance().loadPerspective(per.getId());
+    SwtToolbarbutton btn=null;
+    if (PropsUI.getInstance().isLegacyPerspectiveMode()) {
+      try {
+        btn=(SwtToolbarbutton)domContainer.getDocumentRoot().createElement("toolbarbutton");
       }
-      @Override public String getId(){
-        return per.getId();
+ catch (      XulException e) {
+        log.logError("Error create toolbarbutton",e);
+      }
+      btn.setType("toggle");
+      btn.setLabel(name);
+      btn.setTooltiptext(name);
+      btn.setOnclick("spoon.loadPerspective(" + y + ")");
+      btn.setId("perspective-btn-" + per.getId());
+      mainToolbar.addChild(btn);
+      boolean iconSet=false;
+      if (SpoonPerspectiveImageProvider.class.isAssignableFrom(per.getClass())) {
+        String location=((SpoonPerspectiveImageProvider)per).getPerspectiveIconPath();
+        Image image=GUIResource.getInstance().getImage(location,per.getClass().getClassLoader(),ConstUI.SMALL_ICON_SIZE,ConstUI.SMALL_ICON_SIZE);
+        if (image != null) {
+          btn.setImage(image);
+          iconSet=true;
+        }
+      }
+      if (!iconSet) {
+        InputStream in=per.getPerspectiveIcon();
+        if (in != null) {
+          try {
+            btn.setImageFromStream(in);
+          }
+  finally {
+            IOUtils.closeQuietly(in);
+          }
+        }
       }
     }
+ else {
+      menu.add(new Action(name){
+        @Override public void run(){
+          Spoon.getInstance().loadPerspective(per.getId());
+        }
+        @Override public String getId(){
+          return per.getId();
+        }
+      }
 );
+    }
     XulVbox box=deck.createVBoxCard();
     box.setId("perspective-" + per.getId());
     box.setFlex(1);
     deck.addChild(box);
-    PerspectiveInitializer perspectiveInitializer=new PerspectiveInitializer(per,box,mainToolbar,perspectivesItem,name);
+    PerspectiveInitializer perspectiveInitializer=new PerspectiveInitializer(per,box,mainToolbar,btn,perspectivesItem,name);
     if (perspectiveIdx == y || y == 0) {
       if (perspectiveIdx == y) {
+        if (btn != null) {
+          btn.setSelected(true);
+        }
         perClass=per.getClass();
       }
       perspectiveInitializer.initialize();
