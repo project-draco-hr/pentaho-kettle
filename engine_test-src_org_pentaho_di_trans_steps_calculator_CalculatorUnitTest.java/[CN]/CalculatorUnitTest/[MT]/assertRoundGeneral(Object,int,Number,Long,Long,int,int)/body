@@ -1,0 +1,76 @@
+{
+  final String msg=getKettleTypeName(valueDataType) + "->" + getKettleTypeName(functionDataType)+ " ";
+  final RowMeta inputRowMeta=new RowMeta();
+  final List<Object> inputValues=new ArrayList<Object>(3);
+  final String fieldValue="Value";
+  final ValueMetaInterface valueMeta;
+switch (valueDataType) {
+case TYPE_BIGNUMBER:
+    valueMeta=new ValueMetaBigNumber(fieldValue);
+  break;
+case TYPE_NUMBER:
+valueMeta=new ValueMetaNumber(fieldValue);
+break;
+case TYPE_INTEGER:
+valueMeta=new ValueMetaInteger(fieldValue);
+break;
+default :
+throw new IllegalArgumentException(msg + "Unexpected value dataType: " + value.getClass().getName()+ ". Long, Double or BigDecimal expected.");
+}
+inputRowMeta.addValueMeta(valueMeta);
+inputValues.add(value);
+final String fieldPrecision;
+final ValueMetaInteger precisionMeta;
+if (precision == null) {
+fieldPrecision=null;
+precisionMeta=null;
+}
+ else {
+fieldPrecision="Precision";
+precisionMeta=new ValueMetaInteger(fieldPrecision);
+inputRowMeta.addValueMeta(precisionMeta);
+inputValues.add(precision);
+}
+final String fieldRoundingMode;
+final ValueMetaInteger roundingModeMeta;
+if (roundingMode == null) {
+fieldRoundingMode=null;
+roundingModeMeta=null;
+}
+ else {
+fieldRoundingMode="RoundingMode";
+roundingModeMeta=new ValueMetaInteger(fieldRoundingMode);
+inputRowMeta.addValueMeta(roundingModeMeta);
+inputValues.add(roundingMode);
+}
+RowSet inputRowSet=smh.getMockInputRowSet(inputValues.toArray());
+inputRowSet.setRowMeta(inputRowMeta);
+final String fieldA=inputRowMeta.size() > 0 ? inputRowMeta.getValueMetaList().get(0).getName() : null;
+final String fieldB=inputRowMeta.size() > 1 ? inputRowMeta.getValueMetaList().get(1).getName() : null;
+final String fieldC=inputRowMeta.size() > 2 ? inputRowMeta.getValueMetaList().get(2).getName() : null;
+final int resultDataType=functionDataType;
+final String fieldResult="test";
+final int expectedResultRowSize=inputRowMeta.size() + 1;
+Calculator calculator=new Calculator(smh.stepMeta,smh.stepDataInterface,0,smh.transMeta,smh.trans);
+calculator.getInputRowSets().add(inputRowSet);
+calculator.setInputRowMeta(inputRowMeta);
+calculator.init(smh.initStepMetaInterface,smh.initStepDataInterface);
+CalculatorMeta meta=new CalculatorMeta();
+meta.setCalculation(new CalculatorMetaFunction[]{new CalculatorMetaFunction(fieldResult,calcFunction,fieldA,fieldB,fieldC,resultDataType,2,0,false,"","","","")});
+try {
+calculator.addRowListener(new RowAdapter(){
+@Override public void rowWrittenEvent(RowMetaInterface rowMeta,Object[] row) throws KettleStepException {
+assertEquals(msg + " resultRowSize",expectedResultRowSize,rowMeta.size());
+final int fieldResultIndex=rowMeta.size() - 1;
+assertEquals(msg + " fieldResult",fieldResult,rowMeta.getValueMeta(fieldResultIndex).getName());
+assertEquals(msg,expectedResult,row[fieldResultIndex]);
+}
+}
+);
+calculator.processRow(meta,new CalculatorData());
+}
+ catch (KettleException ke) {
+ke.printStackTrace();
+fail(msg + ke.getMessage());
+}
+}
