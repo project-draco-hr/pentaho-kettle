@@ -6,6 +6,13 @@
     List<StreamInterface> infoStreams=meta.getStepIOMeta().getInfoStreams();
     data.oneRowSet=findInputRowSet(infoStreams.get(0).getStepname());
     data.twoRowSet=findInputRowSet(infoStreams.get(1).getStepname());
+    String useRefWhenIdenticalVar=Const.NVL(System.getProperty(Const.KETTLE_COMPATIBILITY_MERGE_ROWS_USE_REFERENCE_STREAM_WHEN_IDENTICAL),"N");
+    if ("N".equalsIgnoreCase(useRefWhenIdenticalVar)) {
+      useRefWhenIdentical=false;
+    }
+ else {
+      useRefWhenIdentical=true;
+    }
     data.one=getRowFrom(data.oneRowSet);
     data.two=getRowFrom(data.twoRowSet);
     try {
@@ -73,8 +80,14 @@
     if (compare == 0) {
       int compareValues=data.oneRowSet.getRowMeta().compare(data.one,data.two,data.valueNrs);
       if (compareValues == 0) {
-        outputRow=data.one;
-        outputIndex=data.oneRowSet.getRowMeta().size();
+        if (useRefWhenIdentical) {
+          outputRow=data.one;
+          outputIndex=data.oneRowSet.getRowMeta().size();
+        }
+ else {
+          outputRow=data.two;
+          outputIndex=data.twoRowSet.getRowMeta().size();
+        }
         flagField=VALUE_IDENTICAL;
       }
  else {
