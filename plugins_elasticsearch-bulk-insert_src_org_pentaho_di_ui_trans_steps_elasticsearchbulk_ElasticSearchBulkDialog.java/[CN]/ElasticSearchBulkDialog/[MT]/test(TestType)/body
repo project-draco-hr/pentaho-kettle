@@ -30,9 +30,14 @@ case INDEX:
         showError(BaseMessages.getString(PKG,"ElasticSearchBulk.Error.NoIndex"));
         break;
       }
-    IndicesStatusRequestBuilder indicesBld=admin.indices().prepareStatus(tempMeta.getIndex());
-  ListenableActionFuture<IndicesStatusResponse> lafInd=indicesBld.execute();
-lafInd.actionGet();
+    IndicesExistsRequestBuilder indicesExistBld=admin.indices().prepareExists(tempMeta.getIndex());
+  IndicesExistsResponse indicesExistResponse=indicesExistBld.execute().get();
+if (!indicesExistResponse.isExists()) {
+  showError(BaseMessages.getString(PKG,"ElasticSearchBulkDialog.Error.NoIndex"));
+  return;
+}
+RecoveryRequestBuilder indicesBld=admin.indices().prepareRecoveries(tempMeta.getIndex());
+ListenableActionFuture<RecoveryResponse> lafInd=indicesBld.execute();
 String shards="" + lafInd.get().getSuccessfulShards() + "/"+ lafInd.get().getTotalShards();
 showMessage(BaseMessages.getString(PKG,"ElasticSearchBulkDialog.TestIndex.TestOK",shards));
 break;
@@ -56,12 +61,7 @@ catch (MasterNotDiscoveredException e) {
 showError(BaseMessages.getString(PKG,"ElasticSearchBulkDialog.Error.NoNodesFound"));
 }
 catch (Exception e) {
-if (e.getCause() instanceof IndexMissingException) {
-showError(BaseMessages.getString(PKG,"ElasticSearchBulkDialog.Error.NoIndex"));
-}
- else {
 showError(e.getLocalizedMessage());
-}
 }
  finally {
 if (client != null) {
