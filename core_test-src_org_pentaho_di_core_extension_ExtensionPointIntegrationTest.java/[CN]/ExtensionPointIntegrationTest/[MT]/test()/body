@@ -1,0 +1,18 @@
+{
+  assertEquals(KettleExtensionPoint.values().length,ExtensionPointMap.getInstance().getMap().size());
+  final LogChannelInterface log=mock(LogChannelInterface.class);
+  for (  KettleExtensionPoint ep : KettleExtensionPoint.values()) {
+    final ExtensionPointInterface currentEP=ExtensionPointMap.getInstance().get(ep.id);
+    assertFalse(currentEP.getClass().getField(EXECUTED_FIELD_NAME).getBoolean(currentEP));
+    ExtensionPointHandler.callExtensionPoint(log,ep.id,null);
+    assertTrue(currentEP.getClass().getField(EXECUTED_FIELD_NAME).getBoolean(currentEP));
+  }
+  final KettleExtensionPoint jobAfterOpen=KettleExtensionPoint.JobAfterOpen;
+  final ExtensionPointInterface int1=ExtensionPointMap.getInstance().get(jobAfterOpen.id);
+  ExtensionPointPluginType.getInstance().registerCustom(createClassRuntime(jobAfterOpen,"Edited"),"custom","id" + jobAfterOpen.id,jobAfterOpen.id,"no description",null);
+  assertNotSame(int1,ExtensionPointMap.getInstance().get(jobAfterOpen.id));
+  assertEquals(KettleExtensionPoint.values().length,ExtensionPointMap.getInstance().getMap().size());
+  PluginRegistry.getInstance().removePlugin(ExtensionPointPluginType.class,PluginRegistry.getInstance().getPlugin(ExtensionPointPluginType.class,"id" + jobAfterOpen.id));
+  assertNull(ExtensionPointMap.getInstance().get(jobAfterOpen.id));
+  assertEquals(KettleExtensionPoint.values().length - 1,ExtensionPointMap.getInstance().getMap().size());
+}
