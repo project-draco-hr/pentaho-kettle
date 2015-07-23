@@ -1,0 +1,27 @@
+{
+  KettleEnvironment.init();
+  TransMeta transMeta=new TransMeta();
+  transMeta.setName(transName);
+  PluginRegistry registry=PluginRegistry.getInstance();
+  String mergeRowsStepName="merge rows step";
+  MergeRowsMeta mergeRowsMeta=new MergeRowsMeta();
+  String mergeRowsStepPid=registry.getPluginId(StepPluginType.class,mergeRowsMeta);
+  StepMeta mergeRowsStep=new StepMeta(mergeRowsStepPid,mergeRowsStepName,mergeRowsMeta);
+  transMeta.addStep(mergeRowsStep);
+  mergeRowsMeta.setKeyFields(new String[]{keyField});
+  mergeRowsMeta.setValueFields(new String[]{compareField});
+  mergeRowsMeta.setFlagField(flagField);
+  List<StreamInterface> infoStreams=mergeRowsMeta.getStepIOMeta().getInfoStreams();
+  createRowGenerator(transMeta,registry,"reference row generator",referenceValues,mergeRowsStep,mergeRowsMeta,0);
+  createRowGenerator(transMeta,registry,"comparison row generator",comparisonValues,mergeRowsStep,mergeRowsMeta,1);
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(mergeRowsStepName,0);
+  RowStepCollector endRc=new RowStepCollector();
+  si.addRowListener(endRc);
+  trans.startThreads();
+  trans.waitUntilFinished();
+  List<RowMetaAndData> goldenImageRows=createResultData(goldenImageRowValues);
+  List<RowMetaAndData> resultRows1=endRc.getRowsWritten();
+  checkRows(resultRows1,goldenImageRows);
+}

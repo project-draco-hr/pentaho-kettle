@@ -1,0 +1,34 @@
+{
+  boolean hasErrors=response.hasFailures();
+  if (hasErrors) {
+    logError(response.buildFailureMessage());
+  }
+  int errorsInBatch=0;
+  if (hasErrors || useOutput) {
+    for (    BulkItemResponse item : response) {
+      if (item.isFailed()) {
+        logDetailed(item.getFailureMessage());
+        errorsInBatch++;
+        if (getStepMeta().isDoingErrorHandling()) {
+          rejectRow(item.getItemId(),item.getFailureMessage());
+        }
+      }
+ else       if (useOutput) {
+        if (idOutFieldName != null) {
+          addIdToRow(item.getId(),item.getItemId());
+        }
+        echoRow(item.getItemId());
+      }
+    }
+  }
+  numberOfErrors+=errorsInBatch;
+  setErrors(numberOfErrors);
+  int linesOK=currentRequest.numberOfActions() - errorsInBatch;
+  if (useOutput) {
+    setLinesOutput(getLinesOutput() + linesOK);
+  }
+ else {
+    setLinesWritten(getLinesWritten() + linesOK);
+  }
+  return !hasErrors;
+}
