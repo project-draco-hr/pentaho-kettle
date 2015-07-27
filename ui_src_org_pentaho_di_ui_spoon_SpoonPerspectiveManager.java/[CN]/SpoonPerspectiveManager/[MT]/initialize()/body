@@ -13,18 +13,42 @@
       }
     }
   }
-  ToolItem perspectivesItem=null;
-  MenuManager menu=null;
+  CCombo perspectivesCombo=null;
   if (PropsUI.getInstance().isLegacyPerspectiveMode()) {
     log.logDebug("Use legacy perspective switcher");
-    mainToolbar.removeChild(domContainer.getDocumentRoot().getElementById("toolbar-perspectives"));
   }
  else {
     log.logDebug("Use new perspective switcher");
-    perspectivesItem=(ToolItem)domContainer.getDocumentRoot().getElementById("toolbar-perspectives").getManagedObject();
-    menu=(MenuManager)domContainer.getDocumentRoot().getElementById("toolbar-perspectives-popup").getManagedObject();
-    SwtToolbaritem oldLabel=(SwtToolbaritem)domContainer.getDocumentRoot().getElementById("toolbar-perspectives-old");
-    oldLabel.getItem().dispose();
+    final ToolBar toolbar=(ToolBar)mainToolbar.getManagedObject();
+    perspectivesCombo=new CCombo(toolbar,SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
+    perspectivesCombo.addSelectionListener(new SelectionListener(){
+      public void widgetSelected(      SelectionEvent se){
+        toolbar.forceFocus();
+      }
+      public void widgetDefaultSelected(      SelectionEvent se){
+        toolbar.forceFocus();
+      }
+    }
+);
+    PropsUI.getInstance().setLook(perspectivesCombo);
+    final CCombo c=perspectivesCombo;
+    perspectivesCombo.addSelectionListener(new SelectionAdapter(){
+      public void widgetSelected(      SelectionEvent se){
+        Spoon.getInstance().loadPerspective(c.getText());
+      }
+    }
+);
+    perspectivesCombo.addKeyListener(new KeyAdapter(){
+      public void keyPressed(      KeyEvent event){
+        if (event.character == SWT.CR) {
+          Spoon.getInstance().loadPerspective(c.getText());
+        }
+      }
+    }
+);
+    ToolItem sep=new ToolItem(toolbar,SWT.SEPARATOR);
+    sep.setWidth(120);
+    sep.setControl(perspectivesCombo);
   }
   for (  final SpoonPerspective per : getPerspectives()) {
     if (installedPerspectives.contains(per)) {
@@ -68,21 +92,13 @@
       }
     }
  else {
-      menu.add(new Action(name){
-        @Override public void run(){
-          Spoon.getInstance().loadPerspective(per.getId());
-        }
-        @Override public String getId(){
-          return per.getId();
-        }
-      }
-);
+      perspectivesCombo.add(name);
     }
     XulVbox box=deck.createVBoxCard();
     box.setId("perspective-" + per.getId());
     box.setFlex(1);
     deck.addChild(box);
-    PerspectiveInitializer perspectiveInitializer=new PerspectiveInitializer(per,box,mainToolbar,btn,perspectivesItem,name);
+    PerspectiveInitializer perspectiveInitializer=new PerspectiveInitializer(per,box,mainToolbar,btn,perspectivesCombo,name);
     if (perspectiveIdx == y || y == 0) {
       if (perspectiveIdx == y) {
         if (btn != null) {
