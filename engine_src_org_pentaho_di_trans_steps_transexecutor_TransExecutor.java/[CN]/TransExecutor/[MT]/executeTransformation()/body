@@ -1,5 +1,5 @@
 {
-  final TransExecutorData transExecutorData=getData();
+  TransExecutorData transExecutorData=getData();
   if (transExecutorData.groupBuffer.isEmpty()) {
     return;
   }
@@ -18,16 +18,6 @@
   executorTrans.setPreviousResult(result);
   try {
     executorTrans.prepareExecution(getTrans().getArguments());
-    if (meta.getOutputRowsSourceStepMeta() != null) {
-      List<StepMetaDataCombi> internalTransformationSteps=executorTrans.getSteps();
-      StepInterface stepInterface=internalTransformationSteps.get(internalTransformationSteps.size() - 1).step;
-      stepInterface.addRowListener(new RowAdapter(){
-        @Override public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
-          putRowTo(rowMeta,row,transExecutorData.getResultRowsRowSet());
-        }
-      }
-);
-    }
     executorTrans.startThreads();
     for (    DelegationListener delegationListener : getTrans().getDelegationListeners()) {
       delegationListener.transformationDelegationStarted(executorTrans,new TransExecutionConfiguration());
@@ -40,6 +30,7 @@
     result.setResult(false);
     result.setNrErrors(1);
   }
+  collectTransResults(result);
   collectExecutionResults(result);
   collectExecutionResultFiles(result);
   transExecutorData.groupBuffer.clear();
