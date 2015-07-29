@@ -1,0 +1,30 @@
+{
+  List<JobHopMeta> jobHops=new ArrayList<JobHopMeta>();
+  int[] hopIndexes=new int[job.nrJobHops()];
+  int hopIndex=0;
+  main:   for (int i=job.nrJobHops() - 1; i >= 0; i--) {
+    JobHopMeta hi=job.getJobHop(i);
+    for (int j=0; j < jobEntries.length; j++) {
+      if (hi.getFromEntry().equals(jobEntries[j]) || hi.getToEntry().equals(jobEntries[j])) {
+        int idx=job.indexOfJobHop(hi);
+        jobHops.add((JobHopMeta)hi.clone());
+        hopIndexes[hopIndex]=idx;
+        job.removeJobHop(idx);
+        spoon.refreshTree();
+        continue main;
+      }
+    }
+    hopIndex++;
+  }
+  JobHopMeta[] hops=jobHops.toArray(new JobHopMeta[jobHops.size()]);
+  spoon.addUndoDelete(job,hops,hopIndexes);
+  int[] positions=new int[jobEntries.length];
+  for (int i=0; i < jobEntries.length; i++) {
+    int pos=job.indexOfJobEntry(jobEntries[i]);
+    job.removeJobEntry(pos);
+    positions[i]=pos;
+  }
+  spoon.addUndoDelete(job,jobEntries,positions);
+  spoon.refreshTree();
+  spoon.refreshGraph();
+}

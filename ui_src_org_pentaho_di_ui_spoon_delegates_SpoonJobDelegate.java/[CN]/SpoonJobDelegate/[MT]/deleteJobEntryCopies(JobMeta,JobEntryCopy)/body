@@ -1,29 +1,16 @@
 {
-  String name=jobEntry.getName();
-  JobHopMeta[] hi=jobMeta.getAllJobHopsUsing(name);
-  if (hi.length > 0) {
-    int[] hix=new int[hi.length];
-    for (int i=0; i < hi.length; i++) {
-      hix[i]=jobMeta.indexOfJobHop(hi[i]);
-    }
-    spoon.addUndoDelete(jobMeta,hi,hix);
-    for (int i=hix.length - 1; i >= 0; i--) {
-      jobMeta.removeJobHop(hix[i]);
+  for (int i=jobMeta.nrJobHops() - 1; i >= 0; i--) {
+    JobHopMeta hi=jobMeta.getJobHop(i);
+    if (hi.getFromEntry().equals(jobEntry) || hi.getToEntry().equals(jobEntry)) {
+      int idx=jobMeta.indexOfJobHop(hi);
+      spoon.addUndoDelete(jobMeta,new JobHopMeta[]{(JobHopMeta)hi.clone()},new int[]{idx});
+      jobMeta.removeJobHop(idx);
+      spoon.refreshTree();
     }
   }
-  JobEntryCopy[] je=jobMeta.getAllJobGraphEntries(name);
-  int[] jex=new int[je.length];
-  for (int i=0; i < je.length; i++) {
-    jex[i]=jobMeta.indexOfJobEntry(je[i]);
-  }
-  if (je.length > 0) {
-    spoon.addUndoDelete(jobMeta,je,jex);
-  }
-  for (int i=jex.length - 1; i >= 0; i--) {
-    jobMeta.removeJobEntry(jex[i]);
-  }
-  jobMeta.clearUndo();
-  spoon.setUndoMenu(jobMeta);
-  spoon.refreshGraph();
+  int pos=jobMeta.indexOfJobEntry(jobEntry);
+  jobMeta.removeJobEntry(pos);
+  spoon.addUndoDelete(jobMeta,new JobEntryCopy[]{jobEntry},new int[]{pos});
   spoon.refreshTree();
+  spoon.refreshGraph();
 }
