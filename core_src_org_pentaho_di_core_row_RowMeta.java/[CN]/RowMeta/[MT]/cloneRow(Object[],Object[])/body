@@ -1,16 +1,14 @@
 {
-  if (valuesThatNeedRealClone == null) {
-    valuesThatNeedRealClone=new ArrayList<Integer>();
-    for (int i=0; i < size(); i++) {
-      ValueMetaInterface valueMeta=getValueMeta(i);
-      if (valueMeta.requiresRealClone()) {
-        valuesThatNeedRealClone.add(i);
-      }
+  lock.readLock().lock();
+  try {
+    List<Integer> list=cache.getOrCreateValuesThatNeedRealClone(valueMetaList);
+    for (    Integer i : list) {
+      ValueMetaInterface valueMeta=valueMetaList.get(i);
+      newObjects[i]=valueMeta.cloneValueData(objects[i]);
     }
+    return newObjects;
   }
-  for (  Integer i : valuesThatNeedRealClone) {
-    ValueMetaInterface valueMeta=getValueMeta(i);
-    newObjects[i]=valueMeta.cloneValueData(objects[i]);
+  finally {
+    lock.readLock().unlock();
   }
-  return newObjects;
 }

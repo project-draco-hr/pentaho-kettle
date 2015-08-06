@@ -2,23 +2,21 @@
   if (valueName == null) {
     return -1;
   }
-  String key=valueName.toLowerCase();
-  Integer index=valueIndexMap.get(key);
-  if (index != null) {
-    ValueMetaInterface value=valueMetaList.get(index);
-    if (!valueName.equalsIgnoreCase(value.getName())) {
-      index=null;
-      valueIndexMap.remove(key);
+  lock.readLock().lock();
+  try {
+    Integer index=cache.findAndCompare(valueName,valueMetaList);
+    for (int i=0; (index == null) && (i < valueMetaList.size()); i++) {
+      if (valueName.equalsIgnoreCase(valueMetaList.get(i).getName())) {
+        index=i;
+        cache.storeMapping(valueName,index);
+      }
     }
-  }
-  for (int i=0; (index == null) && (i < valueMetaList.size()); i++) {
-    if (valueName.equalsIgnoreCase(valueMetaList.get(i).getName())) {
-      index=i;
-      valueIndexMap.put(key,index);
+    if (index == null) {
+      return -1;
     }
+    return index;
   }
-  if (index == null) {
-    return -1;
+  finally {
+    lock.readLock().unlock();
   }
-  return index;
 }
