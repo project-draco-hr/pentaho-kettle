@@ -1,0 +1,34 @@
+{
+  File tempOutputFile=File.createTempFile("testPDI11374",".cube");
+  tempOutputFile.deleteOnExit();
+  String stepName="Cube Output";
+  CubeOutputMeta meta=new CubeOutputMeta();
+  meta.setDefault();
+  meta.setFilename(tempOutputFile.getAbsolutePath());
+  TransMeta transMeta=TransTestFactory.generateTestTransformation(null,meta,stepName);
+  List<RowMetaAndData> inputList=getSampleData();
+  TransTestFactory.executeTestTransformation(transMeta,TransTestFactory.INJECTOR_STEPNAME,stepName,TransTestFactory.DUMMY_STEPNAME,inputList);
+  try {
+    Thread.sleep(1000);
+  }
+ catch (  InterruptedException ignored) {
+  }
+  Variables varSpace=new Variables();
+  varSpace.setVariable("ROWS","2");
+  String checkStepName="Cube Input";
+  CubeInputMeta inputMeta=new CubeInputMeta();
+  inputMeta.setFilename(tempOutputFile.getAbsolutePath());
+  inputMeta.setRowLimit("${ROWS}");
+  transMeta=TransTestFactory.generateTestTransformation(varSpace,inputMeta,checkStepName);
+  TransHopMeta injectHop=transMeta.findTransHop(transMeta.findStep(TransTestFactory.INJECTOR_STEPNAME),transMeta.findStep(stepName));
+  transMeta.removeTransHop(transMeta.indexOfTransHop(injectHop));
+  inputList=new ArrayList<RowMetaAndData>();
+  List<RowMetaAndData> result=TransTestFactory.executeTestTransformation(transMeta,TransTestFactory.INJECTOR_STEPNAME,stepName,TransTestFactory.DUMMY_STEPNAME,inputList);
+  assertNotNull(result);
+  assertEquals(2,result.size());
+  assertEquals(1,result.get(0).getRowMeta().size());
+  assertEquals(ValueMetaInterface.TYPE_STRING,result.get(0).getValueMeta(0).getType());
+  assertEquals("col1",result.get(0).getValueMeta(0).getName());
+  assertEquals("data1",result.get(0).getString(0,"fail"));
+  assertEquals("data2",result.get(1).getString(0,"fail"));
+}
