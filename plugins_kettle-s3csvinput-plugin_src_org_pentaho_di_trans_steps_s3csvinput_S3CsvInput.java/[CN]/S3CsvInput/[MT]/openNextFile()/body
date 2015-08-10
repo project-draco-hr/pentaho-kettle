@@ -1,0 +1,37 @@
+{
+  try {
+    if (data.fis != null) {
+      data.fis.close();
+    }
+    if (data.filenr >= data.filenames.length) {
+      return false;
+    }
+    data.s3Object=null;
+    if (data.parallel) {
+      data.s3Object=data.s3Service.getObject(data.s3bucket,data.filenames[data.filenr],null,null,null,null,data.bytesToSkipInFirstFile,data.bytesToSkipInFirstFile + data.blockToRead + data.maxLineSize * 2);
+    }
+ else {
+      data.s3Object=data.s3Service.getObject(data.s3bucket,data.filenames[data.filenr]);
+    }
+    if (meta.isLazyConversionActive()) {
+      data.binaryFilename=data.filenames[data.filenr].getBytes();
+    }
+    data.fis=data.s3Object.getDataInputStream();
+    if (data.parallel) {
+      if (data.bytesToSkipInFirstFile > 0) {
+        readOneRow(false);
+      }
+    }
+    if ((meta.isHeaderPresent() && !data.parallel) || (data.parallel && data.filenr == data.startFilenr && data.bytesToSkipInFirstFile <= 0) || (data.parallel && data.filenr > data.startFilenr && data.bytesToSkipInFirstFile <= 0)) {
+      readOneRow(false);
+      logBasic(Messages.getString("S3CsvInput.Log.HeaderRowSkipped",data.filenames[data.filenr]));
+    }
+    data.filenr++;
+    data.rowNumber=1L;
+    data.bytesToSkipInFirstFile=-1L;
+    return true;
+  }
+ catch (  Exception e) {
+    throw new KettleException(e);
+  }
+}
