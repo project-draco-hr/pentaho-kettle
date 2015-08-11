@@ -1,0 +1,55 @@
+{
+  File file=new File(shapeFilename);
+  try {
+    DataInputStream dis=new DataInputStream(new FileInputStream(file));
+    XBase xbase=new XBase(log,dbfFilename);
+    xbase.open();
+    RowMetaInterface fields=xbase.getFields();
+    byte header[]=new byte[100];
+    dis.read(header);
+    fileheader=new ShapeFileHeader(header);
+    int id=0;
+    while (dis.available() > 0) {
+      byte record_header[]=new byte[8];
+      dis.read(record_header);
+      ShapeRecordHeader erh=new ShapeRecordHeader(record_header);
+      if (erh.length <= dis.available()) {
+        byte content[]=new byte[erh.length];
+        dis.read(content);
+        int btype=Converter.getIntegerLittle(content,0);
+        ShapeInterface esi=null;
+switch (btype) {
+case Shape.SHAPE_TYPE_NULL:
+          esi=new ShapeNull(content);
+        break;
+case Shape.SHAPE_TYPE_POINT:
+      esi=new ShapePoint(content);
+    break;
+case Shape.SHAPE_TYPE_POLYLINE:
+  esi=new ShapePolyLine(content);
+break;
+case Shape.SHAPE_TYPE_POLYGON:
+esi=new ShapePolygon(content);
+break;
+case Shape.SHAPE_TYPE_POLYLINE_M:
+esi=new ShapePolyLineM(content);
+break;
+default :
+throw new GisException("shape type : " + btype + " not recognized! ("+ Shape.getEsriTypeDesc(btype)+ ")");
+}
+Object[] row=xbase.getRow(fields);
+if (row != null) {
+esi.setDbfData(row);
+esi.setDbfMeta(xbase.getFields());
+}
+shapes.add(esi);
+id++;
+}
+}
+dis.close();
+xbase.close();
+}
+ catch (IOException e) {
+throw new GisException("Error reading shape file",e);
+}
+}

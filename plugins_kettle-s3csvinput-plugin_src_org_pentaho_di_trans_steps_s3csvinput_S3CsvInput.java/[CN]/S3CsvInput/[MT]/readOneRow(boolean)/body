@@ -1,0 +1,132 @@
+{
+  try {
+    Object[] outputRowData=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+    int outputIndex=0;
+    boolean newLineFound=false;
+    int newLines=0;
+    while (!newLineFound && outputIndex < data.convertRowMeta.size()) {
+      if (data.endBuffer >= data.bufferSize) {
+        data.resizeByteBuffer();
+        if (!data.readBufferFromFile()) {
+          return null;
+        }
+      }
+      boolean delimiterFound=false;
+      boolean enclosureFound=false;
+      int escapedEnclosureFound=0;
+      while (!delimiterFound) {
+        if (data.byteBuffer[data.endBuffer] == data.delimiter[0]) {
+          delimiterFound=true;
+        }
+ else         if (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+          data.endBuffer++;
+          data.totalBytesRead++;
+          newLines=1;
+          if (data.endBuffer >= data.bufferSize) {
+            data.resizeByteBuffer();
+            data.readBufferFromFile();
+          }
+          if (data.byteBuffer[data.endBuffer] == '\n' || data.byteBuffer[data.endBuffer] == '\r') {
+            data.endBuffer++;
+            data.totalBytesRead++;
+            newLines=2;
+            if (data.endBuffer >= data.bufferSize) {
+              data.resizeByteBuffer();
+              data.readBufferFromFile();
+            }
+          }
+          newLineFound=true;
+          delimiterFound=true;
+        }
+ else         if (data.enclosure != null && data.byteBuffer[data.endBuffer] == data.enclosure[0]) {
+          enclosureFound=true;
+          boolean keepGoing;
+          do {
+            if (data.increaseEndBuffer()) {
+              enclosureFound=false;
+              break;
+            }
+            keepGoing=data.byteBuffer[data.endBuffer] != data.enclosure[0];
+            if (!keepGoing) {
+              if (data.increaseEndBuffer()) {
+                enclosureFound=false;
+                break;
+              }
+              keepGoing=data.byteBuffer[data.endBuffer] == data.enclosure[0];
+              if (keepGoing)               escapedEnclosureFound++;
+            }
+          }
+ while (keepGoing);
+          if (data.endBuffer >= data.bufferSize) {
+            newLineFound=true;
+            newLines+=2;
+            break;
+          }
+        }
+ else {
+          data.endBuffer++;
+          data.totalBytesRead++;
+          if (data.endBuffer >= data.bufferSize) {
+            data.resizeByteBuffer();
+            if (!data.readBufferFromFile()) {
+              if (data.endBuffer >= data.bufferSize) {
+                newLineFound=true;
+                break;
+              }
+            }
+          }
+        }
+      }
+      int length=data.endBuffer - data.startBuffer;
+      if (newLineFound) {
+        length-=newLines;
+        if (length <= 0)         length=0;
+      }
+      if (enclosureFound) {
+        data.startBuffer++;
+        length-=2;
+        if (length <= 0)         length=0;
+      }
+      if (length <= 0)       length=0;
+      byte[] field=new byte[length];
+      System.arraycopy(data.byteBuffer,data.startBuffer,field,0,length);
+      if (escapedEnclosureFound > 0) {
+        if (log.isRowLevel())         logRowlevel("Escaped enclosures found in " + new String(field));
+        field=data.removeEscapedEnclosures(field,escapedEnclosureFound);
+      }
+      if (doConversions) {
+        if (meta.isLazyConversionActive()) {
+          outputRowData[outputIndex++]=field;
+        }
+ else {
+          ValueMetaInterface sourceValueMeta=data.convertRowMeta.getValueMeta(outputIndex);
+          outputRowData[outputIndex++]=sourceValueMeta.convertBinaryStringToNativeType(field);
+        }
+      }
+ else {
+        outputRowData[outputIndex++]=null;
+      }
+      if (!newLineFound) {
+        data.endBuffer++;
+        data.totalBytesRead++;
+      }
+      data.startBuffer=data.endBuffer;
+    }
+    if (meta.isIncludingFilename() && !Const.isEmpty(meta.getFilenameField())) {
+      if (meta.isLazyConversionActive()) {
+        outputRowData[outputIndex++]=data.binaryFilename;
+      }
+ else {
+        outputRowData[outputIndex++]=data.filenames[data.filenr - 1];
+      }
+    }
+    if (data.isAddingRowNumber) {
+      outputRowData[outputIndex++]=new Long(data.rowNumber++);
+    }
+    incrementLinesInput();
+    return outputRowData;
+  }
+ catch (  Exception e) {
+    throw new KettleFileException("Exception reading line using NIO",e);
+  }
+}

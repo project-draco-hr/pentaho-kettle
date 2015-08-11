@@ -1,0 +1,54 @@
+{
+  meta=(S3CsvInputMeta)smi;
+  data=(S3CsvInputData)sdi;
+  if (super.init(smi,sdi)) {
+    data.preferredBufferSize=500000;
+    try {
+      data.s3Service=meta.getS3Service(this);
+      String bucketname=environmentSubstitute(meta.getBucket());
+      S3Bucket[] buckets=data.s3Service.listAllBuckets();
+      data.s3bucket=null;
+      for (      S3Bucket bucket : buckets) {
+        if (bucket.getName().equals(bucketname))         data.s3bucket=bucket;
+      }
+      if (data.s3bucket == null) {
+        logError("Unable to find specified bucket : [" + bucketname + "]");
+        return false;
+      }
+      data.maxLineSize=Integer.parseInt(environmentSubstitute(meta.getMaxLineSize()));
+      if (getTransMeta().findNrPrevSteps(getStepMeta()) == 0) {
+        String filename=environmentSubstitute(meta.getFilename());
+        if (Const.isEmpty(filename)) {
+          logError(Messages.getString("S3CsvInput.MissingFilename.Message"));
+          return false;
+        }
+        data.filenames=new String[]{filename};
+      }
+ else {
+        data.filenames=null;
+        data.filenr=0;
+      }
+      data.totalBytesRead=0L;
+      data.delimiter=environmentSubstitute(meta.getDelimiter()).getBytes();
+      if (Const.isEmpty(meta.getEnclosure())) {
+        data.enclosure=null;
+      }
+ else {
+        data.enclosure=environmentSubstitute(meta.getEnclosure()).getBytes();
+      }
+      data.isAddingRowNumber=!Const.isEmpty(meta.getRowNumField());
+      data.stopReading=false;
+      if (meta.isRunningInParallel()) {
+        data.stepNumber=getUniqueStepNrAcrossSlaves();
+        data.totalNumberOfSteps=getUniqueStepCountAcrossSlaves();
+        data.fileSizes=new ArrayList<Long>();
+        data.totalFileSize=0L;
+      }
+      return true;
+    }
+ catch (    Exception e) {
+      logError("Unexpected error trying to verify S3 settings : ",e);
+    }
+  }
+  return false;
+}

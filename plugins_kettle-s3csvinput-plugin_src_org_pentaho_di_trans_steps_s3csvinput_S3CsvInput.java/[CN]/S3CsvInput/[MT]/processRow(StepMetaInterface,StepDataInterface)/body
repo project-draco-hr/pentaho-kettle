@@ -1,0 +1,47 @@
+{
+  meta=(S3CsvInputMeta)smi;
+  data=(S3CsvInputData)sdi;
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+    if (data.filenames == null) {
+      getFilenamesFromPreviousSteps();
+    }
+    data.parallel=meta.isRunningInParallel() && data.totalNumberOfSteps > 1;
+    data.convertRowMeta=data.outputRowMeta.clone();
+    for (    ValueMetaInterface valueMeta : data.convertRowMeta.getValueMetaList()) {
+      valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_BINARY_STRING);
+    }
+    if (data.parallel) {
+      prepareToRunInParallel();
+    }
+    if (!openNextFile()) {
+      setOutputDone();
+      return false;
+    }
+  }
+  if (data.parallel) {
+    if (data.totalBytesRead > data.blockToRead) {
+      setOutputDone();
+      return false;
+    }
+  }
+  Object[] outputRowData=readOneRow(true);
+  if (outputRowData == null) {
+    if (openNextFile()) {
+      return true;
+    }
+ else {
+      setOutputDone();
+      return false;
+    }
+  }
+ else {
+    putRow(data.outputRowMeta,outputRowData);
+    if (checkFeedback(getLinesInput())) {
+      if (log.isBasic())       logBasic(Messages.getString("S3CsvInput.Log.LineNumber",Long.toString(getLinesInput())));
+    }
+  }
+  return true;
+}

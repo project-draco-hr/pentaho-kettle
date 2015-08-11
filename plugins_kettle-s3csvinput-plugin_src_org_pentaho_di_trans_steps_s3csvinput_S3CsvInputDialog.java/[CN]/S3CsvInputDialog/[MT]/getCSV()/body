@@ -1,0 +1,83 @@
+{
+  InputStream inputStream=null;
+  try {
+    S3CsvInputMeta meta=new S3CsvInputMeta();
+    getInfo(meta);
+    String filename=transMeta.environmentSubstitute(meta.getFilename());
+    String bucketname=transMeta.environmentSubstitute(meta.getBucket());
+    int maxLineSize=Const.toInt(transMeta.environmentSubstitute(meta.getMaxLineSize()),2000);
+    wFields.table.removeAll();
+    S3Service s3Service=meta.getS3Service(transMeta);
+    S3Bucket[] buckets=s3Service.listAllBuckets();
+    S3Bucket s3bucket=null;
+    for (    S3Bucket bucket : buckets) {
+      if (bucket.getName().equals(bucketname))       s3bucket=bucket;
+    }
+    if (s3bucket == null) {
+      throw new Exception("Unable to find specified bucket : [" + bucketname + "]");
+    }
+    String shellText=Messages.getString("S3CsvInputDialog.LinesToSample.DialogTitle");
+    String lineText=Messages.getString("S3CsvInputDialog.LinesToSample.DialogMessage");
+    EnterNumberDialog end=new EnterNumberDialog(shell,100,shellText,lineText);
+    int samples=end.open();
+    if (samples < 0) {
+      return;
+    }
+    S3Object object=s3Service.getObject(s3bucket,filename,null,null,null,null,0L,(long)samples * (long)maxLineSize);
+    inputStream=object.getDataInputStream();
+    InputStreamReader reader=new InputStreamReader(inputStream);
+    String line=TextFileInput.getLine(log,reader,TextFileInputMeta.FILE_FORMAT_MIXED,new StringBuilder(1000));
+    String[] fieldNames=Const.splitString(line,meta.getDelimiter());
+    if (!meta.isHeaderPresent()) {
+      DecimalFormat df=new DecimalFormat("000");
+      for (int i=0; i < fieldNames.length; i++) {
+        fieldNames[i]="Field_" + df.format(i);
+      }
+    }
+ else {
+      if (!Const.isEmpty(meta.getEnclosure())) {
+        for (int i=0; i < fieldNames.length; i++) {
+          if (fieldNames[i].startsWith(meta.getEnclosure()) && fieldNames[i].endsWith(meta.getEnclosure()) && fieldNames[i].length() > 1)           fieldNames[i]=fieldNames[i].substring(1,fieldNames[i].length() - 1);
+        }
+      }
+    }
+    for (int i=0; i < fieldNames.length; i++) {
+      fieldNames[i]=Const.trim(fieldNames[i]);
+    }
+    for (int i=0; i < fieldNames.length; i++) {
+      TableItem item=new TableItem(wFields.table,SWT.NONE);
+      item.setText(1,fieldNames[i]);
+      item.setText(2,ValueMeta.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+    }
+    wFields.removeEmptyRows();
+    wFields.setRowNums();
+    wFields.optWidth(true);
+    getInfo(meta);
+    TextFileCSVImportProgressDialog pd=new TextFileCSVImportProgressDialog(shell,meta,transMeta,reader,samples,true);
+    String message=pd.open();
+    if (message != null) {
+      wFields.removeAll();
+      getData(meta);
+      wFields.removeEmptyRows();
+      wFields.setRowNums();
+      wFields.optWidth(true);
+      EnterTextDialog etd=new EnterTextDialog(shell,Messages.getString("S3CsvInputDialog.ScanResults.DialogTitle"),Messages.getString("S3CsvInputDialog.ScanResults.DialogMessage"),message,true);
+      etd.setReadOnly();
+      etd.open();
+    }
+  }
+ catch (  IOException e) {
+    new ErrorDialog(shell,Messages.getString("S3CsvInputDialog.IOError.DialogTitle"),Messages.getString("S3CsvInputDialog.IOError.DialogMessage"),e);
+  }
+catch (  Exception e) {
+    new ErrorDialog(shell,Messages.getString("System.Dialog.Error.Title"),Messages.getString("S3CsvInputDialog.ErrorGettingFileDesc.DialogMessage"),e);
+  }
+ finally {
+    try {
+      if (inputStream != null)       inputStream.close();
+    }
+ catch (    Exception e) {
+      log.logError(stepname,"Error closing s3 data input stream",e);
+    }
+  }
+}

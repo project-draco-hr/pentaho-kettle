@@ -1,0 +1,33 @@
+{
+  try {
+    for (    String filename : data.filenames) {
+      S3Object objectDetails=data.s3Service.getObjectDetails(data.s3bucket,filename);
+      long size=objectDetails.getContentLength();
+      data.fileSizes.add(size);
+      data.totalFileSize+=size;
+    }
+    data.blockToRead=Math.round((double)data.totalFileSize / (double)data.totalNumberOfSteps);
+    data.startPosition=data.blockToRead * data.stepNumber;
+    data.endPosition=data.startPosition + data.blockToRead;
+    long totalFileSize=0L;
+    for (int i=0; i < data.fileSizes.size(); i++) {
+      long size=data.fileSizes.get(i);
+      if (data.startPosition >= totalFileSize && data.startPosition < totalFileSize + size) {
+        data.filenr=i;
+        data.startFilenr=i;
+        if (data.startPosition == 0) {
+          data.bytesToSkipInFirstFile=0L;
+        }
+ else {
+          data.bytesToSkipInFirstFile=data.startPosition - totalFileSize;
+        }
+        break;
+      }
+      totalFileSize+=size;
+    }
+    logBasic(Messages.getString("S3CsvInput.Log.ParallelFileNrAndPositionFeedback",data.filenames[data.filenr],Long.toString(data.fileSizes.get(data.filenr)),Long.toString(data.bytesToSkipInFirstFile),Long.toString(data.blockToRead)));
+  }
+ catch (  Exception e) {
+    throw new KettleException(Messages.getString("S3CsvInput.Exception.ErrorPreparingParallelRun"),e);
+  }
+}

@@ -1,0 +1,135 @@
+{
+  meta=(ShapeFileReaderMeta)smi;
+  data=(ShapeFileReaderData)sdi;
+  boolean retval=true;
+  if (data.shapeNr >= data.shapeFile.getNrShapes()) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=new RowMeta();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this);
+  }
+  Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
+  int outputIndex;
+  ShapeInterface si=data.shapeFile.getShape(data.shapeNr);
+switch (si.getType()) {
+case Shape.SHAPE_TYPE_POLYLINE_M:
+{
+      ShapePolyLineM eplm=(ShapePolyLineM)si;
+      int partnr=0;
+      for (int j=0; j < eplm.nrpoints; j++) {
+        for (int k=0; k < eplm.nrparts; k++) {
+          if (j == eplm.part_starts[k])           partnr++;
+        }
+        outputIndex=0;
+        outputRow[outputIndex++]=meta.getShapeFilename();
+        outputRow[outputIndex++]=data.shapeFile.getFileHeader().getShapeTypeDesc();
+        outputRow[outputIndex++]=new Long(data.shapeNr + 1);
+        outputRow[outputIndex++]=new Long(partnr);
+        outputRow[outputIndex++]=new Long(eplm.nrparts);
+        outputRow[outputIndex++]=new Long(j + 1);
+        outputRow[outputIndex++]=new Long(eplm.nrpoints);
+        outputRow[outputIndex++]=new Double(eplm.point[j].x);
+        outputRow[outputIndex++]=new Double(eplm.point[j].y);
+        outputRow[outputIndex++]=new Double(eplm.measures[j]);
+        Object[] dbfData=si.getDbfData();
+        RowMetaInterface dbfMeta=si.getDbfMeta();
+        for (int d=0; d < dbfMeta.size(); d++) {
+          outputRow[outputIndex++]=dbfData[d];
+        }
+        linesInput++;
+        putRow(data.outputRowMeta,outputRow);
+      }
+    }
+  break;
+case Shape.SHAPE_TYPE_POLYGON:
+{
+  ShapePolygon epl=(ShapePolygon)si;
+  int partnr=0;
+  for (int j=0; j < epl.nrpoints; j++) {
+    for (int k=0; k < epl.nrparts; k++) {
+      if (j == epl.part_starts[k])       partnr++;
+    }
+    outputIndex=0;
+    outputRow[outputIndex++]=meta.getShapeFilename();
+    outputRow[outputIndex++]=data.shapeFile.getFileHeader().getShapeTypeDesc();
+    outputRow[outputIndex++]=new Long(data.shapeNr + 1);
+    outputRow[outputIndex++]=new Long(partnr);
+    outputRow[outputIndex++]=new Long(epl.nrparts);
+    outputRow[outputIndex++]=new Long(j + 1);
+    outputRow[outputIndex++]=new Long(epl.nrpoints);
+    outputRow[outputIndex++]=new Double(epl.point[j].x);
+    outputRow[outputIndex++]=new Double(epl.point[j].y);
+    outputRow[outputIndex++]=new Double(0.0);
+    Object[] dbfData=si.getDbfData();
+    RowMetaInterface dbfMeta=si.getDbfMeta();
+    for (int d=0; d < dbfMeta.size(); d++) {
+      outputRow[outputIndex++]=dbfData[d];
+    }
+    linesInput++;
+    putRow(data.outputRowMeta,outputRow);
+  }
+}
+break;
+case Shape.SHAPE_TYPE_POLYLINE:
+{
+ShapePolyLine epl=(ShapePolyLine)si;
+int partnr=0;
+for (int j=0; j < epl.nrpoints; j++) {
+for (int k=0; k < epl.nrparts; k++) {
+  if (j == epl.part_starts[k])   partnr++;
+}
+outputIndex=0;
+outputRow[outputIndex++]=meta.getShapeFilename();
+outputRow[outputIndex++]=data.shapeFile.getFileHeader().getShapeTypeDesc();
+outputRow[outputIndex++]=new Long(data.shapeNr + 1);
+outputRow[outputIndex++]=new Long(partnr);
+outputRow[outputIndex++]=new Long(epl.nrparts);
+outputRow[outputIndex++]=new Long(j + 1);
+outputRow[outputIndex++]=new Long(epl.nrpoints);
+outputRow[outputIndex++]=new Double(epl.point[j].x);
+outputRow[outputIndex++]=new Double(epl.point[j].y);
+outputRow[outputIndex++]=new Double(0.0);
+Object[] dbfData=si.getDbfData();
+RowMetaInterface dbfMeta=si.getDbfMeta();
+for (int d=0; d < dbfMeta.size(); d++) {
+  outputRow[outputIndex++]=dbfData[d];
+}
+linesInput++;
+putRow(data.outputRowMeta,outputRow);
+}
+}
+break;
+case Shape.SHAPE_TYPE_POINT:
+{
+ShapePoint ep=(ShapePoint)si;
+outputIndex=0;
+outputRow[outputIndex++]=meta.getShapeFilename();
+outputRow[outputIndex++]=data.shapeFile.getFileHeader().getShapeTypeDesc();
+outputRow[outputIndex++]=new Long(data.shapeNr);
+outputRow[outputIndex++]=new Long(0L);
+outputRow[outputIndex++]=new Long(0L);
+outputRow[outputIndex++]=new Long(0L);
+outputRow[outputIndex++]=new Long(0L);
+outputRow[outputIndex++]=new Double(ep.x);
+outputRow[outputIndex++]=new Double(ep.y);
+outputRow[outputIndex++]=new Double(0.0);
+Object[] dbfData=si.getDbfData();
+RowMetaInterface dbfMeta=si.getDbfMeta();
+for (int d=0; d < dbfMeta.size(); d++) {
+outputRow[outputIndex++]=dbfData[d];
+}
+linesInput++;
+putRow(data.outputRowMeta,outputRow);
+}
+break;
+default :
+System.out.println("Unable to parse shape type [" + Shape.getEsriTypeDesc(si.getType()) + "] : not yet implemented.");
+throw new KettleStepException("Unable to parse shape type [" + Shape.getEsriTypeDesc(si.getType()) + "] : not yet implemented.");
+}
+data.shapeNr++;
+if ((linesInput % Const.ROWS_UPDATE) == 0) logBasic("linenr " + linesInput);
+return retval;
+}
