@@ -3,31 +3,42 @@
     throw new KettleDatabaseException("No valid database connection defined!");
   }
   try {
-    if (databaseMeta.isUsingConnectionPool() && databaseMeta.getAccessType() != DatabaseMeta.TYPE_ACCESS_JNDI) {
-      try {
-        this.connection=ConnectionPoolUtil.getConnection(log,databaseMeta,partitionId);
-        if (getConnection().getAutoCommit() != isAutoCommit()) {
-          setAutoCommit(isAutoCommit());
-        }
-      }
- catch (      Exception e) {
-        throw new KettleDatabaseException("Error occurred while trying to connect to the database",e);
-      }
+    DataSourceProviderInterface dsp=DataSourceProviderFactory.getDataSourceProviderInterface();
+    if (dsp == null) {
+      dsp=new DatabaseUtil();
     }
- else     if (databaseMeta.getAccessType() == DatabaseMeta.TYPE_ACCESS_JNDI) {
-      final String jndiName=environmentSubstitute(databaseMeta.getDatabaseName());
+    if (databaseMeta.getAccessType() == DatabaseMeta.TYPE_ACCESS_JNDI) {
+      String jndiName=environmentSubstitute(databaseMeta.getDatabaseName());
       try {
-        connectUsingJNDIDataSource(jndiName);
+        this.connection=dsp.getNamedDataSource(jndiName,DatasourceType.JNDI).getConnection();
       }
- catch (      KettleDatabaseException kde) {
-        if (log.isDetailed()) {
-          log.logDetailed("Unable to find datasource using JNDI. Cause: " + kde.getLocalizedMessage());
-        }
-        connectUsingClass();
+ catch (      DataSourceNamingException e) {
+        log.logError("Unable to find datasource by JNDI name: " + jndiName,e);
+        throw e;
       }
     }
  else {
-      connectUsingClass();
+      if (databaseMeta.isUsingConnectionPool()) {
+        String name=databaseMeta.getName();
+        try {
+          try {
+            this.connection=dsp.getNamedDataSource(name,DatasourceType.POOLED).getConnection();
+          }
+ catch (          UnsupportedOperationException e) {
+            this.connection=ConnectionPoolUtil.getConnection(log,databaseMeta,partitionId);
+          }
+          if (getConnection().getAutoCommit() != isAutoCommit()) {
+            setAutoCommit(isAutoCommit());
+          }
+        }
+ catch (        DataSourceNamingException e) {
+          log.logError("Unable to find pooled datasource by its name: " + name,e);
+          throw e;
+        }
+      }
+ else {
+        connectUsingClass(databaseMeta.getDriverClass(),partitionId);
+      }
     }
     String sql=environmentSubstitute(databaseMeta.getConnectSQL());
     if (!Const.isEmpty(sql) && !Const.onlySpaces(sql)) {
