@@ -1,38 +1,43 @@
 {
   SettableFuture<Boolean> ready;
   if (initialized.compareAndSet(null,ready=SettableFuture.create())) {
-    if (!KettleClientEnvironment.isInitialized()) {
-      KettleClientEnvironment.init();
+    try {
+      if (!KettleClientEnvironment.isInitialized()) {
+        KettleClientEnvironment.init();
+      }
+      if (simpleJndi) {
+        JndiUtil.initJNDI();
+      }
+      PluginRegistry.addPluginType(RowDistributionPluginType.getInstance());
+      PluginRegistry.addPluginType(StepPluginType.getInstance());
+      PluginRegistry.addPluginType(PartitionerPluginType.getInstance());
+      PluginRegistry.addPluginType(JobEntryPluginType.getInstance());
+      PluginRegistry.addPluginType(LogTablePluginType.getInstance());
+      PluginRegistry.addPluginType(RepositoryPluginType.getInstance());
+      PluginRegistry.addPluginType(LifecyclePluginType.getInstance());
+      PluginRegistry.addPluginType(KettleLifecyclePluginType.getInstance());
+      PluginRegistry.addPluginType(ImportRulePluginType.getInstance());
+      PluginRegistry.addPluginType(CartePluginType.getInstance());
+      PluginRegistry.addPluginType(CompressionPluginType.getInstance());
+      PluginRegistry.addPluginType(AuthenticationProviderPluginType.getInstance());
+      PluginRegistry.addPluginType(AuthenticationConsumerPluginType.getInstance());
+      PluginRegistry.init();
+      KettleVariablesList.init();
+      initLifecycleListeners();
+      ready.set(true);
     }
-    if (simpleJndi) {
-      JndiUtil.initJNDI();
+ catch (    Throwable t) {
+      ready.setException(t);
+      throw ((t instanceof KettleException) ? (KettleException)t : new KettleException(t));
     }
-    PluginRegistry.addPluginType(RowDistributionPluginType.getInstance());
-    PluginRegistry.addPluginType(StepPluginType.getInstance());
-    PluginRegistry.addPluginType(PartitionerPluginType.getInstance());
-    PluginRegistry.addPluginType(JobEntryPluginType.getInstance());
-    PluginRegistry.addPluginType(LogTablePluginType.getInstance());
-    PluginRegistry.addPluginType(RepositoryPluginType.getInstance());
-    PluginRegistry.addPluginType(LifecyclePluginType.getInstance());
-    PluginRegistry.addPluginType(KettleLifecyclePluginType.getInstance());
-    PluginRegistry.addPluginType(ImportRulePluginType.getInstance());
-    PluginRegistry.addPluginType(CartePluginType.getInstance());
-    PluginRegistry.addPluginType(CompressionPluginType.getInstance());
-    PluginRegistry.addPluginType(AuthenticationProviderPluginType.getInstance());
-    PluginRegistry.addPluginType(AuthenticationConsumerPluginType.getInstance());
-    PluginRegistry.init();
-    KettleVariablesList.init();
-    initLifecycleListeners();
-    ready.set(true);
   }
  else {
     ready=initialized.get();
     try {
       ready.get();
     }
- catch (    Throwable e) {
-      Throwables.propagateIfPossible(e);
-      throw new KettleException(e);
+ catch (    Throwable t) {
+      throw ((t instanceof KettleException) ? (KettleException)t : new KettleException(t));
     }
   }
 }
