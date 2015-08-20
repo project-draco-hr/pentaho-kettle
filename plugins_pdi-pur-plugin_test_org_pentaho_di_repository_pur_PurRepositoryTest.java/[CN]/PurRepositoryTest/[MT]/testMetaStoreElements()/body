@@ -1,0 +1,36 @@
+{
+  String ns=PentahoDefaults.NAMESPACE;
+  IMetaStore metaStore=repository.getMetaStore();
+  if (!metaStore.namespaceExists(ns)) {
+    metaStore.createNamespace(ns);
+  }
+  IMetaStoreElementType elementType=metaStore.newElementType(ns);
+  elementType.setName(PentahoDefaults.KETTLE_DATA_SERVICE_ELEMENT_TYPE_NAME);
+  elementType.setDescription(PentahoDefaults.KETTLE_DATA_SERVICE_ELEMENT_TYPE_DESCRIPTION);
+  metaStore.createElementType(ns,elementType);
+  IMetaStoreElement oneElement=populateElement(metaStore,elementType,"Element One");
+  metaStore.createElement(ns,elementType,oneElement);
+  IMetaStoreElement verifyOneElement=metaStore.getElement(ns,elementType,oneElement.getId());
+  assertNotNull(verifyOneElement);
+  validateElement(verifyOneElement,"Element One");
+  assertEquals(1,metaStore.getElements(ns,elementType).size());
+  IMetaStoreElement twoElement=populateElement(metaStore,elementType,"Element Two");
+  metaStore.createElement(ns,elementType,twoElement);
+  IMetaStoreElement verifyTwoElement=metaStore.getElement(ns,elementType,twoElement.getId());
+  assertNotNull(verifyTwoElement);
+  assertEquals(2,metaStore.getElements(ns,elementType).size());
+  try {
+    metaStore.deleteElementType(ns,elementType);
+    fail("Delete element type failed to properly detect element dependencies");
+  }
+ catch (  MetaStoreDependenciesExistsException e) {
+    List<String> ids=e.getDependencies();
+    assertEquals(2,ids.size());
+    assertTrue(ids.contains(oneElement.getId()));
+    assertTrue(ids.contains(twoElement.getId()));
+  }
+  metaStore.deleteElement(ns,elementType,oneElement.getId());
+  assertEquals(1,metaStore.getElements(ns,elementType).size());
+  metaStore.deleteElement(ns,elementType,twoElement.getId());
+  assertEquals(0,metaStore.getElements(ns,elementType).size());
+}

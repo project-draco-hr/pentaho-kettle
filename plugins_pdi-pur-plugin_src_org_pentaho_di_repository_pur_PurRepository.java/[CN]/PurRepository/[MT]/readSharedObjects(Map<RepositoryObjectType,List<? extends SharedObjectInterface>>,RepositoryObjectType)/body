@@ -1,0 +1,33 @@
+{
+  List<RepositoryFile> allFiles=new ArrayList<RepositoryFile>();
+  LinkedHashMap<RepositoryObjectType,List<RepositoryFile>> filesByType=getFilesByType(allFiles,types);
+  try {
+    List<NodeRepositoryFileData> data=pur.getDataForReadInBatch(allFiles,NodeRepositoryFileData.class);
+    List<VersionSummary> versions=pur.getVersionSummaryInBatch(allFiles);
+    Iterator<NodeRepositoryFileData> dataIter=data.iterator();
+    Iterator<VersionSummary> versionsIter=versions.iterator();
+    for (    Entry<RepositoryObjectType,List<RepositoryFile>> entry : filesByType.entrySet()) {
+      SharedObjectAssembler<?> assembler=sharedObjectAssemblerMap.get(entry.getKey());
+      if (assembler == null) {
+        throw new UnsupportedOperationException(String.format("Cannot assemble shared object of type [%s]",entry.getKey()));
+      }
+      Iterator<RepositoryFile> filesIter=entry.getValue().iterator();
+      List<SharedObjectInterface> sharedObjects=new ArrayList<SharedObjectInterface>(entry.getValue().size());
+      while (filesIter.hasNext()) {
+        RepositoryFile file=filesIter.next();
+        NodeRepositoryFileData repoData=dataIter.next();
+        VersionSummary version=versionsIter.next();
+        try {
+          sharedObjects.add(assembler.assemble(file,repoData,version));
+        }
+ catch (        Exception ex) {
+          getLog().logError("Unable to load shared objects",ex);
+        }
+      }
+      sharedObjectsByType.put(entry.getKey(),sharedObjects);
+    }
+  }
+ catch (  Exception ex) {
+    throw new KettleException("Unable to load shared objects",ex);
+  }
+}

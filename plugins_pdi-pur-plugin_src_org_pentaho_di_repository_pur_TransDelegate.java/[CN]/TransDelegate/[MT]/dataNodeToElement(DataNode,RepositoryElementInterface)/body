@@ -1,0 +1,144 @@
+{
+  TransMeta transMeta=(TransMeta)element;
+  List<String> privateTransformationDatabases=null;
+  DataNode privateDatabases=rootNode.getNode(NODE_TRANS_PRIVATE_DATABASES);
+  if (privateDatabases != null) {
+    privateTransformationDatabases=new ArrayList<String>();
+    for (    DataNode privateDatabase : privateDatabases.getNodes()) {
+      privateTransformationDatabases.add(privateDatabase.getName());
+    }
+  }
+  transMeta.setPrivateTransformationDatabases(privateTransformationDatabases);
+  DataNode stepsNode=rootNode.getNode(NODE_STEPS);
+  for (  DataNode stepNode : stepsNode.getNodes()) {
+    StepMeta stepMeta=new StepMeta(new StringObjectId(stepNode.getId().toString()));
+    stepMeta.setParentTransMeta(transMeta);
+    stepMeta.setName(getString(stepNode,PROP_NAME));
+    if (stepNode.hasProperty(PROP_DESCRIPTION)) {
+      stepMeta.setDescription(getString(stepNode,PROP_DESCRIPTION));
+    }
+    stepMeta.setDistributes(stepNode.getProperty(PROP_STEP_DISTRIBUTE).getBoolean());
+    DataProperty rowDistributionProperty=stepNode.getProperty(PROP_STEP_ROW_DISTRIBUTION);
+    String rowDistributionCode=rowDistributionProperty == null ? null : rowDistributionProperty.getString();
+    RowDistributionInterface rowDistribution=PluginRegistry.getInstance().loadClass(RowDistributionPluginType.class,rowDistributionCode,RowDistributionInterface.class);
+    stepMeta.setRowDistribution(rowDistribution);
+    stepMeta.setDraw(stepNode.getProperty(PROP_STEP_GUI_DRAW).getBoolean());
+    int copies=(int)stepNode.getProperty(PROP_STEP_COPIES).getLong();
+    String copiesString=stepNode.getProperty(PROP_STEP_COPIES_STRING) != null ? stepNode.getProperty(PROP_STEP_COPIES_STRING).getString() : StringUtils.EMPTY;
+    if (!Const.isEmpty(copiesString)) {
+      stepMeta.setCopiesString(copiesString);
+    }
+ else {
+      stepMeta.setCopies(copies);
+    }
+    int x=(int)stepNode.getProperty(PROP_STEP_GUI_LOCATION_X).getLong();
+    int y=(int)stepNode.getProperty(PROP_STEP_GUI_LOCATION_Y).getLong();
+    stepMeta.setLocation(x,y);
+    AttributesMapUtil.loadAttributesMap(stepNode,stepMeta);
+    String stepType=getString(stepNode,PROP_STEP_TYPE);
+    PluginRegistry registry=PluginRegistry.getInstance();
+    PluginInterface stepPlugin=registry.findPluginWithId(StepPluginType.class,stepType);
+    StepMetaInterface stepMetaInterface=null;
+    if (stepPlugin != null) {
+      stepMetaInterface=(StepMetaInterface)registry.loadClass(stepPlugin);
+      stepType=stepPlugin.getIds()[0];
+    }
+ else {
+      throw new KettleException(BaseMessages.getString(PKG,"StepMeta.Exception.UnableToLoadClass",stepType));
+    }
+    stepMeta.setStepID(stepType);
+    RepositoryProxy proxy=new RepositoryProxy(stepNode.getNode(NODE_STEP_CUSTOM));
+    readRepCompatibleStepMeta(stepMetaInterface,proxy,null,transMeta.getDatabases());
+    stepMetaInterface.readRep(proxy,transMeta.getMetaStore(),null,transMeta.getDatabases());
+    stepMeta.setStepMetaInterface(stepMetaInterface);
+    StepPartitioningMeta stepPartitioningMeta=new StepPartitioningMeta();
+    if (stepNode.hasProperty(PROP_PARTITIONING_SCHEMA)) {
+      String partSchemaId=stepNode.getProperty(PROP_PARTITIONING_SCHEMA).getRef().getId().toString();
+      String schemaName=repo.loadPartitionSchema(new StringObjectId(partSchemaId),null).getName();
+      stepPartitioningMeta.setPartitionSchemaName(schemaName);
+      String methodCode=getString(stepNode,PROP_PARTITIONING_METHOD);
+      stepPartitioningMeta.setMethod(StepPartitioningMeta.getMethod(methodCode));
+      if (stepPartitioningMeta.getPartitioner() != null) {
+        proxy=new RepositoryProxy(stepNode.getNode(NODE_PARTITIONER_CUSTOM));
+        stepPartitioningMeta.getPartitioner().loadRep(proxy,null);
+      }
+      stepPartitioningMeta.hasChanged(true);
+    }
+    stepMeta.setStepPartitioningMeta(stepPartitioningMeta);
+    stepMeta.getStepPartitioningMeta().setPartitionSchemaAfterLoading(transMeta.getPartitionSchemas());
+    String clusterSchemaName=getString(stepNode,PROP_CLUSTER_SCHEMA);
+    stepMeta.setClusterSchemaName(clusterSchemaName);
+    if (clusterSchemaName != null && transMeta.getClusterSchemas() != null) {
+      for (      ClusterSchema clusterSchema : transMeta.getClusterSchemas()) {
+        if (clusterSchema.getName().equals(clusterSchemaName)) {
+          stepMeta.setClusterSchema(clusterSchema);
+          break;
+        }
+      }
+    }
+    transMeta.addStep(stepMeta);
+  }
+  for (  DataNode stepNode : stepsNode.getNodes()) {
+    ObjectId stepObjectId=new StringObjectId(stepNode.getId().toString());
+    StepMeta stepMeta=StepMeta.findStep(transMeta.getSteps(),stepObjectId);
+    if (stepNode.hasProperty(PROP_STEP_ERROR_HANDLING_SOURCE_STEP)) {
+      StepErrorMeta meta=new StepErrorMeta(transMeta,stepMeta);
+      meta.setTargetStep(StepMeta.findStep(transMeta.getSteps(),stepNode.getProperty(PROP_STEP_ERROR_HANDLING_TARGET_STEP).getString()));
+      meta.setEnabled(stepNode.getProperty(PROP_STEP_ERROR_HANDLING_IS_ENABLED).getBoolean());
+      meta.setNrErrorsValuename(getString(stepNode,PROP_STEP_ERROR_HANDLING_NR_VALUENAME));
+      meta.setErrorDescriptionsValuename(getString(stepNode,PROP_STEP_ERROR_HANDLING_DESCRIPTIONS_VALUENAME));
+      meta.setErrorFieldsValuename(getString(stepNode,PROP_STEP_ERROR_HANDLING_FIELDS_VALUENAME));
+      meta.setErrorCodesValuename(getString(stepNode,PROP_STEP_ERROR_HANDLING_CODES_VALUENAME));
+      meta.setMaxErrors(getString(stepNode,PROP_STEP_ERROR_HANDLING_MAX_ERRORS));
+      meta.setMaxPercentErrors(getString(stepNode,PROP_STEP_ERROR_HANDLING_MAX_PCT_ERRORS));
+      meta.setMinPercentRows(getString(stepNode,PROP_STEP_ERROR_HANDLING_MIN_PCT_ROWS));
+      meta.getSourceStep().setStepErrorMeta(meta);
+    }
+  }
+  for (int i=0; i < transMeta.nrSteps(); i++) {
+    StepMeta stepMeta=transMeta.getStep(i);
+    StepMetaInterface sii=stepMeta.getStepMetaInterface();
+    if (sii != null) {
+      sii.searchInfoAndTargetSteps(transMeta.getSteps());
+    }
+  }
+  DataNode notesNode=rootNode.getNode(NODE_NOTES);
+  int nrNotes=(int)notesNode.getProperty(PROP_NR_NOTES).getLong();
+  for (  DataNode noteNode : notesNode.getNodes()) {
+    String xml=getString(noteNode,PROP_XML);
+    transMeta.addNote(new NotePadMeta(XMLHandler.getSubNode(XMLHandler.loadXMLString(xml),NotePadMeta.XML_TAG)));
+  }
+  if (transMeta.nrNotes() != nrNotes) {
+    throw new KettleException("The number of notes read [" + transMeta.nrNotes() + "] was not the number we expected ["+ nrNotes+ "]");
+  }
+  DataNode hopsNode=rootNode.getNode(NODE_HOPS);
+  int nrHops=(int)hopsNode.getProperty(PROP_NR_HOPS).getLong();
+  for (  DataNode hopNode : hopsNode.getNodes()) {
+    String stepFromName=getString(hopNode,TRANS_HOP_FROM);
+    String stepToName=getString(hopNode,TRANS_HOP_TO);
+    boolean enabled=true;
+    if (hopNode.hasProperty(TRANS_HOP_ENABLED)) {
+      enabled=hopNode.getProperty(TRANS_HOP_ENABLED).getBoolean();
+    }
+    StepMeta stepFrom=StepMeta.findStep(transMeta.getSteps(),stepFromName);
+    StepMeta stepTo=StepMeta.findStep(transMeta.getSteps(),stepToName);
+    if (stepFrom != null && stepTo != null) {
+      transMeta.addTransHop(new TransHopMeta(stepFrom,stepTo,enabled));
+    }
+  }
+  if (transMeta.nrTransHops() != nrHops) {
+    throw new KettleException("The number of hops read [" + transMeta.nrTransHops() + "] was not the number we expected ["+ nrHops+ "]");
+  }
+  loadTransformationDetails(rootNode,transMeta);
+  transMeta.eraseParameters();
+  DataNode paramsNode=rootNode.getNode(NODE_PARAMETERS);
+  int count=(int)paramsNode.getProperty(PROP_NR_PARAMETERS).getLong();
+  for (int idx=0; idx < count; idx++) {
+    DataNode paramNode=paramsNode.getNode(TRANS_PARAM_PREFIX + idx);
+    String key=getString(paramNode,PARAM_KEY);
+    String def=getString(paramNode,PARAM_DEFAULT);
+    String desc=getString(paramNode,PARAM_DESC);
+    transMeta.addParameterDefinition(key,def,desc);
+  }
+  transMeta.activateParameters();
+}

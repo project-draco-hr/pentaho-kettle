@@ -1,0 +1,27 @@
+{
+  try {
+    RepositoryFile file=null;
+    if (versionLabel != null) {
+      file=pur.getFileAtVersion(idJob.getId(),versionLabel);
+    }
+ else {
+      file=pur.getFileById(idJob.getId());
+    }
+    EEJobMeta jobMeta=new EEJobMeta();
+    jobMeta.setName(file.getTitle());
+    jobMeta.setDescription(file.getDescription());
+    jobMeta.setObjectId(new StringObjectId(file.getId().toString()));
+    jobMeta.setObjectRevision(getObjectRevision(new StringObjectId(file.getId().toString()),versionLabel));
+    jobMeta.setRepository(this);
+    jobMeta.setRepositoryDirectory(findDirectory(getParentPath(file.getPath())));
+    readJobMetaSharedObjects(jobMeta);
+    jobMeta.setRepositoryLock(unifiedRepositoryLockService.getLock(file));
+    jobDelegate.dataNodeToElement(pur.getDataAtVersionForRead(idJob.getId(),versionLabel,NodeRepositoryFileData.class).getNode(),jobMeta);
+    ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobMetaLoaded.id,jobMeta);
+    jobMeta.clearChanged();
+    return jobMeta;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to load job with id [" + idJob + "]",e);
+  }
+}

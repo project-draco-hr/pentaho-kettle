@@ -1,0 +1,29 @@
+{
+  try {
+    RepositoryFileAcl acl=pur.getAcl(fileId.getId());
+    RepositoryFileAcl.Builder newAclBuilder=new RepositoryFileAcl.Builder(acl).entriesInheriting(objectAcl.isEntriesInheriting()).clearAces();
+    if (!objectAcl.isEntriesInheriting()) {
+      List<ObjectAce> aces=objectAcl.getAces();
+      for (      ObjectAce objectAce : aces) {
+        EnumSet<RepositoryFilePermission> permissions=objectAce.getPermissions();
+        EnumSet<RepositoryFilePermission> permissionSet=EnumSet.noneOf(RepositoryFilePermission.class);
+        ObjectRecipient recipient=objectAce.getRecipient();
+        RepositoryFileSid sid;
+        if (recipient.getType().equals(Type.ROLE)) {
+          sid=new RepositoryFileSid(recipient.getName(),RepositoryFileSid.Type.ROLE);
+        }
+ else {
+          sid=new RepositoryFileSid(recipient.getName());
+        }
+        if (permissions != null) {
+          permissionSet.addAll(permissions);
+        }
+        newAclBuilder.ace(sid,permissionSet);
+      }
+    }
+    pur.updateAcl(newAclBuilder.build());
+  }
+ catch (  Exception drfe) {
+    throw new KettleException(drfe);
+  }
+}

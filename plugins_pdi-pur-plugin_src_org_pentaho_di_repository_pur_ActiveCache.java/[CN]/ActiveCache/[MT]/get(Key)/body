@@ -1,0 +1,31 @@
+{
+  ActiveCacheResult<Value> result=null;
+  Future<ActiveCacheResult<Value>> futureResult=null;
+synchronized (this) {
+    result=valueMap.get(key);
+    boolean shouldReload=false;
+    long time=System.currentTimeMillis();
+    if (result == null || result.getTimeLoaded() + timeout < time) {
+      result=null;
+      shouldReload=true;
+    }
+ else     if (result.getTimeLoaded() + (timeout / 2.0) < time) {
+      shouldReload=true;
+    }
+    if (shouldReload) {
+      futureResult=loadingMap.get(key);
+      if (futureResult == null) {
+        futureResult=executorServiceGetter.getExecutor().submit(new ActiveCacheCallable<Key,Value>(this,valueMap,loadingMap,key,loader));
+        loadingMap.put(key,futureResult);
+      }
+    }
+  }
+  if (result == null) {
+    result=futureResult.get();
+  }
+  Exception exception=result.getException();
+  if (exception != null) {
+    throw exception;
+  }
+  return result.getValue();
+}

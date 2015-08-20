@@ -1,0 +1,23 @@
+{
+  String absPath=null;
+  try {
+    absPath=getPath(transName,parentDir,RepositoryObjectType.TRANSFORMATION);
+    if (absPath == null) {
+      throw new KettleFileException(BaseMessages.getString(PKG,"PurRepository.ERROR_0002_TRANSFORMATION_NOT_FOUND",transName));
+    }
+    RepositoryFile file=pur.getFile(absPath);
+    if (versionId != null) {
+      file=pur.getFileAtVersion(file.getId(),versionId);
+    }
+    NodeRepositoryFileData data=null;
+    ObjectRevision revision=null;
+    data=pur.getDataAtVersionForRead(file.getId(),versionId,NodeRepositoryFileData.class);
+    revision=getObjectRevision(new StringObjectId(file.getId().toString()),versionId);
+    TransMeta transMeta=buildTransMeta(file,parentDir,data,revision);
+    ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.TransformationMetaLoaded.id,transMeta);
+    return transMeta;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to load transformation from path [" + absPath + "]",e);
+  }
+}

@@ -1,0 +1,66 @@
+{
+  if (!metaStore.namespaceExists(namespace)) {
+    metaStore.createNamespace(namespace);
+  }
+  List<String> namespaces=metaStore.getNamespaces();
+  assertEquals(1,namespaces.size());
+  IMetaStoreElementType elementType=metaStore.newElementType(namespace);
+  elementType.setName(SHARED_DIMENSION_NAME);
+  elementType.setDescription(SHARED_DIMENSION_DESCRIPTION);
+  metaStore.createElementType(namespace,elementType);
+  assertNotNull(elementType.getId());
+  List<IMetaStoreElementType> elementTypes=metaStore.getElementTypes(namespace);
+  assertEquals(1,elementTypes.size());
+  try {
+    metaStore.createElementType(namespace,elementType);
+    fail("Duplicate creation error expected!");
+  }
+ catch (  MetaStoreElementTypeExistsException e) {
+  }
+catch (  MetaStoreException e) {
+    e.printStackTrace();
+    fail("Create exception needs to be MetaStoreDataTypesExistException");
+  }
+  try {
+    metaStore.deleteNamespace(namespace);
+    fail("Expected error while deleting namespace with content!");
+  }
+ catch (  MetaStoreDependenciesExistsException e) {
+    List<String> dependencies=e.getDependencies();
+    assertNotNull(dependencies);
+    assertEquals(1,dependencies.size());
+    assertEquals(elementType.getId(),dependencies.get(0));
+  }
+  IMetaStoreElement customerDimension=generateCustomerDimensionElement(metaStore,elementType);
+  IMetaStoreElementOwner elementOwner=customerDimension.getOwner();
+  assertNotNull(elementOwner);
+  assertEquals("joe",elementOwner.getName());
+  assertEquals(MetaStoreElementOwnerType.USER,elementOwner.getOwnerType());
+  metaStore.createElement(namespace,elementType,customerDimension);
+  assertNotNull(customerDimension.getId());
+  List<IMetaStoreElement> elements=metaStore.getElements(namespace,elementType);
+  assertEquals(1,elements.size());
+  assertNotNull(elements.get(0));
+  assertEquals(CUSTOMER_DIMENSION_NAME,elements.get(0).getName());
+  try {
+    metaStore.deleteElementType(namespace,elementType);
+    fail("Expected error while deleting data type with content!");
+  }
+ catch (  MetaStoreDependenciesExistsException e) {
+    List<String> dependencies=e.getDependencies();
+    assertNotNull(dependencies);
+    assertEquals(1,dependencies.size());
+    assertEquals(customerDimension.getId(),dependencies.get(0));
+  }
+  assertNotNull(metaStore.getElementTypeByName(namespace,SHARED_DIMENSION_NAME));
+  assertNotNull(metaStore.getElementByName(namespace,elementType,CUSTOMER_DIMENSION_NAME));
+  metaStore.deleteElement(namespace,elementType,customerDimension.getId());
+  elements=metaStore.getElements(namespace,elementType);
+  assertEquals(0,elements.size());
+  metaStore.deleteElementType(namespace,elementType);
+  elementTypes=metaStore.getElementTypes(namespace);
+  assertEquals(0,elementTypes.size());
+  metaStore.deleteNamespace(namespace);
+  namespaces=metaStore.getNamespaces();
+  assertEquals(0,namespaces.size());
+}

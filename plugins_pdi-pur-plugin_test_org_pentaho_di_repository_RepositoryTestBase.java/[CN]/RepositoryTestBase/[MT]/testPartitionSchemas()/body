@@ -1,0 +1,35 @@
+{
+  initRepo();
+  PartitionSchema partSchema=createPartitionSchema("");
+  repository.save(partSchema,VERSION_COMMENT_V1,null);
+  assertNotNull(partSchema.getObjectId());
+  ObjectRevision version=partSchema.getObjectRevision();
+  assertNotNull(version);
+  assertTrue(hasVersionWithComment(partSchema,VERSION_COMMENT_V1));
+  assertTrue(repository.exists(EXP_PART_SCHEMA_NAME,null,RepositoryObjectType.PARTITION_SCHEMA));
+  PartitionSchema fetchedPartSchema=repository.loadPartitionSchema(partSchema.getObjectId(),null);
+  assertEquals(EXP_PART_SCHEMA_NAME,fetchedPartSchema.getName());
+  assertEquals(Arrays.asList(new String[]{EXP_PART_SCHEMA_PARTID_1,EXP_PART_SCHEMA_PARTID_2}),fetchedPartSchema.getPartitionIDs());
+  assertEquals(EXP_PART_SCHEMA_DYN_DEF,fetchedPartSchema.isDynamicallyDefined());
+  assertEquals(EXP_PART_SCHEMA_PART_PER_SLAVE_COUNT,fetchedPartSchema.getNumberOfPartitionsPerSlave());
+  partSchema.setNumberOfPartitionsPerSlave(EXP_PART_SCHEMA_PART_PER_SLAVE_COUNT_V2);
+  repository.save(partSchema,VERSION_COMMENT_V2,null);
+  assertEquals(VERSION_COMMENT_V2,partSchema.getObjectRevision().getComment());
+  fetchedPartSchema=repository.loadPartitionSchema(partSchema.getObjectId(),null);
+  assertEquals(EXP_PART_SCHEMA_PART_PER_SLAVE_COUNT_V2,fetchedPartSchema.getNumberOfPartitionsPerSlave());
+  fetchedPartSchema=repository.loadPartitionSchema(partSchema.getObjectId(),VERSION_LABEL_V1);
+  assertEquals(EXP_PART_SCHEMA_PART_PER_SLAVE_COUNT,fetchedPartSchema.getNumberOfPartitionsPerSlave());
+  assertEquals(partSchema.getObjectId(),repository.getPartitionSchemaID(EXP_PART_SCHEMA_NAME));
+  assertEquals(1,repository.getPartitionSchemaIDs(false).length);
+  assertEquals(1,repository.getPartitionSchemaIDs(true).length);
+  assertEquals(partSchema.getObjectId(),repository.getPartitionSchemaIDs(false)[0]);
+  assertEquals(1,repository.getPartitionSchemaNames(false).length);
+  assertEquals(1,repository.getPartitionSchemaNames(true).length);
+  assertEquals(EXP_PART_SCHEMA_NAME,repository.getPartitionSchemaNames(false)[0]);
+  repository.deletePartitionSchema(partSchema.getObjectId());
+  assertFalse(repository.exists(EXP_PART_SCHEMA_NAME,null,RepositoryObjectType.PARTITION_SCHEMA));
+  assertEquals(0,repository.getPartitionSchemaIDs(false).length);
+  assertEquals(0,repository.getPartitionSchemaIDs(true).length);
+  assertEquals(0,repository.getPartitionSchemaNames(false).length);
+  assertEquals(0,repository.getPartitionSchemaNames(true).length);
+}

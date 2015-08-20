@@ -1,0 +1,41 @@
+{
+  RepositoryDirectoryInterface startDir=loadStartDirectory();
+  RepositoryDirectoryInterface connDir=repository.createRepositoryDirectory(startDir,DIR_CONNECTIONS);
+  assertNotNull(connDir);
+  assertNotNull(connDir.getObjectId());
+  assertEquals(startDir.getPath() + (startDir.getPath().endsWith("/") ? "" : RepositoryDirectory.DIRECTORY_SEPARATOR) + DIR_CONNECTIONS,connDir.getPath());
+  repository.createRepositoryDirectory(startDir,DIR_SCHEMAS);
+  repository.createRepositoryDirectory(startDir,DIR_SLAVES);
+  repository.saveRepositoryDirectory(new RepositoryDirectory(startDir,DIR_CLUSTERS));
+  repository.createRepositoryDirectory(startDir,DIR_TRANSFORMATIONS);
+  repository.createRepositoryDirectory(startDir,DIR_JOBS);
+  startDir=loadStartDirectory();
+  assertNotNull(startDir.findDirectory(DIR_CONNECTIONS));
+  assertNotNull(startDir.findDirectory(DIR_SCHEMAS));
+  assertNotNull(startDir.findDirectory(DIR_SLAVES));
+  assertNotNull(startDir.findDirectory(DIR_CLUSTERS));
+  assertNotNull(startDir.findDirectory(DIR_TRANSFORMATIONS));
+  assertNotNull(startDir.findDirectory(DIR_JOBS));
+  RepositoryDirectoryInterface tmpDir=repository.createRepositoryDirectory(startDir,DIR_TMP);
+  repository.deleteRepositoryDirectory(tmpDir);
+  startDir=loadStartDirectory();
+  assertNull(startDir.findDirectory(DIR_TMP));
+  RepositoryDirectoryInterface moveTestDestDir=repository.createRepositoryDirectory(startDir,"moveTestDest");
+  assertNotNull(moveTestDestDir.getObjectId());
+  RepositoryDirectoryInterface moveTestSrcDir=repository.createRepositoryDirectory(startDir,"moveTestSrc");
+  assertNotNull(moveTestSrcDir.getObjectId());
+  repository.renameRepositoryDirectory(moveTestSrcDir.getObjectId(),moveTestDestDir,"moveTestSrcNewName");
+  startDir=loadStartDirectory();
+  assertNull(startDir.findDirectory("moveTestSrc"));
+  assertNotNull(startDir.findDirectory("moveTestDest/moveTestSrcNewName"));
+  String[] dirs=repository.getDirectoryNames(startDir.getObjectId());
+  assertEquals(7,dirs.length);
+  boolean foundDir=false;
+  for (  String dir : dirs) {
+    if (dir.equals(DIR_CONNECTIONS)) {
+      foundDir=true;
+      break;
+    }
+  }
+  assertTrue(foundDir);
+}

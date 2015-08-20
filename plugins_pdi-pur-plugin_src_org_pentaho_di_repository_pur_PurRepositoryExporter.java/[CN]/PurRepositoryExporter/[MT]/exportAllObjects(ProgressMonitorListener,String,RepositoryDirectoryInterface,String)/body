@@ -1,0 +1,55 @@
+{
+  initBatchSize();
+  OutputStream os=null;
+  OutputStreamWriter writer=null;
+  try {
+    os=new BufferedOutputStream(KettleVFS.getOutputStream(xmlFilename,false));
+    writer=new OutputStreamWriter(os,Const.XML_ENCODING);
+    if (monitor != null) {
+      monitor.beginTask("Exporting the repository to XML...",3);
+    }
+    root=root == null ? repository.findDirectory("/") : root;
+    String path=root.getPath();
+    RepositoryFileTree repoTree=repository.loadRepositoryFileTree(path);
+    writer.write(XMLHandler.getXMLHeader());
+    writer.write("<repository>" + Const.CR + Const.CR);
+    if (monitor != null) {
+      monitor.worked(1);
+    }
+    if (exportType.equals("all") || exportType.equals("trans")) {
+      writer.write("<transformations>" + Const.CR);
+      export(monitor,repoTree,writer,new TransformationBatchExporter());
+      writer.write("</transformations>" + Const.CR);
+    }
+    if (exportType.equals("all") || exportType.equals("jobs")) {
+      writer.write("<jobs>" + Const.CR);
+      export(monitor,repoTree,writer,new JobBatchExporter());
+      writer.write("</jobs>" + Const.CR);
+    }
+    writer.write("</repository>" + Const.CR + Const.CR);
+    if (monitor != null) {
+      monitor.worked(1);
+      monitor.subTask("Saving XML to file [" + xmlFilename + "]");
+      monitor.worked(1);
+    }
+  }
+ catch (  IOException e) {
+    System.out.println("Couldn't create file [" + xmlFilename + "]");
+  }
+ finally {
+    try {
+      if (writer != null) {
+        writer.close();
+      }
+      if (os != null) {
+        os.close();
+      }
+    }
+ catch (    Exception e) {
+      System.out.println("Exception closing XML file writer to [" + xmlFilename + "]");
+    }
+  }
+  if (monitor != null) {
+    monitor.done();
+  }
+}

@@ -1,0 +1,29 @@
+{
+  List<JobMeta> jobs=repository.loadJobs(monitor,log,files,true);
+  Iterator<JobMeta> jobsMeta=jobs.iterator();
+  Iterator<RepositoryFile> filesIter=files.iterator();
+  boolean continueOnError=true;
+  while ((monitor == null || !monitor.isCanceled()) && jobsMeta.hasNext()) {
+    JobMeta trans=jobsMeta.next();
+    RepositoryFile file=filesIter.next();
+    try {
+      try {
+        RepositoryImporter.validateImportedElement(importRules,trans);
+      }
+ catch (      KettleException ve) {
+        continueOnError=false;
+        throw (ve);
+      }
+      writer.write(trans.getXML() + Const.CR);
+    }
+ catch (    Exception ex) {
+      String message="An error occured while saving job [" + trans.getName() + "] from ["+ file.getPath()+ "]";
+      if (continueOnError) {
+        log.logError(message,ex);
+      }
+ else {
+        throw new KettleException(message,ex);
+      }
+    }
+  }
+}

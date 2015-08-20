@@ -1,0 +1,43 @@
+{
+  try {
+    if (fileId != null) {
+      Repository repository=PDIImportUtil.connectToRepository(null);
+      RepositoryFile file=unifiedRepository.getFileById(fileId);
+      if (file != null) {
+        try {
+          TransMeta transMeta=repository.loadTransformation(new StringObjectId(fileId.toString()),null);
+          if (transMeta.getPrivateTransformationDatabases() != null) {
+            for (ListIterator<DatabaseMeta> iter=transMeta.getDatabases().listIterator(); iter.hasNext(); ) {
+              String databaseName=iter.next().getName();
+              boolean removeDatabase=true;
+              for (              String privateDatabase : transMeta.getPrivateTransformationDatabases()) {
+                if (databaseName.equalsIgnoreCase(privateDatabase)) {
+                  removeDatabase=false;
+                  break;
+                }
+              }
+              if (removeDatabase) {
+                iter.remove();
+              }
+            }
+          }
+          if (transMeta != null) {
+            return new ByteArrayInputStream(transMeta.getXML().getBytes());
+          }
+        }
+ catch (        KettleException e) {
+          logger.error(e);
+          SimpleRepositoryFileData fileData=unifiedRepository.getDataForRead(fileId,SimpleRepositoryFileData.class);
+          if (fileData != null) {
+            logger.warn("Reading as legacy CE tranformation " + file.getName() + ".");
+            return fileData.getInputStream();
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    logger.error(e);
+  }
+  return null;
+}

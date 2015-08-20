@@ -1,0 +1,52 @@
+{
+  IRepositoryVersionManager mockRepositoryVersionManager=mock(IRepositoryVersionManager.class);
+  when(mockRepositoryVersionManager.isVersioningEnabled(anyString())).thenReturn(true);
+  when(mockRepositoryVersionManager.isVersionCommentEnabled(anyString())).thenReturn(false);
+  JcrRepositoryFileUtils.setRepositoryVersionManager(mockRepositoryVersionManager);
+  loginAsRepositoryAdmin();
+  SimpleJcrTestUtils.deleteItem(testJcrTemplate,ServerRepositoryPaths.getPentahoRootFolderPath());
+  mp=new MicroPlatform();
+  mp.defineInstance("tenantedUserNameUtils",userNameUtils);
+  mp.defineInstance("tenantedRoleNameUtils",roleNameUtils);
+  mp.defineInstance(IAuthorizationPolicy.class,authorizationPolicy);
+  mp.defineInstance(ITenantManager.class,tenantManager);
+  mp.defineInstance("roleAuthorizationPolicyRoleBindingDaoTarget",roleBindingDaoTarget);
+  mp.defineInstance("repositoryAdminUsername",repositoryAdminUsername);
+  mp.defineInstance("RepositoryFileProxyFactory",new RepositoryFileProxyFactory(testJcrTemplate,repositoryFileDao));
+  mp.defineInstance("useMultiByteEncoding",new Boolean(false));
+  mp.start();
+  loginAsRepositoryAdmin();
+  setAclManagement();
+  systemTenant=tenantManager.createTenant(null,ServerRepositoryPaths.getPentahoRootFolderName(),singleTenantAdminRoleName,tenantAuthenticatedRoleName,"Anonymous");
+  userRoleDao.createUser(systemTenant,sysAdminUserName,"password","",new String[]{singleTenantAdminRoleName});
+  logout();
+  super.setUp();
+  KettleEnvironment.init();
+  JobEntryPluginType.getInstance().registerCustom(JobEntryAttributeTesterJobEntry.class,"test","JobEntryAttributeTester","JobEntryAttributeTester","JobEntryAttributeTester","");
+  StepPluginType.getInstance().registerCustom(TransStepAttributeTesterTransStep.class,"test","StepAttributeTester","StepAttributeTester","StepAttributeTester","");
+  repositoryMeta=new PurRepositoryMeta();
+  repositoryMeta.setName("JackRabbit");
+  repositoryMeta.setDescription("JackRabbit test repository");
+  userInfo=new UserInfo(EXP_LOGIN,"password",EXP_USERNAME,"Apache Tomcat user",true);
+  repository=new PurRepository();
+  repository.init(repositoryMeta);
+  login(sysAdminUserName,systemTenant,new String[]{singleTenantAdminRoleName,tenantAuthenticatedRoleName});
+  ITenant tenantAcme=tenantManager.createTenant(systemTenant,EXP_TENANT,singleTenantAdminRoleName,tenantAuthenticatedRoleName,"Anonymous");
+  userRoleDao.createUser(tenantAcme,EXP_LOGIN,"password","",new String[]{singleTenantAdminRoleName});
+  logout();
+  setUpUser();
+  PurRepository purRep=(PurRepository)repository;
+  purRep.setPurRepositoryConnector(new PurRepositoryConnector(purRep,(PurRepositoryMeta)repositoryMeta,purRep.getRootRef()));
+  ((PurRepository)repository).setTest(repo);
+  repository.connect(EXP_LOGIN,"password");
+  login(EXP_LOGIN,tenantAcme,new String[]{singleTenantAdminRoleName,tenantAuthenticatedRoleName});
+  System.out.println("PUR NAME!!!: " + repo.getClass().getCanonicalName());
+  RepositoryFile repositoryFile=repo.getFile(ClientRepositoryPaths.getPublicFolderPath());
+  Serializable repositoryFileId=repositoryFile.getId();
+  List<RepositoryFile> files=repo.getChildren(repositoryFileId);
+  StringBuilder buf=new StringBuilder();
+  for (  RepositoryFile file : files) {
+    buf.append("\n").append(file);
+  }
+  assertTrue("files not deleted: " + buf,files.isEmpty());
+}

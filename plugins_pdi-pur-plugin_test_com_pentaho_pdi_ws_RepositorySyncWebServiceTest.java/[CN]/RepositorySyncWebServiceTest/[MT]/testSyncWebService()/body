@@ -1,0 +1,66 @@
+{
+  KettleEnvironment.init(false);
+  BasePropertyHandler.getInstance().notify(new TestPropertyHandler());
+  File f=new File(Const.getKettleDirectory());
+  f.mkdirs();
+  PentahoSystem.registerObjectFactory(new SimpleObjectFactory());
+  PentahoSystem.init(new TestAppContext(),null);
+  PentahoSystem.setSystemSettingsService(new ISystemSettings(){
+    public String getSystemCfgSourceName(){
+      return null;
+    }
+    public String getSystemSetting(    String arg0,    String arg1){
+      if ("singleDiServerInstance".equals(arg0)) {
+        return "false";
+      }
+      return arg1;
+    }
+    public String getSystemSetting(    String arg0,    String arg1,    String arg2){
+      return null;
+    }
+    public List getSystemSettings(    String arg0){
+      return null;
+    }
+    public List getSystemSettings(    String arg0,    String arg1){
+      return null;
+    }
+    public Document getSystemSettingsDocument(    String arg0){
+      return null;
+    }
+    public Properties getSystemSettingsProperties(    String arg0){
+      return null;
+    }
+    public void resetSettingsCache(){
+    }
+  }
+);
+  IRepositorySyncWebService webservice=getRepositorySyncWebService();
+  try {
+    webservice.sync("test id","http://localhost:8080/pentaho-di");
+    Assert.fail();
+  }
+ catch (  RepositorySyncException e) {
+    Assert.assertTrue(e.getMessage().indexOf("unable to load the PentahoEnterpriseRepository plugin") >= 0);
+  }
+  RepositoryPluginType.getInstance().registerCustom(TestRepositoryMeta.class,"PentahoEnterpriseRepository","PentahoEnterpriseRepository","PentahoEnterpriseRepository","PentahoEnterpriseRepository","");
+  PluginRegistry.getInstance().getPlugin(RepositoryPluginType.class,"PentahoEnterpriseRepository").getClassMap().put(RepositoryMeta.class,"com.pentaho.pdi.ws.RepositorySyncWebServiceTest$TestRepositoryMeta");
+  RepositorySyncStatus status=webservice.sync("test id","http://localhost:8080/pentaho-di");
+  Assert.assertEquals(RepositorySyncStatus.REGISTERED,status);
+  status=webservice.sync("test id","http://localhost:8080/pentaho-di");
+  Assert.assertEquals(RepositorySyncStatus.ALREADY_REGISTERED,status);
+  try {
+    webservice.sync("test id","http://localhost:9090/pentaho-di");
+    Assert.fail();
+  }
+ catch (  RepositorySyncException e) {
+    Assert.assertTrue(e.getMessage().indexOf("with the URL:") >= 0);
+  }
+  fullyQualifiedServerUrl="http://localhost:9090/pentaho-di";
+  try {
+    webservice.sync("test id","http://localhost:8080/pentaho-di");
+    Assert.fail();
+  }
+ catch (  RepositorySyncException e) {
+    Assert.assertTrue(e.getMessage().indexOf("fully qualified server url") >= 0);
+  }
+}

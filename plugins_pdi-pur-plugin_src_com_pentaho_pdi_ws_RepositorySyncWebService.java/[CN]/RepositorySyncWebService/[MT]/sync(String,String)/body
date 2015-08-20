@@ -1,0 +1,70 @@
+{
+  boolean singleDiServerInstance="true".equals(PentahoSystem.getSystemSetting(SINGLE_DI_SERVER_INSTANCE,"true"));
+  if (singleDiServerInstance) {
+    return RepositorySyncStatus.SINGLE_DI_SERVER_INSTANCE;
+  }
+  RepositoriesMeta repositoriesMeta=new RepositoriesMeta();
+  try {
+    repositoriesMeta.readData();
+  }
+ catch (  Exception e) {
+    log.error(Messages.getInstance().getString("RepositorySyncWebService.UNABLE_TO_READ_DATA"),e);
+    throw new RepositorySyncException(Messages.getInstance().getString("RepositorySyncWebService.UNABLE_TO_READ_DATA"),e);
+  }
+  RepositoryMeta repositoryMeta=repositoriesMeta.findRepository(repositoryId);
+  if (repositoryMeta == null) {
+    try {
+      repositoryMeta=getRepositoryMeta(repositoryId,repositoryUrl);
+      if (repositoryMeta == null) {
+        log.error(Messages.getInstance().getString("RepositorySyncWebService.UNABLE_TO_LOAD_PLUGIN"));
+        throw new RepositorySyncException(Messages.getInstance().getString("RepositorySyncWebService.UNABLE_TO_LOAD_PLUGIN"));
+      }
+      repositoriesMeta.addRepository(repositoryMeta);
+      repositoriesMeta.writeData();
+      return RepositorySyncStatus.REGISTERED;
+    }
+ catch (    KettleException e) {
+      log.error(Messages.getInstance().getString("RepositorySyncWebService.UNABLE_TO_REGISTER_REPOSITORY",repositoryId),e);
+      throw new RepositorySyncException(Messages.getInstance().getString("RepositorySyncWebService.UNABLE_TO_REGISTER_REPOSITORY",repositoryId),e);
+    }
+  }
+ else {
+    String xml=repositoryMeta.getXML();
+    Element node;
+    try {
+      node=DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new StringInputStream(xml)).getDocumentElement();
+    }
+ catch (    Exception e) {
+      node=null;
+    }
+    if (node != null) {
+      NodeList list=node.getElementsByTagName("repository_location_url");
+      if (list != null && list.getLength() == 1) {
+        String url=list.item(0).getTextContent();
+        if (url.equals(repositoryUrl)) {
+          String fullyQualifiedServerUrl=null;
+          if (PentahoSystem.getApplicationContext().getFullyQualifiedServerURL() != null) {
+            fullyQualifiedServerUrl=PentahoSystem.getApplicationContext().getFullyQualifiedServerURL();
+            if (url.endsWith("/")) {
+              url=url.substring(0,url.length() - 2);
+            }
+            if (fullyQualifiedServerUrl.endsWith("/")) {
+              fullyQualifiedServerUrl=fullyQualifiedServerUrl.substring(0,fullyQualifiedServerUrl.length() - 2);
+            }
+            if (url.startsWith(fullyQualifiedServerUrl)) {
+              return RepositorySyncStatus.ALREADY_REGISTERED;
+            }
+          }
+          log.error(Messages.getInstance().getString("RepositorySyncWebService.FULLY_QUALIFIED_SERVER_URL_SYNC_PROBLEM",fullyQualifiedServerUrl,url));
+          throw new RepositorySyncException(Messages.getInstance().getString("RepositorySyncWebService.FULLY_QUALIFIED_SERVER_URL_SYNC_PROBLEM",fullyQualifiedServerUrl,url));
+        }
+ else {
+          log.error(Messages.getInstance().getString("RepositorySyncWebService.REPOSITORY_URL_SYNC_PROBLEM",repositoryId,url,repositoryUrl));
+          throw new RepositorySyncException(Messages.getInstance().getString("RepositorySyncWebService.REPOSITORY_URL_SYNC_PROBLEM",repositoryId,url,repositoryUrl));
+        }
+      }
+    }
+    log.error(Messages.getInstance().getString("RepositorySyncWebService.REPOSITORY_URL_XML_PARSING_PROBLEM",repositoryId,xml));
+    throw new RepositorySyncException(Messages.getInstance().getString("RepositorySyncWebService.REPOSITORY_URL_XML_PARSING_PROBLEM_CLIENT_MESSAGE",repositoryId));
+  }
+}

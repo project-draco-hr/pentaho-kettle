@@ -1,0 +1,29 @@
+{
+  List<TransMeta> transformations=repository.loadTransformations(monitor,log,files,true);
+  Iterator<TransMeta> transMetasIter=transformations.iterator();
+  Iterator<RepositoryFile> filesIter=files.iterator();
+  boolean continueOnError=true;
+  while ((monitor == null || !monitor.isCanceled()) && transMetasIter.hasNext()) {
+    TransMeta trans=transMetasIter.next();
+    RepositoryFile file=filesIter.next();
+    try {
+      try {
+        RepositoryImporter.validateImportedElement(importRules,trans);
+      }
+ catch (      KettleException ve) {
+        continueOnError=false;
+        throw (ve);
+      }
+      writer.write(trans.getXML() + Const.CR);
+    }
+ catch (    Exception ex) {
+      String message="An error occured while saving transformation [" + trans.getName() + "] from ["+ file.getPath()+ "]";
+      if (continueOnError) {
+        log.logError(message,ex);
+      }
+ else {
+        throw new KettleException(message,ex);
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  boolean isUpdate=(element.getObjectId() != null);
+  RepositoryFile file;
+  if (isUpdate) {
+    file=pur.getFileById(element.getObjectId().getId());
+    file=new RepositoryFile.Builder(file).title(RepositoryFile.DEFAULT_LOCALE,element.getName()).description(RepositoryFile.DEFAULT_LOCALE,Const.NVL(element.getDescription(),"")).build();
+    renameIfNecessary(element,file);
+    file=pur.updateFile(file,new NodeRepositoryFileData(transformer.elementToDataNode(element)),versionComment);
+  }
+ else {
+    file=new RepositoryFile.Builder(checkAndSanitize(element.getName() + element.getRepositoryElementType().getExtension())).title(RepositoryFile.DEFAULT_LOCALE,element.getName()).description(RepositoryFile.DEFAULT_LOCALE,Const.NVL(element.getDescription(),"")).versioned(VERSION_SHARED_OBJECTS).build();
+    file=pur.createFile(elementsFolderId,file,new NodeRepositoryFileData(transformer.elementToDataNode(element)),versionComment);
+  }
+  ObjectId objectId=new StringObjectId(file.getId().toString());
+  element.setObjectId(objectId);
+  element.setObjectRevision(getObjectRevision(objectId,null));
+  if (element instanceof ChangedFlagInterface) {
+    ((ChangedFlagInterface)element).clearChanged();
+  }
+  updateSharedObjectCache(element);
+}
