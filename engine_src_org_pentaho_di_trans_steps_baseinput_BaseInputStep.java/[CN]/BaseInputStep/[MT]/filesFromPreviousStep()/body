@@ -1,0 +1,43 @@
+{
+  RowMetaInterface[] infoStep=null;
+  data.files.getFiles().clear();
+  int idx=-1;
+  RowSet rowSet=findInputRowSet(meta.inputFiles.acceptingStepName);
+  Object[] fileRow=getRowFrom(rowSet);
+  while (fileRow != null) {
+    RowMetaInterface prevInfoFields=rowSet.getRowMeta();
+    if (idx < 0) {
+      if (meta.inputFiles.passingThruFields) {
+        data.passThruFields=new HashMap<FileObject,Object[]>();
+        infoStep=new RowMetaInterface[]{prevInfoFields};
+        data.nrPassThruFields=prevInfoFields.size();
+      }
+      idx=prevInfoFields.indexOfValue(meta.inputFiles.acceptingField);
+      if (idx < 0) {
+        logError(BaseMessages.getString(PKG,"TextFileInput.Log.Error.UnableToFindFilenameField",meta.inputFiles.acceptingField));
+        setErrors(getErrors() + 1);
+        stopAll();
+        return null;
+      }
+    }
+    String fileValue=prevInfoFields.getString(fileRow,idx);
+    try {
+      FileObject fileObject=KettleVFS.getFileObject(fileValue,getTransMeta());
+      data.files.addFile(fileObject);
+      if (meta.inputFiles.passingThruFields) {
+        data.passThruFields.put(fileObject,fileRow);
+      }
+    }
+ catch (    KettleFileException e) {
+      logError(BaseMessages.getString(PKG,"TextFileInput.Log.Error.UnableToCreateFileObject",fileValue),e);
+    }
+    fileRow=getRowFrom(rowSet);
+  }
+  if (data.files.nrOfFiles() == 0) {
+    if (log.isDetailed()) {
+      logDetailed(BaseMessages.getString(PKG,"TextFileInput.Log.Error.NoFilesSpecified"));
+    }
+    return null;
+  }
+  return infoStep;
+}

@@ -1,0 +1,89 @@
+{
+  offset=getOffset();
+  if (offset == null) {
+    return;
+  }
+  Point area=getArea();
+  Point max=getMaximum();
+  Point thumb=getThumb(area,max);
+  hori.setThumb(thumb.x);
+  vert.setThumb(thumb.y);
+  int fromy=-offset.y / (fontheight + 2);
+  int toy=fromy + (area.y / (fontheight + 2));
+  int fromx=-offset.x / fontwidth;
+  int tox=fromx + (area.x / fontwidth);
+  Image image=new Image(display,area.x,area.y);
+  if (fromx != prev_fromx || fromy != prev_fromy || tox != prev_tox || toy != prev_toy) {
+    if (cache_image != null) {
+      cache_image.dispose();
+      cache_image=null;
+    }
+    cache_image=new Image(display,area.x,area.y);
+    GC gc=new GC(cache_image);
+    int linepos=TOP - 5;
+    gc.setBackground(bg);
+    gc.fillRectangle(LEFT,TOP,area.x,area.y);
+    gc.setForeground(black);
+    for (int i=fromy; i < rows.size() && i < toy; i++) {
+      String str=rows.get(i);
+      for (int p=fromx; p < str.length() && p < tox; p++) {
+        gc.drawText("" + str.charAt(p),LEFT + MARGIN + p * fontwidth + offset.x,TOP + i * (fontheight + 2) + offset.y,true);
+      }
+      if (str.length() < tox) {
+        gc.setForeground(red);
+        gc.setBackground(red);
+        int x_oval=LEFT + MARGIN + str.length() * fontwidth + offset.x;
+        int y_oval=TOP + i * (fontheight + 2) + offset.y;
+        gc.drawOval(x_oval,y_oval,fontwidth,fontheight);
+        gc.fillOval(x_oval,y_oval,fontwidth,fontheight);
+        gc.setForeground(black);
+        gc.setBackground(bg);
+      }
+    }
+    gc.setBackground(lgray);
+    gc.fillRectangle(LEFT + MARGIN,0,area.x,linepos + 1);
+    gc.setBackground(bg);
+    gc.drawLine(LEFT + MARGIN,linepos,area.x,linepos);
+    for (int i=fromx; i < maxlen + 10 && i < tox + 10; i++) {
+      String number="" + i;
+      int numsize=number.length() * fontwidth;
+      if (i > 0 && (i % 10) == 0) {
+        gc.drawText("" + i,LEFT + MARGIN + i * fontwidth - numsize / 2 + offset.x,linepos - 10 - fontheight,true);
+      }
+      if (i > 0 && (i % 5) == 0) {
+        gc.drawLine(LEFT + MARGIN + i * fontwidth + offset.x,linepos,LEFT + MARGIN + i * fontwidth + offset.x,linepos - 5);
+      }
+ else {
+        gc.drawLine(LEFT + MARGIN + i * fontwidth + offset.x,linepos,LEFT + MARGIN + i * fontwidth + offset.x,linepos - 3);
+      }
+    }
+    gc.setBackground(lgray);
+    gc.fillRectangle(0,TOP,LEFT,area.y);
+    gc.drawLine(LEFT,TOP,LEFT,area.y);
+    for (int i=fromy; i < rows.size() && i < toy; i++) {
+      String number="" + (i + 1);
+      int numsize=number.length() * fontwidth;
+      gc.drawText(number,LEFT - 5 - numsize,TOP + i * (fontheight + 2) + offset.y,true);
+      gc.drawLine(LEFT,TOP + (i + 1) * (fontheight + 2) + offset.y,LEFT - 5,TOP + (i + 1) * (fontheight + 2) + offset.y);
+    }
+    gc.dispose();
+  }
+  GC gc=new GC(image);
+  gc.drawImage(cache_image,0,0);
+  gc.setForeground(red);
+  gc.setBackground(red);
+  for (int i=0; i < fields.size(); i++) {
+    int x=(fields.get(i)).getPosition();
+    if (x >= fromx && x <= tox) {
+      drawMarker(gc,x,area.y);
+    }
+  }
+  if (potential_click >= 0) {
+    gc.setForeground(blue);
+    gc.setBackground(blue);
+    drawMarker(gc,potential_click,area.y);
+  }
+  e.gc.drawImage(image,0,0);
+  gc.dispose();
+  image.dispose();
+}
