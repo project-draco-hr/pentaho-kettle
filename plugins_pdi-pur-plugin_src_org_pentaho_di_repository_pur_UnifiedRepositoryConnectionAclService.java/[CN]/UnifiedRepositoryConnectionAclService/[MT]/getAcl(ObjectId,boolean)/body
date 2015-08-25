@@ -1,0 +1,44 @@
+{
+  RepositoryFileAcl acl=null;
+  try {
+    acl=pur.getAcl(fileId.getId());
+  }
+ catch (  Exception drfe) {
+    throw new KettleException(drfe);
+  }
+  RepositoryFileSid sid=acl.getOwner();
+  ObjectRecipient owner=new RepositoryObjectRecipient(sid.getName());
+  if (sid.getType().equals(RepositoryFileSid.Type.USER)) {
+    owner.setType(Type.USER);
+  }
+ else {
+    owner.setType(Type.ROLE);
+  }
+  ObjectAcl objectAcl=new RepositoryObjectAcl(owner);
+  List<RepositoryFileAce> aces;
+  if (forceParentInheriting) {
+    objectAcl.setEntriesInheriting(true);
+    aces=pur.getEffectiveAces(acl.getId(),true);
+  }
+ else {
+    objectAcl.setEntriesInheriting(acl.isEntriesInheriting());
+    aces=(acl.isEntriesInheriting()) ? pur.getEffectiveAces(acl.getId()) : acl.getAces();
+  }
+  List<ObjectAce> objectAces=new ArrayList<ObjectAce>();
+  for (  RepositoryFileAce ace : aces) {
+    EnumSet<RepositoryFilePermission> permissions=ace.getPermissions();
+    EnumSet<RepositoryFilePermission> permissionSet=EnumSet.noneOf(RepositoryFilePermission.class);
+    RepositoryFileSid aceSid=ace.getSid();
+    ObjectRecipient recipient=new RepositoryObjectRecipient(aceSid.getName());
+    if (aceSid.getType().equals(RepositoryFileSid.Type.USER)) {
+      recipient.setType(Type.USER);
+    }
+ else {
+      recipient.setType(Type.ROLE);
+    }
+    permissionSet.addAll(permissions);
+    objectAces.add(new RepositoryObjectAce(recipient,permissionSet));
+  }
+  objectAcl.setAces(objectAces);
+  return objectAcl;
+}

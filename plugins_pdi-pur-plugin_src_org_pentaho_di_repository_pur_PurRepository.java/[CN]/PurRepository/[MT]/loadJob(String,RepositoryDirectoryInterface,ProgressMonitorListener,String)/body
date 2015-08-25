@@ -1,0 +1,23 @@
+{
+  String absPath=null;
+  try {
+    absPath=getPath(jobname,parentDir,RepositoryObjectType.JOB);
+    if (absPath == null) {
+      throw new KettleFileException(BaseMessages.getString(PKG,"PurRepository.ERROR_0003_JOB_NOT_FOUND",jobname));
+    }
+    RepositoryFile file=pur.getFile(absPath);
+    if (versionId != null) {
+      file=pur.getFileAtVersion(file.getId(),versionId);
+    }
+    NodeRepositoryFileData data=null;
+    ObjectRevision revision=null;
+    data=pur.getDataAtVersionForRead(file.getId(),versionId,NodeRepositoryFileData.class);
+    revision=getObjectRevision(new StringObjectId(file.getId().toString()),versionId);
+    JobMeta jobMeta=buildJobMeta(file,parentDir,data,revision);
+    ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.JobMetaLoaded.id,jobMeta);
+    return jobMeta;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to load transformation from path [" + absPath + "]",e);
+  }
+}

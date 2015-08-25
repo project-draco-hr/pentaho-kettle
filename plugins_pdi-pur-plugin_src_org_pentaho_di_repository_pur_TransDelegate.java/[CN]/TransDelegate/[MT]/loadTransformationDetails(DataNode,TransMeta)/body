@@ -1,0 +1,84 @@
+{
+  transMeta.setExtendedDescription(getString(rootNode,PROP_EXTENDED_DESCRIPTION));
+  transMeta.setTransversion(getString(rootNode,PROP_TRANS_VERSION));
+  transMeta.setTransstatus((int)rootNode.getProperty(PROP_TRANS_STATUS).getLong());
+  if (rootNode.hasProperty(PROP_STEP_READ)) {
+    transMeta.getTransLogTable().setStepRead(StepMeta.findStep(transMeta.getSteps(),getString(rootNode,PROP_STEP_READ)));
+  }
+  if (rootNode.hasProperty(PROP_STEP_WRITE)) {
+    transMeta.getTransLogTable().setStepWritten(StepMeta.findStep(transMeta.getSteps(),getString(rootNode,PROP_STEP_WRITE)));
+  }
+  if (rootNode.hasProperty(PROP_STEP_INPUT)) {
+    transMeta.getTransLogTable().setStepInput(StepMeta.findStep(transMeta.getSteps(),getString(rootNode,PROP_STEP_INPUT)));
+  }
+  if (rootNode.hasProperty(PROP_STEP_OUTPUT)) {
+    transMeta.getTransLogTable().setStepOutput(StepMeta.findStep(transMeta.getSteps(),getString(rootNode,PROP_STEP_OUTPUT)));
+  }
+  if (rootNode.hasProperty(PROP_STEP_UPDATE)) {
+    transMeta.getTransLogTable().setStepUpdate(StepMeta.findStep(transMeta.getSteps(),getString(rootNode,PROP_STEP_UPDATE)));
+  }
+  if (rootNode.hasProperty(PROP_STEP_REJECTED)) {
+    transMeta.getTransLogTable().setStepRejected(StepMeta.findStep(transMeta.getSteps(),getString(rootNode,PROP_STEP_REJECTED)));
+  }
+  if (rootNode.hasProperty(PROP_DATABASE_LOG)) {
+    String id=rootNode.getProperty(PROP_DATABASE_LOG).getRef().getId().toString();
+    DatabaseMeta conn=DatabaseMeta.findDatabase(transMeta.getDatabases(),new StringObjectId(id));
+    transMeta.getTransLogTable().setConnectionName(conn.getName());
+  }
+  transMeta.getTransLogTable().setTableName(getString(rootNode,PROP_TABLE_NAME_LOG));
+  transMeta.getTransLogTable().setBatchIdUsed(rootNode.getProperty(PROP_USE_BATCHID).getBoolean());
+  transMeta.getTransLogTable().setLogFieldUsed(rootNode.getProperty(PROP_USE_LOGFIELD).getBoolean());
+  if (rootNode.hasProperty(PROP_ID_DATABASE_MAXDATE)) {
+    String id=rootNode.getProperty(PROP_ID_DATABASE_MAXDATE).getRef().getId().toString();
+    transMeta.setMaxDateConnection(DatabaseMeta.findDatabase(transMeta.getDatabases(),new StringObjectId(id)));
+  }
+  transMeta.setMaxDateTable(getString(rootNode,PROP_TABLE_NAME_MAXDATE));
+  transMeta.setMaxDateField(getString(rootNode,PROP_FIELD_NAME_MAXDATE));
+  transMeta.setMaxDateOffset(rootNode.getProperty(PROP_OFFSET_MAXDATE).getDouble());
+  transMeta.setMaxDateDifference(rootNode.getProperty(PROP_DIFF_MAXDATE).getDouble());
+  transMeta.setCreatedUser(getString(rootNode,PROP_CREATED_USER));
+  transMeta.setCreatedDate(getDate(rootNode,PROP_CREATED_DATE));
+  transMeta.setModifiedUser(getString(rootNode,PROP_MODIFIED_USER));
+  transMeta.setModifiedDate(getDate(rootNode,PROP_MODIFIED_DATE));
+  transMeta.setSizeRowset(Const.ROWS_IN_ROWSET);
+  long val_size_rowset=rootNode.getProperty(PROP_SIZE_ROWSET).getLong();
+  if (val_size_rowset > 0) {
+    transMeta.setSizeRowset((int)val_size_rowset);
+  }
+  if (rootNode.hasProperty(PROP_ID_DIRECTORY)) {
+    String id_directory=getString(rootNode,PROP_ID_DIRECTORY);
+    if (log.isDetailed()) {
+      log.logDetailed(toString(),PROP_ID_DIRECTORY + "=" + id_directory);
+    }
+    transMeta.setRepositoryDirectory(repo.findDirectory(new StringObjectId(id_directory)));
+  }
+  transMeta.setUsingUniqueConnections(rootNode.getProperty(PROP_UNIQUE_CONNECTIONS).getBoolean());
+  boolean feedbackShown=true;
+  if (rootNode.hasProperty(PROP_FEEDBACK_SHOWN)) {
+    feedbackShown=rootNode.getProperty(PROP_FEEDBACK_SHOWN).getBoolean();
+  }
+  transMeta.setFeedbackShown(feedbackShown);
+  transMeta.setFeedbackSize((int)rootNode.getProperty(PROP_FEEDBACK_SIZE).getLong());
+  boolean usingThreadPriorityManagement=true;
+  if (rootNode.hasProperty(PROP_USING_THREAD_PRIORITIES)) {
+    usingThreadPriorityManagement=rootNode.getProperty(PROP_USING_THREAD_PRIORITIES).getBoolean();
+  }
+  transMeta.setUsingThreadPriorityManagment(usingThreadPriorityManagement);
+  transMeta.setSharedObjectsFile(getString(rootNode,PROP_SHARED_FILE));
+  String transTypeCode=getString(rootNode,PROP_TRANSFORMATION_TYPE);
+  transMeta.setTransformationType(TransformationType.getTransformationTypeByCode(transTypeCode));
+  boolean capturingStepPerformanceSnapShots=true;
+  if (rootNode.hasProperty(PROP_CAPTURE_STEP_PERFORMANCE)) {
+    capturingStepPerformanceSnapShots=rootNode.getProperty(PROP_CAPTURE_STEP_PERFORMANCE).getBoolean();
+  }
+  transMeta.setCapturingStepPerformanceSnapShots(capturingStepPerformanceSnapShots);
+  transMeta.setStepPerformanceCapturingDelay(getLong(rootNode,PROP_STEP_PERFORMANCE_CAPTURING_DELAY));
+  transMeta.setStepPerformanceCapturingSizeLimit(getString(rootNode,PROP_STEP_PERFORMANCE_CAPTURING_SIZE_LIMIT));
+  transMeta.getPerformanceLogTable().setTableName(getString(rootNode,PROP_STEP_PERFORMANCE_LOG_TABLE));
+  transMeta.getTransLogTable().setLogSizeLimit(getString(rootNode,PROP_LOG_SIZE_LIMIT));
+  RepositoryAttributeInterface attributeInterface=new PurRepositoryAttribute(rootNode,transMeta.getDatabases());
+  for (  LogTableInterface logTable : transMeta.getLogTables()) {
+    logTable.loadFromRepository(attributeInterface);
+  }
+  AttributesMapUtil.loadAttributesMap(rootNode,transMeta);
+}

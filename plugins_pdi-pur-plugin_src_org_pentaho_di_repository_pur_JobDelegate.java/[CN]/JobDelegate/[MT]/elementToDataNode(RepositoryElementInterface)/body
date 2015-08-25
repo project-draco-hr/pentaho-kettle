@@ -1,0 +1,65 @@
+{
+  JobMeta jobMeta=(JobMeta)element;
+  DataNode rootNode=new DataNode(NODE_JOB);
+  DataNode notesNode=rootNode.addNode(NODE_NOTES);
+  notesNode.setProperty(PROP_NR_NOTES,jobMeta.nrNotes());
+  for (int i=0; i < jobMeta.nrNotes(); i++) {
+    NotePadMeta note=jobMeta.getNote(i);
+    DataNode noteNode=notesNode.addNode(NOTE_PREFIX + i);
+    noteNode.setProperty(PROP_XML,note.getXML());
+  }
+  if (log.isDetailed()) {
+    log.logDetailed(toString(),"Saving " + jobMeta.nrJobEntries() + " Job enty copies to repository...");
+  }
+  DataNode entriesNode=rootNode.addNode(NODE_ENTRIES);
+  entriesNode.setProperty(PROP_NR_JOB_ENTRY_COPIES,jobMeta.nrJobEntries());
+  for (int i=0; i < jobMeta.nrJobEntries(); i++) {
+    JobEntryCopy copy=jobMeta.getJobEntry(i);
+    JobEntryInterface entry=copy.getEntry();
+    DataNode copyNode=entriesNode.addNode(sanitizeNodeName(copy.getName()) + "_" + (i + 1)+ EXT_JOB_ENTRY_COPY);
+    copyNode.setProperty(PROP_NAME,copy.getName());
+    copyNode.setProperty(PROP_DESCRIPTION,copy.getDescription());
+    copyNode.setProperty(PROP_NR,copy.getNr());
+    copyNode.setProperty(PROP_GUI_LOCATION_X,copy.getLocation().x);
+    copyNode.setProperty(PROP_GUI_LOCATION_Y,copy.getLocation().y);
+    copyNode.setProperty(PROP_GUI_DRAW,copy.isDrawn());
+    copyNode.setProperty(PROP_PARALLEL,copy.isLaunchingInParallel());
+    if (entry instanceof JobEntryBase) {
+      AttributesMapUtil.saveAttributesMap(copyNode,(JobEntryBase)entry);
+    }
+    AttributesMapUtil.saveAttributesMap(copyNode,copy);
+    copyNode.setProperty(PROP_JOBENTRY_TYPE,entry.getPluginId());
+    DataNode customNode=new DataNode(NODE_CUSTOM);
+    RepositoryProxy proxy=new RepositoryProxy(customNode);
+    entry.saveRep(proxy,proxy.getMetaStore(),null);
+    compatibleEntrySaveRep(entry,proxy,null);
+    copyNode.addNode(customNode);
+  }
+  DataNode hopsNode=rootNode.addNode(NODE_HOPS);
+  hopsNode.setProperty(PROP_NR_HOPS,jobMeta.nrJobHops());
+  for (int i=0; i < jobMeta.nrJobHops(); i++) {
+    JobHopMeta hop=jobMeta.getJobHop(i);
+    DataNode hopNode=hopsNode.addNode(JOB_HOP_PREFIX + i);
+    hopNode.setProperty(JOB_HOP_FROM,hop.getFromEntry().getName());
+    hopNode.setProperty(JOB_HOP_FROM_NR,hop.getFromEntry().getNr());
+    hopNode.setProperty(JOB_HOP_TO,hop.getToEntry().getName());
+    hopNode.setProperty(JOB_HOP_TO_NR,hop.getToEntry().getNr());
+    hopNode.setProperty(JOB_HOP_ENABLED,hop.isEnabled());
+    hopNode.setProperty(JOB_HOP_EVALUATION,hop.getEvaluation());
+    hopNode.setProperty(JOB_HOP_UNCONDITIONAL,hop.isUnconditional());
+  }
+  String[] paramKeys=jobMeta.listParameters();
+  DataNode paramsNode=rootNode.addNode(NODE_PARAMETERS);
+  paramsNode.setProperty(PROP_NR_PARAMETERS,paramKeys == null ? 0 : paramKeys.length);
+  for (int idx=0; idx < paramKeys.length; idx++) {
+    DataNode paramNode=paramsNode.addNode(PARAM_PREFIX + idx);
+    String key=paramKeys[idx];
+    String description=jobMeta.getParameterDescription(paramKeys[idx]);
+    String defaultValue=jobMeta.getParameterDefault(paramKeys[idx]);
+    paramNode.setProperty(PARAM_KEY,key != null ? key : "");
+    paramNode.setProperty(PARAM_DEFAULT,defaultValue != null ? defaultValue : "");
+    paramNode.setProperty(PARAM_DESC,description != null ? description : "");
+  }
+  saveJobDetails(rootNode,jobMeta);
+  return rootNode;
+}

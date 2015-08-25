@@ -1,0 +1,29 @@
+{
+  try {
+    jobMeta.setExtendedDescription(getString(rootNode,PROP_EXTENDED_DESCRIPTION));
+    jobMeta.setJobversion(getString(rootNode,PROP_JOB_VERSION));
+    jobMeta.setJobstatus((int)rootNode.getProperty(PROP_JOB_STATUS).getLong());
+    jobMeta.getJobLogTable().setTableName(getString(rootNode,PROP_TABLE_NAME_LOG));
+    jobMeta.setCreatedUser(getString(rootNode,PROP_CREATED_USER));
+    jobMeta.setCreatedDate(getDate(rootNode,PROP_CREATED_DATE));
+    jobMeta.setModifiedUser(getString(rootNode,PROP_MODIFIED_USER));
+    jobMeta.setModifiedDate(getDate(rootNode,PROP_MODIFIED_DATE));
+    if (rootNode.hasProperty(PROP_DATABASE_LOG)) {
+      String id=rootNode.getProperty(PROP_DATABASE_LOG).getRef().getId().toString();
+      DatabaseMeta conn=(DatabaseMeta.findDatabase(jobMeta.getDatabases(),new StringObjectId(id)));
+      jobMeta.getJobLogTable().setConnectionName(conn.getName());
+    }
+    jobMeta.getJobLogTable().setBatchIdUsed(rootNode.getProperty(PROP_USE_BATCH_ID).getBoolean());
+    jobMeta.setBatchIdPassed(rootNode.getProperty(PROP_PASS_BATCH_ID).getBoolean());
+    jobMeta.getJobLogTable().setLogFieldUsed(rootNode.getProperty(PROP_USE_LOGFIELD).getBoolean());
+    jobMeta.getJobLogTable().setLogSizeLimit(getString(rootNode,PROP_LOG_SIZE_LIMIT));
+    RepositoryAttributeInterface attributeInterface=new PurRepositoryAttribute(rootNode,jobMeta.getDatabases());
+    for (    LogTableInterface logTable : jobMeta.getLogTables()) {
+      logTable.loadFromRepository(attributeInterface);
+    }
+    AttributesMapUtil.loadAttributesMap(rootNode,jobMeta);
+  }
+ catch (  Exception e) {
+    throw new KettleException("Error loading job details",e);
+  }
+}

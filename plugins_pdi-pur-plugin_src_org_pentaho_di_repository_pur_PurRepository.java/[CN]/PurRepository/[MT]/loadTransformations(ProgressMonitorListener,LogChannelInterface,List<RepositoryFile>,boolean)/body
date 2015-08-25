@@ -1,0 +1,29 @@
+{
+  List<TransMeta> transformations=new ArrayList<TransMeta>(files.size());
+  List<NodeRepositoryFileData> filesData=pur.getDataForReadInBatch(files,NodeRepositoryFileData.class);
+  List<VersionSummary> versions=pur.getVersionSummaryInBatch(files);
+  Iterator<RepositoryFile> filesIter=files.iterator();
+  Iterator<NodeRepositoryFileData> filesDataIter=filesData.iterator();
+  Iterator<VersionSummary> versionsIter=versions.iterator();
+  while ((monitor == null || !monitor.isCanceled()) && filesIter.hasNext()) {
+    RepositoryFile file=filesIter.next();
+    NodeRepositoryFileData fileData=filesDataIter.next();
+    VersionSummary version=versionsIter.next();
+    String dirPath=file.getPath().substring(0,file.getPath().lastIndexOf(RepositoryDirectory.DIRECTORY_SEPARATOR));
+    try {
+      log.logDetailed("Loading/Exporting transformation [{0} : {1}]  ({2})",dirPath,file.getTitle(),file.getPath());
+      if (monitor != null) {
+        monitor.subTask("Exporting transformation [" + file.getPath() + "]");
+      }
+      TransMeta transMeta=buildTransMeta(file,findDirectory(dirPath),fileData,createObjectRevision(version));
+      ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.TransformationMetaLoaded.id,transMeta);
+      transformations.add(transMeta);
+    }
+ catch (    Exception ex) {
+      log.logDetailed("Unable to load transformation [" + file.getPath() + "]",ex);
+      log.logError("An error occurred reading transformation [" + file.getTitle() + "] from directory ["+ dirPath+ "] : "+ ex.getMessage());
+      log.logError("Transformation [" + file.getTitle() + "] from directory ["+ dirPath+ "] was not exported because of a loading error!");
+    }
+  }
+  return transformations;
+}

@@ -1,0 +1,58 @@
+{
+  if (element != null && (element.getObjectId() == null || element.getObjectId().getId() == null)) {
+    throw new IllegalArgumentException(element.getName() + " has a null id");
+  }
+  loadAndCacheSharedObjects(false);
+  boolean remove=element == null;
+  ObjectId idToFind=element != null ? element.getObjectId() : id;
+  RepositoryObjectType typeToUpdate=element != null ? element.getRepositoryElementType() : type;
+  RepositoryElementInterface elementToUpdate=null;
+  List<? extends SharedObjectInterface> origSharedObjects=null;
+switch (typeToUpdate) {
+case DATABASE:
+    origSharedObjects=sharedObjectsByType.get(RepositoryObjectType.DATABASE);
+  if (!remove) {
+    elementToUpdate=(RepositoryElementInterface)((DatabaseMeta)element).clone();
+  }
+break;
+case SLAVE_SERVER:
+origSharedObjects=sharedObjectsByType.get(RepositoryObjectType.SLAVE_SERVER);
+if (!remove) {
+elementToUpdate=(RepositoryElementInterface)((SlaveServer)element).clone();
+}
+break;
+case CLUSTER_SCHEMA:
+origSharedObjects=sharedObjectsByType.get(RepositoryObjectType.CLUSTER_SCHEMA);
+if (!remove) {
+elementToUpdate=((ClusterSchema)element).clone();
+}
+break;
+case PARTITION_SCHEMA:
+origSharedObjects=sharedObjectsByType.get(RepositoryObjectType.PARTITION_SCHEMA);
+if (!remove) {
+elementToUpdate=(RepositoryElementInterface)((PartitionSchema)element).clone();
+}
+break;
+default :
+throw new KettleException("unknown type [" + typeToUpdate + "]");
+}
+List<SharedObjectInterface> newSharedObjects=new ArrayList<SharedObjectInterface>(origSharedObjects);
+boolean found=false;
+for (int i=0; i < origSharedObjects.size(); i++) {
+if (((RepositoryElementInterface)origSharedObjects.get(i)).getObjectId().equals(idToFind)) {
+if (remove) {
+newSharedObjects.remove(i);
+}
+ else {
+elementToUpdate.setObjectId(idToFind);
+newSharedObjects.set(i,(SharedObjectInterface)elementToUpdate);
+}
+found=true;
+}
+}
+if (!remove && !found) {
+elementToUpdate.setObjectId(idToFind);
+newSharedObjects.add((SharedObjectInterface)elementToUpdate);
+}
+sharedObjectsByType.put(typeToUpdate,newSharedObjects);
+}

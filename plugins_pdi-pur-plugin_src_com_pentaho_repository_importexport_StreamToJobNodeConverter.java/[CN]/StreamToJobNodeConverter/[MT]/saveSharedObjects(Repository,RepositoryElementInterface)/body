@@ -1,0 +1,30 @@
+{
+  JobMeta jobMeta=(JobMeta)element;
+  List<String> databaseNames=Arrays.asList(repo.getDatabaseNames(true));
+  int dbIndex=0;
+  int indexToReplace=0;
+  boolean updateMeta=Boolean.FALSE;
+  for (  DatabaseMeta databaseMeta : jobMeta.getDatabases()) {
+    if (!databaseNames.contains(databaseMeta.getName())) {
+      if (databaseMeta.getObjectId() == null || !StringUtils.isEmpty(databaseMeta.getHostname())) {
+        repo.save(databaseMeta,null,null);
+      }
+    }
+ else     if (databaseMeta.getObjectId() == null) {
+      indexToReplace=dbIndex;
+      updateMeta=Boolean.TRUE;
+    }
+    dbIndex++;
+  }
+  if (updateMeta) {
+    DatabaseMeta dbMetaToReplace=jobMeta.getDatabase(indexToReplace);
+    dbMetaToReplace.setObjectId(repo.getDatabaseID(dbMetaToReplace.getName()));
+    jobMeta.removeDatabase(indexToReplace);
+    jobMeta.addDatabase(dbMetaToReplace);
+  }
+  for (  SlaveServer slaveServer : jobMeta.getSlaveServers()) {
+    if (slaveServer.getObjectId() == null) {
+      repo.save(slaveServer,null,null);
+    }
+  }
+}

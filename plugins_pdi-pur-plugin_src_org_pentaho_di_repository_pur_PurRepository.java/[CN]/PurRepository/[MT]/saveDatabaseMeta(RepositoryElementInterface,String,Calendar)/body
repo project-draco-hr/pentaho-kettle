@@ -1,0 +1,32 @@
+{
+  try {
+    if (element.getObjectId() == null) {
+      element.setObjectId(getDatabaseID(element.getName()));
+    }
+    boolean isUpdate=element.getObjectId() != null;
+    RepositoryFile file=null;
+    if (isUpdate) {
+      file=pur.getFileById(element.getObjectId().getId());
+      final String title=((DatabaseMeta)element).getDisplayName();
+      file=new RepositoryFile.Builder(file).title(RepositoryFile.DEFAULT_LOCALE,title).build();
+      renameIfNecessary(element,file);
+      file=pur.updateFile(file,new NodeRepositoryFileData(databaseMetaTransformer.elementToDataNode(element)),versionComment);
+    }
+ else {
+      file=new RepositoryFile.Builder(checkAndSanitize(RepositoryFilenameUtils.escape(element.getName(),pur.getReservedChars()) + RepositoryObjectType.DATABASE.getExtension())).title(RepositoryFile.DEFAULT_LOCALE,element.getName()).versioned(VERSION_SHARED_OBJECTS).build();
+      file=pur.createFile(getDatabaseMetaParentFolderId(),file,new NodeRepositoryFileData(databaseMetaTransformer.elementToDataNode(element)),versionComment);
+    }
+    ObjectId objectId=new StringObjectId(file.getId().toString());
+    element.setObjectId(objectId);
+    element.setObjectRevision(getObjectRevision(objectId,null));
+    if (element instanceof ChangedFlagInterface) {
+      ((ChangedFlagInterface)element).clearChanged();
+    }
+    updateSharedObjectCache(element);
+  }
+ catch (  Exception e) {
+    if (e.getMessage().indexOf("access denied") >= 0) {
+      throw new KettleException(BaseMessages.getString(PKG,"PurRepository.ERROR_0004_DATABASE_UPDATE_ACCESS_DENIED",element.getName()),e);
+    }
+  }
+}

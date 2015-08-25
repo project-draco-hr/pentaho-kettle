@@ -1,0 +1,55 @@
+{
+  if (isTest()) {
+    connected=true;
+    purRepositoryServiceRegistry.registerService(IRevisionService.class,new UnifiedRepositoryRevisionService(pur,getRootRef()));
+    purRepositoryServiceRegistry.registerService(ILockService.class,new UnifiedRepositoryLockService(pur));
+    purRepositoryServiceRegistry.registerService(IAclService.class,new UnifiedRepositoryConnectionAclService(pur));
+    metaStore=new PurRepositoryMetaStore(this);
+    try {
+      metaStore.createNamespace(PentahoDefaults.NAMESPACE);
+    }
+ catch (    MetaStoreException e) {
+      LogChannel.GENERAL.logError(BaseMessages.getString(PKG,"PurRepositoryMetastore.NamespaceCreateException.Message",PentahoDefaults.NAMESPACE),e);
+    }
+    this.user=new EEUserInfo("testuser","testUserPwd","testUser","test user",true);
+    return;
+  }
+  try {
+    RepositoryConnectResult result=purRepositoryConnector.connect(username,password);
+    this.user=result.getUser();
+    this.connected=result.isSuccess();
+    this.securityProvider=result.getSecurityProvider();
+    this.securityManager=result.getSecurityManager();
+    IUnifiedRepository r=result.getUnifiedRepository();
+    try {
+      this.pur=(IUnifiedRepository)Proxy.newProxyInstance(r.getClass().getClassLoader(),new Class<?>[]{IUnifiedRepository.class},new UnifiedRepositoryInvocationHandler<IUnifiedRepository>(r));
+    }
+ catch (    Throwable th) {
+      if (log.isError()) {
+        log.logError("Failed to setup repository connection",th);
+      }
+      connected=false;
+    }
+    this.unifiedRepositoryLockService=new UnifiedRepositoryLockService(pur);
+    this.connectMessage=result.getConnectMessage();
+    this.purRepositoryServiceRegistry=result.repositoryServiceRegistry();
+    this.transDelegate=new TransDelegate(this,pur);
+    this.jobDelegate=new JobDelegate(this,pur);
+  }
+  finally {
+    if (connected) {
+      LogChannel.GENERAL.logBasic(BaseMessages.getString(PKG,"PurRepositoryMetastore.Create.Message"));
+      metaStore=new PurRepositoryMetaStore(this);
+      try {
+        metaStore.createNamespace(PentahoDefaults.NAMESPACE);
+        LogChannel.GENERAL.logBasic(BaseMessages.getString(PKG,"PurRepositoryMetastore.NamespaceCreateSuccess.Message",PentahoDefaults.NAMESPACE));
+      }
+ catch (      MetaStoreNamespaceExistsException e) {
+      }
+catch (      MetaStoreException e) {
+        LogChannel.GENERAL.logError(BaseMessages.getString(PKG,"PurRepositoryMetastore.NamespaceCreateException.Message",PentahoDefaults.NAMESPACE),e);
+      }
+      LogChannel.GENERAL.logBasic(BaseMessages.getString(PKG,"PurRepository.ConnectSuccess.Message"));
+    }
+  }
+}

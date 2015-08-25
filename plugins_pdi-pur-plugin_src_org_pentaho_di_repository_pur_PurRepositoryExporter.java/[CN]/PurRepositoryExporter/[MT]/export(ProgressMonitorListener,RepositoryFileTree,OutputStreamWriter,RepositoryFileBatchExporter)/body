@@ -1,0 +1,39 @@
+{
+  List<RepositoryFileTree> subdirectories=new ArrayList<RepositoryFileTree>();
+  if (root.getChildren() != null && !root.getChildren().isEmpty()) {
+    Iterator<RepositoryFileTree> repObjIter=root.getChildren().iterator();
+    List<RepositoryFile> files=new ArrayList<RepositoryFile>();
+    while ((monitor == null || !monitor.isCanceled()) && repObjIter.hasNext()) {
+      RepositoryFileTree repObj=repObjIter.next();
+      if (repObj.getFile().isFolder()) {
+        subdirectories.add(repObj);
+        continue;
+      }
+ else       if (!exporter.canExport(repObj.getFile())) {
+        continue;
+      }
+      files.add(repObj.getFile());
+    }
+    if (!files.isEmpty()) {
+      log.logBasic("Exporting {0} {1} from directory [{2}]",files.size(),exporter.getFriendlyTypeName(),root.getFile().getPath());
+      for (int i=0; (monitor == null || !monitor.isCanceled()) && i < files.size(); i+=batchSize) {
+        int start=i;
+        int end=Math.min(i + batchSize,files.size());
+        List<RepositoryFile> group=files.subList(start,end);
+        if (monitor != null) {
+          monitor.subTask("Loading " + group.size() + " "+ exporter.getFriendlyTypeName()+ " from "+ root.getFile().getPath());
+        }
+        try {
+          exporter.export(monitor,group,writer);
+        }
+ catch (        KettleException ex) {
+          log.logError("Error exporting " + exporter.getFriendlyTypeName() + " from directory ["+ root.getFile().getPath()+ "]",ex);
+        }
+      }
+    }
+    Iterator<RepositoryFileTree> subdirIter=subdirectories.iterator();
+    while ((monitor == null || !monitor.isCanceled()) && subdirIter.hasNext()) {
+      export(monitor,subdirIter.next(),writer,exporter);
+    }
+  }
+}

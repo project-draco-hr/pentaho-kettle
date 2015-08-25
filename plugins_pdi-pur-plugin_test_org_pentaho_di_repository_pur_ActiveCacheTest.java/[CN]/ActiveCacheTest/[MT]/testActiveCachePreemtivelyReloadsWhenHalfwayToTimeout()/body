@@ -1,0 +1,29 @@
+{
+  long timeout=500;
+  ActiveCacheLoader<String,String> mockLoader=mock(ActiveCacheLoader.class);
+  final ExecutorService mockService=mock(ExecutorService.class);
+  final FutureHolder lastSubmittedFuture=new FutureHolder();
+  when(mockService.submit(any(Callable.class))).thenAnswer(new Answer<Future>(){
+    @Override public Future answer(    InvocationOnMock invocation) throws Throwable {
+      lastSubmittedFuture.future=ExecutorUtil.getExecutor().submit((Callable)invocation.getArguments()[0]);
+      return lastSubmittedFuture.future;
+    }
+  }
+);
+  ActiveCache<String,String> cache=new ActiveCache<String,String>(mockLoader,timeout,new ExecutorServiceGetter(){
+    @Override public ExecutorService getExecutor(){
+      return mockService;
+    }
+  }
+);
+  String testKey="TEST-KEY";
+  String testResult="TEST-RESULT";
+  String testResult2="TEST-RESULT-2";
+  when(mockLoader.load(testKey)).thenReturn(testResult).thenReturn(testResult2);
+  assertEquals(testResult,cache.get(testKey));
+  Thread.sleep(255);
+  assertEquals(testResult,cache.get(testKey));
+  lastSubmittedFuture.future.get();
+  assertEquals(testResult2,cache.get(testKey));
+  verify(mockLoader,times(2)).load(testKey);
+}

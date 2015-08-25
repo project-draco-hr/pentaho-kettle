@@ -1,0 +1,126 @@
+{
+  if (serviceManager != null) {
+    disconnect();
+  }
+  serviceManager=new WebServiceManager(repositoryMeta.getRepositoryLocation().getUrl(),username);
+  RepositoryServiceRegistry purRepositoryServiceRegistry=new RepositoryServiceRegistry();
+  IUser user1=new EEUserInfo();
+  final String decryptedPassword=Encr.decryptPasswordOptionallyEncrypted(password);
+  final RepositoryConnectResult result=new RepositoryConnectResult(purRepositoryServiceRegistry);
+  try {
+    user1.setLogin(username);
+    user1.setPassword(decryptedPassword);
+    user1.setName(username);
+    result.setUser(user1);
+    if (PentahoSystem.getApplicationContext() != null && PentahoSessionHolder.getSession() != null) {
+      if (inProcess()) {
+        if (log.isDebug()) {
+          log.logDebug("begin connectInProcess()");
+        }
+        String name=PentahoSessionHolder.getSession().getName();
+        user1=new EEUserInfo();
+        user1.setLogin(name);
+        user1.setName(name);
+        result.setUnifiedRepository(PentahoSystem.get(IUnifiedRepository.class));
+        result.setUser(user1);
+        result.setSuccess(true);
+        if (log.isDebug()) {
+          log.logDebug("connected in process as '" + name + "' pur repository = "+ result.getUnifiedRepository());
+        }
+        return result;
+      }
+    }
+    ExecutorService executor=ExecutorUtil.getExecutor();
+    Future<Boolean> authorizationWebserviceFuture=executor.submit(new Callable<Boolean>(){
+      @Override public Boolean call() throws Exception {
+        LogChannel.GENERAL.logBasic("Creating security provider");
+        result.setSecurityProvider(new AbsSecurityProvider(purRepository,repositoryMeta,result.getUser(),serviceManager));
+        LogChannel.GENERAL.logBasic("Security provider created");
+        if (allowedActionsContains((AbsSecurityProvider)result.getSecurityProvider(),IAbsSecurityProvider.ADMINISTER_SECURITY_ACTION)) {
+          result.setSecurityManager(new AbsSecurityManager(purRepository,repositoryMeta,result.getUser(),serviceManager));
+          ((PurRepositorySecurityProvider)result.getSecurityProvider()).setUserRoleDelegate(((PurRepositorySecurityManager)result.getSecurityManager()).getUserRoleDelegate());
+          return true;
+        }
+        return false;
+      }
+    }
+);
+    Future<WebServiceException> repoWebServiceFuture=executor.submit(new Callable<WebServiceException>(){
+      @Override public WebServiceException call() throws Exception {
+        try {
+          IUnifiedRepositoryJaxwsWebService repoWebService=null;
+          LogChannel.GENERAL.logBasic("Creating repository web service");
+          repoWebService=serviceManager.createService(username,decryptedPassword,IUnifiedRepositoryJaxwsWebService.class);
+          LogChannel.GENERAL.logBasic("Repository web service created");
+          LogChannel.GENERAL.logBasic("Creating unified repository to web service adapter");
+          result.setUnifiedRepository(new UnifiedRepositoryToWebServiceAdapter(repoWebService));
+        }
+ catch (        WebServiceException wse) {
+          return wse;
+        }
+        return null;
+      }
+    }
+);
+    Future<Exception> syncWebserviceFuture=executor.submit(new Callable<Exception>(){
+      @Override public Exception call() throws Exception {
+        try {
+          LogChannel.GENERAL.logBasic("Creating repository sync web service");
+          IRepositorySyncWebService syncWebService=serviceManager.createService(username,decryptedPassword,IRepositorySyncWebService.class);
+          LogChannel.GENERAL.logBasic("Synchronizing repository web service");
+          syncWebService.sync(repositoryMeta.getName(),repositoryMeta.getRepositoryLocation().getUrl());
+        }
+ catch (        RepositorySyncException e) {
+          log.logError(e.getMessage(),e);
+          result.setConnectMessage(e.getMessage());
+          return null;
+        }
+catch (        ClientTransportException e) {
+          return e;
+        }
+catch (        WebServiceException e) {
+          log.logError(e.getMessage(),e);
+          return new Exception(BaseMessages.getString(PKG,"PurRepository.BAServerLogin.Message"),e);
+        }
+        return null;
+      }
+    }
+);
+    WebServiceException repoException=repoWebServiceFuture.get();
+    if (repoException != null) {
+      log.logError(repoException.getMessage());
+      throw new Exception(BaseMessages.getString(PKG,"PurRepository.FailedLogin.Message"),repoException);
+    }
+    Exception syncException=syncWebserviceFuture.get();
+    if (syncException != null) {
+      throw syncException;
+    }
+    Boolean isAdmin=authorizationWebserviceFuture.get();
+    LogChannel.GENERAL.logBasic("Registering security provider");
+    purRepositoryServiceRegistry.registerService(RepositorySecurityProvider.class,result.getSecurityProvider());
+    purRepositoryServiceRegistry.registerService(IAbsSecurityProvider.class,result.getSecurityProvider());
+    if (isAdmin) {
+      purRepositoryServiceRegistry.registerService(RepositorySecurityManager.class,result.getSecurityManager());
+      purRepositoryServiceRegistry.registerService(IRoleSupportSecurityManager.class,result.getSecurityManager());
+      purRepositoryServiceRegistry.registerService(IAbsSecurityManager.class,result.getSecurityManager());
+    }
+    purRepositoryServiceRegistry.registerService(PurRepositoryRestService.PurRepositoryPluginApiRevision.class,serviceManager.createService(username,decryptedPassword,PurRepositoryRestService.PurRepositoryPluginApiRevision.class));
+    purRepositoryServiceRegistry.registerService(IRevisionService.class,new UnifiedRepositoryRevisionService(result.getUnifiedRepository(),rootRef));
+    purRepositoryServiceRegistry.registerService(IAclService.class,new UnifiedRepositoryConnectionAclService(result.getUnifiedRepository()));
+    purRepositoryServiceRegistry.registerService(IConnectionAclService.class,new UnifiedRepositoryConnectionAclService(result.getUnifiedRepository()));
+    purRepositoryServiceRegistry.registerService(ITrashService.class,new UnifiedRepositoryTrashService(result.getUnifiedRepository(),rootRef));
+    purRepositoryServiceRegistry.registerService(ILockService.class,new UnifiedRepositoryLockService(result.getUnifiedRepository()));
+    LogChannel.GENERAL.logBasic("Repository services registered");
+    result.setSuccess(true);
+  }
+ catch (  NullPointerException npe) {
+    result.setSuccess(false);
+    throw new KettleException(BaseMessages.getString(PKG,"PurRepository.LoginException.Message"));
+  }
+catch (  Throwable e) {
+    result.setSuccess(false);
+    serviceManager.close();
+    throw new KettleException(e);
+  }
+  return result;
+}

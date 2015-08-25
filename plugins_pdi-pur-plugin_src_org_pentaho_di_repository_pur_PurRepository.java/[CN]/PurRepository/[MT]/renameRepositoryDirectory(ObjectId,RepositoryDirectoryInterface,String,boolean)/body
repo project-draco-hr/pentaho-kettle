@@ -1,0 +1,24 @@
+{
+  String finalName=null;
+  String finalParentPath=null;
+  String interimFolderPath=null;
+  try {
+    RepositoryFile homeFolder=pur.getFile(ClientRepositoryPaths.getUserHomeFolderPath(user.getLogin()));
+    RepositoryFile folder=pur.getFileById(dirId.getId());
+    if (isSameOrAncestorFolder(folder,homeFolder)) {
+      throw new KettleException("You are not allowed to move/rename your home folder.");
+    }
+    finalName=(newName != null ? newName : folder.getName());
+    interimFolderPath=getParentPath(folder.getPath());
+    finalParentPath=(newParent != null ? getPath(null,newParent,null) : interimFolderPath);
+    if (!renameHomeDirectories && isUserHomeDirectory(folder)) {
+      throw new RepositoryObjectAccessException("Cannot move another users home directory",RepositoryObjectAccessException.AccessExceptionType.USER_HOME_DIR);
+    }
+    pur.moveFile(dirId.getId(),finalParentPath + RepositoryFile.SEPARATOR + finalName,null);
+    rootRef.clearRef();
+    return dirId;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to move/rename directory with id [" + dirId + "] to new parent ["+ finalParentPath+ "] and new name ["+ finalName+ "]",e);
+  }
+}

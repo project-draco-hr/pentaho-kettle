@@ -1,0 +1,28 @@
+{
+  try {
+    RepositoryFile file=null;
+    if (versionLabel != null) {
+      file=pur.getFileAtVersion(idTransformation.getId(),versionLabel);
+    }
+ else {
+      file=pur.getFileById(idTransformation.getId());
+    }
+    EETransMeta transMeta=new EETransMeta();
+    transMeta.setName(file.getTitle());
+    transMeta.setDescription(file.getDescription());
+    transMeta.setObjectId(new StringObjectId(file.getId().toString()));
+    transMeta.setObjectRevision(getObjectRevision(new StringObjectId(file.getId().toString()),versionLabel));
+    transMeta.setRepository(this);
+    transMeta.setRepositoryDirectory(findDirectory(getParentPath(file.getPath())));
+    transMeta.setRepositoryLock(unifiedRepositoryLockService.getLock(file));
+    transMeta.setMetaStore(getMetaStore());
+    readTransSharedObjects(transMeta);
+    transDelegate.dataNodeToElement(pur.getDataAtVersionForRead(idTransformation.getId(),versionLabel,NodeRepositoryFileData.class).getNode(),transMeta);
+    ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.TransformationMetaLoaded.id,transMeta);
+    transMeta.clearChanged();
+    return transMeta;
+  }
+ catch (  Exception e) {
+    throw new KettleException("Unable to load transformation with id [" + idTransformation + "]",e);
+  }
+}

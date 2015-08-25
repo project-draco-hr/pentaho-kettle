@@ -1,0 +1,78 @@
+{
+  JobMeta jobMeta=(JobMeta)element;
+  jobMeta.setSharedObjectsFile(getString(rootNode,PROP_SHARED_FILE));
+  List<JobEntryInterface> jobentries=new ArrayList<JobEntryInterface>();
+  DataNode entriesNode=rootNode.getNode(NODE_ENTRIES);
+  int nrCopies=(int)entriesNode.getProperty(PROP_NR_JOB_ENTRY_COPIES).getLong();
+  for (  DataNode copyNode : entriesNode.getNodes()) {
+    JobEntryInterface jobEntry=readJobEntry(copyNode,jobMeta,jobentries);
+    JobEntryCopy copy=new JobEntryCopy(jobEntry);
+    copy.setName(getString(copyNode,PROP_NAME));
+    copy.setDescription(getString(copyNode,PROP_DESCRIPTION));
+    copy.setObjectId(new StringObjectId(copyNode.getId().toString()));
+    copy.setNr((int)copyNode.getProperty(PROP_NR).getLong());
+    int x=(int)copyNode.getProperty(PROP_GUI_LOCATION_X).getLong();
+    int y=(int)copyNode.getProperty(PROP_GUI_LOCATION_Y).getLong();
+    copy.setLocation(x,y);
+    copy.setDrawn(copyNode.getProperty(PROP_GUI_DRAW).getBoolean());
+    copy.setLaunchingInParallel(copyNode.getProperty(PROP_PARALLEL).getBoolean());
+    if (jobEntry instanceof JobEntryBase) {
+      AttributesMapUtil.loadAttributesMap(copyNode,(JobEntryBase)jobEntry);
+    }
+    AttributesMapUtil.loadAttributesMap(copyNode,copy);
+    jobMeta.getJobCopies().add(copy);
+  }
+  if (jobMeta.getJobCopies().size() != nrCopies) {
+    throw new KettleException("The number of job entry copies read [" + jobMeta.getJobCopies().size() + "] was not the number we expected ["+ nrCopies+ "]");
+  }
+  DataNode notesNode=rootNode.getNode(NODE_NOTES);
+  int nrNotes=(int)notesNode.getProperty(PROP_NR_NOTES).getLong();
+  for (  DataNode noteNode : notesNode.getNodes()) {
+    String xml=getString(noteNode,PROP_XML);
+    jobMeta.addNote(new NotePadMeta(XMLHandler.getSubNode(XMLHandler.loadXMLString(xml),NotePadMeta.XML_TAG)));
+  }
+  if (jobMeta.nrNotes() != nrNotes) {
+    throw new KettleException("The number of notes read [" + jobMeta.nrNotes() + "] was not the number we expected ["+ nrNotes+ "]");
+  }
+  DataNode hopsNode=rootNode.getNode(NODE_HOPS);
+  int nrHops=(int)hopsNode.getProperty(PROP_NR_HOPS).getLong();
+  for (  DataNode hopNode : hopsNode.getNodes()) {
+    String copyFromName=getString(hopNode,JOB_HOP_FROM);
+    int copyFromNr=(int)hopNode.getProperty(JOB_HOP_FROM_NR).getLong();
+    String copyToName=getString(hopNode,JOB_HOP_TO);
+    int copyToNr=(int)hopNode.getProperty(JOB_HOP_TO_NR).getLong();
+    boolean enabled=true;
+    if (hopNode.hasProperty(JOB_HOP_ENABLED)) {
+      enabled=hopNode.getProperty(JOB_HOP_ENABLED).getBoolean();
+    }
+    boolean evaluation=true;
+    if (hopNode.hasProperty(JOB_HOP_EVALUATION)) {
+      evaluation=hopNode.getProperty(JOB_HOP_EVALUATION).getBoolean();
+    }
+    boolean unconditional=true;
+    if (hopNode.hasProperty(JOB_HOP_UNCONDITIONAL)) {
+      unconditional=hopNode.getProperty(JOB_HOP_UNCONDITIONAL).getBoolean();
+    }
+    JobEntryCopy copyFrom=jobMeta.findJobEntry(copyFromName,copyFromNr,true);
+    JobEntryCopy copyTo=jobMeta.findJobEntry(copyToName,copyToNr,true);
+    JobHopMeta jobHopMeta=new JobHopMeta(copyFrom,copyTo);
+    jobHopMeta.setEnabled(enabled);
+    jobHopMeta.setEvaluation(evaluation);
+    jobHopMeta.setUnconditional(unconditional);
+    jobMeta.addJobHop(jobHopMeta);
+  }
+  if (jobMeta.nrJobHops() != nrHops) {
+    throw new KettleException("The number of hops read [" + jobMeta.nrJobHops() + "] was not the number we expected ["+ nrHops+ "]");
+  }
+  loadJobMetaDetails(rootNode,jobMeta);
+  jobMeta.eraseParameters();
+  DataNode paramsNode=rootNode.getNode(NODE_PARAMETERS);
+  int count=(int)paramsNode.getProperty(PROP_NR_PARAMETERS).getLong();
+  for (int idx=0; idx < count; idx++) {
+    DataNode paramNode=paramsNode.getNode(PARAM_PREFIX + idx);
+    String key=getString(paramNode,PARAM_KEY);
+    String def=getString(paramNode,PARAM_DEFAULT);
+    String desc=getString(paramNode,PARAM_DESC);
+    jobMeta.addParameterDefinition(key,def,desc);
+  }
+}
