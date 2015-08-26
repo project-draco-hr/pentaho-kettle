@@ -1,32 +1,71 @@
 {
   JobMeta mappingJobMeta=null;
+  CurrentDirectoryResolver r=new CurrentDirectoryResolver();
+  VariableSpace tmpSpace=r.resolveCurrentDirectory(executorMeta.getSpecificationMethod(),space,rep,executorMeta.getParentStepMeta(),executorMeta.getFileName());
 switch (executorMeta.getSpecificationMethod()) {
 case FILENAME:
-    String realFilename=space.environmentSubstitute(executorMeta.getFileName());
+    String realFilename=tmpSpace.environmentSubstitute(executorMeta.getFileName());
   try {
-    mappingJobMeta=new JobMeta(space,realFilename,rep,metaStore,null);
-    LogChannel.GENERAL.logDetailed("Loading job from repository","Job was loaded from XML file [" + realFilename + "]");
+    if (rep != null) {
+      while (realFilename.contains("//")) {
+        realFilename=realFilename.replace("//","/");
+      }
+      try {
+        String dirStr=realFilename.substring(0,realFilename.lastIndexOf("/"));
+        String tmpFilename=realFilename.substring(realFilename.lastIndexOf("/") + 1);
+        RepositoryDirectoryInterface dir=rep.findDirectory(dirStr);
+        mappingJobMeta=rep.loadJob(tmpFilename,dir,null,null);
+      }
+ catch (      KettleException ke) {
+        if (realFilename.endsWith(Const.STRING_JOB_DEFAULT_EXT)) {
+          try {
+            String tmpFilename=realFilename.substring(realFilename.lastIndexOf("/") + 1,realFilename.indexOf("." + Const.STRING_JOB_DEFAULT_EXT));
+            String dirStr=realFilename.substring(0,realFilename.lastIndexOf("/"));
+            RepositoryDirectoryInterface dir=rep.findDirectory(dirStr);
+            mappingJobMeta=rep.loadJob(tmpFilename,dir,null,null);
+          }
+ catch (          KettleException ke2) {
+          }
+        }
+      }
+    }
+    if (mappingJobMeta == null) {
+      mappingJobMeta=new JobMeta(tmpSpace,realFilename,rep,metaStore,null);
+      LogChannel.GENERAL.logDetailed("Loading job from repository","Job was loaded from XML file [" + realFilename + "]");
+    }
   }
  catch (  Exception e) {
     throw new KettleException(BaseMessages.getString(PKG,"JobExecutorMeta.Exception.UnableToLoadJob"),e);
   }
 break;
 case REPOSITORY_BY_NAME:
-String realJobname=space.environmentSubstitute(executorMeta.getJobName());
-String realDirectory=space.environmentSubstitute(executorMeta.getDirectoryPath());
-if (!Const.isEmpty(realJobname) && !Const.isEmpty(realDirectory) && rep != null) {
+String realJobname=tmpSpace.environmentSubstitute(executorMeta.getJobName());
+String realDirectory=tmpSpace.environmentSubstitute(executorMeta.getDirectoryPath());
+if (rep != null) {
+if (!Const.isEmpty(realJobname) && !Const.isEmpty(realDirectory)) {
 RepositoryDirectoryInterface repdir=rep.findDirectory(realDirectory);
 if (repdir != null) {
 try {
-mappingJobMeta=rep.loadJob(realJobname,repdir,null,null);
-LogChannel.GENERAL.logDetailed("Loading job from repository","Executor job [" + realJobname + "] was loaded from the repository");
+  mappingJobMeta=rep.loadJob(realJobname,repdir,null,null);
+  LogChannel.GENERAL.logDetailed("Loading job from repository","Executor job [" + realJobname + "] was loaded from the repository");
 }
  catch (Exception e) {
-throw new KettleException("Unable to load job [" + realJobname + "]",e);
+  throw new KettleException("Unable to load job [" + realJobname + "]",e);
+}
+}
 }
 }
  else {
+try {
+mappingJobMeta=new JobMeta(tmpSpace,realDirectory + "/" + realJobname,rep,metaStore,null);
+}
+ catch (KettleException ke) {
+try {
+mappingJobMeta=new JobMeta(tmpSpace,realDirectory + "/" + realJobname+ "."+ Const.STRING_JOB_DEFAULT_EXT,rep,metaStore,null);
+}
+ catch (KettleException ke2) {
 throw new KettleException(BaseMessages.getString(PKG,"JobExecutorMeta.Exception.UnableToLoadJob",realJobname) + realDirectory);
+}
 }
 }
 break;
