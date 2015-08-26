@@ -1,22 +1,59 @@
 {
   try {
     TransMeta transMeta=null;
+    CurrentDirectoryResolver r=new CurrentDirectoryResolver();
+    VariableSpace tmpSpace=r.resolveCurrentDirectory(specificationMethod,space,rep,parentJob,getFilename());
 switch (specificationMethod) {
 case FILENAME:
-      String filename=space.environmentSubstitute(getFilename());
-    logBasic("Loading transformation from XML file [" + filename + "]");
-  transMeta=new TransMeta(filename,metaStore,null,true,this,null);
+      String realFilename=tmpSpace.environmentSubstitute(getFilename());
+    if (rep != null) {
+      while (realFilename.contains("//")) {
+        realFilename=realFilename.replace("//","/");
+      }
+      try {
+        String dirStr=realFilename.substring(0,realFilename.lastIndexOf("/"));
+        String tmpFilename=realFilename.substring(realFilename.lastIndexOf("/") + 1);
+        RepositoryDirectoryInterface dir=rep.findDirectory(dirStr);
+        transMeta=rep.loadTransformation(tmpFilename,dir,null,true,null);
+      }
+ catch (      KettleException ke) {
+        if (realFilename.endsWith(Const.STRING_TRANS_DEFAULT_EXT)) {
+          try {
+            String tmpFilename=realFilename.substring(realFilename.lastIndexOf("/") + 1,realFilename.indexOf("." + Const.STRING_TRANS_DEFAULT_EXT));
+            String dirStr=realFilename.substring(0,realFilename.lastIndexOf("/"));
+            RepositoryDirectoryInterface dir=rep.findDirectory(dirStr);
+            transMeta=rep.loadTransformation(tmpFilename,dir,null,true,null);
+          }
+ catch (          KettleException ke2) {
+          }
+        }
+      }
+    }
+  if (transMeta == null) {
+    logBasic("Loading transformation from XML file [" + realFilename + "]");
+    transMeta=new TransMeta(realFilename,metaStore,null,true,this,null);
+  }
 break;
 case REPOSITORY_BY_NAME:
-String transname=space.environmentSubstitute(getTransname());
-String realDirectory=space.environmentSubstitute(getDirectory());
+String transname=tmpSpace.environmentSubstitute(getTransname());
+String realDirectory=tmpSpace.environmentSubstitute(getDirectory());
 logBasic(BaseMessages.getString(PKG,"JobTrans.Log.LoadingTransRepDirec",transname,realDirectory));
 if (rep != null) {
 RepositoryDirectoryInterface repositoryDirectory=rep.findDirectory(realDirectory);
 transMeta=rep.loadTransformation(transname,repositoryDirectory,null,true,null);
 }
  else {
-throw new KettleException(BaseMessages.getString(PKG,"JobTrans.Exception.NoRepDefined"));
+try {
+transMeta=new TransMeta(realDirectory + "/" + transname,metaStore,null,true,this,null);
+}
+ catch (KettleException ke) {
+try {
+transMeta=new TransMeta(realDirectory + "/" + transname+ "."+ Const.STRING_TRANS_DEFAULT_EXT,metaStore,null,true,this,null);
+}
+ catch (KettleException ke2) {
+throw new KettleException(BaseMessages.getString(PKG,"JobTrans.Exception.NoRepDefined"),ke2);
+}
+}
 }
 break;
 case REPOSITORY_BY_REFERENCE:
