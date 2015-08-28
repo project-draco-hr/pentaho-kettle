@@ -1,26 +1,19 @@
 {
   TextFileInputMeta meta=new TextFileInputMeta();
-  getInfo(meta,true);
-  if (meta.content.fileType.equalsIgnoreCase("CSV") && (meta.content.separator == null || meta.content.separator.isEmpty())) {
-    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-    mb.setMessage(BaseMessages.getString(PKG,"TextFileInput.Exception.NoSeparator"));
-    mb.setText(BaseMessages.getString(PKG,"TextFileInputDialog.DialogTitle"));
-    mb.open();
-    return;
-  }
+  getInfo(meta);
   TextFileInputMeta previousMeta=(TextFileInputMeta)meta.clone();
   FileInputList textFileList=meta.getTextFileList(transMeta);
   InputStream fileInputStream;
   CompressionInputStream inputStream=null;
   StringBuilder lineStringBuilder=new StringBuilder(256);
   int fileFormatType=meta.getFileFormatTypeNr();
-  String delimiter=transMeta.environmentSubstitute(meta.content.separator);
-  String enclosure=transMeta.environmentSubstitute(meta.content.enclosure);
-  String escapeCharacter=transMeta.environmentSubstitute(meta.content.escapeCharacter);
+  String delimiter=transMeta.environmentSubstitute(meta.getSeparator());
+  String enclosure=transMeta.environmentSubstitute(meta.getEnclosure());
+  String escapeCharacter=transMeta.environmentSubstitute(meta.getEscapeCharacter());
   if (textFileList.nrOfFiles() > 0) {
-    int clearFields=meta.content.header ? SWT.YES : SWT.NO;
-    int nrInputFields=meta.inputFiles.inputFields.length;
-    if (nrInputFields > 0) {
+    int clearFields=meta.hasHeader() ? SWT.YES : SWT.NO;
+    int nrInputFields=meta.getInputFields().length;
+    if (meta.hasHeader() && nrInputFields > 0) {
       MessageBox mb=new MessageBox(shell,SWT.YES | SWT.NO | SWT.CANCEL| SWT.ICON_QUESTION);
       mb.setMessage(BaseMessages.getString(PKG,"TextFileInputDialog.ClearFieldList.DialogMessage"));
       mb.setText(BaseMessages.getString(PKG,"TextFileInputDialog.ClearFieldList.DialogTitle"));
@@ -34,7 +27,7 @@
       FileObject fileObject=textFileList.getFile(0);
       fileInputStream=KettleVFS.getInputStream(fileObject);
       Table table=wFields.table;
-      CompressionProvider provider=CompressionProviderFactory.getInstance().createCompressionProviderInstance(meta.content.fileCompression);
+      CompressionProvider provider=CompressionProviderFactory.getInstance().createCompressionProviderInstance(meta.getFileCompression());
       inputStream=provider.createInputStream(fileInputStream);
       InputStreamReader reader;
       if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
@@ -44,32 +37,37 @@
         reader=new InputStreamReader(inputStream);
       }
       EncodingType encodingType=EncodingType.guessEncodingType(reader.getEncoding());
-      String line=TextFileInputUtils.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
-      if (line != null) {
-        String[] fields=TextFileInputUtils.guessStringsFromLine(transMeta,log,line,meta,delimiter,enclosure,escapeCharacter);
-        for (int i=0; i < fields.length; i++) {
-          String field=fields[i];
-          if (field == null || field.length() == 0 || !meta.content.header) {
-            field="Field" + (i + 1);
-          }
+      if (clearFields == SWT.YES || !meta.hasHeader() || nrInputFields > 0) {
+        String line;
+        if (meta.hasHeader() || meta.getInputFields().length == 0) {
+          line=TextFileInput.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
+          if (line != null) {
+            String[] fields=TextFileInput.guessStringsFromLine(transMeta,log,line,meta,delimiter,enclosure,escapeCharacter);
+            for (int i=0; i < fields.length; i++) {
+              String field=fields[i];
+              if (field == null || field.length() == 0 || (nrInputFields == 0 && !meta.hasHeader())) {
+                field="Field" + (i + 1);
+              }
  else {
-            field=Const.trim(field);
-            field=Const.replace(field," ","_");
-            field=Const.replace(field,"-","_");
+                field=Const.trim(field);
+                field=Const.replace(field," ","_");
+                field=Const.replace(field,"-","_");
+              }
+              TableItem item=new TableItem(table,SWT.NONE);
+              item.setText(1,field);
+              item.setText(2,"String");
+            }
+            wFields.setRowNums();
+            wFields.optWidth(true);
+            getInfo(meta);
           }
-          TableItem item=new TableItem(table,SWT.NONE);
-          item.setText(1,field);
-          item.setText(2,"String");
         }
-        wFields.setRowNums();
-        wFields.optWidth(true);
-        getInfo(meta,true);
         String shellText=BaseMessages.getString(PKG,"TextFileInputDialog.LinesToSample.DialogTitle");
         String lineText=BaseMessages.getString(PKG,"TextFileInputDialog.LinesToSample.DialogMessage");
         EnterNumberDialog end=new EnterNumberDialog(shell,100,shellText,lineText);
         int samples=end.open();
         if (samples >= 0) {
-          getInfo(meta,true);
+          getInfo(meta);
           TextFileCSVImportProgressDialog pd=new TextFileCSVImportProgressDialog(shell,meta,transMeta,reader,samples,clearFields == SWT.YES);
           String message=pd.open();
           if (message != null) {
@@ -77,7 +75,7 @@
             getData(meta);
             if (clearFields == SWT.NO) {
               getFieldsData(previousMeta,true);
-              wFields.table.setSelection(previousMeta.inputFiles.inputFields.length,wFields.table.getItemCount() - 1);
+              wFields.table.setSelection(previousMeta.getInputFields().length,wFields.table.getItemCount() - 1);
             }
             wFields.removeEmptyRows();
             wFields.setRowNums();
