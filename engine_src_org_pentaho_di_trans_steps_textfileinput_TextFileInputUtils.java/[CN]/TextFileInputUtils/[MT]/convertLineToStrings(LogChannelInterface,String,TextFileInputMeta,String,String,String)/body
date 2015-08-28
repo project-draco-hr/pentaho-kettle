@@ -1,0 +1,170 @@
+{
+  String[] strings=new String[inf.inputFiles.inputFields.length];
+  int fieldnr;
+  String pol;
+  try {
+    if (line == null) {
+      return null;
+    }
+    if (inf.content.fileType.equalsIgnoreCase("CSV")) {
+      fieldnr=0;
+      int pos=0;
+      int length=line.length();
+      boolean dencl=false;
+      int len_encl=(enclosure == null ? 0 : enclosure.length());
+      int len_esc=(escapeCharacters == null ? 0 : escapeCharacters.length());
+      while (pos < length) {
+        int from=pos;
+        int next;
+        boolean encl_found;
+        boolean contains_escaped_enclosures=false;
+        boolean contains_escaped_separators=false;
+        if (len_encl > 0 && line.substring(from,from + len_encl).equalsIgnoreCase(enclosure)) {
+          if (log.isRowLevel()) {
+            log.logRowlevel(BaseMessages.getString(PKG,"TextFileInput.Log.ConvertLineToRowTitle"),BaseMessages.getString(PKG,"TextFileInput.Log.Encloruse",line.substring(from,from + len_encl)));
+          }
+          encl_found=true;
+          int p=from + len_encl;
+          boolean is_enclosure=len_encl > 0 && p + len_encl < length && line.substring(p,p + len_encl).equalsIgnoreCase(enclosure);
+          boolean is_escape=len_esc > 0 && p + len_esc < length && line.substring(p,p + len_esc).equalsIgnoreCase(inf.content.escapeCharacter);
+          boolean enclosure_after=false;
+          if ((is_enclosure || is_escape) && p < length - 1) {
+            String strnext=line.substring(p + len_encl,p + 2 * len_encl);
+            if (strnext.equalsIgnoreCase(enclosure)) {
+              p++;
+              enclosure_after=true;
+              dencl=true;
+              if (is_escape) {
+                contains_escaped_enclosures=true;
+              }
+            }
+          }
+          while ((!is_enclosure || enclosure_after) && p < line.length()) {
+            p++;
+            enclosure_after=false;
+            is_enclosure=len_encl > 0 && p + len_encl < length && line.substring(p,p + len_encl).equals(enclosure);
+            is_escape=len_esc > 0 && p + len_esc < length && line.substring(p,p + len_esc).equals(inf.content.escapeCharacter);
+            if ((is_enclosure || is_escape) && p < length - 1) {
+              String strnext=line.substring(p + len_encl,p + 2 * len_encl);
+              if (strnext.equals(enclosure)) {
+                p++;
+                enclosure_after=true;
+                dencl=true;
+                if (is_escape) {
+                  contains_escaped_enclosures=true;
+                }
+              }
+            }
+          }
+          if (p >= length) {
+            next=p;
+          }
+ else {
+            next=p + len_encl;
+          }
+          if (log.isRowLevel()) {
+            log.logRowlevel(BaseMessages.getString(PKG,"TextFileInput.Log.ConvertLineToRowTitle"),BaseMessages.getString(PKG,"TextFileInput.Log.EndOfEnclosure","" + p));
+          }
+        }
+ else {
+          encl_found=false;
+          boolean found=false;
+          int startpoint=from;
+          do {
+            next=line.indexOf(delimiter,startpoint);
+            if (len_esc > 0 && next - len_esc > 0) {
+              String before=line.substring(next - len_esc,next);
+              if (inf.content.escapeCharacter.equals(before)) {
+                startpoint=next + 1;
+                contains_escaped_separators=true;
+              }
+ else {
+                found=true;
+              }
+            }
+ else {
+              found=true;
+            }
+          }
+ while (!found && next >= 0);
+        }
+        if (next == -1) {
+          next=length;
+        }
+        if (encl_found && ((from + len_encl) <= (next - len_encl))) {
+          pol=line.substring(from + len_encl,next - len_encl);
+          if (log.isRowLevel()) {
+            log.logRowlevel(BaseMessages.getString(PKG,"TextFileInput.Log.ConvertLineToRowTitle"),BaseMessages.getString(PKG,"TextFileInput.Log.EnclosureFieldFound","" + pol));
+          }
+        }
+ else {
+          pol=line.substring(from,next);
+          if (log.isRowLevel()) {
+            log.logRowlevel(BaseMessages.getString(PKG,"TextFileInput.Log.ConvertLineToRowTitle"),BaseMessages.getString(PKG,"TextFileInput.Log.NormalFieldFound","" + pol));
+          }
+        }
+        if (dencl && Const.isEmpty(inf.content.escapeCharacter)) {
+          StringBuilder sbpol=new StringBuilder(pol);
+          int idx=sbpol.indexOf(enclosure + enclosure);
+          while (idx >= 0) {
+            sbpol.delete(idx,idx + enclosure.length());
+            idx=sbpol.indexOf(enclosure + enclosure);
+          }
+          pol=sbpol.toString();
+        }
+        if (contains_escaped_enclosures) {
+          String replace=inf.content.escapeCharacter + enclosure;
+          String replaceWith=enclosure;
+          pol=Const.replace(pol,replace,replaceWith);
+        }
+        if (contains_escaped_separators) {
+          String replace=inf.content.escapeCharacter + delimiter;
+          String replaceWith=delimiter;
+          pol=Const.replace(pol,replace,replaceWith);
+        }
+        try {
+          strings[fieldnr]=pol;
+        }
+ catch (        ArrayIndexOutOfBoundsException e) {
+          String[] newStrings=new String[strings.length];
+          for (int x=0; x < strings.length; x++) {
+            newStrings[x]=strings[x];
+          }
+          strings=newStrings;
+        }
+        pos=next + delimiter.length();
+        fieldnr++;
+      }
+      if (pos == length) {
+        if (log.isRowLevel()) {
+          log.logRowlevel(BaseMessages.getString(PKG,"TextFileInput.Log.ConvertLineToRowTitle"),BaseMessages.getString(PKG,"TextFileInput.Log.EndOfEmptyLineFound"));
+        }
+        if (fieldnr < strings.length) {
+          strings[fieldnr]=Const.EMPTY_STRING;
+        }
+        fieldnr++;
+      }
+    }
+ else {
+      for (int i=0; i < inf.inputFiles.inputFields.length; i++) {
+        TextFileInputField field=inf.inputFiles.inputFields[i];
+        int length=line.length();
+        if (field.getPosition() + field.getLength() <= length) {
+          strings[i]=line.substring(field.getPosition(),field.getPosition() + field.getLength());
+        }
+ else {
+          if (field.getPosition() < length) {
+            strings[i]=line.substring(field.getPosition());
+          }
+ else {
+            strings[i]="";
+          }
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"TextFileInput.Log.Error.ErrorConvertingLine",e.toString()),e);
+  }
+  return strings;
+}

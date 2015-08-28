@@ -1,0 +1,26 @@
+{
+  this.step=step;
+  this.meta=meta;
+  this.data=data;
+  this.log=log;
+  CompressionProvider provider=CompressionProviderFactory.getInstance().getCompressionProviderByName(meta.content.fileCompression);
+  if (log.isDetailed()) {
+    log.logDetailed("This is a compressed file being handled by the " + provider.getName() + " provider");
+  }
+  in=provider.createInputStream(KettleVFS.getInputStream(file));
+  in.nextEntry();
+  BufferedInputStream inStream=new BufferedInputStream(in,BUFFER_SIZE_INPUT_STREAM);
+  BOMDetector bom=new BOMDetector(inStream);
+  if (bom.bomExist()) {
+    isr=new InputStreamReader(inStream,bom.getCharset());
+  }
+ else   if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+    isr=new InputStreamReader(inStream,meta.getEncoding());
+  }
+ else {
+    isr=new InputStreamReader(inStream);
+  }
+  String encoding=isr.getEncoding();
+  data.encodingType=EncodingType.guessEncodingType(encoding);
+  readInitial();
+}
