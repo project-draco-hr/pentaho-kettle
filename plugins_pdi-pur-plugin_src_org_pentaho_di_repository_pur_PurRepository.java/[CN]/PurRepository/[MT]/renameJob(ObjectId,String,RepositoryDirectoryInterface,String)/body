@@ -1,11 +1,16 @@
 {
-  if (newName != null) {
-    RepositoryFile file=pur.getFileById(idJob.getId());
-    file=new RepositoryFile.Builder(file).title(RepositoryFile.DEFAULT_LOCALE,newName).build();
-    NodeRepositoryFileData data=pur.getDataAtVersionForRead(file.getId(),null,NodeRepositoryFileData.class);
-    file=pur.updateFile(file,data,versionComment);
+  String absPath=calcDestAbsPath(idJobForRename,newDirectory,newJobName,RepositoryObjectType.JOB);
+  RepositoryFile fileFromDestination=pur.getFile(absPath);
+  RepositoryFile fileBeforeRename=pur.getFileById(idJobForRename.getId());
+  if (fileFromDestination == null && newJobName != null) {
+    fileBeforeRename=new RepositoryFile.Builder(fileBeforeRename).title(RepositoryFile.DEFAULT_LOCALE,newJobName).build();
+    NodeRepositoryFileData data=pur.getDataAtVersionForRead(fileBeforeRename.getId(),null,NodeRepositoryFileData.class);
+    fileBeforeRename=pur.updateFile(fileBeforeRename,data,versionComment);
+    pur.moveFile(idJobForRename.getId(),absPath,null);
+    rootRef.clearRef();
+    return idJobForRename;
   }
-  pur.moveFile(idJob.getId(),calcDestAbsPath(idJob,newDirectory,newName,RepositoryObjectType.JOB),null);
-  rootRef.clearRef();
-  return idJob;
+ else {
+    throw new KettleException(BaseMessages.getString(PKG,"PurRepository.ERROR_0006_UNABLE_TO_RENAME_JOB",fileBeforeRename.getName(),newJobName));
+  }
 }
