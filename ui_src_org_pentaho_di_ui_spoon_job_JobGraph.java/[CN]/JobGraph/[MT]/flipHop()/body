@@ -1,23 +1,25 @@
 {
   selectionRegion=null;
-  JobEntryCopy dummy=currentHop.getFromEntry();
+  JobEntryCopy origFrom=currentHop.getFromEntry();
+  JobEntryCopy origTo=currentHop.getToEntry();
   currentHop.setFromEntry(currentHop.getToEntry());
-  currentHop.setToEntry(dummy);
-  if (jobMeta.hasLoop(currentHop.getFromEntry())) {
-    spoon.refreshGraph();
-    MessageBox mb=new MessageBox(shell,SWT.YES | SWT.ICON_WARNING);
+  currentHop.setToEntry(origFrom);
+  boolean cancel=false;
+  if (jobMeta.hasLoop(currentHop.getFromEntry()) || jobMeta.hasLoop(currentHop.getToEntry())) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.CANCEL | SWT.ICON_WARNING);
     mb.setMessage(BaseMessages.getString(PKG,"JobGraph.Dialog.HopFlipCausesLoop.Message"));
-    mb.setText(BaseMessages.getString(PKG,"JobGraph.Dialog.HopFlipCausesLoop.Title"));
-    mb.open();
-    dummy=currentHop.getFromEntry();
-    currentHop.setFromEntry(currentHop.getToEntry());
-    currentHop.setToEntry(dummy);
-    spoon.refreshGraph();
+    mb.setText(BaseMessages.getString(PKG,"JobGraph.Dialog.HopCausesLoop.Title"));
+    int choice=mb.open();
+    if (choice == SWT.CANCEL) {
+      cancel=true;
+      currentHop.setFromEntry(origFrom);
+      currentHop.setToEntry(origTo);
+    }
   }
- else {
+  if (!cancel) {
     currentHop.setChanged();
-    spoon.refreshGraph();
-    spoon.refreshTree();
-    spoon.setShellText();
   }
+  spoon.refreshGraph();
+  spoon.refreshTree();
+  spoon.setShellText();
 }

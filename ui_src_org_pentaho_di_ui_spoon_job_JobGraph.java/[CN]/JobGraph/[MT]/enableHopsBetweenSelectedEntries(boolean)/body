@@ -1,5 +1,6 @@
 {
   List<JobEntryCopy> list=jobMeta.getSelectedEntries();
+  boolean hasLoop=false;
   for (int i=0; i < jobMeta.nrJobHops(); i++) {
     JobHopMeta hop=jobMeta.getJobHop(i);
     if (list.contains(hop.getFromEntry()) && list.contains(hop.getToEntry())) {
@@ -7,7 +8,16 @@
       hop.setEnabled(enabled);
       JobHopMeta after=(JobHopMeta)hop.clone();
       spoon.addUndoChange(jobMeta,new JobHopMeta[]{before},new JobHopMeta[]{after},new int[]{jobMeta.indexOfJobHop(hop)});
+      if (jobMeta.hasLoop(hop.getFromEntry()) || jobMeta.hasLoop(hop.getToEntry())) {
+        hasLoop=true;
+      }
     }
+  }
+  if (hasLoop && enabled) {
+    MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_WARNING);
+    mb.setMessage(BaseMessages.getString(PKG,"JobGraph.Dialog.LoopAfterHopEnabled.Message"));
+    mb.setText(BaseMessages.getString(PKG,"JobGraph.Dialog.LoopAfterHopEnabled.Title"));
+    mb.open();
   }
   spoon.refreshGraph();
 }
