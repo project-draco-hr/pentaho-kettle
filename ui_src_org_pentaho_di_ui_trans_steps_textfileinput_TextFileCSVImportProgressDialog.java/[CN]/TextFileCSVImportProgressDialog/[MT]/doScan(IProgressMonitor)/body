@@ -8,7 +8,7 @@
   String line="";
   long fileLineNumber=0;
   DecimalFormatSymbols dfs=new DecimalFormatSymbols();
-  int nrfields=meta.inputFiles.inputFields.length;
+  int nrfields=meta.getInputFields().length;
   RowMetaInterface outputRowMeta=new RowMeta();
   meta.getFields(outputRowMeta,null,null,null,transMeta,null,null);
   for (  ValueMetaInterface valueMeta : outputRowMeta.getValueMetaList()) {
@@ -33,13 +33,13 @@
   int[][] numberPrecision=new int[nrfields][Const.getNumberFormats().length];
   int[][] numberLength=new int[nrfields][Const.getNumberFormats().length];
   for (int i=0; i < nrfields; i++) {
-    TextFileInputField field=meta.inputFiles.inputFields[i];
+    TextFileInputField field=meta.getInputFields()[i];
     if (log.isDebug()) {
       debug="init field #" + i;
     }
     if (replaceMeta) {
-      field.setName(meta.inputFiles.inputFields[i].getName());
-      field.setType(meta.inputFiles.inputFields[i].getType());
+      field.setName(meta.getInputFields()[i].getName());
+      field.setType(meta.getInputFields()[i].getType());
       field.setFormat("");
       field.setLength(-1);
       field.setPrecision(-1);
@@ -70,19 +70,19 @@
     }
     numberFormatCount[i]=Const.getNumberFormats().length;
   }
-  TextFileInputMeta strinfo=(TextFileInputMeta)meta.clone();
+  InputFileMetaInterface strinfo=(InputFileMetaInterface)meta.clone();
   for (int i=0; i < nrfields; i++) {
-    strinfo.inputFiles.inputFields[i].setType(ValueMetaInterface.TYPE_STRING);
+    strinfo.getInputFields()[i].setType(ValueMetaInterface.TYPE_STRING);
   }
   debug="get first line";
   StringBuilder lineBuffer=new StringBuilder(256);
   int fileFormatType=meta.getFileFormatTypeNr();
-  line=TextFileInputUtils.getLine(log,reader,encodingType,fileFormatType,lineBuffer);
+  line=TextFileInput.getLine(log,reader,encodingType,fileFormatType,lineBuffer);
   fileLineNumber++;
   int skipped=1;
-  if (meta.content.header) {
-    while (line != null && skipped < meta.content.nrHeaderLines) {
-      line=TextFileInputUtils.getLine(log,reader,encodingType,fileFormatType,lineBuffer);
+  if (meta.hasHeader()) {
+    while (line != null && skipped < meta.getNrHeaderLines()) {
+      line=TextFileInput.getLine(log,reader,encodingType,fileFormatType,lineBuffer);
       skipped++;
       fileLineNumber++;
     }
@@ -107,10 +107,10 @@
       valueMeta.setStorageMetadata(null);
       valueMeta.setStorageType(ValueMetaInterface.STORAGE_TYPE_NORMAL);
     }
-    String delimiter=transMeta.environmentSubstitute(meta.content.separator);
-    String enclosure=transMeta.environmentSubstitute(meta.content.enclosure);
-    String escapeCharacter=transMeta.environmentSubstitute(meta.content.escapeCharacter);
-    Object[] r=TextFileInputUtils.convertLineToRow(log,new TextFileLine(line,fileLineNumber,null),strinfo,null,0,outputRowMeta,convertRowMeta,meta.getFilePaths(transMeta)[0],rownumber,delimiter,enclosure,escapeCharacter,null,new BaseInputStepMeta.AdditionalOutputFields(),null,null,false,null,null,null,null,0);
+    String delimiter=transMeta.environmentSubstitute(meta.getSeparator());
+    String enclosure=transMeta.environmentSubstitute(meta.getEnclosure());
+    String escapeCharacter=transMeta.environmentSubstitute(meta.getEscapeCharacter());
+    Object[] r=TextFileInput.convertLineToRow(log,new TextFileLine(line,fileLineNumber,null),strinfo,null,0,outputRowMeta,convertRowMeta,meta.getFilePaths(transMeta)[0],rownumber,delimiter,enclosure,escapeCharacter,null,false,false,false,false,false,false,false,false,null,null,false,null,null,null,null,0);
     if (r == null) {
       errorFound=true;
       continue;
@@ -135,7 +135,7 @@
     if (r != null) {
       linenr++;
     }
-    line=TextFileInputUtils.getLine(log,reader,encodingType,fileFormatType,lineBuffer);
+    line=TextFileInput.getLine(log,reader,encodingType,fileFormatType,lineBuffer);
   }
   monitor.worked(1);
   monitor.setTaskName(BaseMessages.getString(PKG,"TextFileCSVImportProgressDialog.Task.AnalyzingResults"));
@@ -143,28 +143,26 @@
   message.append(BaseMessages.getString(PKG,"TextFileCSVImportProgressDialog.Info.ResultAfterScanning","" + (linenr - 1)));
   message.append(BaseMessages.getString(PKG,"TextFileCSVImportProgressDialog.Info.HorizontalLine"));
   for (int i=0; i < nrfields; i++) {
-    TextFileInputField field=meta.inputFiles.inputFields[i];
+    TextFileInputField field=meta.getInputFields()[i];
     StringEvaluator evaluator=evaluators.get(i);
     List<StringEvaluationResult> evaluationResults=evaluator.getStringEvaluationResults();
+    StringEvaluationResult result=evaluator.getAdvicedResult();
     if (evaluationResults.isEmpty()) {
       field.setType(ValueMetaInterface.TYPE_STRING);
       field.setLength(evaluator.getMaxLength());
     }
- else {
-      StringEvaluationResult result=evaluator.getAdvicedResult();
-      if (result != null) {
-        ValueMetaInterface conversionMeta=result.getConversionMeta();
-        field.setType(conversionMeta.getType());
-        field.setTrimType(conversionMeta.getTrimType());
-        field.setFormat(conversionMeta.getConversionMask());
-        field.setDecimalSymbol(conversionMeta.getDecimalSymbol());
-        field.setGroupSymbol(conversionMeta.getGroupingSymbol());
-        field.setLength(conversionMeta.getLength());
-        field.setPrecision(conversionMeta.getPrecision());
-        nrnull[i]=result.getNrNull();
-        minstr[i]=result.getMin() == null ? "" : result.getMin().toString();
-        maxstr[i]=result.getMax() == null ? "" : result.getMax().toString();
-      }
+    if (result != null) {
+      ValueMetaInterface conversionMeta=result.getConversionMeta();
+      field.setType(conversionMeta.getType());
+      field.setTrimType(conversionMeta.getTrimType());
+      field.setFormat(conversionMeta.getConversionMask());
+      field.setDecimalSymbol(conversionMeta.getDecimalSymbol());
+      field.setGroupSymbol(conversionMeta.getGroupingSymbol());
+      field.setLength(conversionMeta.getLength());
+      field.setPrecision(conversionMeta.getPrecision());
+      nrnull[i]=result.getNrNull();
+      minstr[i]=result.getMin() == null ? "" : result.getMin().toString();
+      maxstr[i]=result.getMax() == null ? "" : result.getMax().toString();
     }
     message.append(BaseMessages.getString(PKG,"TextFileCSVImportProgressDialog.Info.FieldNumber","" + (i + 1)));
     message.append(BaseMessages.getString(PKG,"TextFileCSVImportProgressDialog.Info.FieldName",field.getName()));
