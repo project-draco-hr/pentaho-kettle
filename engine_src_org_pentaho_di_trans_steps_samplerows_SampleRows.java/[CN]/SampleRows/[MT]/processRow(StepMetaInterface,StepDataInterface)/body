@@ -17,27 +17,29 @@
       meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
     }
     String[] rangePart=realRange.split(",");
-    for (int i=0; i < rangePart.length; i++) {
-      if (rangePart[i].matches("\\d+")) {
-        String part=rangePart[i];
+    ImmutableRangeSet.Builder<Integer> setBuilder=ImmutableRangeSet.builder();
+    for (    String part : rangePart) {
+      if (part.matches("\\d+")) {
         if (log.isDebug()) {
           logDebug(BaseMessages.getString(PKG,"SampleRows.Log.RangeValue",part));
         }
         int vpart=Integer.valueOf(part);
-        data.range.add(vpart);
+        setBuilder.add(Range.singleton(vpart));
       }
- else       if (rangePart[i].matches("\\d+\\.\\.\\d+")) {
-        String[] rangeMultiPart=rangePart[i].split("\\.\\.");
-        for (int j=Integer.valueOf(rangeMultiPart[0]); j < Integer.valueOf(rangeMultiPart[1]) + 1; j++) {
-          if (log.isDebug()) {
-            logDebug(BaseMessages.getString(PKG,"SampleRows.Log.RangeValue","" + j));
-          }
-          int vpart=j;
-          data.range.add(vpart);
+ else       if (part.matches("\\d+\\.\\.\\d+")) {
+        String[] rangeMultiPart=part.split("\\.\\.");
+        Integer start=Integer.valueOf(rangeMultiPart[0]);
+        Integer end=Integer.valueOf(rangeMultiPart[1]);
+        Range<Integer> range=Range.closed(start,end);
+        if (log.isDebug()) {
+          logDebug(BaseMessages.getString(PKG,"SampleRows.Log.RangeValue",range));
         }
+        setBuilder.add(range);
       }
     }
-    if (data.range.size() == 0) {
+    data.rangeSet=setBuilder.build();
+    if (data.rangeSet.isEmpty()) {
+      setOutputDone();
       return false;
     }
   }
@@ -50,15 +52,19 @@
  else {
     data.outputRow=r;
   }
-  if (data.range.contains((int)getLinesRead())) {
+  int linesRead=(int)getLinesRead();
+  if (data.rangeSet.contains(linesRead)) {
     if (data.addlineField) {
       data.outputRow[data.NrPrevFields]=getLinesRead();
     }
     putRow(data.outputRowMeta,data.outputRow);
-    numRowsSampled++;
     if (log.isRowLevel()) {
-      logRowlevel(BaseMessages.getString(PKG,"SampleRows.Log.LineNumber",getLinesRead() + " : " + getInputRowMeta().getString(r)));
+      logRowlevel(BaseMessages.getString(PKG,"SampleRows.Log.LineNumber",linesRead + " : " + getInputRowMeta().getString(r)));
     }
   }
-  return numRowsSampled < data.range.size();
+  boolean done=linesRead >= data.rangeSet.span().upperEndpoint();
+  if (done) {
+    setOutputDone();
+  }
+  return !done;
 }
