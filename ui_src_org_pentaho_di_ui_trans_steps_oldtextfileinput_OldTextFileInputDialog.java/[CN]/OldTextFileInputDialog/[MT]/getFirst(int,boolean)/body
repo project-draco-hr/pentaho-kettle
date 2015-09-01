@@ -1,0 +1,65 @@
+{
+  OldTextFileInputMeta meta=new OldTextFileInputMeta();
+  getInfo(meta);
+  FileInputList textFileList=meta.getTextFileList(transMeta);
+  InputStream fi;
+  CompressionInputStream f=null;
+  StringBuilder lineStringBuilder=new StringBuilder(256);
+  int fileFormatType=meta.getFileFormatTypeNr();
+  List<String> retval=new ArrayList<String>();
+  if (textFileList.nrOfFiles() > 0) {
+    FileObject file=textFileList.getFile(0);
+    try {
+      fi=KettleVFS.getInputStream(file);
+      CompressionProvider provider=CompressionProviderFactory.getInstance().createCompressionProviderInstance(meta.getFileCompression());
+      f=provider.createInputStream(fi);
+      InputStreamReader reader;
+      if (meta.getEncoding() != null && meta.getEncoding().length() > 0) {
+        reader=new InputStreamReader(f,meta.getEncoding());
+      }
+ else {
+        reader=new InputStreamReader(f);
+      }
+      OldEncodingType encodingType=OldEncodingType.guessEncodingType(reader.getEncoding());
+      int linenr=0;
+      int maxnr=nrlines + (meta.hasHeader() ? meta.getNrHeaderLines() : 0);
+      if (skipHeaders) {
+        if (meta.isLayoutPaged() && meta.getNrLinesDocHeader() > 0) {
+          int skipped=0;
+          String line=OldTextFileInput.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
+          while (line != null && skipped < meta.getNrLinesDocHeader() - 1) {
+            skipped++;
+            line=OldTextFileInput.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
+          }
+        }
+        if (meta.hasHeader() && meta.getNrHeaderLines() > 0) {
+          int skipped=0;
+          String line=OldTextFileInput.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
+          while (line != null && skipped < meta.getNrHeaderLines() - 1) {
+            skipped++;
+            line=OldTextFileInput.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
+          }
+        }
+      }
+      String line=OldTextFileInput.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
+      while (line != null && (linenr < maxnr || nrlines == 0)) {
+        retval.add(line);
+        linenr++;
+        line=OldTextFileInput.getLine(log,reader,encodingType,fileFormatType,lineStringBuilder);
+      }
+    }
+ catch (    Exception e) {
+      throw new KettleException(BaseMessages.getString(PKG,"TextFileInputDialog.Exception.ErrorGettingFirstLines","" + nrlines,file.getName().getURI()),e);
+    }
+ finally {
+      try {
+        if (f != null) {
+          f.close();
+        }
+      }
+ catch (      Exception e) {
+      }
+    }
+  }
+  return retval;
+}

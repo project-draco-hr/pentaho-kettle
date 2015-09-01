@@ -1,0 +1,25 @@
+{
+  meta=(M)smi;
+  data=(D)sdi;
+  if (!super.init(smi,sdi)) {
+    return false;
+  }
+  initErrorHandling();
+  meta.additionalOutputFields.normalize();
+  data.files=meta.getTextFileList(this);
+  data.currentFileIndex=0;
+  Result previousResult=getTrans().getPreviousResult();
+  Map<String,ResultFile> resultFiles=(previousResult != null) ? previousResult.getResultFiles() : null;
+  if ((previousResult == null || resultFiles == null || resultFiles.size() == 0) && data.files.nrOfMissingFiles() > 0 && !meta.inputFiles.acceptingFilenames && !meta.errorHandling.errorIgnored) {
+    logError(BaseMessages.getString(PKG,"TextFileInput.Log.Error.NoFilesSpecified"));
+    return false;
+  }
+  String clusterSize=getVariable(Const.INTERNAL_VARIABLE_CLUSTER_SIZE);
+  if (!Const.isEmpty(clusterSize) && Integer.valueOf(clusterSize) > 1) {
+    String nr=getVariable(Const.INTERNAL_VARIABLE_SLAVE_SERVER_NUMBER);
+    if (log.isDetailed()) {
+      logDetailed("Running on slave server #" + nr + " : assuming that each slave reads a dedicated part of the same file(s).");
+    }
+  }
+  return init();
+}
