@@ -1,25 +1,33 @@
 {
-  LogChannelInterface log=LogChannel.GENERAL;
-  PluginRegistry registry=PluginRegistry.getInstance();
-  List<PluginInterface> plugins=registry.getPlugins(DatabasePluginType.class);
-  HashMap<String,DatabaseInterface> tmpAllDatabaseInterfaces=new HashMap<String,DatabaseInterface>();
-  for (  PluginInterface plugin : plugins) {
-    try {
-      DatabaseInterface databaseInterface=(DatabaseInterface)registry.loadClass(plugin);
-      databaseInterface.setPluginId(plugin.getIds()[0]);
-      databaseInterface.setPluginName(plugin.getName());
-      tmpAllDatabaseInterfaces.put(plugin.getIds()[0],databaseInterface);
-    }
- catch (    KettlePluginException cnfe) {
-      System.out.println("Could not create connection entry for " + plugin.getName() + ".  "+ cnfe.getCause().getClass().getName());
-      log.logError("Could not create connection entry for " + plugin.getName() + ".  "+ cnfe.getCause().getClass().getName());
-      if (log.isDebug()) {
-        log.logDebug("Debug-Error loading plugin: " + plugin,cnfe);
+  return ExecutorUtil.getExecutor().submit(new Callable<Map<String,DatabaseInterface>>(){
+    private Map<String,DatabaseInterface> doCreate(){
+      LogChannelInterface log=LogChannel.GENERAL;
+      PluginRegistry registry=PluginRegistry.getInstance();
+      List<PluginInterface> plugins=registry.getPlugins(DatabasePluginType.class);
+      HashMap<String,DatabaseInterface> tmpAllDatabaseInterfaces=new HashMap<String,DatabaseInterface>();
+      for (      PluginInterface plugin : plugins) {
+        try {
+          DatabaseInterface databaseInterface=(DatabaseInterface)registry.loadClass(plugin);
+          databaseInterface.setPluginId(plugin.getIds()[0]);
+          databaseInterface.setPluginName(plugin.getName());
+          tmpAllDatabaseInterfaces.put(plugin.getIds()[0],databaseInterface);
+        }
+ catch (        KettlePluginException cnfe) {
+          System.out.println("Could not create connection entry for " + plugin.getName() + ".  "+ cnfe.getCause().getClass().getName());
+          log.logError("Could not create connection entry for " + plugin.getName() + ".  "+ cnfe.getCause().getClass().getName());
+          if (log.isDebug()) {
+            log.logDebug("Debug-Error loading plugin: " + plugin,cnfe);
+          }
+        }
+catch (        Exception e) {
+          log.logError("Error loading plugin: " + plugin,e);
+        }
       }
+      return Collections.unmodifiableMap(tmpAllDatabaseInterfaces);
     }
-catch (    Exception e) {
-      log.logError("Error loading plugin: " + plugin,e);
+    @Override public Map<String,DatabaseInterface> call() throws Exception {
+      return doCreate();
     }
   }
-  return Collections.unmodifiableMap(tmpAllDatabaseInterfaces);
+);
 }

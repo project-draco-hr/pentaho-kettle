@@ -1,20 +1,19 @@
 {
-  databaseInterfacesMapLock.readLock().lock();
-  try {
-    if (allDatabaseInterfaces == null) {
-      databaseInterfacesMapLock.readLock().unlock();
-      try {
-        databaseInterfacesMapLock.writeLock().lock();
-        allDatabaseInterfaces=createDatabaseInterfacesMap();
-      }
-  finally {
-        databaseInterfacesMapLock.readLock().lock();
-        databaseInterfacesMapLock.writeLock().unlock();
-      }
-    }
-    return allDatabaseInterfaces;
+  Future<Map<String,DatabaseInterface>> allDatabaseInterfaces=DatabaseMeta.allDatabaseInterfaces;
+  if (allDatabaseInterfaces == null) {
+    allDatabaseInterfaces=createDatabaseInterfacesMap();
+    DatabaseMeta.allDatabaseInterfaces=allDatabaseInterfaces;
   }
-  finally {
-    databaseInterfacesMapLock.readLock().unlock();
+  try {
+    return allDatabaseInterfaces.get();
+  }
+ catch (  Exception e) {
+    clearDatabaseInterfacesMap();
+    if (e instanceof RuntimeException) {
+      throw (RuntimeException)e;
+    }
+ else {
+      throw new RuntimeException(e);
+    }
   }
 }
