@@ -1,27 +1,21 @@
 {
   try {
     if (fileId != null) {
-      Repository repository=PDIImportUtil.connectToRepository(null);
+      Repository repository=connectToRepository();
       RepositoryFile file=unifiedRepository.getFileById(fileId);
       if (file != null) {
         try {
           TransMeta transMeta=repository.loadTransformation(new StringObjectId(fileId.toString()),null);
-          if (transMeta.getPrivateTransformationDatabases() != null) {
-            for (ListIterator<DatabaseMeta> iter=transMeta.getDatabases().listIterator(); iter.hasNext(); ) {
-              String databaseName=iter.next().getName();
-              boolean removeDatabase=true;
-              for (              String privateDatabase : transMeta.getPrivateTransformationDatabases()) {
-                if (databaseName.equalsIgnoreCase(privateDatabase)) {
-                  removeDatabase=false;
-                  break;
+          if (transMeta != null) {
+            Set<String> privateDatabases=transMeta.getPrivateDatabases();
+            if (privateDatabases != null) {
+              for (Iterator<DatabaseMeta> it=transMeta.getDatabases().iterator(); it.hasNext(); ) {
+                String databaseName=it.next().getName();
+                if (!privateDatabases.contains(databaseName)) {
+                  it.remove();
                 }
               }
-              if (removeDatabase) {
-                iter.remove();
-              }
             }
-          }
-          if (transMeta != null) {
             return new ByteArrayInputStream(transMeta.getXML().getBytes());
           }
         }
