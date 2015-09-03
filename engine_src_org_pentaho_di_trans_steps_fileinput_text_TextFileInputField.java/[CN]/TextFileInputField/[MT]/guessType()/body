@@ -1,0 +1,172 @@
+{
+  nf=NumberFormat.getInstance();
+  df=(DecimalFormat)nf;
+  dfs=new DecimalFormatSymbols();
+  daf=new SimpleDateFormat();
+  daf.setLenient(false);
+  type=ValueMetaInterface.TYPE_STRING;
+  if (samples == null) {
+    return;
+  }
+  int datefmt_cnt=date_formats.length;
+  boolean[] datefmt=new boolean[date_formats.length];
+  for (int i=0; i < date_formats.length; i++) {
+    datefmt[i]=true;
+  }
+  int datenul=0;
+  for (int i=0; i < samples.length; i++) {
+    if (samples[i].length() > 0 && samples[i].equalsIgnoreCase(nullString)) {
+      datenul++;
+    }
+ else {
+      for (int x=0; x < date_formats.length; x++) {
+        if (samples[i] == null || Const.onlySpaces(samples[i]) || samples[i].length() == 0) {
+          datefmt[x]=false;
+          datefmt_cnt--;
+        }
+        if (datefmt[x]) {
+          try {
+            daf.applyPattern(date_formats[x]);
+            Date date=daf.parse(samples[i]);
+            Calendar cal=Calendar.getInstance();
+            cal.setTime(date);
+            int year=cal.get(Calendar.YEAR);
+            if (year < 1800 || year > 2200) {
+              datefmt[x]=false;
+              datefmt_cnt--;
+            }
+          }
+ catch (          Exception e) {
+            datefmt[x]=false;
+            datefmt_cnt--;
+          }
+        }
+      }
+    }
+  }
+  if (datefmt_cnt > 0 && datenul != samples.length) {
+    int first=-1;
+    for (int i=0; i < date_formats.length && first < 0; i++) {
+      if (datefmt[i]) {
+        first=i;
+      }
+    }
+    type=ValueMetaInterface.TYPE_DATE;
+    format=date_formats[first];
+    return;
+  }
+  boolean isnumber=true;
+  decimalSymbol="" + dfs.getDecimalSeparator();
+  groupSymbol="" + dfs.getGroupingSeparator();
+  boolean[] numfmt=new boolean[number_formats.length];
+  int[] maxprecision=new int[number_formats.length];
+  for (int i=0; i < numfmt.length; i++) {
+    numfmt[i]=true;
+    maxprecision[i]=-1;
+  }
+  int numfmt_cnt=number_formats.length;
+  int numnul=0;
+  for (int i=0; i < samples.length && isnumber; i++) {
+    boolean contains_dot=false;
+    boolean contains_comma=false;
+    String field=samples[i];
+    if (field.length() > 0 && field.equalsIgnoreCase(nullString)) {
+      numnul++;
+    }
+ else {
+      for (int x=0; x < field.length() && isnumber; x++) {
+        char ch=field.charAt(x);
+        if (!Character.isDigit(ch) && ch != '.' && ch != ',' && (ch != '-' || x > 0) && ch != 'E' && ch != 'e') {
+          isnumber=false;
+          numfmt_cnt=0;
+        }
+ else {
+          if (ch == '.') {
+            contains_dot=true;
+          }
+          if (ch == ',') {
+            contains_comma=true;
+          }
+        }
+      }
+      if (isnumber) {
+        if (contains_dot && !contains_comma) {
+          dfs.setDecimalSeparator('.');
+          decimalSymbol=".";
+          dfs.setGroupingSeparator(',');
+          groupSymbol=",";
+        }
+ else         if (!contains_dot && contains_comma) {
+          dfs.setDecimalSeparator(',');
+          decimalSymbol=",";
+          dfs.setGroupingSeparator('.');
+          groupSymbol=".";
+        }
+ else         if (contains_dot && contains_comma) {
+          int idx_dot=field.indexOf('.');
+          int idx_com=field.indexOf(',');
+          if (idx_dot > idx_com) {
+            dfs.setDecimalSeparator('.');
+            decimalSymbol=".";
+            dfs.setGroupingSeparator(',');
+            groupSymbol=",";
+          }
+ else {
+            dfs.setDecimalSeparator(',');
+            decimalSymbol=",";
+            dfs.setGroupingSeparator('.');
+            groupSymbol=".";
+          }
+        }
+        for (int x=0; x < number_formats.length; x++) {
+          if (numfmt[x]) {
+            boolean islong=true;
+            try {
+              int prec=-1;
+              if (!contains_dot && !contains_comma) {
+                try {
+                  Long.parseLong(field);
+                  prec=0;
+                }
+ catch (                Exception e) {
+                  islong=false;
+                }
+              }
+              if (!islong) {
+                df.setDecimalFormatSymbols(dfs);
+                df.applyPattern(number_formats[x]);
+                double d=df.parse(field).doubleValue();
+                prec=guessPrecision(d);
+              }
+              if (prec > maxprecision[x]) {
+                maxprecision[x]=prec;
+              }
+            }
+ catch (            Exception e) {
+              numfmt[x]=false;
+              numfmt_cnt--;
+            }
+          }
+        }
+      }
+    }
+  }
+  if (numfmt_cnt > 0 && numnul != samples.length) {
+    int first=-1;
+    for (int i=0; i < number_formats.length && first < 0; i++) {
+      if (numfmt[i]) {
+        first=i;
+      }
+    }
+    type=ValueMetaInterface.TYPE_NUMBER;
+    format=number_formats[first];
+    precision=maxprecision[first];
+    return;
+  }
+  type=ValueMetaInterface.TYPE_STRING;
+  format="";
+  precision=-1;
+  decimalSymbol="";
+  groupSymbol="";
+  currencySymbol="";
+}
