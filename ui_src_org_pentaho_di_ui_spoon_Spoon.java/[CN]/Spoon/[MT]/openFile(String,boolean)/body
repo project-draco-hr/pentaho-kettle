@@ -1,53 +1,51 @@
 {
-  try {
-    boolean loaded=false;
-    FileListener listener=null;
-    Node root=null;
-    int idx=filename.lastIndexOf('.');
-    if (idx != -1) {
-      for (      FileListener li : fileListeners) {
-        if (li.accepts(filename)) {
-          listener=li;
-          break;
-        }
-      }
-    }
-    try {
-      Document document=XMLHandler.loadXMLFile(filename);
-      root=document.getDocumentElement();
-    }
- catch (    KettleXMLException e) {
-      if (log.isDetailed()) {
-        log.logDetailed(BaseMessages.getString(PKG,"Spoon.File.Xml.Parse.Error"));
-      }
-    }
-    if (listener == null && root != null) {
-      for (      FileListener li : fileListeners) {
-        if (li.acceptsXml(root.getNodeName())) {
-          listener=li;
-          break;
-        }
-      }
-    }
-    if (!Const.isEmpty(filename)) {
-      if (listener != null) {
-        loaded=listener.open(root,filename,importfile);
-      }
-      if (!loaded) {
-        hideSplash();
-        MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
-        mb.setMessage(BaseMessages.getString(PKG,"Spoon.UnknownFileType.Message",filename));
-        mb.setText(BaseMessages.getString(PKG,"Spoon.UnknownFileType.Title"));
-        mb.open();
-      }
- else {
-        applyVariables();
+  boolean loaded=false;
+  FileListener listener=null;
+  Node root=null;
+  int idx=filename.lastIndexOf('.');
+  if (idx != -1) {
+    for (    FileListener li : fileListeners) {
+      if (li.accepts(filename)) {
+        listener=li;
+        break;
       }
     }
   }
- catch (  KettleMissingPluginsException e) {
-    if (marketPluginIsAvailable()) {
-      handleMissingPluginsExceptionWithMarketplace(e);
+  try {
+    Document document=XMLHandler.loadXMLFile(filename);
+    root=document.getDocumentElement();
+  }
+ catch (  KettleXMLException e) {
+    if (log.isDetailed()) {
+      log.logDetailed(BaseMessages.getString(PKG,"Spoon.File.Xml.Parse.Error"));
+    }
+  }
+  if (listener == null && root != null) {
+    for (    FileListener li : fileListeners) {
+      if (li.acceptsXml(root.getNodeName())) {
+        listener=li;
+        break;
+      }
+    }
+  }
+  if (!Const.isEmpty(filename)) {
+    if (listener != null) {
+      try {
+        loaded=listener.open(root,filename,importfile);
+      }
+ catch (      KettleMissingPluginsException e) {
+        log.logError(e.getMessage(),e);
+      }
+    }
+    if (!loaded) {
+      hideSplash();
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setMessage(BaseMessages.getString(PKG,"Spoon.UnknownFileType.Message",filename));
+      mb.setText(BaseMessages.getString(PKG,"Spoon.UnknownFileType.Title"));
+      mb.open();
+    }
+ else {
+      applyVariables();
     }
   }
 }
