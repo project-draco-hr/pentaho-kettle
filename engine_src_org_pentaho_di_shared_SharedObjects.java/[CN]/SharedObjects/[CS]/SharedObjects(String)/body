@@ -2,6 +2,7 @@
   try {
     this.filename=createFilename(sharedObjectsFile);
     this.objectsMap=new Hashtable<SharedEntry,SharedObjectInterface>();
+    LogChannel log=new LogChannel(this);
     FileObject file=getFileObjectFromKettleVFS(filename);
     if (file.exists()) {
       Document document=XMLHandler.loadXMLFile(file);
@@ -15,9 +16,26 @@
           String nodeName=node.getNodeName();
           SharedObjectInterface isShared=null;
           if (nodeName.equals(DatabaseMeta.XML_TAG)) {
-            DatabaseMeta sharedDatabaseMeta=new DatabaseMeta(node);
-            isShared=sharedDatabaseMeta;
-            privateDatabases.add(sharedDatabaseMeta);
+            try {
+              DatabaseMeta sharedDatabaseMeta=new DatabaseMeta(node);
+              isShared=sharedDatabaseMeta;
+              privateDatabases.add(sharedDatabaseMeta);
+            }
+ catch (            KettleXMLException kxe) {
+              Throwable firstCause=kxe.getCause();
+              if (firstCause != null) {
+                Throwable secondCause=firstCause.getCause();
+                if (secondCause == null || !(secondCause instanceof KettleDatabaseException)) {
+                  throw kxe;
+                }
+ else {
+                  log.logBasic(kxe.getLocalizedMessage());
+                }
+              }
+ else {
+                throw kxe;
+              }
+            }
           }
  else           if (nodeName.equals(SlaveServer.XML_TAG)) {
             SlaveServer sharedSlaveServer=new SlaveServer(node);
