@@ -2,12 +2,21 @@
   InputStream is=null;
   try {
     if (fileId != null) {
-      Repository repository=PDIImportUtil.connectToRepository(null);
+      Repository repository=connectToRepository();
       RepositoryFile file=unifiedRepository.getFileById(fileId);
       if (file != null) {
         try {
           JobMeta jobMeta=repository.loadJob(new StringObjectId(fileId.toString()),null);
           if (jobMeta != null) {
+            Set<String> privateDatabases=jobMeta.getPrivateDatabases();
+            if (privateDatabases != null) {
+              for (Iterator<DatabaseMeta> it=jobMeta.getDatabases().iterator(); it.hasNext(); ) {
+                String databaseName=it.next().getName();
+                if (!privateDatabases.contains(databaseName)) {
+                  it.remove();
+                }
+              }
+            }
             return new ByteArrayInputStream(jobMeta.getXML().getBytes());
           }
         }
