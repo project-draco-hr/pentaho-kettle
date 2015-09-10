@@ -1,0 +1,24 @@
+{
+  ArgumentCaptor<String> argumentTableName=ArgumentCaptor.forClass(String.class);
+  ArgumentCaptor<RowMetaAndData> argumentTableData=ArgumentCaptor.forClass(RowMetaAndData.class);
+  doNothing().when(repo.connectionDelegate).insertTableRow(argumentTableName.capture(),argumentTableData.capture());
+  doReturn(new LongObjectId(357)).when(repo.connectionDelegate).getNextClusterSlaveID();
+  SlaveServer testSlave=new SlaveServer("slave1","fakelocal","9081","fakeuser","fakepass");
+  testSlave.setObjectId(new LongObjectId(864));
+  ClusterSchema testSchema=new ClusterSchema("schema1",Arrays.asList(testSlave));
+  testSchema.setObjectId(new LongObjectId(159));
+  ObjectId result=repo.insertClusterSlave(testSchema,testSlave);
+  RowMetaAndData insertRecord=argumentTableData.getValue();
+  assertEquals(KettleDatabaseRepository.TABLE_R_CLUSTER_SLAVE,argumentTableName.getValue());
+  assertEquals(3,insertRecord.size());
+  assertEquals(ValueMetaInterface.TYPE_INTEGER,insertRecord.getValueMeta(0).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_CLUSTER_SLAVE_ID_CLUSTER_SLAVE,insertRecord.getValueMeta(0).getName());
+  assertEquals(Long.valueOf(357),insertRecord.getInteger(0));
+  assertEquals(ValueMetaInterface.TYPE_INTEGER,insertRecord.getValueMeta(1).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_CLUSTER_SLAVE_ID_CLUSTER,insertRecord.getValueMeta(1).getName());
+  assertEquals(Long.valueOf(159),insertRecord.getInteger(1));
+  assertEquals(ValueMetaInterface.TYPE_INTEGER,insertRecord.getValueMeta(2).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_CLUSTER_SLAVE_ID_SLAVE,insertRecord.getValueMeta(2).getName());
+  assertEquals(Long.valueOf(864),insertRecord.getInteger(2));
+  assertEquals(new LongObjectId(357),result);
+}

@@ -1,0 +1,29 @@
+{
+  doReturn(new LongObjectId(123)).when(repo.connectionDelegate).getNextLogID();
+  doReturn("2.4").when(repo.connectionDelegate).getVersion();
+  doReturn(new UserInfo("John Doe")).when(repo).getUserInfo();
+  ArgumentCaptor<String> argumentTableName=ArgumentCaptor.forClass(String.class);
+  ArgumentCaptor<RowMetaAndData> argumentTableData=ArgumentCaptor.forClass(RowMetaAndData.class);
+  doNothing().when(repo.connectionDelegate).insertTableRow(argumentTableName.capture(),argumentTableData.capture());
+  Date beforeLogEntryDate=Calendar.getInstance().getTime();
+  repo.insertLogEntry("testDescription");
+  Date afterLogEntryDate=Calendar.getInstance().getTime();
+  RowMetaAndData insertRecord=argumentTableData.getValue();
+  assertEquals(KettleDatabaseRepository.TABLE_R_REPOSITORY_LOG,argumentTableName.getValue());
+  assertEquals(5,insertRecord.size());
+  assertEquals(ValueMetaInterface.TYPE_INTEGER,insertRecord.getValueMeta(0).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_REPOSITORY_LOG_ID_REPOSITORY_LOG,insertRecord.getValueMeta(0).getName());
+  assertEquals(Long.valueOf(123),insertRecord.getInteger(0));
+  assertEquals(ValueMetaInterface.TYPE_STRING,insertRecord.getValueMeta(1).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_REPOSITORY_LOG_REP_VERSION,insertRecord.getValueMeta(1).getName());
+  assertEquals("2.4",insertRecord.getString(1,null));
+  assertEquals(ValueMetaInterface.TYPE_DATE,insertRecord.getValueMeta(2).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_REPOSITORY_LOG_LOG_DATE,insertRecord.getValueMeta(2).getName());
+  assertTrue(beforeLogEntryDate.compareTo(insertRecord.getDate(2,new Date(Long.MIN_VALUE))) <= 0 && afterLogEntryDate.compareTo(insertRecord.getDate(2,new Date(Long.MIN_VALUE))) >= 0);
+  assertEquals(ValueMetaInterface.TYPE_STRING,insertRecord.getValueMeta(3).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_REPOSITORY_LOG_LOG_USER,insertRecord.getValueMeta(3).getName());
+  assertEquals("John Doe",insertRecord.getString(3,null));
+  assertEquals(ValueMetaInterface.TYPE_STRING,insertRecord.getValueMeta(4).getType());
+  assertEquals(KettleDatabaseRepository.FIELD_REPOSITORY_LOG_OPERATION_DESC,insertRecord.getValueMeta(4).getName());
+  assertEquals("testDescription",insertRecord.getString(4,null));
+}
