@@ -1,49 +1,50 @@
 {
   this.sheetName=sheetName;
-  try {
-    sst=reader.getSharedStringsTable();
-    sheetStream=reader.getSheet(sheetID);
-    XMLInputFactory factory=XMLInputFactory.newInstance();
-    sheetReader=factory.createXMLStreamReader(sheetStream);
-    headerRow=new ArrayList<String>();
-    while (sheetReader.hasNext()) {
-      int event=sheetReader.next();
-      if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("dimension")) {
-        String dim=sheetReader.getAttributeValue(null,"ref").split(":")[1];
+  xssfReader=reader;
+  sheetId=sheetID;
+  sst=reader.getSharedStringsTable();
+  styles=reader.getStylesTable();
+  sheetStream=reader.getSheet(sheetID);
+  XMLInputFactory factory=XMLInputFactory.newInstance();
+  sheetReader=factory.createXMLStreamReader(sheetStream);
+  headerRow=new ArrayList<String>();
+  while (sheetReader.hasNext()) {
+    int event=sheetReader.next();
+    if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("dimension")) {
+      String dim=sheetReader.getAttributeValue(null,"ref");
+      if (StringUtils.contains(dim,':')) {
+        dim=dim.split(":")[1];
         numRows=StaxUtil.extractRowNumber(dim);
         numCols=StaxUtil.extractColumnNumber(dim);
       }
-      if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("row")) {
-        currentRow=Integer.parseInt(sheetReader.getAttributeValue(null,"r"));
-        while (sheetReader.hasNext()) {
-          event=sheetReader.next();
-          if (event == XMLStreamConstants.END_ELEMENT && sheetReader.getLocalName().equals("row")) {
-            break;
-          }
-          if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("c")) {
-            String attributeValue=sheetReader.getAttributeValue(null,"t");
-            if (attributeValue != null && attributeValue.equals("s")) {
-              while (sheetReader.hasNext()) {
-                event=sheetReader.next();
-                if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("v")) {
-                  int idx=Integer.parseInt(sheetReader.getElementText());
-                  String content=new XSSFRichTextString(sst.getEntryAt(idx)).toString();
-                  headerRow.add(content);
-                  break;
-                }
+    }
+    if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("row")) {
+      currentRow=Integer.parseInt(sheetReader.getAttributeValue(null,"r"));
+      firstRow=currentRow;
+      while (sheetReader.hasNext()) {
+        event=sheetReader.next();
+        if (event == XMLStreamConstants.END_ELEMENT && sheetReader.getLocalName().equals("row")) {
+          break;
+        }
+        if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("c")) {
+          String attributeValue=sheetReader.getAttributeValue(null,"t");
+          if (attributeValue != null && attributeValue.equals("s")) {
+            while (sheetReader.hasNext()) {
+              event=sheetReader.next();
+              if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("v")) {
+                int idx=Integer.parseInt(sheetReader.getElementText());
+                String content=new XSSFRichTextString(sst.getEntryAt(idx)).toString();
+                headerRow.add(content);
+                break;
               }
             }
+          }
  else {
-              break;
-            }
+            break;
           }
         }
-        break;
       }
+      break;
     }
-  }
- catch (  Exception e) {
-    e.printStackTrace();
-    throw new RuntimeException(e.getMessage());
   }
 }

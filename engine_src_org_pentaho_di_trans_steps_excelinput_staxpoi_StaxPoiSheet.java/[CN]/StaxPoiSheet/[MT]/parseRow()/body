@@ -1,0 +1,41 @@
+{
+  KCell[] cells=new StaxPoiCell[numCols];
+  for (int i=0; i < numCols; i++) {
+    while (sheetReader.hasNext()) {
+      int event=sheetReader.next();
+      if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("c")) {
+        break;
+      }
+      if (event == XMLStreamConstants.END_ELEMENT && sheetReader.getLocalName().equals("row")) {
+        return cells;
+      }
+    }
+    String cellLocation=sheetReader.getAttributeValue(null,"r");
+    int columnIndex=StaxUtil.extractColumnNumber(cellLocation) - 1;
+    String cellType=sheetReader.getAttributeValue(null,"t");
+    String cellStyle=sheetReader.getAttributeValue(null,"s");
+    boolean isFormula=false;
+    String content=null;
+    while (sheetReader.hasNext()) {
+      int event=sheetReader.next();
+      if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("v")) {
+        if (cellType != null && cellType.equals("s")) {
+          int idx=Integer.parseInt(sheetReader.getElementText());
+          content=new XSSFRichTextString(sst.getEntryAt(idx)).toString();
+        }
+ else {
+          content=sheetReader.getElementText();
+        }
+      }
+      if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("f")) {
+        isFormula=true;
+      }
+      if (event == XMLStreamConstants.END_ELEMENT && sheetReader.getLocalName().equals("c")) {
+        break;
+      }
+    }
+    KCellType kcType=getCellType(cellType,cellStyle,isFormula);
+    cells[columnIndex]=new StaxPoiCell(parseValue(kcType,content),kcType,currentRow);
+  }
+  return cells;
+}
