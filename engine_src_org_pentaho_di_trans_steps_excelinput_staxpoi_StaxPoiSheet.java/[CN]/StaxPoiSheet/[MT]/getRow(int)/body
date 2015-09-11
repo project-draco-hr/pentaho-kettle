@@ -1,53 +1,27 @@
 {
+  if (rownr < 0 || rownr >= numRows) {
+    throw new ArrayIndexOutOfBoundsException(rownr);
+  }
+  if (rownr + 1 < firstRow) {
+    return new KCell[0];
+  }
+  if (rownr > 0 && currentRow == rownr + 1) {
+    return currentRowCells;
+  }
   try {
+    if (currentRow >= rownr + 1) {
+      resetSheetReader();
+    }
     while (sheetReader.hasNext()) {
       int event=sheetReader.next();
       if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("row")) {
         String rowIndicator=sheetReader.getAttributeValue(null,"r");
         currentRow=Integer.parseInt(rowIndicator);
-        if (currentRow < rownr) {
+        if (currentRow < rownr + 1) {
           continue;
         }
-        KCell[] cells=new StaxPoiCell[numCols];
-        boolean richedRowEnd=false;
-        for (int i=0; i < numCols; i++) {
-          while (sheetReader.hasNext()) {
-            if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("c")) {
-              break;
-            }
-            if (event == XMLStreamConstants.END_ELEMENT && sheetReader.getLocalName().equals("row")) {
-              richedRowEnd=true;
-              break;
-            }
-            event=sheetReader.next();
-          }
-          if (richedRowEnd) {
-            break;
-          }
-          String cellLocation=sheetReader.getAttributeValue(null,"r");
-          int columnIndex=StaxUtil.extractColumnNumber(cellLocation) - 1;
-          String cellType=sheetReader.getAttributeValue(null,"t");
-          while (sheetReader.hasNext()) {
-            event=sheetReader.next();
-            if (event == XMLStreamConstants.START_ELEMENT && sheetReader.getLocalName().equals("v")) {
-              break;
-            }
-            if (event == XMLStreamConstants.END_ELEMENT && sheetReader.getLocalName().equals("c")) {
-              numRows=currentRow;
-              return new KCell[]{};
-            }
-          }
-          String content=null;
-          if (cellType != null && cellType.equals("s")) {
-            int idx=Integer.parseInt(sheetReader.getElementText());
-            content=new XSSFRichTextString(sst.getEntryAt(idx)).toString();
-          }
- else {
-            content=sheetReader.getElementText();
-          }
-          cells[columnIndex]=new StaxPoiCell(content,currentRow);
-        }
-        return cells;
+        currentRowCells=parseRow();
+        return currentRowCells;
       }
     }
   }
