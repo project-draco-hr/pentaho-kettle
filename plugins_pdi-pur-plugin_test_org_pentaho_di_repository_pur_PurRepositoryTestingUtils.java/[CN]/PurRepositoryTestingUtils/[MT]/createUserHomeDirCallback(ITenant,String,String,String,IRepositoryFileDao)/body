@@ -1,0 +1,33 @@
+{
+  return new TransactionCallbackWithoutResult(){
+    public void doInTransactionWithoutResult(    final TransactionStatus status){
+      String tenantRootFolderPath=ServerRepositoryPaths.getTenantRootFolderPath(tenant);
+      RepositoryFile tenantRootFolder=fileDao.getFileByAbsolutePath(tenantRootFolderPath);
+      if (tenantRootFolder == null) {
+        return;
+      }
+      String userHomeFolderPath=ServerRepositoryPaths.getUserHomeFolderPath(tenant,username);
+      RepositoryFile userHomeFolder=fileDao.getFileByAbsolutePath(userHomeFolderPath);
+      if (userHomeFolder != null) {
+        return;
+      }
+      RepositoryFileSid userSid=new RepositoryFileSid(principleId);
+      String tenantHomeFolderPath=ServerRepositoryPaths.getTenantHomeFolderPath(tenant);
+      RepositoryFile tenantHomeFolder=fileDao.getFileByAbsolutePath(tenantHomeFolderPath);
+      RepositoryFileAcl.Builder aclsForUserHomeFolder;
+      if (tenantHomeFolder == null) {
+        RepositoryFileSid ownerSid=new RepositoryFileSid(principleId,RepositoryFileSid.Type.USER);
+        RepositoryFileSid tenantAuthenticatedRoleSid=new RepositoryFileSid(authenticatedRoleId,RepositoryFileSid.Type.ROLE);
+        RepositoryFileAcl.Builder aclsForTenantHomeFolder=new RepositoryFileAcl.Builder(userSid).ace(tenantAuthenticatedRoleSid,EnumSet.of(RepositoryFilePermission.READ));
+        aclsForUserHomeFolder=new RepositoryFileAcl.Builder(userSid).ace(ownerSid,EnumSet.of(RepositoryFilePermission.ALL));
+        tenantHomeFolder=fileDao.createFolder(tenantRootFolder.getId(),new RepositoryFile.Builder(ServerRepositoryPaths.getTenantHomeFolderName()).folder(true).build(),aclsForTenantHomeFolder.build(),"tenant home folder");
+      }
+ else {
+        RepositoryFileSid ownerSid=new RepositoryFileSid(principleId,RepositoryFileSid.Type.USER);
+        aclsForUserHomeFolder=new RepositoryFileAcl.Builder(userSid).ace(ownerSid,EnumSet.of(RepositoryFilePermission.ALL));
+      }
+      fileDao.createFolder(tenantHomeFolder.getId(),new RepositoryFile.Builder(username).folder(true).build(),aclsForUserHomeFolder.build(),"user home folder");
+    }
+  }
+;
+}
