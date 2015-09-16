@@ -1,18 +1,25 @@
 {
   RepositoryFile file=pur.getFileById(idObject.getId());
-  newName=checkNewName(newName,objectType,file);
-  String absPath=calcDestAbsPath(file,newDirectory,newName);
+  RepositoryFile.Builder builder=new RepositoryFile.Builder(file);
+  String fullName;
+  if (newTitle == null) {
+    fullName=file.getName();
+  }
+ else {
+    builder.title(RepositoryFile.DEFAULT_LOCALE,newTitle);
+    fullName=checkAndSanitize(newTitle) + objectType.getExtension();
+  }
+  String absPath=calcDestAbsPath(file,newDirectory,fullName);
   RepositoryFile fileFromDestination=pur.getFile(absPath);
-  RepositoryFile beforeRename=pur.getFileById(idObject.getId());
   if (fileFromDestination == null) {
-    beforeRename=new RepositoryFile.Builder(beforeRename).title(RepositoryFile.DEFAULT_LOCALE,newName).build();
-    NodeRepositoryFileData data=pur.getDataAtVersionForRead(beforeRename.getId(),null,NodeRepositoryFileData.class);
-    pur.updateFile(beforeRename,data,versionComment);
+    file=builder.build();
+    NodeRepositoryFileData data=pur.getDataAtVersionForRead(file.getId(),null,NodeRepositoryFileData.class);
+    pur.updateFile(file,data,versionComment);
     pur.moveFile(idObject.getId(),absPath,null);
     rootRef.clearRef();
     return idObject;
   }
  else {
-    throw new KettleException(BaseMessages.getString(PKG,errorMsgKey,beforeRename.getName(),newName));
+    throw new KettleException(BaseMessages.getString(PKG,errorMsgKey,file.getName(),newTitle));
   }
 }
