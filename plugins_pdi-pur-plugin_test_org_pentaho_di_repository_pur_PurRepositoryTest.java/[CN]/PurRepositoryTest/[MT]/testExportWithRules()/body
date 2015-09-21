@@ -1,0 +1,54 @@
+{
+  String fileName="testExportWithRuled.xml";
+  final String exportFileName=new File(fileName).getAbsolutePath();
+  RepositoryDirectoryInterface rootDir=initRepo();
+  String transWithoutNoteName="2" + EXP_DBMETA_NAME;
+  TransMeta transWithoutNote=createTransMeta(transWithoutNoteName);
+  String transUniqueName=EXP_TRANS_NAME.concat(transWithoutNoteName);
+  RepositoryDirectoryInterface transDir=rootDir.findDirectory(DIR_TRANSFORMATIONS);
+  repository.save(transWithoutNote,VERSION_COMMENT_V1,null);
+  deleteStack.push(transWithoutNote);
+  assertNotNull(transWithoutNote.getObjectId());
+  assertTrue(hasVersionWithComment(transWithoutNote,VERSION_COMMENT_V1));
+  assertTrue(repository.exists(transUniqueName,transDir,RepositoryObjectType.TRANSFORMATION));
+  String transWithNoteName="1" + EXP_DBMETA_NAME;
+  TransMeta transWithNote=createTransMeta(transWithNoteName);
+  transUniqueName=EXP_TRANS_NAME.concat(EXP_DBMETA_NAME);
+  TransMeta transWithRules=createTransMeta(EXP_DBMETA_NAME);
+  NotePadMeta note=new NotePadMeta("Note Message",1,1,100,5);
+  transWithRules.addNote(note);
+  repository.save(transWithRules,VERSION_COMMENT_V1,null);
+  deleteStack.push(transWithRules);
+  assertNotNull(transWithRules.getObjectId());
+  assertTrue(hasVersionWithComment(transWithRules,VERSION_COMMENT_V1));
+  assertTrue(repository.exists(transUniqueName,transDir,RepositoryObjectType.TRANSFORMATION));
+  List<ImportRuleInterface> rules=new AbstractList<ImportRuleInterface>(){
+    @Override public ImportRuleInterface get(    int index){
+      TransformationHasANoteImportRule rule=new TransformationHasANoteImportRule();
+      rule.setEnabled(true);
+      return rule;
+    }
+    @Override public int size(){
+      return 1;
+    }
+  }
+;
+  ImportRules importRules=new ImportRules();
+  importRules.setRules(rules);
+  IRepositoryExporter exporter=repository.getExporter();
+  exporter.setImportRulesToValidate(importRules);
+  try {
+    exporter.exportAllObjects(new MockProgressMonitorListener(),exportFileName,null,"all");
+    FileObject exportFile=KettleVFS.getFileObject(exportFileName);
+    assertNotNull(exportFile);
+    MockRepositoryExportParser parser=new MockRepositoryExportParser();
+    SAXParserFactory.newInstance().newSAXParser().parse(KettleVFS.getInputStream(exportFile),parser);
+    if (parser.getFatalError() != null) {
+      throw parser.getFatalError();
+    }
+    assertEquals("Incorrect number of transformations",1,parser.getNodesWithName(RepositoryObjectType.TRANSFORMATION.getTypeDescription()).size());
+  }
+  finally {
+    KettleVFS.getFileObject(exportFileName).delete();
+  }
+}
