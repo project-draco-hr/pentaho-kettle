@@ -1,12 +1,7 @@
 {
   server=new Server();
-  Constraint constraint=new Constraint();
-  constraint.setName(Constraint.__BASIC_AUTH);
-  constraint.setRoles(new String[]{Constraint.ANY_ROLE});
-  constraint.setAuthenticate(true);
-  ConstraintMapping constraintMapping=new ConstraintMapping();
-  constraintMapping.setConstraint(constraint);
-  constraintMapping.setPathSpec("/*");
+  List<String> roles=new ArrayList<String>();
+  roles.add(Constraint.ANY_ROLE);
   ConstraintSecurityHandler securityHandler=new ConstraintSecurityHandler();
   if (System.getProperty("loginmodulename") != null && System.getProperty("java.security.auth.login.config") != null) {
     JAASLoginService jaasLoginService=new JAASLoginService("Kettle");
@@ -14,11 +9,12 @@
     securityHandler.setLoginService(jaasLoginService);
   }
  else {
+    roles.add("default");
     HashLoginService hashLoginService;
     SlaveServer slaveServer=transformationMap.getSlaveServerConfig().getSlaveServer();
     if (!Const.isEmpty(slaveServer.getPassword())) {
       hashLoginService=new HashLoginService("Kettle");
-      hashLoginService.putUser(slaveServer.getUsername(),new Password(slaveServer.getPassword()),new String[]{});
+      hashLoginService.putUser(slaveServer.getUsername(),new Password(slaveServer.getPassword()),new String[]{"default"});
     }
  else {
       if (Const.isEmpty(passwordFile)) {
@@ -30,10 +26,25 @@
           passwordFile=Const.getKettleLocalCartePasswordFile();
         }
       }
-      hashLoginService=new HashLoginService("Kettle",passwordFile);
+      hashLoginService=new HashLoginService("Kettle",passwordFile){
+        @Override public synchronized UserIdentity putUser(        String userName,        Credential credential,        String[] roles){
+          List<String> newRoles=new ArrayList<String>();
+          newRoles.add("default");
+          Collections.addAll(newRoles,roles);
+          return super.putUser(userName,credential,newRoles.toArray(new String[newRoles.size()]));
+        }
+      }
+;
     }
     securityHandler.setLoginService(hashLoginService);
   }
+  Constraint constraint=new Constraint();
+  constraint.setName(Constraint.__BASIC_AUTH);
+  constraint.setRoles(roles.toArray(new String[roles.size()]));
+  constraint.setAuthenticate(true);
+  ConstraintMapping constraintMapping=new ConstraintMapping();
+  constraintMapping.setConstraint(constraint);
+  constraintMapping.setPathSpec("/*");
   securityHandler.setConstraintMappings(new ConstraintMapping[]{constraintMapping});
   ContextHandlerCollection contexts=new ContextHandlerCollection();
   ServletContextHandler root=new ServletContextHandler(contexts,GetRootServlet.CONTEXT_PATH,ServletContextHandler.SESSIONS);
@@ -57,8 +68,9 @@
   ResourceHandler resourceHandler=new ResourceHandler();
   resourceHandler.setResourceBase("temp");
   HandlerList handlers=new HandlerList();
-  handlers.setHandlers(new Handler[]{securityHandler,contexts,resourceHandler});
-  server.setHandler(handlers);
+  handlers.setHandlers(new Handler[]{contexts,resourceHandler});
+  securityHandler.setHandler(handlers);
+  server.setHandler(securityHandler);
   createListeners();
   server.start();
 }
