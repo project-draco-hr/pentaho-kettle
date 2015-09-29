@@ -1,0 +1,24 @@
+{
+  JobExecutorMeta jobExecutorMeta=spy(new JobExecutorMeta());
+  jobExecutorMeta.setFileName(null);
+  jobExecutorMeta.setDirectoryPath("/path/to");
+  jobExecutorMeta.setJobName("Job1");
+  jobExecutorMeta.setSpecificationMethod(ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME);
+  StepMeta transExecutorStep=mock(StepMeta.class);
+  when(transExecutorStep.getStepID()).thenReturn("JobExecutor");
+  when(transExecutorStep.getStepMetaInterface()).thenReturn(jobExecutorMeta);
+  TransMeta parent=mock(TransMeta.class);
+  when(parent.getSteps()).thenReturn(Arrays.asList(transExecutorStep));
+  TransMeta result=transFileListener.processLinkedJobs(parent);
+  boolean found=false;
+  for (  StepMeta stepMeta : result.getSteps()) {
+    if (stepMeta.getStepID().equalsIgnoreCase("JobExecutor")) {
+      found=true;
+      JobExecutorMeta resultExecMeta=(JobExecutorMeta)stepMeta.getStepMetaInterface();
+      assertEquals(ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME,resultExecMeta.getSpecificationMethod());
+      assertEquals(resultExecMeta.getDirectoryPath(),"/path/to");
+      assertEquals(resultExecMeta.getJobName(),"Job1");
+    }
+  }
+  assertTrue(found);
+}
