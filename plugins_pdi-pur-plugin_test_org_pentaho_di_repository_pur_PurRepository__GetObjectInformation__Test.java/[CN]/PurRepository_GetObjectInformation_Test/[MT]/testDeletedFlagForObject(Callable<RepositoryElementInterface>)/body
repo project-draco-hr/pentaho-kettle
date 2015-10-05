@@ -1,0 +1,20 @@
+{
+  TransDelegate transDelegate=new TransDelegate(purRepository,unifiedRepository);
+  JobDelegate jobDelegate=new JobDelegate(purRepository,unifiedRepository);
+  FieldUtils.writeField(purRepository,"transDelegate",transDelegate,true);
+  FieldUtils.writeField(purRepository,"jobDelegate",jobDelegate,true);
+  RepositoryElementInterface element=elementProvider.call();
+  RepositoryDirectoryInterface directory=purRepository.findDirectory(element.getRepositoryDirectory().getPath());
+  element.setRepositoryDirectory(directory);
+  purRepository.save(element,null,null);
+  assertNotNull("Element was saved",element.getObjectId());
+  RepositoryObject information;
+  information=purRepository.getObjectInformation(element.getObjectId(),element.getRepositoryElementType());
+  assertNotNull(information);
+  assertFalse(information.isDeleted());
+  purRepository.deleteTransformation(element.getObjectId());
+  assertNotNull("Element was moved to Trash",unifiedRepository.getFileById(element.getObjectId().getId()));
+  information=purRepository.getObjectInformation(element.getObjectId(),element.getRepositoryElementType());
+  assertNotNull(information);
+  assertTrue(information.isDeleted());
+}
