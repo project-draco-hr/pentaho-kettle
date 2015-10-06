@@ -53,35 +53,27 @@
         feedback.showError(BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Message"),e);
       }
     }
-    for (    RepositoryObject ro : referencingObjects) {
-      if (ro.getObjectType() == RepositoryObjectType.TRANSFORMATION) {
-        TransMeta transMeta=rep.loadTransformation(ro.getObjectId(),null);
-        try {
-          transMeta.lookupRepositoryReferences(rep);
-        }
- catch (        KettleException e) {
-          feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.LookupRepoRefsError.Log",transMeta.getName()));
-        }
-        rep.save(transMeta,"import object reference specification",null);
-      }
- else       if (ro.getObjectType() == RepositoryObjectType.JOB) {
-        JobMeta jobMeta=rep.loadJob(ro.getObjectId(),null);
-        try {
-          jobMeta.lookupRepositoryReferences(rep);
-        }
- catch (        KettleException e) {
-          feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.LookupRepoRefsError.Log",jobMeta.getName()));
-        }
-        rep.save(jobMeta,"import object reference specification",null);
-      }
-    }
-    feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ImportFinished.Log"));
-  }
- catch (  Exception e) {
-    addException(e);
-    feedback.showError(BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Message"),e);
-  }
+    for (    RepositoryObject repoObject : referencingObjects) {
+switch (repoObject.getObjectType()) {
+case TRANSFORMATION:
+        TransMeta transMeta=rep.loadTransformation(repoObject.getObjectId(),null);
+      saveTransformationToRepo(transMeta,feedback);
+    break;
+case JOB:
+  JobMeta jobMeta=rep.loadJob(repoObject.getObjectId(),null);
+saveJobToRepo(jobMeta,feedback);
+break;
+default :
+throw new KettleException(BaseMessages.getString(PKG,"RepositoryImporter.ErrorDetectFileType"));
+}
+}
+feedback.addLog(BaseMessages.getString(PKG,"RepositoryImporter.ImportFinished.Log"));
+}
+ catch (Exception e) {
+addException(e);
+feedback.showError(BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Title"),BaseMessages.getString(PKG,"RepositoryImporter.ErrorGeneral.Message"),e);
+}
  finally {
-    RepositoryImportLocation.setRepositoryImportLocation(null);
-  }
+RepositoryImportLocation.setRepositoryImportLocation(null);
+}
 }

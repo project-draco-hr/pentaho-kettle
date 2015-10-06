@@ -1,7 +1,21 @@
 {
+  KettleException lastThrownException=null;
+  Map<String,RepositoryObjectType> notFoundedReferences=new HashMap<>();
   for (  JobEntryCopy copy : jobcopies) {
     if (copy.getEntry().hasRepositoryReferences()) {
-      copy.getEntry().lookupRepositoryReferences(repository);
+      try {
+        copy.getEntry().lookupRepositoryReferences(repository);
+      }
+ catch (      IdNotFoundException e) {
+        lastThrownException=e;
+        String path=e.getPathToObject();
+        String name=e.getObjectName();
+        String key=StringUtils.isEmpty(path) || path.equals("null") ? name : path + "/" + name;
+        notFoundedReferences.put(key,e.getObjectType());
+      }
     }
+  }
+  if (lastThrownException != null && !notFoundedReferences.isEmpty()) {
+    throw new LookupReferencesException(lastThrownException,notFoundedReferences);
   }
 }
