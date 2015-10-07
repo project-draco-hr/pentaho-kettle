@@ -1,22 +1,27 @@
 {
-  if (hasNecessaryPermissions) {
-    try {
-      ProxyPentahoUser user=UserRoleHelper.convertToPentahoProxyUser(newUser);
-      userRoleWebService.createUser(user);
-      if (newUser instanceof IEEUser) {
-        userRoleWebService.setRoles(user,UserRoleHelper.convertToPentahoProxyRoles(((IEEUser)newUser).getRoles()));
-      }
-      lookupCache.insertUserToLookupSet(newUser);
-      fireUserRoleListChange();
-    }
- catch (    Exception e) {
-      if (e.getCause().toString().contains("org.pentaho.platform.api.engine.security.userroledao.AlreadyExistsException")) {
-        throw new KettleException(BaseMessages.getString(UserRoleDelegate.class,"UserRoleDelegate.ERROR_0015_USER_NAME_ALREADY_EXISTS"));
-      }
-      throw new KettleException(BaseMessages.getString(UserRoleDelegate.class,"UserRoleDelegate.ERROR_0002_UNABLE_TO_CREATE_USER",newUser.getLogin()),e);
+  ensureHasPermissions();
+  ProxyPentahoUser user=UserRoleHelper.convertToPentahoProxyUser(newUser);
+  try {
+    ProxyPentahoUser[] existingUsers=userRoleWebService.getUsers();
+    if (existsAmong(existingUsers,user)) {
+      throw userExistsException();
     }
   }
- else {
-    throw new KettleException(BaseMessages.getString(UserRoleDelegate.class,"UserRoleDelegate.ERROR_0014_INSUFFICIENT_PRIVILEGES"));
+ catch (  UserRoleException e) {
+    throw cannotCreateUserException(newUser,e);
+  }
+  try {
+    userRoleWebService.createUser(user);
+    if (newUser instanceof IEEUser) {
+      userRoleWebService.setRoles(user,UserRoleHelper.convertToPentahoProxyRoles(((IEEUser)newUser).getRoles()));
+    }
+    lookupCache.insertUserToLookupSet(newUser);
+    fireUserRoleListChange();
+  }
+ catch (  Exception e) {
+    if (e.getCause().toString().contains("org.pentaho.platform.api.engine.security.userroledao.AlreadyExistsException")) {
+      throw userExistsException();
+    }
+    throw cannotCreateUserException(newUser,e);
   }
 }
