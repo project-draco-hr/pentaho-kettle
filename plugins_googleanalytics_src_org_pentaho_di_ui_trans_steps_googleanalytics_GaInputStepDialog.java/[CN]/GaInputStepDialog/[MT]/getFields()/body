@@ -1,0 +1,114 @@
+{
+  Analytics.Data.Ga.Get query=getPreviewQuery();
+  if (query == null) {
+    return;
+  }
+  query.setMaxResults(1);
+  try {
+    GaData dataFeed=query.execute();
+    if (dataFeed == null || dataFeed.getRows() == null || dataFeed.getRows().size() < 1) {
+      MessageBox mb=new MessageBox(shell,SWT.OK | SWT.ICON_ERROR);
+      mb.setText("Query yields empty feed");
+      mb.setMessage("The feed did not give any results. Please specify a query that returns data.");
+      mb.open();
+      return;
+    }
+    int i=0;
+    List<GaData.ColumnHeaders> colHeaders=dataFeed.getColumnHeaders();
+    getTableView().table.setItemCount(colHeaders.size() + dataFeed.getProfileInfo().size());
+    for (    GaData.ColumnHeaders colHeader : colHeaders) {
+      String name=colHeader.getName();
+      String dataType=colHeader.getDataType();
+      String columnType=colHeader.getColumnType();
+      TableItem item=getTableView().table.getItem(i);
+      if (columnType.equals("DIMENSION")) {
+        item.setText(1,GaInputStepMeta.FIELD_TYPE_DIMENSION);
+        item.setText(2,name);
+        item.setText(3,name);
+        if (name.equalsIgnoreCase("ga:date")) {
+          item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_DATE));
+          item.setText(5,"yyyyMMdd");
+        }
+ else         if (name.equalsIgnoreCase("ga:daysSinceLastVisit") || name.equalsIgnoreCase("ga:visitLength") || name.equalsIgnoreCase("ga:visitCount")) {
+          item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_INTEGER));
+          item.setText(5,"#;-#");
+        }
+ else         if (name.equalsIgnoreCase("ga:latitude") || name.equalsIgnoreCase("ga:longitude")) {
+          item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_NUMBER));
+          item.setText(5,"#.#;-#.#");
+        }
+ else {
+          item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+          item.setText(5,"");
+        }
+        i++;
+      }
+ else       if (columnType.equals("METRIC")) {
+        item.setText(1,GaInputStepMeta.FIELD_TYPE_METRIC);
+        item.setText(2,name);
+        item.setText(3,name);
+        if (dataType.compareToIgnoreCase("currency") == 0 || dataType.compareToIgnoreCase("float") == 0 || dataType.compareToIgnoreCase("percent") == 0 || dataType.compareToIgnoreCase("us_currency") == 0) {
+          item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_NUMBER));
+          item.setText(5,"#.#;-#.#");
+        }
+ else         if (dataType.compareToIgnoreCase("time") == 0 || dataType.compareToIgnoreCase("integer") == 0) {
+          item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_INTEGER));
+          item.setText(5,"#;-#");
+        }
+ else {
+          item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+          item.setText(5,"");
+        }
+        i++;
+      }
+    }
+    TableItem item=getTableView().table.getItem(i);
+    item.setText(1,GaInputStepMeta.FIELD_TYPE_DATA_SOURCE_PROPERTY);
+    item.setText(2,GaInputStepMeta.PROPERTY_DATA_SOURCE_PROFILE_ID);
+    item.setText(3,GaInputStepMeta.PROPERTY_DATA_SOURCE_PROFILE_ID);
+    item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+    item.setText(5,"");
+    i++;
+    item=getTableView().table.getItem(i);
+    item.setText(1,GaInputStepMeta.FIELD_TYPE_DATA_SOURCE_PROPERTY);
+    item.setText(2,GaInputStepMeta.PROPERTY_DATA_SOURCE_WEBPROP_ID);
+    item.setText(3,GaInputStepMeta.PROPERTY_DATA_SOURCE_WEBPROP_ID);
+    item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+    item.setText(5,"");
+    i++;
+    item=getTableView().table.getItem(i);
+    item.setText(1,GaInputStepMeta.FIELD_TYPE_DATA_SOURCE_PROPERTY);
+    item.setText(2,GaInputStepMeta.PROPERTY_DATA_SOURCE_ACCOUNT_NAME);
+    item.setText(3,GaInputStepMeta.PROPERTY_DATA_SOURCE_ACCOUNT_NAME);
+    item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+    item.setText(5,"");
+    i++;
+    item=getTableView().table.getItem(i);
+    item.setText(1,GaInputStepMeta.FIELD_TYPE_DATA_SOURCE_FIELD);
+    item.setText(2,GaInputStepMeta.FIELD_DATA_SOURCE_TABLE_ID);
+    item.setText(3,GaInputStepMeta.FIELD_DATA_SOURCE_TABLE_ID);
+    item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+    item.setText(5,"");
+    i++;
+    item=getTableView().table.getItem(i);
+    item.setText(1,GaInputStepMeta.FIELD_TYPE_DATA_SOURCE_FIELD);
+    item.setText(2,GaInputStepMeta.FIELD_DATA_SOURCE_TABLE_NAME);
+    item.setText(3,GaInputStepMeta.FIELD_DATA_SOURCE_TABLE_NAME);
+    item.setText(4,ValueMetaBase.getTypeDesc(ValueMetaInterface.TYPE_STRING));
+    item.setText(5,"");
+    getTableView().removeEmptyRows();
+    getTableView().setRowNums();
+    getTableView().optWidth(true);
+    getInput().setChanged();
+  }
+ catch (  IOException ioe) {
+    Exception exceptionToDisplay=ioe;
+    if (ioe instanceof GoogleJsonResponseException) {
+      GoogleJsonResponseException gjre=(GoogleJsonResponseException)ioe;
+      if (gjre.getDetails() != null && gjre.getDetails().getMessage() != null) {
+        exceptionToDisplay=new IOException(gjre.getDetails().getMessage(),gjre);
+      }
+    }
+    new ErrorDialog(shell,BaseMessages.getString(PKG,"GoogleAnalyticsDialog.RequestError.DialogTitle"),BaseMessages.getString(PKG,"GoogleAnalyticsDialog.RequestError.DialogMessage"),exceptionToDisplay);
+  }
+}
