@@ -1,0 +1,21 @@
+{
+  final String id="id";
+  final String msName="MSName";
+  when(metaStore.getName()).thenReturn(msName);
+  final DelegatingMetaStore delegatingMetaStore=spy(new DelegatingMetaStore(metaStore));
+  delegatingMetaStore.setActiveMetaStoreName(msName);
+  doAnswer(new Answer<IMetaStoreElementType>(){
+    @Override public IMetaStoreElementType answer(    InvocationOnMock invocationOnMock) throws Throwable {
+      return metaStore.getElementTypeByName((String)invocationOnMock.getArguments()[0],(String)invocationOnMock.getArguments()[1]);
+    }
+  }
+).when(delegatingMetaStore).getElementTypeByName(anyString(),anyString());
+  assertNull(StarDomainMetaStoreUtil.loadStarDomain(delegatingMetaStore,id));
+  final IMetaStoreElement metaStoreElement=mock(IMetaStoreElement.class);
+  final String name="name";
+  when(metaStoreElement.getName()).thenReturn(name);
+  doReturn(metaStoreElement).when(delegatingMetaStore).getElement(anyString(),eq(metaStoreElementType),eq(id));
+  final StarDomain starDomain=StarDomainMetaStoreUtil.loadStarDomain(delegatingMetaStore,id);
+  assertEquals(id,starDomain.getObjectId().getId());
+  assertEquals(name,starDomain.getName());
+}
