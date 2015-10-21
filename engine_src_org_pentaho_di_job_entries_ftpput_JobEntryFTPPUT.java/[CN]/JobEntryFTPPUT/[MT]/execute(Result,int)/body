@@ -87,52 +87,60 @@
         logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.ChangedDirectory",realRemoteDirectory));
       }
     }
-    int x=0;
-    ArrayList<String> myFileList=new ArrayList<String>();
+    if (realLocalDirectory.startsWith("file:")) {
+      realLocalDirectory=new URI(realLocalDirectory).getPath();
+    }
+    final List<String> files;
     File localFiles=new File(realLocalDirectory);
     File[] children=localFiles.listFiles();
-    for (int i=0; i < children.length; i++) {
-      if (!children[i].isDirectory()) {
-        myFileList.add(children[i].getName());
-        x=x + 1;
+    if (children == null) {
+      files=Collections.emptyList();
+    }
+ else {
+      files=new ArrayList<String>(children.length);
+      for (      File child : children) {
+        if (!child.isDirectory()) {
+          files.add(child.getName());
+        }
       }
     }
-    String[] filelist=new String[myFileList.size()];
-    myFileList.toArray(filelist);
     if (log.isDetailed()) {
-      logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.FoundFileLocalDirectory","" + filelist.length,realLocalDirectory));
+      logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.FoundFileLocalDirectory","" + files.size(),realLocalDirectory));
     }
     Pattern pattern=null;
     if (!Const.isEmpty(realWildcard)) {
       pattern=Pattern.compile(realWildcard);
     }
-    for (int i=0; i < filelist.length && !parentJob.isStopped(); i++) {
-      boolean getIt=true;
-      if (pattern != null) {
-        Matcher matcher=pattern.matcher(filelist[i]);
-        getIt=matcher.matches();
+    for (    String file : files) {
+      if (parentJob.isStopped()) {
+        break;
       }
-      if (getIt) {
+      boolean toBeProcessed=true;
+      if (pattern != null) {
+        Matcher matcher=pattern.matcher(file);
+        toBeProcessed=matcher.matches();
+      }
+      if (toBeProcessed) {
         boolean fileExist=false;
         try {
-          fileExist=ftpclient.exists(filelist[i]);
+          fileExist=ftpclient.exists(file);
         }
  catch (        Exception e) {
         }
         if (log.isDebug()) {
           if (fileExist) {
-            logDebug(BaseMessages.getString(PKG,"JobFTPPUT.Log.FileExists",filelist[i]));
+            logDebug(BaseMessages.getString(PKG,"JobFTPPUT.Log.FileExists",file));
           }
  else {
-            logDebug(BaseMessages.getString(PKG,"JobFTPPUT.Log.FileDoesNotExists",filelist[i]));
+            logDebug(BaseMessages.getString(PKG,"JobFTPPUT.Log.FileDoesNotExists",file));
           }
         }
         if (!fileExist || (!onlyPuttingNewFiles && fileExist)) {
           if (log.isDebug()) {
-            logDebug(BaseMessages.getString(PKG,"JobFTPPUT.Log.PuttingFileToRemoteDirectory",filelist[i],realRemoteDirectory));
+            logDebug(BaseMessages.getString(PKG,"JobFTPPUT.Log.PuttingFileToRemoteDirectory",file,realRemoteDirectory));
           }
-          String localFilename=realLocalDirectory + Const.FILE_SEPARATOR + filelist[i];
-          ftpclient.put(localFilename,filelist[i]);
+          String localFilename=realLocalDirectory + Const.FILE_SEPARATOR + file;
+          ftpclient.put(localFilename,file);
           filesput++;
           if (remove) {
             new File(localFilename).delete();
