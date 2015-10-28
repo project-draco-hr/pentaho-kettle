@@ -1,0 +1,20 @@
+{
+  ByteArrayOutputStream out=new ByteArrayOutputStream();
+  helper.redirectLog(out,LogLevel.ERROR);
+  JsonInputField isbn=new JsonInputField("isbn");
+  isbn.setPath("$..book[?(@.isbn)].isbn");
+  isbn.setType(ValueMetaInterface.TYPE_STRING);
+  JsonInputField price=new JsonInputField("price");
+  price.setPath("$..book[*].price");
+  price.setType(ValueMetaInterface.TYPE_NUMBER);
+  try (LocaleChange enUS=new LocaleChange(Locale.US)){
+    JsonInputMeta meta=createSimpleMeta("json",isbn,price);
+    JsonInput jsonInput=createJsonInput("json",meta,new Object[]{getBasicTestJson()});
+    processRows(jsonInput,3);
+    Assert.assertEquals("error",1,jsonInput.getErrors());
+    Assert.assertEquals("rows written",0,jsonInput.getLinesWritten());
+    String errors=IOUtils.toString(new ByteArrayInputStream(out.toByteArray()),StandardCharsets.UTF_8.name());
+    String expectedError="The data structure is not the same inside the resource!" + " We found 4 values for json path [$..book[*].price]," + " which is different that the number returned for path [$..book[?(@.isbn)].isbn] (2 values)."+ " We MUST have the same number of values for all paths.";
+    Assert.assertTrue(errors.contains(expectedError));
+  }
+ }
