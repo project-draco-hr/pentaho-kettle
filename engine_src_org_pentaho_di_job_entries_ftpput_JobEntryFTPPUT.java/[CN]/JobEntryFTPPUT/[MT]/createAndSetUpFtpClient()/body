@@ -1,0 +1,59 @@
+{
+  String realServerName=environmentSubstitute(serverName);
+  String realServerPort=environmentSubstitute(serverPort);
+  FTPClient ftpClient=createFtpClient();
+  ftpClient.setRemoteAddr(InetAddress.getByName(realServerName));
+  if (!Const.isEmpty(realServerPort)) {
+    ftpClient.setRemotePort(Const.toInt(realServerPort,FTP_DEFAULT_PORT));
+  }
+  if (!Const.isEmpty(proxyHost)) {
+    String realProxyHost=environmentSubstitute(proxyHost);
+    ftpClient.setRemoteAddr(InetAddress.getByName(realProxyHost));
+    if (log.isDetailed()) {
+      logDetailed(BaseMessages.getString(PKG,"JobEntryFTPPUT.OpenedProxyConnectionOn",realProxyHost));
+    }
+    int port=Const.toInt(environmentSubstitute(proxyPort),FTP_DEFAULT_PORT);
+    if (port != 0) {
+      ftpClient.setRemotePort(port);
+    }
+  }
+ else {
+    if (log.isDetailed()) {
+      logDetailed(BaseMessages.getString(PKG,"JobEntryFTPPUT.OpenConnection",realServerName));
+    }
+  }
+  if (activeConnection) {
+    ftpClient.setConnectMode(FTPConnectMode.ACTIVE);
+    if (log.isDetailed()) {
+      logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.SetActiveConnection"));
+    }
+  }
+ else {
+    ftpClient.setConnectMode(FTPConnectMode.PASV);
+    if (log.isDetailed()) {
+      logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.SetPassiveConnection"));
+    }
+  }
+  if (timeout > 0) {
+    ftpClient.setTimeout(timeout);
+    if (log.isDetailed()) {
+      logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.SetTimeout","" + timeout));
+    }
+  }
+  ftpClient.setControlEncoding(controlEncoding);
+  if (log.isDetailed()) {
+    logDetailed(BaseMessages.getString(PKG,"JobFTPPUT.Log.SetEncoding",controlEncoding));
+  }
+  if (!Const.isEmpty(socksProxyHost)) {
+    if (!Const.isEmpty(socksProxyPort)) {
+      FTPClient.initSOCKS(environmentSubstitute(socksProxyPort),environmentSubstitute(socksProxyHost));
+    }
+ else {
+      throw new FTPException(BaseMessages.getString(PKG,"JobFTPPUT.SocksProxy.PortMissingException",environmentSubstitute(socksProxyHost)));
+    }
+    if (!Const.isEmpty(socksProxyUsername) && Const.isEmpty(socksProxyPassword) || Const.isEmpty(socksProxyUsername) && !Const.isEmpty(socksProxyPassword)) {
+      throw new FTPException(BaseMessages.getString(PKG,"JobFTPPUT.SocksProxy.IncompleteCredentials",environmentSubstitute(socksProxyHost),getName()));
+    }
+  }
+  return ftpClient;
+}
