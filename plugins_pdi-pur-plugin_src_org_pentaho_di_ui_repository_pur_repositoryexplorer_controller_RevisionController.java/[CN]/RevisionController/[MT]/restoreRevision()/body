@@ -1,0 +1,50 @@
+{
+  try {
+    final Collection<UIRepositoryContent> content=fileTable.getSelectedItems();
+    final UIRepositoryContent contentToRestore=content.iterator().next();
+    Collection<UIRepositoryObjectRevision> versions=revisionTable.getSelectedItems();
+    final UIRepositoryObjectRevision versionToRestore=versions.iterator().next();
+    XulPromptBox commitPrompt=promptCommitComment(document,messages,null);
+    if (contentToRestore instanceof ILockObject && ((ILockObject)contentToRestore).isLocked()) {
+      messageBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+      messageBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
+      messageBox.setMessage(BaseMessages.getString(PKG,"RevisionsController.RestoreLockedFileNotAllowed"));
+      messageBox.open();
+      return;
+    }
+    commitPrompt.addDialogCallback(new XulDialogCallback<String>(){
+      public void onClose(      XulComponent component,      Status status,      String value){
+        if (!status.equals(Status.CANCEL)) {
+          try {
+            if (contentToRestore instanceof IRevisionObject) {
+              ((IRevisionObject)contentToRestore).restoreRevision(versionToRestore,value);
+              List<UIRepositoryObject> objects=new ArrayList<UIRepositoryObject>();
+              objects.add(contentToRestore);
+              browseController.setRepositoryObjects(objects);
+            }
+ else {
+              throw new IllegalStateException(BaseMessages.getString(PKG,"RevisionsController.RevisionsNotSupported"));
+            }
+          }
+ catch (          Exception e) {
+            if (mainController == null || !mainController.handleLostRepository(e)) {
+              throw new RuntimeException(e);
+            }
+          }
+        }
+      }
+      public void onError(      XulComponent component,      Throwable err){
+        if (mainController == null || !mainController.handleLostRepository(err)) {
+          throw new RuntimeException(err);
+        }
+      }
+    }
+);
+    commitPrompt.open();
+  }
+ catch (  Exception e) {
+    if (mainController == null || !mainController.handleLostRepository(e)) {
+      throw new RuntimeException(new KettleException(e));
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  try {
+    SwtXulLoader swtLoader=new SwtXulLoader();
+    swtLoader.setOuterContext(parent);
+    swtLoader.registerClassLoader(getClass().getClassLoader());
+    container=swtLoader.loadXul("org/pentaho/di/ui/repository/pur/xul/pur-repository-config-dialog.xul",resourceBundle);
+    final XulRunner runner=new SwtXulRunner();
+    runner.addContainer(container);
+    parent.addDisposeListener(new DisposeListener(){
+      public void widgetDisposed(      DisposeEvent arg0){
+        hide();
+      }
+    }
+);
+    repositoryConfigController.setMessages(resourceBundle);
+    repositoryConfigController.setRepositoryMeta(repositoryMeta);
+    repositoryConfigController.setCallback(new IRepositoryConfigDialogCallback(){
+      public void onSuccess(      PurRepositoryMeta meta){
+        if (meta.getName() != null) {
+          if (mode == MODE.ADD) {
+            if (masterRepositoriesMeta.searchRepository(meta.getName()) == null) {
+              repositoryMeta=meta;
+              hide();
+            }
+ else {
+              displayRepositoryAlreadyExistMessage(meta.getName());
+            }
+          }
+ else {
+            if (masterRepositoryName.equals(meta.getName())) {
+              repositoryMeta=meta;
+              hide();
+            }
+ else             if (masterRepositoriesMeta.searchRepository(meta.getName()) == null) {
+              repositoryMeta=meta;
+              hide();
+            }
+ else {
+              displayRepositoryAlreadyExistMessage(meta.getName());
+            }
+          }
+        }
+      }
+      public void onError(      Throwable t){
+        SpoonFactory.getInstance().messageBox(t.getLocalizedMessage(),resourceBundle.getString("RepositoryConfigDialog.InitializationFailed"),false,Const.ERROR);
+        log.error(resourceBundle.getString("RepositoryConfigDialog.ErrorStartingXulApplication"),t);
+      }
+      public void onCancel(){
+        repositoryMeta=null;
+        hide();
+      }
+    }
+);
+    container.addEventHandler(repositoryConfigController);
+    try {
+      runner.initialize();
+      show();
+    }
+ catch (    XulException e) {
+      SpoonFactory.getInstance().messageBox(e.getLocalizedMessage(),resourceBundle.getString("RepositoryConfigDialog.InitializationFailed"),false,Const.ERROR);
+      log.error(resourceBundle.getString("RepositoryConfigDialog.ErrorStartingXulApplication"),e);
+    }
+  }
+ catch (  XulException e) {
+    log.error(resourceBundle.getString("RepositoryConfigDialog.ErrorStartingXulApplication"),e);
+  }
+  return repositoryMeta;
+}

@@ -1,0 +1,34 @@
+{
+  final String owner="owner";
+  final String role="role";
+  ObjectRecipient mockObjectRecipient=mock(ObjectRecipient.class);
+  when(mockObjectRecipient.getName()).thenReturn(owner);
+  ObjectAcl mockAcl=mock(ObjectAcl.class);
+  when(mockAcl.getOwner()).thenReturn(mockObjectRecipient);
+  when(mockAclService.getAcl(mockObjectId,false)).thenReturn(mockAcl);
+  uiTransformation.clearAcl();
+  UIRepositoryObjectAcls acls=new UIRepositoryObjectAcls();
+  uiTransformation.getAcls(acls);
+  verify(mockAclService).getAcl(mockObjectId,false);
+  assertEquals(owner,acls.getOwner().getName());
+  acls=new UIRepositoryObjectAcls();
+  RepositoryObjectAcl repObjectAcl=new RepositoryObjectAcl(new RepositoryObjectRecipient(role,Type.ROLE));
+  acls.setObjectAcl(new RepositoryObjectAcl(new RepositoryObjectRecipient(role,Type.ROLE)));
+  uiTransformation.setAcls(acls);
+  verify(mockAclService).setAcl(mockObjectId,repObjectAcl);
+  when(mockAclService.getAcl(mockObjectId,false)).thenThrow(new KettleException(""));
+  uiTransformation.clearAcl();
+  try {
+    uiTransformation.getAcls(acls);
+    fail("Expected an exception");
+  }
+ catch (  AccessDeniedException e) {
+  }
+  doThrow(new KettleException("")).when(mockAclService).setAcl(any(ObjectId.class),any(RepositoryObjectAcl.class));
+  try {
+    uiTransformation.setAcls(acls);
+    fail("Expected an exception");
+  }
+ catch (  AccessDeniedException e) {
+  }
+}

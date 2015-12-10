@@ -1,0 +1,47 @@
+{
+  final String owner="owner";
+  final String role="role";
+  ObjectRecipient mockObjectRecipient=mock(ObjectRecipient.class);
+  when(mockObjectRecipient.getName()).thenReturn(owner);
+  ObjectAcl mockAcl=mock(ObjectAcl.class);
+  when(mockAcl.getOwner()).thenReturn(mockObjectRecipient);
+  when(mockAclService.getAcl(mockObjectId,false)).thenReturn(mockAcl);
+  uiRepDir.clearAcl();
+  UIRepositoryObjectAcls acls=new UIRepositoryObjectAcls();
+  uiRepDir.getAcls(acls);
+  verify(mockAclService,times(1)).getAcl(mockObjectId,false);
+  assertEquals(owner,acls.getOwner().getName());
+  acls=new UIRepositoryObjectAcls();
+  uiRepDir.getAcls(acls,false);
+  verify(mockAclService,times(2)).getAcl(mockObjectId,false);
+  assertEquals(owner,acls.getOwner().getName());
+  acls=new UIRepositoryObjectAcls();
+  RepositoryObjectAcl repObjectAcl=new RepositoryObjectAcl(new RepositoryObjectRecipient(role,Type.ROLE));
+  acls.setObjectAcl(new RepositoryObjectAcl(new RepositoryObjectRecipient(role,Type.ROLE)));
+  uiRepDir.setAcls(acls);
+  verify(mockAclService).setAcl(mockObjectId,repObjectAcl);
+  when(mockAclService.getAcl(mockObjectId,false)).thenThrow(new KettleException(""));
+  uiRepDir.clearAcl();
+  try {
+    uiRepDir.getAcls(acls);
+    fail("Expected an exception");
+  }
+ catch (  AccessDeniedException e) {
+  }
+  when(mockAclService.getAcl(mockObjectId,true)).thenThrow(new KettleException(""));
+  uiRepDir.clearAcl();
+  try {
+    uiRepDir.getAcls(acls,true);
+    fail("Expected an exception");
+  }
+ catch (  AccessDeniedException e) {
+  }
+  doThrow(new KettleException("")).when(mockAclService).setAcl(any(ObjectId.class),any(ObjectAcl.class));
+  uiRepDir.clearAcl();
+  try {
+    uiRepDir.setAcls(acls);
+    fail("Expected an exception");
+  }
+ catch (  AccessDeniedException e) {
+  }
+}

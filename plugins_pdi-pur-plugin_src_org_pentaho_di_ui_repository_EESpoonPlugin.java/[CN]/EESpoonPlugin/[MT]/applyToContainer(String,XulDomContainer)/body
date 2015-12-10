@@ -1,0 +1,42 @@
+{
+  container.registerClassLoader(getClass().getClassLoader());
+  if (category.equals("spoon")) {
+    Spoon.getInstance().addSpoonMenuController(new SpoonMenuABSController());
+    Spoon.getInstance().addSpoonMenuController(new SpoonMenuLockController());
+  }
+ else   if (category.equals("trans-graph") || category.equals("job-graph")) {
+    if ((Spoon.getInstance() != null) && (Spoon.getInstance().getRepository() != null) && (Spoon.getInstance().getRepository() instanceof PurRepository)) {
+      container.getDocumentRoot().addOverlay("org/pentaho/di/ui/repository/pur/xul/spoon-lock-overlay.xul");
+      container.addEventHandler(new SpoonLockController());
+    }
+    try {
+      Repository repository=Spoon.getInstance().getRepository();
+      if (repository != null) {
+        IAbsSecurityProvider securityProvider=(IAbsSecurityProvider)repository.getService(IAbsSecurityProvider.class);
+        if (securityProvider != null) {
+          enablePermission(securityProvider);
+        }
+      }
+    }
+ catch (    KettleException e) {
+      e.printStackTrace();
+    }
+  }
+ else   if (category.equals("repository-explorer")) {
+    try {
+      Repository repository=Spoon.getInstance().getRepository();
+      IAbsSecurityProvider securityProvider=null;
+      if (repository != null) {
+        securityProvider=(IAbsSecurityProvider)repository.getService(IAbsSecurityProvider.class);
+      }
+      if (securityProvider != null) {
+        boolean createPermitted=securityProvider.isAllowed(IAbsSecurityProvider.CREATE_CONTENT_ACTION);
+        boolean executePermitted=securityProvider.isAllowed(IAbsSecurityProvider.EXECUTE_CONTENT_ACTION);
+        container.getDocumentRoot().getElementById("folder-context-export").setDisabled(!createPermitted || !executePermitted);
+      }
+    }
+ catch (    KettleException e) {
+      e.printStackTrace();
+    }
+  }
+}

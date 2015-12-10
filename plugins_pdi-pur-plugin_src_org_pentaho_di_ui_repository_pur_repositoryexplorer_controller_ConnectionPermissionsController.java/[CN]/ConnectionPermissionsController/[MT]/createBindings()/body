@@ -1,0 +1,83 @@
+{
+  super.createBindings();
+  connNameLabel=(XulLabel)document.getElementById("conn-name");
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  BindingConvertor<List<UIDatabaseConnection>,List<UIRepositoryObjectAcl>> securityBindingConverter=new BindingConvertor<List<UIDatabaseConnection>,List<UIRepositoryObjectAcl>>(){
+    @Override public List<UIRepositoryObjectAcl> sourceToTarget(    List<UIDatabaseConnection> ro){
+      if (ro == null) {
+        return null;
+      }
+      if (ro.size() <= 0) {
+        return null;
+      }
+      setSelectedDatabaseConnections(ro);
+      if (!hasManageAclAccess()) {
+        applyAclButton.setDisabled(true);
+        addAclButton.setDisabled(true);
+        removeAclButton.setDisabled(true);
+        manageAclCheckbox.setDisabled(true);
+        deleteCheckbox.setDisabled(true);
+        writeCheckbox.setDisabled(true);
+        readCheckbox.setDisabled(true);
+        viewAclsModel.setHasManageAclAccess(false);
+      }
+ else {
+        applyAclButton.setDisabled(false);
+        addAclButton.setDisabled(false);
+        viewAclsModel.setHasManageAclAccess(true);
+      }
+      viewAclsModel.setRemoveEnabled(false);
+      List<UIRepositoryObjectAcl> selectedAclList=Collections.emptyList();
+      viewAclsModel.setSelectedAclList(selectedAclList);
+      permissionsCheckboxHandler.setAllChecked(false);
+      UIDatabaseConnection dbconnObject=ro.get(0);
+      try {
+        if (dbconnObject instanceof IAclObject) {
+          IAclObject aclObj=(IAclObject)dbconnObject;
+          aclObj.getAcls(viewAclsModel);
+          if (viewAclsModel.isEntriesInheriting()) {
+            viewAclsModel.setEntriesInheriting(false);
+            aclObj.setAcls(viewAclsModel);
+            viewAclsModel.setModelDirty(false);
+          }
+        }
+ else {
+          throw new IllegalStateException(BaseMessages.getString(PKG,"PermissionsController.NoAclSupport"));
+        }
+        connNameLabel.setValue(BaseMessages.getString(PKG,"AclTab.ConnectionPermission",dbconnObject.getDisplayName()));
+        bf.setBindingType(Binding.Type.ONE_WAY);
+        bf.createBinding(viewAclsModel,"acls",userRoleList,"elements");
+      }
+ catch (      AccessDeniedException ade) {
+        messageBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+        messageBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
+        messageBox.setMessage(BaseMessages.getString(PKG,"PermissionsController.UnableToGetAcls",dbconnObject.getName(),ade.getLocalizedMessage()));
+        messageBox.open();
+      }
+catch (      Exception e) {
+        if (mainController == null || !mainController.handleLostRepository(e)) {
+          messageBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+          messageBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
+          messageBox.setMessage(BaseMessages.getString(PKG,"PermissionsController.UnableToGetAcls",dbconnObject.getName(),e.getLocalizedMessage()));
+          messageBox.open();
+        }
+      }
+      return viewAclsModel.getAcls();
+    }
+    @Override public List<UIDatabaseConnection> targetToSource(    List<UIRepositoryObjectAcl> elements){
+      return null;
+    }
+  }
+;
+  securityBinding=bf.createBinding(connectionsController,"repositoryConnections",userRoleList,"elements",securityBindingConverter);
+  try {
+    if (securityBinding != null) {
+      securityBinding.fireSourceChanged();
+    }
+  }
+ catch (  Exception e) {
+    if (mainController == null || !mainController.handleLostRepository(e)) {
+      throw new RuntimeException(e);
+    }
+  }
+}

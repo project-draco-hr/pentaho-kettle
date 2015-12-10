@@ -1,0 +1,63 @@
+{
+  IPentahoSession origPentahoSession=PentahoSessionHolder.getSession();
+  Authentication origAuthentication=SecurityContextHolder.getContext().getAuthentication();
+  StandaloneSession pentahoSession=new StandaloneSession(repositoryAdminUsername);
+  pentahoSession.setAuthenticated(null,repositoryAdminUsername);
+  PentahoSessionHolder.setSession(pentahoSession);
+  try {
+    txnTemplate.execute(new TransactionCallbackWithoutResult(){
+      public void doInTransactionWithoutResult(      final TransactionStatus status){
+        Builder aclsForUserHomeFolder=null;
+        Builder aclsForTenantHomeFolder=null;
+        ITenant tenant=null;
+        String username=null;
+        if (theTenant == null) {
+          tenant=getTenant(username,true);
+          username=getPrincipalName(theUsername,true);
+        }
+ else {
+          tenant=theTenant;
+          username=theUsername;
+        }
+        if (tenant == null || tenant.getId() == null) {
+          tenant=getCurrentTenant();
+        }
+        if (tenant == null || tenant.getId() == null) {
+          tenant=JcrTenantUtils.getDefaultTenant();
+        }
+        RepositoryFile userHomeFolder=null;
+        String userId=userNameUtils.getPrincipleId(theTenant,username);
+        final RepositoryFileSid userSid=new RepositoryFileSid(userId);
+        RepositoryFile tenantHomeFolder=null;
+        RepositoryFile tenantRootFolder=null;
+        tenantRootFolder=repositoryFileDao.getFileByAbsolutePath(ServerRepositoryPaths.getTenantRootFolderPath(theTenant));
+        if (tenantRootFolder != null) {
+          tenantHomeFolder=repositoryFileDao.getFileByAbsolutePath(ServerRepositoryPaths.getTenantHomeFolderPath(theTenant));
+          if (tenantHomeFolder == null) {
+            String ownerId=userNameUtils.getPrincipleId(theTenant,username);
+            RepositoryFileSid ownerSid=new RepositoryFileSid(ownerId,Type.USER);
+            String tenantAuthenticatedRoleId=roleNameUtils.getPrincipleId(theTenant,tenantAuthenticatedRoleName);
+            RepositoryFileSid tenantAuthenticatedRoleSid=new RepositoryFileSid(tenantAuthenticatedRoleId,Type.ROLE);
+            aclsForTenantHomeFolder=new RepositoryFileAcl.Builder(userSid).ace(tenantAuthenticatedRoleSid,EnumSet.of(RepositoryFilePermission.READ));
+            aclsForUserHomeFolder=new RepositoryFileAcl.Builder(userSid).ace(ownerSid,EnumSet.of(RepositoryFilePermission.ALL));
+            tenantHomeFolder=repositoryFileDao.createFolder(tenantRootFolder.getId(),new RepositoryFile.Builder(ServerRepositoryPaths.getTenantHomeFolderName()).folder(true).build(),aclsForTenantHomeFolder.build(),"tenant home folder");
+          }
+ else {
+            String ownerId=userNameUtils.getPrincipleId(theTenant,username);
+            RepositoryFileSid ownerSid=new RepositoryFileSid(ownerId,Type.USER);
+            aclsForUserHomeFolder=new RepositoryFileAcl.Builder(userSid).ace(ownerSid,EnumSet.of(RepositoryFilePermission.ALL));
+          }
+          userHomeFolder=repositoryFileDao.getFileByAbsolutePath(ServerRepositoryPaths.getUserHomeFolderPath(theTenant,username));
+          if (userHomeFolder == null) {
+            userHomeFolder=repositoryFileDao.createFolder(tenantHomeFolder.getId(),new RepositoryFile.Builder(username).folder(true).build(),aclsForUserHomeFolder.build(),"user home folder");
+          }
+        }
+      }
+    }
+);
+  }
+  finally {
+    PentahoSessionHolder.setSession(origPentahoSession);
+    SecurityContextHolder.getContext().setAuthentication(origAuthentication);
+  }
+}

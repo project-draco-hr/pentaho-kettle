@@ -1,0 +1,37 @@
+{
+  List<UIRepositoryObject> selectedRepoObjects=browseController.getSelectedFileItems();
+  if (selectedRepoObjects.size() > 0 && selectedRepoObjects.get(0) instanceof UIRepositoryContent) {
+    final UIRepositoryContent contentToLock=(UIRepositoryContent)selectedRepoObjects.get(0);
+    if (((ILockObject)contentToLock).isLocked()) {
+      ((ILockObject)contentToLock).unlock();
+      browseController.getSelectedItemsBinding().fireSourceChanged();
+    }
+ else {
+      XulPromptBox lockNotePrompt=promptLockMessage(document,messages,null);
+      lockNotePrompt.addDialogCallback(new XulDialogCallback<String>(){
+        public void onClose(        XulComponent component,        Status status,        String value){
+          if (!status.equals(Status.CANCEL)) {
+            try {
+              ((ILockObject)contentToLock).lock(value);
+              browseController.getSelectedItemsBinding().fireSourceChanged();
+            }
+ catch (            Exception e) {
+              throw new RuntimeException(e);
+            }
+          }
+ else {
+            XulMenuitem lockMenuItem=(XulMenuitem)document.getElementById("lock-context-lock");
+            lockMenuItem.setSelected(false);
+            lockMenuItem=(XulMenuitem)document.getElementById("file-context-lock");
+            lockMenuItem.setSelected(false);
+          }
+        }
+        public void onError(        XulComponent component,        Throwable err){
+          throw new RuntimeException(err);
+        }
+      }
+);
+      lockNotePrompt.open();
+    }
+  }
+}
