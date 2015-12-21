@@ -1,0 +1,31 @@
+{
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(dummyStepname,0);
+  RowStepCollector dummyRc=new RowStepCollector();
+  si.addRowListener(dummyRc);
+  StepInterface junit=trans.getStepInterface(testStepname,0);
+  RowStepCollector dummyJu=new RowStepCollector();
+  junit.addRowListener(dummyJu);
+  StepInterface er=trans.getStepInterface(errorStepName,0);
+  RowStepCollector erColl=new RowStepCollector();
+  er.addRowListener(erColl);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  trans.startThreads();
+  List<RowMetaAndData> inputList=inputData;
+  Iterator<RowMetaAndData> it=inputList.iterator();
+  while (it.hasNext()) {
+    RowMetaAndData rm=it.next();
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.waitUntilFinished();
+  if (trans.getResult().getNrErrors() > 0) {
+    throw new KettleException("Test transformation finished with errors. Check the log.");
+  }
+  Map<String,RowStepCollector> ret=new HashMap<String,RowStepCollector>();
+  ret.put(dummyStepname,dummyRc);
+  ret.put(errorStepName,erColl);
+  ret.put(testStepname,dummyJu);
+  return ret;
+}
