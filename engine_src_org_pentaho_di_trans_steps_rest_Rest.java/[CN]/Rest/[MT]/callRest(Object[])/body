@@ -99,12 +99,26 @@
       logDebug(BaseMessages.getString(PKG,"Rest.Log.ResponseCode","" + status));
     }
     String body;
+    String headerString=null;
     try {
       body=response.getEntity(String.class);
     }
  catch (    UniformInterfaceException ex) {
       body="";
     }
+    MultivaluedMap<String,String> headers=searchForHeaders(response);
+    JSONObject json=new JSONObject();
+    for (    java.util.Map.Entry<String,List<String>> entry : headers.entrySet()) {
+      String name=entry.getKey();
+      List<String> value=entry.getValue();
+      if (value.size() > 1) {
+        json.put(name,value);
+      }
+ else {
+        json.put(name,value.get(0));
+      }
+    }
+    headerString=json.toJSONString();
     int returnFieldsOffset=data.inputRowMeta.size();
     if (!Const.isEmpty(data.resultFieldName)) {
       newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,body);
@@ -116,6 +130,9 @@
     }
     if (!Const.isEmpty(data.resultResponseFieldName)) {
       newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,new Long(responseTime));
+    }
+    if (!Const.isEmpty(data.resultHeaderFieldName)) {
+      newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,headerString.toString());
     }
   }
  catch (  Exception e) {
