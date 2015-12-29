@@ -1,0 +1,53 @@
+{
+  for (  Field f : fields) {
+    if (f.isSynthetic() || f.isEnumConstant() || Modifier.isStatic(f.getModifiers())) {
+      continue;
+    }
+    BeanLevelInfo leaf=new BeanLevelInfo();
+    leaf.parent=this;
+    leaf.field=f;
+    if (f.getType().isArray()) {
+      leaf.array=true;
+      leaf.leafClass=f.getType().getComponentType();
+    }
+ else {
+      leaf.array=false;
+      leaf.leafClass=f.getType();
+    }
+    Injection metaInj=f.getAnnotation(Injection.class);
+    if (metaInj != null) {
+      info.addInjectionProperty(metaInj,leaf);
+    }
+ else     if (f.isAnnotationPresent(InjectionDeep.class)) {
+      leaf.init(info);
+    }
+  }
+  for (  Method m : methods) {
+    if (m.isSynthetic() || Modifier.isStatic(m.getModifiers())) {
+      continue;
+    }
+    Injection metaInj=m.getAnnotation(Injection.class);
+    if (metaInj != null || m.isAnnotationPresent(InjectionDeep.class)) {
+      BeanLevelInfo leaf=new BeanLevelInfo();
+      leaf.parent=this;
+      if (isGetter(m)) {
+        leaf.getter=m;
+        leaf.leafClass=m.getReturnType();
+      }
+ else       if (isSetter(m)) {
+        leaf.setter=m;
+        leaf.leafClass=m.getParameterTypes()[0];
+      }
+ else {
+        continue;
+      }
+      leaf.array=false;
+      if (metaInj != null) {
+        info.addInjectionProperty(metaInj,leaf);
+      }
+ else       if (m.isAnnotationPresent(InjectionDeep.class)) {
+        leaf.init(info);
+      }
+    }
+  }
+}
