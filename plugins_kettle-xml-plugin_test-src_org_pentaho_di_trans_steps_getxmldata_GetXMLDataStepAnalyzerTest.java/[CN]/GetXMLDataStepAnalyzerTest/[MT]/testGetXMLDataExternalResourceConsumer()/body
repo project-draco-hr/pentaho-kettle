@@ -1,0 +1,27 @@
+{
+  GetXMLDataExternalResourceConsumer consumer=new GetXMLDataExternalResourceConsumer();
+  StepMeta spyMeta=spy(new StepMeta("test",meta));
+  when(meta.getParentStepMeta()).thenReturn(spyMeta);
+  when(spyMeta.getParentTransMeta()).thenReturn(parentTransMeta);
+  when(data.getStepMetaInterface()).thenReturn(meta);
+  when(meta.isInFields()).thenReturn(false);
+  String[] filePaths={"/path/to/file1","/another/path/to/file2"};
+  when(meta.getFileName()).thenReturn(filePaths);
+  when(parentTransMeta.environmentSubstitute(any(String[].class))).thenReturn(filePaths);
+  assertFalse(consumer.isDataDriven(meta));
+  Collection<IExternalResourceInfo> resources=consumer.getResourcesFromMeta(meta);
+  assertFalse(resources.isEmpty());
+  assertEquals(2,resources.size());
+  when(meta.isInFields()).thenReturn(true);
+  when(meta.getIsAFile()).thenReturn(true);
+  assertTrue(consumer.isDataDriven(meta));
+  assertTrue(consumer.getResourcesFromMeta(meta).isEmpty());
+  when(rmi.getString(Mockito.any(Object[].class),anyString(),anyString())).thenReturn("/path/to/row/file");
+  resources=consumer.getResourcesFromRow(data,rmi,new String[]{"id","name"});
+  assertFalse(resources.isEmpty());
+  assertEquals(1,resources.size());
+  when(rmi.getString(Mockito.any(Object[].class),anyString(),anyString())).thenThrow(new KettleValueException());
+  resources=consumer.getResourcesFromRow(data,rmi,new String[]{"id","name"});
+  assertTrue(resources.isEmpty());
+  assertEquals(GetXMLDataMeta.class,consumer.getMetaClass());
+}
