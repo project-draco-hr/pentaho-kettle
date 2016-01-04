@@ -1,0 +1,36 @@
+{
+  Map<TargetStepAttribute,SourceStepField> targetSourceMapping=new LinkedHashMap<TargetStepAttribute,SourceStepField>();
+  targetSourceMapping.put(new TargetStepAttribute(INJECTOR_STEP_NAME,"DATA_TYPE",true),new SourceStepField("TYPE_INPUT","col_type"));
+  targetSourceMapping.put(new TargetStepAttribute(INJECTOR_STEP_NAME,"NAME",true),new SourceStepField("NAME_INPUT","col_name"));
+  meta.setTargetSourceMapping(targetSourceMapping);
+  doReturn(new String[]{"NAME_INPUT","TYPE_INPUT"}).when(transMeta).getPrevStepNames(any(StepMeta.class));
+  RowSet nameInputRowSet=mock(RowSet.class);
+  RowMeta nameRowMeta=new RowMeta();
+  nameRowMeta.addValueMeta(new ValueMetaString("col_name"));
+  doReturn(nameRowMeta).when(nameInputRowSet).getRowMeta();
+  doReturn(nameInputRowSet).when(metaInject).findInputRowSet("NAME_INPUT");
+  RowSet typeInputRowSet=mock(RowSet.class);
+  RowMeta typeRowMeta=new RowMeta();
+  typeRowMeta.addValueMeta(new ValueMetaString("col_type"));
+  doReturn(typeRowMeta).when(typeInputRowSet).getRowMeta();
+  doReturn(typeInputRowSet).when(metaInject).findInputRowSet("TYPE_INPUT");
+  doReturn(new Object[]{"FIRST_NAME"}).doReturn(null).when(metaInject).getRowFrom(nameInputRowSet);
+  doReturn(new Object[]{"String"}).doReturn(null).when(metaInject).getRowFrom(typeInputRowSet);
+  List<StepInjectionMetaEntry> injectionMetaEntryList=new ArrayList<StepInjectionMetaEntry>();
+  StepInjectionMetaEntry fields=new StepInjectionMetaEntry("FIELDS",ValueMetaInterface.TYPE_NONE,"");
+  StepInjectionMetaEntry fieldEntry=new StepInjectionMetaEntry("FIELD",ValueMetaInterface.TYPE_NONE,"");
+  fields.getDetails().add(fieldEntry);
+  StepInjectionMetaEntry nameEntry=new StepInjectionMetaEntry("NAME",ValueMetaInterface.TYPE_STRING,"");
+  fieldEntry.getDetails().add(nameEntry);
+  StepInjectionMetaEntry dataEntry=new StepInjectionMetaEntry("DATA_TYPE",ValueMetaInterface.TYPE_STRING,"");
+  fieldEntry.getDetails().add(dataEntry);
+  injectionMetaEntryList.add(fields);
+  doReturn(injectionMetaEntryList).when(metaInjectionInterface).getStepInjectionMetadataEntries();
+  meta.setNoExecution(true);
+  metaInject.init(meta,data);
+  metaInject.processRow(meta,data);
+  StepInjectionMetaEntry expectedNameEntry=new StepInjectionMetaEntry("NAME","FIRST_NAME",ValueMetaInterface.TYPE_STRING,"");
+  StepInjectionMetaEntry expectedDataEntry=new StepInjectionMetaEntry("DATA_TYPE","String",ValueMetaInterface.TYPE_STRING,"");
+  verify(metaInject,atLeastOnce()).setEntryValueIfFieldExists(refEq(expectedNameEntry),any(RowMetaAndData.class),any(SourceStepField.class));
+  verify(metaInject,atLeastOnce()).setEntryValueIfFieldExists(refEq(expectedDataEntry),any(RowMetaAndData.class),any(SourceStepField.class));
+}
