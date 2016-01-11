@@ -1,0 +1,88 @@
+{
+  super.createBindings();
+  fileFolderLabel=(XulLabel)document.getElementById("file-folder-name");
+  aclDeck=(XulDeck)document.getElementById("acl-deck");
+  inheritParentPermissionCheckbox=(XulCheckbox)document.getElementById("inherit-from-parent-permission-checkbox");
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  BindingConvertor<List<UIRepositoryObject>,List<UIRepositoryObjectAcl>> securityBindingConverter=new BindingConvertor<List<UIRepositoryObject>,List<UIRepositoryObjectAcl>>(){
+    @Override public List<UIRepositoryObjectAcl> sourceToTarget(    List<UIRepositoryObject> ro){
+      if (ro == null) {
+        return null;
+      }
+      if (ro.size() <= 0) {
+        return null;
+      }
+      setSelectedRepositoryObject(ro);
+      if (!hasManageAclAccess()) {
+        applyAclButton.setDisabled(true);
+        addAclButton.setDisabled(true);
+        removeAclButton.setDisabled(true);
+        inheritParentPermissionCheckbox.setDisabled(true);
+        manageAclCheckbox.setDisabled(true);
+        deleteCheckbox.setDisabled(true);
+        writeCheckbox.setDisabled(true);
+        readCheckbox.setDisabled(true);
+        viewAclsModel.setHasManageAclAccess(false);
+      }
+ else {
+        applyAclButton.setDisabled(false);
+        inheritParentPermissionCheckbox.setDisabled(false);
+        viewAclsModel.setHasManageAclAccess(true);
+      }
+      viewAclsModel.setRemoveEnabled(false);
+      List<UIRepositoryObjectAcl> selectedAclList=Collections.emptyList();
+      viewAclsModel.setSelectedAclList(selectedAclList);
+      permissionsCheckboxHandler.updateCheckboxes(EnumSet.noneOf(RepositoryFilePermission.class));
+      UIRepositoryObject repoObject=ro.get(0);
+      try {
+        if (repoObject instanceof IAclObject) {
+          ((IAclObject)repoObject).getAcls(viewAclsModel);
+        }
+ else {
+          throw new IllegalStateException(BaseMessages.getString(PKG,"PermissionsController.NoAclSupport"));
+        }
+        fileFolderLabel.setValue(BaseMessages.getString(PKG,"AclTab.UserRolePermission",repoObject.getName()));
+        bf.setBindingType(Binding.Type.ONE_WAY);
+        bf.createBinding(viewAclsModel,"acls",userRoleList,"elements");
+        updateInheritFromParentPermission();
+      }
+ catch (      AccessDeniedException ade) {
+        if (mainController == null || !mainController.handleLostRepository(ade)) {
+          messageBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+          messageBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
+          messageBox.setMessage(BaseMessages.getString(PKG,"PermissionsController.UnableToGetAcls",repoObject.getName(),ade.getLocalizedMessage()));
+          messageBox.open();
+        }
+      }
+catch (      Exception e) {
+        if (mainController == null || !mainController.handleLostRepository(e)) {
+          messageBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+          messageBox.setAcceptLabel(BaseMessages.getString(PKG,"Dialog.Ok"));
+          messageBox.setMessage(BaseMessages.getString(PKG,"PermissionsController.UnableToGetAcls",repoObject.getName(),e.getLocalizedMessage()));
+          messageBox.open();
+        }
+      }
+      aclDeck.setSelectedIndex(ACL);
+      return viewAclsModel.getAcls();
+    }
+    @Override public List<UIRepositoryObject> targetToSource(    List<UIRepositoryObjectAcl> elements){
+      return null;
+    }
+  }
+;
+  securityBinding=bf.createBinding(browseController,"repositoryObjects",userRoleList,"elements",securityBindingConverter);
+  securityBinding=bf.createBinding(browseController,"repositoryDirectories",userRoleList,"elements",securityBindingConverter);
+  bf.setBindingType(Binding.Type.BI_DIRECTIONAL);
+  bf.createBinding(viewAclsModel,"entriesInheriting",inheritParentPermissionCheckbox,"checked");
+  aclDeck.setSelectedIndex(NO_ACL);
+  try {
+    if (securityBinding != null) {
+      securityBinding.fireSourceChanged();
+    }
+  }
+ catch (  Exception e) {
+    if (mainController == null || !mainController.handleLostRepository(e)) {
+      throw new RuntimeException(e);
+    }
+  }
+}

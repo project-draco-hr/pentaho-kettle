@@ -1,0 +1,47 @@
+{
+  Class<PurRepositoryDialog> PKG=PurRepositoryDialog.class;
+  Repository repository=spoon.getRepository();
+  if (spoon.getActiveMeta() == null) {
+    return;
+  }
+  String warningTitle=BaseMessages.getString(PKG,"PurRepository.Dialog.WarnToCloseAllForce.Connect.Title");
+  String warningText=BaseMessages.getString(PKG,"PurRepository.Dialog.WarnToCloseAllOptionAdditional.Connect.Message");
+  String additionalWarningText="";
+  int buttons=SWT.OK;
+  IAbsSecurityProvider absSecurityProvider=(IAbsSecurityProvider)repository.getService(IAbsSecurityProvider.class);
+  if (absSecurityProvider != null) {
+    boolean createPerms=false;
+    boolean executePerms=false;
+    boolean readPerms=false;
+    try {
+      createPerms=absSecurityProvider.isAllowed(IAbsSecurityProvider.CREATE_CONTENT_ACTION);
+      executePerms=absSecurityProvider.isAllowed(IAbsSecurityProvider.EXECUTE_CONTENT_ACTION);
+      readPerms=absSecurityProvider.isAllowed(IAbsSecurityProvider.READ_CONTENT_ACTION);
+    }
+ catch (    KettleException e) {
+    }
+    if (readPerms && createPerms && executePerms) {
+      warningTitle=BaseMessages.getString(PKG,"PurRepository.Dialog.WarnToCloseAllOption.Connect.Title");
+      warningText=BaseMessages.getString(PKG,"PurRepository.Dialog.WarnToCloseAllOption.Connect.Message");
+      buttons=SWT.YES | SWT.NO | SWT.ICON_INFORMATION;
+    }
+ else {
+      warningText=BaseMessages.getString(PKG,"PurRepository.Dialog.WarnToCloseAllForce.Connect.Message");
+      if (createPerms) {
+        additionalWarningText=BaseMessages.getString(PKG,"PurRepository.Dialog.WarnToCloseAllForceAdditional.Connect.Message");
+        buttons=SWT.YES | SWT.NO | SWT.ICON_WARNING;
+      }
+ else {
+        additionalWarningText=BaseMessages.getString(PKG,"PurRepository.Dialog.WarnToCloseAllOptionAdditional.Connect.Message");
+        buttons=SWT.OK | SWT.ICON_WARNING;
+      }
+    }
+  }
+  MessageBox mb=new MessageBox(spoon.getShell(),buttons);
+  mb.setMessage(additionalWarningText.length() != 0 ? warningText + "\n\n" + additionalWarningText : warningText);
+  mb.setText(warningTitle);
+  final int isCloseAllFiles=mb.open();
+  if ((isCloseAllFiles == SWT.YES) || (isCloseAllFiles == SWT.OK)) {
+    spoon.closeAllFiles();
+  }
+}

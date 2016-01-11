@@ -1,0 +1,162 @@
+{
+  userRoleList=(XulListbox)document.getElementById(getXulPrefix() + "user-role-list");
+  writeCheckbox=(XulCheckbox)document.getElementById(getXulPrefix() + "write-checkbox");
+  readCheckbox=(XulCheckbox)document.getElementById(getXulPrefix() + "read-checkbox");
+  manageAclCheckbox=(XulCheckbox)document.getElementById(getXulPrefix() + "manage-checkbox");
+  deleteCheckbox=(XulCheckbox)document.getElementById(getXulPrefix() + "delete-checkbox");
+  addAclButton=(XulButton)document.getElementById(getXulPrefix() + "add-acl-button");
+  removeAclButton=(XulButton)document.getElementById(getXulPrefix() + "remove-acl-button");
+  manageAclsDialog=(XulDialog)document.getElementById(getXulPrefix() + "manage-acls-dialog");
+  permissionsCheckboxHandler=new PermissionsCheckboxHandler(readCheckbox,writeCheckbox,deleteCheckbox,manageAclCheckbox);
+  availableUserList=(XulListbox)document.getElementById(getXulPrefix() + "available-user-list");
+  selectedUserList=(XulListbox)document.getElementById(getXulPrefix() + "selected-user-list");
+  availableRoleList=(XulListbox)document.getElementById(getXulPrefix() + "available-role-list");
+  selectedRoleList=(XulListbox)document.getElementById(getXulPrefix() + "selected-role-list");
+  assignRoleButton=(XulButton)document.getElementById(getXulPrefix() + "assign-role");
+  unassignRoleButton=(XulButton)document.getElementById(getXulPrefix() + "unassign-role");
+  assignUserButton=(XulButton)document.getElementById(getXulPrefix() + "assign-user");
+  unassignUserButton=(XulButton)document.getElementById(getXulPrefix() + "unassign-user");
+  applyAclButton=(XulButton)document.getElementById(getXulPrefix() + "apply-acl");
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  bf.createBinding(manageAclsModel,"availableUserList",availableUserList,"elements");
+  bf.createBinding(manageAclsModel,"selectedUserList",selectedUserList,"elements");
+  bf.createBinding(manageAclsModel,"availableRoleList",availableRoleList,"elements");
+  bf.createBinding(manageAclsModel,"selectedRoleList",selectedRoleList,"elements");
+  BindingConvertor<int[],List<UIRepositoryObjectAcl>> indicesToObjectsConverter=new BindingConvertor<int[],List<UIRepositoryObjectAcl>>(){
+    @Override public int[] targetToSource(    List<UIRepositoryObjectAcl> acls){
+      if (acls != null) {
+        int i=0;
+        int[] retVal=new int[acls.size()];
+        for (        UIRepositoryObjectAcl acl : acls) {
+          retVal[i++]=viewAclsModel.getAceIndex(acl.getAce());
+        }
+        return retVal;
+      }
+      return null;
+    }
+    @Override public List<UIRepositoryObjectAcl> sourceToTarget(    int[] indices){
+      if (indices != null && indices.length > 0) {
+        List<UIRepositoryObjectAcl> retVal=new ArrayList<UIRepositoryObjectAcl>();
+        for (int i=0; i < indices.length; i++) {
+          retVal.add(new UIRepositoryObjectAcl(viewAclsModel.getAceAtIndex(indices[i])));
+        }
+        return retVal;
+      }
+      return null;
+    }
+  }
+;
+  BindingConvertor<int[],List<String>> indexToAvailableUserConverter=new BindingConvertor<int[],List<String>>(){
+    @Override public List<String> sourceToTarget(    int[] indices){
+      List<String> userList=new ArrayList<String>();
+      for (int i=0; i < indices.length; i++) {
+        userList.add(manageAclsModel.getAvailableUser(indices[i]));
+      }
+      return userList;
+    }
+    @Override public int[] targetToSource(    List<String> userList){
+      int[] indices=new int[userList.size()];
+      int i=0;
+      for (      String user : userList) {
+        indices[i++]=manageAclsModel.getAvailableUserIndex(user);
+      }
+      return indices;
+    }
+  }
+;
+  BindingConvertor<int[],List<String>> indexToAvailableRoleConverter=new BindingConvertor<int[],List<String>>(){
+    @Override public List<String> sourceToTarget(    int[] indices){
+      List<String> roleList=new ArrayList<String>();
+      for (int i=0; i < indices.length; i++) {
+        roleList.add(manageAclsModel.getAvailableRole(indices[i]));
+      }
+      return roleList;
+    }
+    @Override public int[] targetToSource(    List<String> roleList){
+      int[] indices=new int[roleList.size()];
+      int i=0;
+      for (      String role : roleList) {
+        indices[i++]=manageAclsModel.getAvailableRoleIndex(role);
+      }
+      return indices;
+    }
+  }
+;
+  BindingConvertor<int[],List<UIRepositoryObjectAcl>> indexToSelectedUserConverter=new BindingConvertor<int[],List<UIRepositoryObjectAcl>>(){
+    @Override public List<UIRepositoryObjectAcl> sourceToTarget(    int[] indices){
+      List<UIRepositoryObjectAcl> userList=new ArrayList<UIRepositoryObjectAcl>();
+      for (int i=0; i < indices.length; i++) {
+        userList.add(manageAclsModel.getSelectedUser(indices[i]));
+      }
+      return userList;
+    }
+    @Override public int[] targetToSource(    List<UIRepositoryObjectAcl> userList){
+      int[] indices=new int[userList.size()];
+      int i=0;
+      for (      UIRepositoryObjectAcl user : userList) {
+        indices[i++]=manageAclsModel.getSelectedUserIndex(user);
+      }
+      return indices;
+    }
+  }
+;
+  BindingConvertor<int[],List<UIRepositoryObjectAcl>> indexToSelectedRoleConverter=new BindingConvertor<int[],List<UIRepositoryObjectAcl>>(){
+    @Override public List<UIRepositoryObjectAcl> sourceToTarget(    int[] indices){
+      List<UIRepositoryObjectAcl> roleList=new ArrayList<UIRepositoryObjectAcl>();
+      for (int i=0; i < indices.length; i++) {
+        roleList.add(manageAclsModel.getSelectedRole(indices[i]));
+      }
+      return roleList;
+    }
+    @Override public int[] targetToSource(    List<UIRepositoryObjectAcl> roleList){
+      int[] indices=new int[roleList.size()];
+      int i=0;
+      for (      UIRepositoryObjectAcl role : roleList) {
+        indices[i++]=manageAclsModel.getSelectedRoleIndex(role);
+      }
+      return indices;
+    }
+  }
+;
+  bf.setBindingType(Binding.Type.BI_DIRECTIONAL);
+  bf.createBinding(availableUserList,"selectedIndices",manageAclsModel,"selectedAvailableUsers",indexToAvailableUserConverter);
+  bf.createBinding(selectedUserList,"selectedIndices",manageAclsModel,"selectedAssignedUsers",indexToSelectedUserConverter);
+  bf.createBinding(availableRoleList,"selectedIndices",manageAclsModel,"selectedAvailableRoles",indexToAvailableRoleConverter);
+  bf.createBinding(selectedRoleList,"selectedIndices",manageAclsModel,"selectedAssignedRoles",indexToSelectedRoleConverter);
+  bf.createBinding(userRoleList,"selectedIndices",viewAclsModel,"selectedAclList",indicesToObjectsConverter);
+  BindingConvertor<Integer,Boolean> accumulatorButtonConverter=new BindingConvertor<Integer,Boolean>(){
+    @Override public Boolean sourceToTarget(    Integer value){
+      if (value != null && value >= 0) {
+        return true;
+      }
+      return false;
+    }
+    @Override public Integer targetToSource(    Boolean value){
+      return null;
+    }
+  }
+;
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  bf.createBinding(selectedUserList,"selectedIndex",manageAclsModel,"userUnassignmentPossible",accumulatorButtonConverter);
+  bf.createBinding(availableUserList,"selectedIndex",manageAclsModel,"userAssignmentPossible",accumulatorButtonConverter);
+  bf.createBinding(manageAclsModel,"userUnassignmentPossible",unassignUserButton,"!disabled");
+  bf.createBinding(manageAclsModel,"userAssignmentPossible",assignUserButton,"!disabled");
+  bf.createBinding(selectedRoleList,"selectedIndex",manageAclsModel,"roleUnassignmentPossible",accumulatorButtonConverter);
+  bf.createBinding(availableRoleList,"selectedIndex",manageAclsModel,"roleAssignmentPossible",accumulatorButtonConverter);
+  bf.createBinding(manageAclsModel,"roleUnassignmentPossible",unassignRoleButton,"!disabled");
+  bf.createBinding(manageAclsModel,"roleAssignmentPossible",assignRoleButton,"!disabled");
+  bf.createBinding(viewAclsModel,"removeEnabled",removeAclButton,"!disabled");
+  bf.createBinding(viewAclsModel,"selectedAclList",this,"aclState",new BindingConvertor<List<UIRepositoryObjectAcl>,UIRepositoryObjectAcl>(){
+    @Override public UIRepositoryObjectAcl sourceToTarget(    List<UIRepositoryObjectAcl> value){
+      if (value != null && value.size() > 0) {
+        return value.get(0);
+      }
+      return null;
+    }
+    @Override public List<UIRepositoryObjectAcl> targetToSource(    UIRepositoryObjectAcl value){
+      return null;
+    }
+  }
+);
+  bf.createBinding(userRoleList,"selectedItem",this,"recipientChanged");
+}

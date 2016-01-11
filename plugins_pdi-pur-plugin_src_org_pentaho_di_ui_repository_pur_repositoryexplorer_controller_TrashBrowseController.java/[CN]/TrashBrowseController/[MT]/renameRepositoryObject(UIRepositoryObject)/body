@@ -1,0 +1,54 @@
+{
+  XulPromptBox prompt=promptForName(repoObject);
+  prompt.addDialogCallback(new XulDialogCallback<String>(){
+    public void onClose(    XulComponent component,    Status status,    String value){
+      if (status == Status.ACCEPT) {
+        final String newName=value;
+        try {
+          repoObject.setName(newName);
+        }
+ catch (        KettleException ke) {
+          if (ke.getCause() instanceof RepositoryObjectAccessException) {
+            moveDeletePrompt(ke,repoObject,new XulDialogCallback<Object>(){
+              public void onClose(              XulComponent sender,              Status returnCode,              Object retVal){
+                if (returnCode == Status.ACCEPT) {
+                  try {
+                    ((UIEERepositoryDirectory)repoObject).setName(newName,true);
+                  }
+ catch (                  Exception e) {
+                    if (mainController == null || !mainController.handleLostRepository(e)) {
+                      displayExceptionMessage(BaseMessages.getString(PKG,e.getLocalizedMessage()));
+                    }
+                  }
+                }
+              }
+              public void onError(              XulComponent sender,              Throwable t){
+                if (mainController == null || !mainController.handleLostRepository(t)) {
+                  throw new RuntimeException(t);
+                }
+              }
+            }
+);
+          }
+ else {
+            if (mainController == null || !mainController.handleLostRepository(ke)) {
+              throw new RuntimeException(ke);
+            }
+          }
+        }
+catch (        Exception e) {
+          if (mainController == null || !mainController.handleLostRepository(e)) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+    }
+    public void onError(    XulComponent component,    Throwable err){
+      if (mainController == null || !mainController.handleLostRepository(err)) {
+        throw new RuntimeException(err);
+      }
+    }
+  }
+);
+  prompt.open();
+}

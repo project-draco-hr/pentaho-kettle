@@ -1,0 +1,117 @@
+{
+  String aUrl=arguments.get(OPTION_PREFIX + URL);
+  String aUser=arguments.get(OPTION_PREFIX + USER);
+  String aPassword=arguments.get(OPTION_PREFIX + PASS);
+  String aVerCount=arguments.get(OPTION_PREFIX + VER_COUNT);
+  String aDelFrom=arguments.get(OPTION_PREFIX + DEL_DATE);
+  String aPurgeFiles=arguments.get(OPTION_PREFIX + PURGE_FILES);
+  String aPurgeRev=arguments.get(OPTION_PREFIX + PURGE_REV);
+  String aPurgeShared=arguments.get(OPTION_PREFIX + PURGE_SHARED);
+  String aLogLevel=arguments.get(OPTION_PREFIX + LOG_LEVEL);
+  String aLogFile=arguments.get(OPTION_PREFIX + LOG_FILE);
+  StringBuffer errors=new StringBuffer();
+  boolean isValidOperationSelected=false;
+  fileFilter="*.kjb|*.ktr";
+  repositoryPath="/";
+  purgeShared=false;
+  if (aLogLevel != null && !(aLogLevel.equals("DEBUG") || aLogLevel.equals("ERROR") || aLogLevel.equals("FATAL")|| aLogLevel.equals("INFO")|| aLogLevel.equals("OFF")|| aLogLevel.equals("TRACE")|| aLogLevel.equals("WARN"))) {
+    errors.append(OPTION_PREFIX + LOG_LEVEL + "="+ aLogLevel+ " "+ Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0003.INVALID_LOGLEVEL")+ "\n");
+  }
+ else {
+    logLevel=aLogLevel;
+  }
+  if (aLogFile != null) {
+    File f=new File(aLogFile);
+    if (f.exists() && f.isDirectory()) {
+      errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0004.FOLDER_EXISTS",OPTION_PREFIX + LOG_FILE) + "\n");
+    }
+    logFile=aLogFile;
+  }
+  if (aUrl == null) {
+    errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0005.MISSING_PARAM",OPTION_PREFIX + URL) + "\n");
+  }
+ else {
+    url=aUrl;
+  }
+  if (aUser == null) {
+    errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0005.MISSING_PARAM",OPTION_PREFIX + USER) + "\n");
+  }
+ else {
+    username=aUser;
+  }
+  if (aPassword == null) {
+    errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0005.MISSING_PARAM",OPTION_PREFIX + PASS) + "\n");
+  }
+ else {
+    password=aPassword;
+  }
+  if (aPurgeFiles != null) {
+    if ((aPurgeFiles.equalsIgnoreCase(Boolean.TRUE.toString()) || aPurgeFiles.equalsIgnoreCase(Boolean.FALSE.toString()))) {
+      purgeFiles=Boolean.parseBoolean(aPurgeFiles);
+      isValidOperationSelected=true;
+    }
+ else {
+      errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0006.INVALID_BOOLEAN",OPTION_PREFIX + PURGE_FILES + "="+ aPurgeFiles) + "\n");
+    }
+  }
+  if (aPurgeRev != null) {
+    if (aPurgeRev.equalsIgnoreCase(Boolean.TRUE.toString()) || aPurgeRev.equalsIgnoreCase(Boolean.FALSE.toString())) {
+      if (isValidOperationSelected) {
+        errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0010.INVALID_COMBINATION_OF_PARAMS") + "\n");
+      }
+ else {
+        purgeRev=Boolean.parseBoolean(aPurgeRev);
+        isValidOperationSelected=true;
+      }
+    }
+ else {
+      errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0006.INVALID_BOOLEAN",OPTION_PREFIX + PURGE_REV + "="+ aPurgeRev) + "\n");
+    }
+  }
+  if (aPurgeShared != null) {
+    if (Boolean.parseBoolean(aPurgeFiles) != Boolean.TRUE) {
+      errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0014.INVALID_PURGE_SHARED"));
+    }
+ else {
+      purgeShared=Boolean.parseBoolean(aPurgeShared);
+    }
+  }
+  if (aDelFrom != null) {
+    if (isValidOperationSelected) {
+      errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0010.INVALID_COMBINATION_OF_PARAMS") + "\n");
+    }
+ else {
+      SimpleDateFormat sdf=new SimpleDateFormat(purgeBeforeDateFormat);
+      sdf.setLenient(false);
+      try {
+        sdf.parse(aDelFrom);
+        delFrom=aDelFrom;
+        isValidOperationSelected=true;
+      }
+ catch (      ParseException e) {
+        errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0008.IMPROPERLY_FORMATTED_DATE",OPTION_PREFIX + DEL_DATE + "="+ aDelFrom,purgeBeforeDateFormat) + "\n");
+      }
+    }
+  }
+  if (aVerCount != null) {
+    if (isValidOperationSelected) {
+      errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0010.INVALID_COMBINATION_OF_PARAMS") + "\n");
+    }
+ else {
+      try {
+        verCount=Integer.parseInt(aVerCount);
+        isValidOperationSelected=true;
+      }
+ catch (      NumberFormatException e) {
+        errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0009.INVALID_INTEGER",OPTION_PREFIX + VER_COUNT + "="+ aVerCount) + "\n");
+      }
+    }
+  }
+  if (!isValidOperationSelected) {
+    errors.append(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0013.MISSING_OPERATION") + "\n");
+  }
+  if (errors.length() != 0) {
+    errors.insert(0,"\n\n" + Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0011.ERRORS_HEADER") + "\n");
+    throw new Exception(errors.toString());
+  }
+}

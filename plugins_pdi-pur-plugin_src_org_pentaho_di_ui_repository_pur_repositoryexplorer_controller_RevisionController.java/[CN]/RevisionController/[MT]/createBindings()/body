@@ -1,0 +1,77 @@
+{
+  filePropertiesTabbox=(XulTabbox)document.getElementById("file-properties-tabs");
+  historyTab=(XulTab)document.getElementById("history");
+  revisionTable=(XulTree)document.getElementById("revision-table");
+  folderTree=(XulTree)document.getElementById("folder-tree");
+  fileTable=(XulTree)document.getElementById("file-table");
+  historyTab.setVisible(false);
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  BindingConvertor<int[],Boolean> forButtons=new BindingConvertor<int[],Boolean>(){
+    @Override public Boolean sourceToTarget(    int[] value){
+      return value != null && !(value.length <= 0);
+    }
+    @Override public int[] targetToSource(    Boolean value){
+      return null;
+    }
+  }
+;
+  Binding openButtonBinding=bf.createBinding(revisionTable,"selectedRows",OPEN_REVISION_BUTTON,"!disabled",forButtons);
+  Binding restoreButtonBinding=bf.createBinding(revisionTable,"selectedRows",RESTORE_REVISION_BUTTON,"!disabled",forButtons);
+  bf.setBindingType(Binding.Type.ONE_WAY);
+  bf.createBinding(folderTree,"selectedItems",this,"historyTabVisibility");
+  revisionBinding=bf.createBinding(this,"revisionObjects",revisionTable,"elements");
+  revisionBinding=bf.createBinding(browseController,"repositoryItems",this,"revisionObjects",new BindingConvertor<List<UIRepositoryObject>,UIRepositoryObjectRevisions>(){
+    private void disableButtons(){
+      document.getElementById(OPEN_REVISION_BUTTON).setDisabled(true);
+      document.getElementById(RESTORE_REVISION_BUTTON).setDisabled(true);
+    }
+    @Override public UIRepositoryObjectRevisions sourceToTarget(    List<UIRepositoryObject> ro){
+      if (ro == null || ro.isEmpty() || !masterVersioningEnabled) {
+        return new UIRepositoryObjectRevisions();
+      }
+      if (ro.get(0) instanceof UIRepositoryDirectory) {
+        historyTab.setVisible(false);
+        filePropertiesTabbox.setSelectedIndex(0);
+        disableButtons();
+        return null;
+      }
+      UIRepositoryObjectRevisions revisions=null;
+      try {
+        UIRepositoryContent rc=(UIRepositoryContent)ro.get(0);
+        if (rc instanceof IRevisionObject) {
+          Boolean versioningEnabled=((IRevisionObject)rc).getVersioningEnabled();
+          historyTab.setVisible(versioningEnabled);
+          if (!versioningEnabled) {
+            return new UIRepositoryObjectRevisions();
+          }
+          Boolean versionCommentEnabled=((IRevisionObject)rc).getVersionCommentEnabled();
+          setRevisionTableColumns(versionCommentEnabled);
+          revisions=((IRevisionObject)rc).getRevisions();
+        }
+ else {
+          throw new IllegalStateException(BaseMessages.getString(PKG,"RevisionsController.RevisionsNotSupported"));
+        }
+      }
+ catch (      KettleException e) {
+        if (mainController == null || !mainController.handleLostRepository(e)) {
+          throw new RuntimeException(e);
+        }
+      }
+      return revisions;
+    }
+    @Override public List<UIRepositoryObject> targetToSource(    UIRepositoryObjectRevisions elements){
+      return null;
+    }
+  }
+);
+  try {
+    openButtonBinding.fireSourceChanged();
+    restoreButtonBinding.fireSourceChanged();
+    revisionBinding.fireSourceChanged();
+  }
+ catch (  Exception e) {
+    if (mainController == null || !mainController.handleLostRepository(e)) {
+      throw new RuntimeException(e);
+    }
+  }
+}
