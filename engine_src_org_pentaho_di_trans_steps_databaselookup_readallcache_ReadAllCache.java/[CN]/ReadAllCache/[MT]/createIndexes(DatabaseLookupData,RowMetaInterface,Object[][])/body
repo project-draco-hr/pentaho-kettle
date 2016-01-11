@@ -1,0 +1,44 @@
+{
+  final int rowsAmount=keys.length;
+  final int[] conditions=stepData.conditions;
+  PriorityQueue<Index> indexes=new PriorityQueue<>(conditions.length,Index.restrictionComparator());
+  List<int[]> otherConditions=new ArrayList<>();
+  for (int i=0, len=conditions.length; i < len; i++) {
+    int condition=conditions[i];
+    Index index=null;
+switch (condition) {
+case DatabaseLookupMeta.CONDITION_EQ:
+      index=new EqIndex(i,keysMeta.getValueMeta(i),rowsAmount);
+    break;
+case DatabaseLookupMeta.CONDITION_NE:
+  index=EqIndex.nonEqualityIndex(i,keysMeta.getValueMeta(i),rowsAmount);
+break;
+case DatabaseLookupMeta.CONDITION_LT:
+index=new LtIndex(i,keysMeta.getValueMeta(i),rowsAmount);
+break;
+case DatabaseLookupMeta.CONDITION_LE:
+index=GtIndex.lessOrEqualCache(i,keysMeta.getValueMeta(i),rowsAmount);
+break;
+case DatabaseLookupMeta.CONDITION_GT:
+index=new GtIndex(i,keysMeta.getValueMeta(i),rowsAmount);
+break;
+case DatabaseLookupMeta.CONDITION_GE:
+index=LtIndex.greaterOrEqualCache(i,keysMeta.getValueMeta(i),rowsAmount);
+break;
+case DatabaseLookupMeta.CONDITION_IS_NULL:
+index=new IsNullIndex(i,keysMeta.getValueMeta(i),rowsAmount,true);
+break;
+case DatabaseLookupMeta.CONDITION_IS_NOT_NULL:
+index=new IsNullIndex(i,keysMeta.getValueMeta(i),rowsAmount,false);
+break;
+}
+if (index == null) {
+otherConditions.add(new int[]{i,condition});
+}
+ else {
+index.performIndexingOf(keys);
+indexes.add(index);
+}
+}
+return new Object[]{indexes.toArray(new Index[indexes.size()]),otherConditions.toArray(new int[otherConditions.size()][])};
+}
