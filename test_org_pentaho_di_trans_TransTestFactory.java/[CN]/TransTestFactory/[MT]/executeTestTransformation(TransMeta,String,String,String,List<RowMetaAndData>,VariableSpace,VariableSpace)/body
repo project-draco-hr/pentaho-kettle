@@ -1,0 +1,31 @@
+{
+  Trans trans=new Trans(transMeta);
+  trans.initializeVariablesFrom(runTimeVariables);
+  if (runTimeParameters != null) {
+    for (    String param : trans.listParameters()) {
+      String value=runTimeParameters.getVariable(param);
+      if (value != null) {
+        trans.setParameterValue(param,value);
+        transMeta.setParameterValue(param,value);
+      }
+    }
+  }
+  trans.prepareExecution(null);
+  StepInterface si=trans.getStepInterface(dummyStepname,0);
+  RowStepCollector dummyRc=new RowStepCollector();
+  si.addRowListener(dummyRc);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  trans.startThreads();
+  List<RowMetaAndData> inputList=inputData;
+  Iterator<RowMetaAndData> it=inputList.iterator();
+  while (it.hasNext()) {
+    RowMetaAndData rm=it.next();
+    rp.putRow(rm.getRowMeta(),rm.getData());
+  }
+  rp.finished();
+  trans.waitUntilFinished();
+  if (trans.getResult().getNrErrors() > 0) {
+    throw new KettleException("Test transformation finished with errors. Check the log.");
+  }
+  return dummyRc.getRowsRead();
+}
