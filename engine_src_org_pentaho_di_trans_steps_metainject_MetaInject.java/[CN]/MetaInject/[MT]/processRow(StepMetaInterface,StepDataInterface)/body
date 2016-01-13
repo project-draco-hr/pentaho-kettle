@@ -19,86 +19,13 @@
       }
     }
   }
+  for (  Map.Entry<String,StepMetaInterface> en : data.stepInjectionMetasMap.entrySet()) {
+    newInjection(en.getKey(),en.getValue());
+  }
   for (  String targetStep : data.stepInjectionMap.keySet()) {
-    if (log.isDetailed()) {
-      logDetailed("Handing step '" + targetStep + "' injection!");
+    if (!data.stepInjectionMetasMap.containsKey(targetStep)) {
+      oldInjection(targetStep);
     }
-    StepMetaInjectionInterface injectionInterface=data.stepInjectionMap.get(targetStep);
-    List<StepInjectionMetaEntry> metadataEntries=injectionInterface.getStepInjectionMetadataEntries();
-    List<StepInjectionMetaEntry> inject=new ArrayList<StepInjectionMetaEntry>();
-    Map<TargetStepAttribute,SourceStepField> targetMap=meta.getTargetSourceMapping();
-    for (    TargetStepAttribute target : targetMap.keySet()) {
-      SourceStepField source=targetMap.get(target);
-      if (target.getStepname().equalsIgnoreCase(targetStep)) {
-        List<RowMetaAndData> rows=data.rowMap.get(source.getStepname());
-        if (rows != null && rows.size() > 0) {
-          StepInjectionMetaEntry entry=findMetaEntry(metadataEntries,target.getAttributeKey());
-          if (entry != null) {
-            if (!target.isDetail()) {
-              setEntryValueIfFieldExists(entry,rows.get(0),source);
-              inject.add(entry);
-            }
- else {
-              StepInjectionMetaEntry metaEntries=findMetaEntry(inject,entry.getKey());
-              if (metaEntries == null) {
-                StepInjectionMetaEntry rootEntry=findDetailRootEntry(metadataEntries,entry);
-                metaEntries=rootEntry.clone();
-                metaEntries.setDetails(new ArrayList<StepInjectionMetaEntry>());
-                inject.add(metaEntries);
-                StepInjectionMetaEntry metaEntry=rootEntry.getDetails().get(0);
-                for (int i=0; i < rows.size(); i++) {
-                  StepInjectionMetaEntry metaCopy=metaEntry.clone();
-                  metaEntries.getDetails().add(metaCopy);
-                  metaCopy.setDetails(new ArrayList<StepInjectionMetaEntry>());
-                  for (                  StepInjectionMetaEntry me : metaEntry.getDetails()) {
-                    StepInjectionMetaEntry meCopy=me.clone();
-                    metaCopy.getDetails().add(meCopy);
-                  }
-                }
-              }
- else {
-                StepInjectionMetaEntry rootEntry=findDetailRootEntry(inject,metaEntries);
-                metaEntries=rootEntry;
-              }
-              for (int i=0; i < rows.size(); i++) {
-                RowMetaAndData row=rows.get(i);
-                try {
-                  List<StepInjectionMetaEntry> rowEntries=metaEntries.getDetails().get(i).getDetails();
-                  for (                  StepInjectionMetaEntry rowEntry : rowEntries) {
-                    SourceStepField detailSource=findDetailSource(targetMap,targetStep,rowEntry.getKey());
-                    if (detailSource != null) {
-                      setEntryValueIfFieldExists(rowEntry,row,detailSource);
-                    }
- else {
-                      if (log.isDetailed()) {
-                        logDetailed("No detail source found for key: " + rowEntry.getKey() + " and target step: "+ targetStep);
-                      }
-                    }
-                  }
-                }
- catch (                Exception e) {
-                  throw new KettleException("Unexpected error occurred while injecting metadata",e);
-                }
-              }
-              if (log.isDetailed()) {
-                logDetailed("injected entry: " + entry);
-              }
-            }
-          }
- else {
-            if (log.isDetailed()) {
-              logDetailed("entry not found: " + target.getAttributeKey());
-            }
-          }
-        }
- else {
-          if (log.isDetailed()) {
-            logDetailed("No rows found for source step: " + source.getStepname());
-          }
-        }
-      }
-    }
-    injectionInterface.injectStepMetadataEntries(inject);
   }
   if (log.isDetailed()) {
     logDetailed("XML of transformation after injection: " + data.transMeta.getXML());
