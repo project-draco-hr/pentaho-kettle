@@ -1,0 +1,27 @@
+{
+  if (fileChildren == null) {
+    fileChildren=new ArrayList<RepositoryElementMetaInterface>();
+synchronized (fileChildren) {
+      UnifiedRepositoryLockService lockService=(UnifiedRepositoryLockService)registry.getService(ILockService.class);
+      RepositoryRequest repositoryRequest=new RepositoryRequest();
+      repositoryRequest.setTypes(RepositoryRequest.FILES_TYPE_FILTER.FILES);
+      repositoryRequest.setPath(this.self.getId().toString());
+      List<RepositoryFile> children=repository.getChildren(repositoryRequest);
+      for (      RepositoryFile child : children) {
+        RepositoryLock lock=null;
+        try {
+          lock=lockService.getLock(child);
+          RepositoryObjectType objectType=getObjectType(child.getName());
+          EERepositoryObject repositoryObject=new EERepositoryObject(child,this,null,objectType,null,lock,false);
+          repositoryObject.setVersioningEnabled(true);
+          repositoryObject.setVersionCommentEnabled(true);
+          fileChildren.add(repositoryObject);
+        }
+ catch (        KettleException e) {
+          logger.error("Error converting Unified Repository file to PDI RepositoryObject: " + child.getPath() + ". File will be skipped",e);
+        }
+      }
+    }
+  }
+  return fileChildren;
+}
