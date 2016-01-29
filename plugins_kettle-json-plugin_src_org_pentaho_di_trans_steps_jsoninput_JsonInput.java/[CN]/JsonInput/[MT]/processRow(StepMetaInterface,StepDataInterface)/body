@@ -1,49 +1,36 @@
 {
-  if (first && !meta.isInFields()) {
+  if (first) {
     first=false;
-    data.files=meta.getFiles(this);
-    if (!meta.isdoNotFailIfNoFile() && data.files.nrOfFiles() == 0) {
-      throw new KettleException(BaseMessages.getString(PKG,"JsonInput.Log.NoFiles"));
-    }
-    handleMissingFiles();
-    data.outputRowMeta=new RowMeta();
-    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
-    data.convertRowMeta=data.outputRowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+    prepareToRowProcessing();
   }
-  Object[] r=null;
+  Object[] outRow=null;
   try {
-    r=getOneRow();
-    if (r == null) {
+    outRow=getOneOutputRow();
+    if (outRow == null) {
       setOutputDone();
       return false;
     }
     if (log.isRowLevel()) {
-      logRowlevel(BaseMessages.getString(PKG,"JsonInput.Log.ReadRow",data.outputRowMeta.getString(r)));
+      logRowlevel(BaseMessages.getString(PKG,"JsonInput.Log.ReadRow",data.outputRowMeta.getString(outRow)));
     }
     incrementLinesInput();
     data.rownr++;
-    putRow(data.outputRowMeta,r);
+    putRow(data.outputRowMeta,outRow);
     if (meta.getRowLimit() > 0 && data.rownr > meta.getRowLimit()) {
       setOutputDone();
       return false;
     }
   }
  catch (  Exception e) {
-    boolean sendToErrorRow=false;
-    String errorMessage=null;
     if (getStepMeta().isDoingErrorHandling()) {
-      sendToErrorRow=true;
-      errorMessage=e.toString();
+      sendErrorRow(e.toString());
     }
  else {
       logError(BaseMessages.getString(PKG,"JsonInput.ErrorInStepRunning",e.getMessage()));
-      setErrors(1);
+      setErrors(getErrors() + 1);
       stopAll();
       setOutputDone();
       return false;
-    }
-    if (sendToErrorRow) {
-      putError(getInputRowMeta(),r,1,errorMessage,null,"JsonInput001");
     }
   }
   return true;

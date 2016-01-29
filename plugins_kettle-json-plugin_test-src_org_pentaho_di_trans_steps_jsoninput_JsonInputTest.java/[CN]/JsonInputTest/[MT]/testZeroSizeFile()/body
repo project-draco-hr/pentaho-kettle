@@ -1,0 +1,22 @@
+{
+  ByteArrayOutputStream log=new ByteArrayOutputStream();
+  helper.redirectLog(log,LogLevel.BASIC);
+  try (FileObject fileObj=KettleVFS.getFileObject(BASE_RAM_DIR + "test.json");LocaleChange enUs=new LocaleChange(Locale.US)){
+    fileObj.createFile();
+    JsonInputField price=new JsonInputField();
+    price.setName("price");
+    price.setType(ValueMetaInterface.TYPE_NUMBER);
+    price.setPath("$..book[*].price");
+    JsonInputMeta meta=createSimpleMeta("in file",price);
+    meta.setIsAFile(true);
+    meta.setRemoveSourceField(true);
+    meta.setIgnoreEmptyFile(false);
+    JsonInput jsonInput=createJsonInput("in file",meta,new Object[][]{new Object[]{BASE_RAM_DIR + "test.json"}});
+    processRows(jsonInput,1);
+    String logMsgs=log.toString();
+    assertTrue(logMsgs,logMsgs.contains("is empty!"));
+  }
+  finally {
+    deleteFiles();
+  }
+}

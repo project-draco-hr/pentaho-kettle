@@ -1,0 +1,34 @@
+{
+  if (!meta.isInFields()) {
+    data.outputRowMeta=new RowMeta();
+  }
+ else {
+    data.readrow=getRow();
+    data.inputRowMeta=getInputRowMeta();
+    data.outputRowMeta=data.inputRowMeta.clone();
+    if (Const.isEmpty(meta.getFieldValue())) {
+      logError(BaseMessages.getString(PKG,"JsonInput.Log.NoField"));
+      throw new KettleException(BaseMessages.getString(PKG,"JsonInput.Log.NoField"));
+    }
+    if (data.indexSourceField < 0) {
+      data.indexSourceField=getInputRowMeta().indexOfValue(meta.getFieldValue());
+      if (data.indexSourceField < 0) {
+        logError(BaseMessages.getString(PKG,"JsonInput.Log.ErrorFindingField",meta.getFieldValue()));
+        throw new KettleException(BaseMessages.getString(PKG,"JsonInput.Exception.CouldnotFindField",meta.getFieldValue()));
+      }
+    }
+    if (meta.isRemoveSourceField()) {
+      data.outputRowMeta.removeValueMeta(data.indexSourceField);
+      data.totalpreviousfields=data.inputRowMeta.size() - 1;
+    }
+ else {
+      data.totalpreviousfields=data.inputRowMeta.size();
+    }
+  }
+  meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+  data.convertRowMeta=data.outputRowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+  data.inputs=new InputsReader(this,meta,data,new InputErrorHandler()).iterator();
+  data.readerRowSet=new QueueRowSet();
+  data.readerRowSet.setDone();
+  this.rowOutputConverter=new RowOutputConverter(getLogChannel());
+}
