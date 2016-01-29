@@ -1,0 +1,17 @@
+{
+  ByteArrayOutputStream out=new ByteArrayOutputStream();
+  helper.redirectLog(out,LogLevel.ERROR);
+  JsonInputField isbn=new JsonInputField("isbn");
+  isbn.setPath("$..book[?(@.isbn)].isbn");
+  isbn.setType(ValueMetaInterface.TYPE_STRING);
+  String input="{{";
+  try (LocaleChange enUS=new LocaleChange(Locale.US)){
+    JsonInputMeta meta=createSimpleMeta("json",isbn);
+    JsonInput jsonInput=createJsonInput("json",meta,new Object[]{input});
+    processRows(jsonInput,3);
+    Assert.assertEquals("error",1,jsonInput.getErrors());
+    Assert.assertEquals("rows written",0,jsonInput.getLinesWritten());
+    String errors=IOUtils.toString(new ByteArrayInputStream(out.toByteArray()),StandardCharsets.UTF_8.name());
+    Assert.assertTrue("expected error",errors.contains("Error parsing string"));
+  }
+ }

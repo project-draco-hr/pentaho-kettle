@@ -1,0 +1,32 @@
+{
+  ByteArrayOutputStream err=new ByteArrayOutputStream();
+  helper.redirectLog(err,LogLevel.ERROR);
+  final String input=getBasicTestJson();
+  try (FileObject fileObj=KettleVFS.getFileObject(BASE_RAM_DIR + "test.zip")){
+    fileObj.createFile();
+    try (OutputStream out=fileObj.getContent().getOutputStream()){
+      try (ZipOutputStream zipOut=new ZipOutputStream(out)){
+        ZipEntry jsonFile=new ZipEntry("test.json");
+        zipOut.putNextEntry(jsonFile);
+        zipOut.write(input.getBytes());
+        zipOut.closeEntry();
+        zipOut.flush();
+      }
+     }
+     JsonInputField price=new JsonInputField();
+    price.setName("price");
+    price.setType(ValueMetaInterface.TYPE_NUMBER);
+    price.setPath("$..book[*].price");
+    JsonInputMeta meta=createSimpleMeta("in file",price);
+    meta.setIsAFile(true);
+    meta.setRemoveSourceField(true);
+    JsonInput jsonInput=createJsonInput("in file",meta,new Object[][]{new Object[]{"zip:" + BASE_RAM_DIR + "test.zip!/test.json"}});
+    RowComparatorListener rowComparator=new RowComparatorListener(new Object[]{8.95d},new Object[]{12.99d},new Object[]{8.99d},new Object[]{22.99d});
+    jsonInput.addRowListener(rowComparator);
+    processRows(jsonInput,5);
+    Assert.assertEquals(err.toString(),0,jsonInput.getErrors());
+  }
+  finally {
+    deleteFiles();
+  }
+}

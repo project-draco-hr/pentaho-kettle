@@ -1,0 +1,51 @@
+{
+  ByteArrayOutputStream err=new ByteArrayOutputStream();
+  helper.redirectLog(err,LogLevel.ERROR);
+  final String input1=getBasicTestJson();
+  final String input2="{ \"store\": { \"bicycle\": { \"color\": \"blue\" } } }";
+  final String path1=BASE_RAM_DIR + "test1.json";
+  final String path2=BASE_RAM_DIR + "test2.js";
+  try (FileObject fileObj1=KettleVFS.getFileObject(path1);FileObject fileObj2=KettleVFS.getFileObject(path2)){
+    try (OutputStream out=fileObj1.getContent().getOutputStream()){
+      out.write(input1.getBytes());
+    }
+     try (OutputStream out=fileObj2.getContent().getOutputStream()){
+      out.write(input2.getBytes());
+    }
+     JsonInputField color=new JsonInputField();
+    color.setName("color");
+    color.setType(ValueMetaInterface.TYPE_STRING);
+    color.setPath("$.store.bicycle.color");
+    JsonInputMeta meta=createSimpleMeta("in file",color);
+    meta.setInFields(true);
+    meta.setIsAFile(true);
+    meta.setRemoveSourceField(true);
+    meta.setExtensionField("extension");
+    meta.setPathField("dir path");
+    meta.setSizeField("size");
+    meta.setIsHiddenField("hidden?");
+    meta.setLastModificationDateField("last modified");
+    meta.setUriField("URI");
+    meta.setRootUriField("root URI");
+    RowComparatorListener rowComparator=new RowComparatorListener(new Object[]{"red","json","ram:///jsonInputTest",-1L,false,new Date(0),"ram:///jsonInputTest/test1.json","ram:///"},new Object[]{"blue","js","ram:///jsonInputTest",-1L,false,new Date(0),"ram:///jsonInputTest/test2.js","ram:///"});
+    rowComparator.setComparator(3,new RowComparatorListener.Comparison<Object>(){
+      @Override public boolean equals(      Object expected,      Object actual) throws Exception {
+        return ((long)actual) > 0L;
+      }
+    }
+);
+    rowComparator.setComparator(5,new RowComparatorListener.Comparison<Object>(){
+      @Override public boolean equals(      Object expected,      Object actual) throws Exception {
+        return ((Date)actual).after(new Date(0));
+      }
+    }
+);
+    JsonInput jsonInput=createJsonInput("in file",meta,new Object[][]{new Object[]{path1},new Object[]{path2}});
+    jsonInput.addRowListener(rowComparator);
+    processRows(jsonInput,3);
+    Assert.assertEquals(err.toString(),0,jsonInput.getErrors());
+  }
+  finally {
+    deleteFiles();
+  }
+}
