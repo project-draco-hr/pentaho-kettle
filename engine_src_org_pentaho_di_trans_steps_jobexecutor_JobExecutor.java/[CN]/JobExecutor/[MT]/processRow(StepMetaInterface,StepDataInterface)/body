@@ -37,32 +37,28 @@
         data.groupFieldMeta=getInputRowMeta().getValueMeta(data.groupFieldIndex);
       }
     }
-    boolean newGroup=false;
+    if (data.groupSize < 0) {
+      if (data.groupFieldIndex >= 0) {
+        Object groupFieldData=row[data.groupFieldIndex];
+        if (data.prevGroupFieldData != null) {
+          if (data.groupFieldMeta.compare(data.prevGroupFieldData,groupFieldData) != 0) {
+            executeJob();
+          }
+        }
+        data.prevGroupFieldData=groupFieldData;
+      }
+ else       if (data.groupTime > 0) {
+        long now=System.currentTimeMillis();
+        if (now - data.groupTimeStart >= data.groupTime) {
+          executeJob();
+        }
+      }
+    }
     data.groupBuffer.add(new RowMetaAndData(getInputRowMeta(),row));
-    if (data.groupSize >= 0) {
-      if (data.groupSize != 0) {
-        if (data.groupBuffer.size() >= data.groupSize) {
-          newGroup=true;
-        }
+    if (data.groupSize > 0) {
+      if (data.groupBuffer.size() >= data.groupSize) {
+        executeJob();
       }
-    }
- else     if (data.groupFieldIndex >= 0) {
-      Object groupFieldData=row[data.groupFieldIndex];
-      if (data.prevGroupFieldData != null) {
-        if (data.groupFieldMeta.compare(data.prevGroupFieldData,groupFieldData) != 0) {
-          newGroup=true;
-        }
-      }
-      data.prevGroupFieldData=groupFieldData;
-    }
- else     if (data.groupTime > 0) {
-      long now=System.currentTimeMillis();
-      if (now - data.groupTimeStart >= data.groupTime) {
-        newGroup=true;
-      }
-    }
-    if (newGroup) {
-      executeJob();
     }
     return true;
   }
