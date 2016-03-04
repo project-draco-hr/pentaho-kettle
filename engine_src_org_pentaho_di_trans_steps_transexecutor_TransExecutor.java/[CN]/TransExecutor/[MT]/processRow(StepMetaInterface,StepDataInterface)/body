@@ -16,32 +16,28 @@
     if (transExecutorData.getExecutorStepOutputRowMeta() != null) {
       putRowTo(transExecutorData.getExecutorStepOutputRowMeta(),row,transExecutorData.getExecutorStepOutputRowSet());
     }
-    boolean newGroup=false;
+    if (transExecutorData.groupSize < 0) {
+      if (transExecutorData.groupFieldIndex >= 0) {
+        Object groupFieldData=row[transExecutorData.groupFieldIndex];
+        if (transExecutorData.prevGroupFieldData != null) {
+          if (transExecutorData.groupFieldMeta.compare(transExecutorData.prevGroupFieldData,groupFieldData) != 0) {
+            executeTransformation();
+          }
+        }
+        transExecutorData.prevGroupFieldData=groupFieldData;
+      }
+ else       if (transExecutorData.groupTime > 0) {
+        long now=System.currentTimeMillis();
+        if (now - transExecutorData.groupTimeStart >= transExecutorData.groupTime) {
+          executeTransformation();
+        }
+      }
+    }
     transExecutorData.groupBuffer.add(new RowMetaAndData(getInputRowMeta(),row));
-    if (transExecutorData.groupSize >= 0) {
-      if (transExecutorData.groupSize != 0) {
-        if (transExecutorData.groupBuffer.size() >= transExecutorData.groupSize) {
-          newGroup=true;
-        }
+    if (transExecutorData.groupSize > 0) {
+      if (transExecutorData.groupBuffer.size() >= transExecutorData.groupSize) {
+        executeTransformation();
       }
-    }
- else     if (transExecutorData.groupFieldIndex >= 0) {
-      Object groupFieldData=row[transExecutorData.groupFieldIndex];
-      if (transExecutorData.prevGroupFieldData != null) {
-        if (transExecutorData.groupFieldMeta.compare(transExecutorData.prevGroupFieldData,groupFieldData) != 0) {
-          newGroup=true;
-        }
-      }
-      transExecutorData.prevGroupFieldData=groupFieldData;
-    }
- else     if (transExecutorData.groupTime > 0) {
-      long now=System.currentTimeMillis();
-      if (now - transExecutorData.groupTimeStart >= transExecutorData.groupTime) {
-        newGroup=true;
-      }
-    }
-    if (newGroup) {
-      executeTransformation();
     }
     return true;
   }
