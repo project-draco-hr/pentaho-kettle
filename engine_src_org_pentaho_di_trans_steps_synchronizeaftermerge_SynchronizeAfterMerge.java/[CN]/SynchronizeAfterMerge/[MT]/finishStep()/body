@@ -1,22 +1,24 @@
 {
-  if (data.db != null) {
+  if (data.db != null && data.db.getConnection() != null) {
     try {
-      for (      String schemaTable : data.preparedStatements.keySet()) {
-        Integer batchCounter=data.commitCounterMap.get(schemaTable);
-        if (batchCounter == null) {
-          batchCounter=0;
+      if (!data.db.getConnection().isClosed()) {
+        for (        String schemaTable : data.preparedStatements.keySet()) {
+          Integer batchCounter=data.commitCounterMap.get(schemaTable);
+          if (batchCounter == null) {
+            batchCounter=0;
+          }
+          PreparedStatement insertStatement=data.preparedStatements.get(schemaTable);
+          data.db.emptyAndCommit(insertStatement,data.batchMode,batchCounter);
         }
-        PreparedStatement insertStatement=data.preparedStatements.get(schemaTable);
-        data.db.emptyAndCommit(insertStatement,data.batchMode,batchCounter);
-      }
-      for (int i=0; i < data.batchBuffer.size(); i++) {
-        Object[] row=data.batchBuffer.get(i);
-        putRow(data.outputRowMeta,row);
-        if (data.inputRowMeta.getString(row,data.indexOfOperationOrderField).equals(data.insertValue)) {
-          incrementLinesOutput();
+        for (int i=0; i < data.batchBuffer.size(); i++) {
+          Object[] row=data.batchBuffer.get(i);
+          putRow(data.outputRowMeta,row);
+          if (data.inputRowMeta.getString(row,data.indexOfOperationOrderField).equals(data.insertValue)) {
+            incrementLinesOutput();
+          }
         }
+        data.batchBuffer.clear();
       }
-      data.batchBuffer.clear();
     }
  catch (    KettleDatabaseBatchException be) {
       if (getStepMeta().isDoingErrorHandling()) {
