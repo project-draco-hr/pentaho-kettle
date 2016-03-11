@@ -1,0 +1,37 @@
+{
+  List<String> aggKeys=ImmutableList.copyOf(aggregates.keySet());
+  MemoryGroupByMeta meta=new MemoryGroupByMeta();
+  meta.allocate(0,rowMeta.size() * aggKeys.size());
+  for (int i=0; i < rowMeta.size(); i++) {
+    String name=rowMeta.getValueMeta(i).getName();
+    for (int j=0; j < aggKeys.size(); j++) {
+      String aggKey=aggKeys.get(j);
+      int index=i * aggKeys.size() + j;
+      meta.getAggregateField()[index]=name + "_" + aggKey;
+      meta.getSubjectField()[index]=name;
+      meta.getAggregateType()[index]=aggregates.get(aggKey);
+    }
+  }
+  MemoryGroupByData data=new MemoryGroupByData();
+  data.map=Maps.newHashMap();
+  TransMeta transMeta=mock(TransMeta.class);
+  StepMeta stepMeta=new StepMeta(STEP_NAME,meta);
+  when(transMeta.findStep(STEP_NAME)).thenReturn(stepMeta);
+  MemoryGroupBy step=spy(new MemoryGroupBy(stepMeta,data,0,transMeta,mock(Trans.class)));
+  step.copyVariablesFrom(variables);
+  doNothing().when(step).putRow((RowMetaInterface)any(),(Object[])any());
+  doNothing().when(step).setOutputDone();
+  doReturn(rowMeta).when(step).getInputRowMeta();
+  for (  Object[] row : getRows()) {
+    doReturn(row).when(step).getRow();
+    assertThat(step.processRow(meta,data),is(true));
+  }
+  verify(step,never()).putRow((RowMetaInterface)any(),(Object[])any());
+  doReturn(null).when(step).getRow();
+  assertThat(step.processRow(meta,data),is(false));
+  verify(step).setOutputDone();
+  ArgumentCaptor<RowMetaInterface> rowMetaCaptor=ArgumentCaptor.forClass(RowMetaInterface.class);
+  ArgumentCaptor<Object[]> rowCaptor=ArgumentCaptor.forClass(Object[].class);
+  verify(step).putRow(rowMetaCaptor.capture(),rowCaptor.capture());
+  return new RowMetaAndData(rowMetaCaptor.getValue(),rowCaptor.getValue());
+}

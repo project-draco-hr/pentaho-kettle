@@ -47,20 +47,19 @@ aggregate.mean[i]=mean;
 aggregate.agg[i]=sum;
 break;
 case MemoryGroupByMeta.TYPE_GROUP_COUNT_DISTINCT:
-if (!subjMeta.isNull(subj)) {
 if (aggregate.distinctObjs == null) {
 aggregate.distinctObjs=new Set[meta.getSubjectField().length];
 }
 if (aggregate.distinctObjs[i] == null) {
-aggregate.distinctObjs[i]=new TreeSet<Object>();
+aggregate.distinctObjs[i]=new TreeSet<>();
 }
+if (!subjMeta.isNull(subj)) {
 Object obj=subjMeta.convertToNormalStorageType(subj);
 if (!aggregate.distinctObjs[i].contains(obj)) {
 aggregate.distinctObjs[i].add(obj);
-value=value == null ? new Long(0) : value;
-aggregate.agg[i]=(Long)value + 1;
 }
 }
+aggregate.counts[i]=(long)aggregate.distinctObjs[i].size();
 break;
 case MemoryGroupByMeta.TYPE_GROUP_COUNT_ALL:
 if (!subjMeta.isNull(subj)) {
@@ -71,10 +70,10 @@ case MemoryGroupByMeta.TYPE_GROUP_COUNT_ANY:
 aggregate.counts[i]++;
 break;
 case MemoryGroupByMeta.TYPE_GROUP_MIN:
-if (subj == null && !minNullIsValued) {
-break;
+if (minNullIsValued || (subj != null && value != null)) {
+aggregate.agg[i]=subjMeta.compare(subj,valueMeta,value) < 0 ? subj : value;
 }
-if (subjMeta.compare(subj,valueMeta,value) < 0) {
+ else if (value == null && subj != null) {
 aggregate.agg[i]=subj;
 }
 break;
