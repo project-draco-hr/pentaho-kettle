@@ -1,10 +1,10 @@
 {
   Result result=previousResult;
   List<RowMetaAndData> rows=result.getRows();
-  String realZipfilename=null;
+  String realZipfilename;
   String realWildcard=null;
   String realWildcardExclude=null;
-  String realTargetdirectory=null;
+  String realTargetdirectory;
   String realMovetodirectory=environmentSubstitute(movetoDirectory);
   boolean SanityControlOK=true;
   if (afterZip == 2) {
@@ -52,21 +52,17 @@
           realMovetodirectory=KettleVFS.getFilename(moveToDirectory);
           try {
             moveToDirectory.close();
-            moveToDirectory=null;
           }
  catch (          Exception e) {
             logError("Error moving to directory",e);
-            result.setResult(false);
-            result.setNrErrors(1);
+            SanityControlOK=false;
           }
         }
       }
     }
   }
   if (!SanityControlOK) {
-    result.setNrErrors(1);
-    result.setResult(false);
-    return result;
+    return errorResult(result);
   }
   if (isFromPrevious) {
     if (log.isDetailed()) {
@@ -88,8 +84,7 @@
           realZipfilename=resultRow.getString(3,null);
           if (!Const.isEmpty(realZipfilename)) {
             if (!processRowFile(parentJob,result,realZipfilename,realWildcard,realWildcardExclude,realTargetdirectory,realMovetodirectory,createParentFolder)) {
-              result.setResult(false);
-              return result;
+              return errorResult(result);
             }
           }
  else {
@@ -113,7 +108,13 @@
       realWildcard=environmentSubstitute(wildCard);
       realWildcardExclude=environmentSubstitute(excludeWildCard);
       realTargetdirectory=environmentSubstitute(sourceDirectory);
-      result.setResult(processRowFile(parentJob,result,realZipfilename,realWildcard,realWildcardExclude,realTargetdirectory,realMovetodirectory,createParentFolder));
+      boolean success=processRowFile(parentJob,result,realZipfilename,realWildcard,realWildcardExclude,realTargetdirectory,realMovetodirectory,createParentFolder);
+      if (success) {
+        result.setResult(true);
+      }
+ else {
+        errorResult(result);
+      }
     }
  else {
       logError("Source folder/file is empty! Ignoring row...");
