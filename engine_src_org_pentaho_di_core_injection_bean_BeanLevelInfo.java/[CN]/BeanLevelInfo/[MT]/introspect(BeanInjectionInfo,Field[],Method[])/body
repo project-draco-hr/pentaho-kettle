@@ -15,11 +15,22 @@
     leaf.parent=this;
     leaf.field=f;
     if (f.getType().isArray()) {
-      leaf.array=true;
+      leaf.dim=DIMENSION.ARRAY;
       leaf.leafClass=f.getType().getComponentType();
     }
+ else     if (List.class.isAssignableFrom(f.getType())) {
+      leaf.dim=DIMENSION.LIST;
+      Type fieldType=f.getGenericType();
+      Type listType=((ParameterizedType)fieldType).getActualTypeArguments()[0];
+      try {
+        leaf.leafClass=Class.forName(listType.getTypeName(),false,leafClass.getClassLoader());
+      }
+ catch (      Throwable ex) {
+        throw new RuntimeException("Can't retrieve type from List for " + f);
+      }
+    }
  else {
-      leaf.array=false;
+      leaf.dim=DIMENSION.NONE;
       leaf.leafClass=f.getType();
     }
     if (annotationInjection != null) {
