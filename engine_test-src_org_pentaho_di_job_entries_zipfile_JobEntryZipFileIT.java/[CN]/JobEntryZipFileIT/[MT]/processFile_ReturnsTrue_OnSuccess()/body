@@ -1,0 +1,24 @@
+{
+  final String zipPath="ram://pdi-15013.zip";
+  final String content="temp file";
+  final File tempFile=createTempFile(content);
+  tempFile.deleteOnExit();
+  try {
+    Result result=new Result();
+    JobEntryZipFile entry=new JobEntryZipFile();
+    assertTrue(entry.processRowFile(new Job(),result,zipPath,null,null,tempFile.getAbsolutePath(),null,false));
+  }
+  finally {
+    tempFile.delete();
+  }
+  FileObject zip=KettleVFS.getFileObject(zipPath);
+  assertTrue("Zip archive should be created",zip.exists());
+  ByteArrayOutputStream os=new ByteArrayOutputStream();
+  IOUtils.copy(zip.getContent().getInputStream(),os);
+  ZipInputStream zis=new ZipInputStream(new ByteArrayInputStream(os.toByteArray()));
+  ZipEntry entry=zis.getNextEntry();
+  assertEquals("Input file should be put into the archive",tempFile.getName(),entry.getName());
+  os.reset();
+  IOUtils.copy(zis,os);
+  assertEquals("File's content should be equal to original",content,new String(os.toByteArray()));
+}
