@@ -55,7 +55,21 @@
       data.document=reader.read(new StringReader(StringXML));
     }
  else     if (readurl) {
-      data.document=reader.read(new URL(StringXML));
+      HttpClient client=new HttpClient();
+      HttpMethod method=new GetMethod(StringXML);
+      method.addRequestHeader("Accept-Encoding","gzip");
+      client.executeMethod(method);
+      Header contentEncoding=method.getResponseHeader("Content-Encoding");
+      if (contentEncoding != null) {
+        String acceptEncodingValue=contentEncoding.getValue();
+        if (acceptEncodingValue.indexOf("gzip") != -1) {
+          GZIPInputStream in=new GZIPInputStream(method.getResponseBodyAsStream());
+          data.document=reader.read(in);
+        }
+      }
+ else {
+        data.document=reader.read(method.getResponseBodyAsStream());
+      }
     }
  else {
       String encoding="UTF-8";
