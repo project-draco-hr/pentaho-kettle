@@ -4,18 +4,18 @@
     if (isDetailed()) {
       logDetailed(BaseMessages.getString(PKG,"HTTP.Log.Connecting",url));
     }
-    HttpClient httpclient=SlaveConnectionManager.getInstance().createHttpClient();
+    HttpClient httpClient=SlaveConnectionManager.getInstance().createHttpClient();
     HttpMethod method=new GetMethod(url);
     if (data.realConnectionTimeout > -1) {
-      httpclient.getHttpConnectionManager().getParams().setConnectionTimeout(data.realConnectionTimeout);
+      httpClient.getHttpConnectionManager().getParams().setConnectionTimeout(data.realConnectionTimeout);
     }
     if (data.realSocketTimeout > -1) {
-      httpclient.getHttpConnectionManager().getParams().setSoTimeout(data.realSocketTimeout);
+      httpClient.getHttpConnectionManager().getParams().setSoTimeout(data.realSocketTimeout);
     }
     if (!Const.isEmpty(data.realHttpLogin)) {
-      httpclient.getParams().setAuthenticationPreemptive(true);
+      httpClient.getParams().setAuthenticationPreemptive(true);
       Credentials defaultcreds=new UsernamePasswordCredentials(data.realHttpLogin,data.realHttpPassword);
-      httpclient.getState().setCredentials(AuthScope.ANY,defaultcreds);
+      httpClient.getState().setCredentials(AuthScope.ANY,defaultcreds);
     }
     HostConfiguration hostConfiguration=new HostConfiguration();
     if (!Const.isEmpty(data.realProxyHost)) {
@@ -36,12 +36,13 @@
     }
     try {
       long startTime=System.currentTimeMillis();
-      int statusCode=httpclient.executeMethod(hostConfiguration,method);
+      int statusCode=requestStatusCode(method,hostConfiguration,httpClient);
       long responseTime=System.currentTimeMillis() - startTime;
       if (log.isDetailed()) {
         log.logDetailed(BaseMessages.getString(PKG,"HTTP.Log.ResponseTime",responseTime,url));
       }
       String body=null;
+      String headerString=null;
       if (isDebug()) {
         logDebug(BaseMessages.getString(PKG,"HTTP.Log.ResponseStatusCode","" + statusCode));
       }
@@ -51,6 +52,7 @@
         }
  else {
           if (statusCode != 401) {
+            Header[] headers=searchForHeaders(method);
             String encoding=meta.getEncoding();
             if (Const.isEmpty(encoding)) {
               String contentType=method.getResponseHeader("Content-Type").getValue();
@@ -58,15 +60,15 @@
                 encoding=contentType.replaceFirst("^.*;\\s*charset\\s*=\\s*","").replace("\"","").trim();
               }
             }
+            JSONObject json=new JSONObject();
+            for (            Header header : headers) {
+              json.put(header.getName(),header.getValue());
+            }
+            headerString=json.toJSONString();
             if (isDebug()) {
               log.logDebug(toString(),BaseMessages.getString(PKG,"HTTP.Log.ResponseHeaderEncoding",encoding));
             }
-            if (!Const.isEmpty(encoding)) {
-              inputStreamReader=new InputStreamReader(method.getResponseBodyAsStream(),encoding);
-            }
- else {
-              inputStreamReader=new InputStreamReader(method.getResponseBodyAsStream());
-            }
+            inputStreamReader=openStream(encoding,method);
             StringBuilder bodyBuffer=new StringBuilder();
             int c;
             while ((c=inputStreamReader.read()) != -1) {
@@ -95,6 +97,9 @@
       if (!Const.isEmpty(meta.getResponseTimeFieldName())) {
         newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,new Long(responseTime));
       }
+      if (!Const.isEmpty(meta.getResponseHeaderFieldName())) {
+        newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,headerString.toString());
+      }
     }
   finally {
       if (inputStreamReader != null) {
@@ -102,7 +107,7 @@
       }
       method.releaseConnection();
       if (data.realcloseIdleConnectionsTime > -1) {
-        httpclient.getHttpConnectionManager().closeIdleConnections(data.realcloseIdleConnectionsTime);
+        httpClient.getHttpConnectionManager().closeIdleConnections(data.realcloseIdleConnectionsTime);
       }
     }
     return newRow;

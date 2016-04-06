@@ -7,18 +7,18 @@
     if (isDetailed()) {
       logDetailed(BaseMessages.getString(PKG,"HTTPPOST.Log.ConnectingToURL",data.realUrl));
     }
-    HttpClient HTTPPOSTclient=SlaveConnectionManager.getInstance().createHttpClient();
+    HttpClient httpPostClient=SlaveConnectionManager.getInstance().createHttpClient();
     PostMethod post=new PostMethod(data.realUrl);
     if (data.realConnectionTimeout > -1) {
-      HTTPPOSTclient.getHttpConnectionManager().getParams().setConnectionTimeout(data.realConnectionTimeout);
+      httpPostClient.getHttpConnectionManager().getParams().setConnectionTimeout(data.realConnectionTimeout);
     }
     if (data.realSocketTimeout > -1) {
-      HTTPPOSTclient.getHttpConnectionManager().getParams().setSoTimeout(data.realSocketTimeout);
+      httpPostClient.getHttpConnectionManager().getParams().setSoTimeout(data.realSocketTimeout);
     }
     if (!Const.isEmpty(data.realHttpLogin)) {
-      HTTPPOSTclient.getParams().setAuthenticationPreemptive(true);
+      httpPostClient.getParams().setAuthenticationPreemptive(true);
       Credentials defaultcreds=new UsernamePasswordCredentials(data.realHttpLogin,data.realHttpPassword);
-      HTTPPOSTclient.getState().setCredentials(AuthScope.ANY,defaultcreds);
+      httpPostClient.getState().setCredentials(AuthScope.ANY,defaultcreds);
     }
     HostConfiguration hostConfiguration=new HostConfiguration();
     if (!Const.isEmpty(data.realProxyHost)) {
@@ -87,7 +87,7 @@
     }
     try {
       long startTime=System.currentTimeMillis();
-      int statusCode=HTTPPOSTclient.executeMethod(hostConfiguration,post);
+      int statusCode=requestStatusCode(post,hostConfiguration,httpPostClient);
       long responseTime=System.currentTimeMillis() - startTime;
       if (isDetailed()) {
         logDetailed(BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseTime",responseTime,data.realUrl));
@@ -96,12 +96,14 @@
         logDebug(BaseMessages.getString(PKG,"HTTPPOST.Log.ResponseCode",String.valueOf(statusCode)));
       }
       String body=null;
+      String headerString=null;
       if (statusCode != -1) {
         if (statusCode == 204) {
           body="";
         }
  else {
           if (statusCode != 401) {
+            Header[] headers=searchForHeaders(post);
             String encoding=data.realEncoding;
             if (Const.isEmpty(encoding)) {
               String contentType=post.getResponseHeader("Content-Type").getValue();
@@ -109,18 +111,12 @@
                 encoding=contentType.replaceFirst("^.*;\\s*charset\\s*=\\s*","").replace("\"","").trim();
               }
             }
-            if (Const.isEmpty(encoding)) {
-              if (isDebug()) {
-                logDebug(BaseMessages.getString(PKG,"HTTPPOST.Log.Encoding","ISO-8859-1"));
-              }
-              inputStreamReader=new InputStreamReader(post.getResponseBodyAsStream());
+            JSONObject json=new JSONObject();
+            for (            Header header : headers) {
+              json.put(header.getName(),header.getValue());
             }
- else {
-              if (isDebug()) {
-                logDebug(BaseMessages.getString(PKG,"HTTPPOST.Log.Encoding",encoding));
-              }
-              inputStreamReader=new InputStreamReader(post.getResponseBodyAsStream(),encoding);
-            }
+            headerString=json.toJSONString();
+            inputStreamReader=openStream(encoding,post);
             StringBuilder bodyBuffer=new StringBuilder();
             int c;
             while ((c=inputStreamReader.read()) != -1) {
@@ -149,6 +145,9 @@
       if (!Const.isEmpty(meta.getResponseTimeFieldName())) {
         newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,new Long(responseTime));
       }
+      if (!Const.isEmpty(meta.getResponseHeaderFieldName())) {
+        newRow=RowDataUtil.addValueData(newRow,returnFieldsOffset,headerString.toString());
+      }
     }
   finally {
       if (inputStreamReader != null) {
@@ -156,7 +155,7 @@
       }
       post.releaseConnection();
       if (data.realcloseIdleConnectionsTime > -1) {
-        HTTPPOSTclient.getHttpConnectionManager().closeIdleConnections(data.realcloseIdleConnectionsTime);
+        httpPostClient.getHttpConnectionManager().closeIdleConnections(data.realcloseIdleConnectionsTime);
       }
     }
     return newRow;
