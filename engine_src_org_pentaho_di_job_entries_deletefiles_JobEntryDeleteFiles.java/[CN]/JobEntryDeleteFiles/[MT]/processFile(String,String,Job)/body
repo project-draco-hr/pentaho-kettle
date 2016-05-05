@@ -1,0 +1,55 @@
+{
+  boolean rcode=false;
+  FileObject fileFolder=null;
+  String realFileFolderName=environmentSubstitute(inputFileName);
+  String realWildCard=environmentSubstitute(inputWildcard);
+  try {
+    fileFolder=KettleVFS.getFileObject(realFileFolderName,this);
+    if (fileFolder.exists()) {
+      if (fileFolder.getType() == FileType.FOLDER) {
+        if (log.isDetailed()) {
+          logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.ProcessingFolder",realFileFolderName));
+        }
+        int Nr=fileFolder.delete(new TextFileSelector(fileFolder.toString(),realWildCard,parentJob));
+        if (log.isDetailed()) {
+          logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.TotalDeleted",String.valueOf(Nr)));
+        }
+        rcode=true;
+      }
+ else {
+        if (log.isDetailed()) {
+          logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.ProcessingFile",realFileFolderName));
+        }
+        boolean deleted=fileFolder.delete();
+        if (!deleted) {
+          logError(BaseMessages.getString(PKG,"JobEntryDeleteFiles.CouldNotDeleteFile",realFileFolderName));
+        }
+ else {
+          if (log.isBasic()) {
+            logBasic(BaseMessages.getString(PKG,"JobEntryDeleteFiles.FileDeleted",inputFileName));
+          }
+          rcode=true;
+        }
+      }
+    }
+ else {
+      if (log.isBasic()) {
+        logBasic(BaseMessages.getString(PKG,"JobEntryDeleteFiles.FileAlreadyDeleted",realFileFolderName));
+      }
+      rcode=true;
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"JobEntryDeleteFiles.CouldNotProcess",realFileFolderName,e.getMessage()),e);
+  }
+ finally {
+    if (fileFolder != null) {
+      try {
+        fileFolder.close();
+      }
+ catch (      IOException ex) {
+      }
+    }
+  }
+  return rcode;
+}
