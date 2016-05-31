@@ -1,0 +1,29 @@
+{
+  CountDownLatch latch=new CountDownLatch(1);
+  System.setProperty(Const.KETTLE_SLAVE_DETECTION_TIMER,"100");
+  SlaveServer master=new SlaveServer();
+  master.setHostname("127.0.0.1");
+  master.setPort("9000");
+  master.setUsername("cluster");
+  master.setPassword("cluster");
+  master.setMaster(true);
+  SlaveServerConfig config=new SlaveServerConfig();
+  config.setSlaveServer(master);
+  Carte carte=new Carte(config);
+  SlaveServerDetection slaveServerDetection=mock(SlaveServerDetection.class);
+  carte.getWebServer().getDetections().add(slaveServerDetection);
+  SlaveServer slaveServer=mock(SlaveServer.class,RETURNS_MOCKS);
+  when(slaveServerDetection.getSlaveServer()).thenReturn(slaveServer);
+  when(slaveServer.getStatus()).thenAnswer(new Answer<SlaveServerStatus>(){
+    @Override public SlaveServerStatus answer(    InvocationOnMock invocation) throws Throwable {
+      SlaveServerDetection anotherDetection=mock(SlaveServerDetection.class);
+      carte.getWebServer().getDetections().add(anotherDetection);
+      latch.countDown();
+      return new SlaveServerStatus();
+    }
+  }
+);
+  latch.await(10,TimeUnit.SECONDS);
+  assertEquals(carte.getWebServer().getDetections().size(),2);
+  carte.getWebServer().stopServer();
+}
