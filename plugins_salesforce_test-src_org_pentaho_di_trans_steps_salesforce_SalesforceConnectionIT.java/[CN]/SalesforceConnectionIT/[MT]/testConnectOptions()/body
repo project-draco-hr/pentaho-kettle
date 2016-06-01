@@ -1,0 +1,40 @@
+{
+  LogChannelInterface logInterface=mock(LogChannelInterface.class);
+  String url="http://localhost";
+  String username="username";
+  String password="password";
+  Integer timeout=30;
+  SalesforceConnection connection;
+  LoginResult loginResult;
+  GetServerTimestampResult serverTime;
+  GetUserInfoResult userInfo;
+  try {
+    connection=spy(new SalesforceConnection(logInterface,url,username,password));
+    bindingStub=spy(new SoapBindingStub());
+    loginResult=mock(LoginResult.class);
+    userInfo=mock(GetUserInfoResult.class);
+    serverTime=new GetServerTimestampResult(Calendar.getInstance());
+    doReturn(bindingStub).when(connection).getBinding();
+    doReturn(loginResult).when(bindingStub).login(anyString(),anyString());
+    doReturn(userInfo).when(bindingStub).getUserInfo();
+    when(loginResult.getServerUrl()).thenReturn("http://localhost/serverUrl");
+    when(loginResult.getSessionId()).thenReturn("UnitTestSession");
+    when(userInfo.getUserFullName()).thenReturn("My Full Name");
+    when(userInfo.getUserEmail()).thenReturn("MyEmail@pentaho.org");
+    when(userInfo.getUserLanguage()).thenReturn("1s and 0s");
+    when(userInfo.getOrganizationName()).thenReturn("Pentaho Salesforce Plugin Developers");
+    doReturn(serverTime).when(bindingStub).getServerTimestamp();
+    connection.setTimeOut(timeout);
+    connection.setUsingCompression(true);
+    connection.setRollbackAllChangesOnError(true);
+    connection.connect();
+    assertEquals(timeout.intValue(),bindingStub.getTimeout());
+    assertTrue((boolean)bindingStub._getProperty(HTTPConstants.MC_ACCEPT_GZIP));
+    assertTrue((boolean)bindingStub._getProperty(HTTPConstants.MC_GZIP_REQUEST));
+    AllOrNoneHeader headerObject=(AllOrNoneHeader)bindingStub.getHeader(new SforceServiceLocator().getServiceName().getNamespaceURI(),"AllOrNoneHeader").getObjectValue();
+    assertTrue(headerObject.isAllOrNone());
+  }
+ catch (  Exception e) {
+    fail("Connection fail: " + e.getMessage());
+  }
+}
