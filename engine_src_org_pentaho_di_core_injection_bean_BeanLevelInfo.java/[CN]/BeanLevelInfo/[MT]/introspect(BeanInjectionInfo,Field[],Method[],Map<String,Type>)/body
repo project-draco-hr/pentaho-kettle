@@ -14,24 +14,39 @@
     BeanLevelInfo leaf=new BeanLevelInfo();
     leaf.parent=this;
     leaf.field=f;
+    Type t;
     if (f.getType().isArray()) {
+      Type ff=f.getGenericType();
       leaf.dim=DIMENSION.ARRAY;
-      leaf.leafClass=f.getType().getComponentType();
+      if (ff instanceof GenericArrayType) {
+        GenericArrayType ffg=(GenericArrayType)ff;
+        t=resolveGenericType(ffg.getGenericComponentType(),genericsInfo);
+      }
+ else {
+        t=f.getType().getComponentType();
+      }
     }
  else     if (List.class.equals(f.getType())) {
       leaf.dim=DIMENSION.LIST;
       Type fieldType=f.getGenericType();
       Type listType=((ParameterizedType)fieldType).getActualTypeArguments()[0];
       try {
-        leaf.leafClass=Class.forName(listType.getTypeName(),false,leafClass.getClassLoader());
+        t=resolveGenericType(listType,genericsInfo);
       }
  catch (      Throwable ex) {
-        throw new RuntimeException("Can't retrieve type from List for " + f);
+        throw new RuntimeException("Can't retrieve type from List for " + f,ex);
       }
     }
  else {
       leaf.dim=DIMENSION.NONE;
-      leaf.leafClass=f.getType();
+      t=resolveGenericType(f.getGenericType(),genericsInfo);
+    }
+    if (t instanceof ParameterizedType) {
+      ParameterizedType pt=(ParameterizedType)t;
+      leaf.leafClass=(Class<?>)pt.getRawType();
+    }
+ else {
+      leaf.leafClass=(Class<?>)t;
     }
     if (annotationInjection != null) {
       try {
@@ -45,7 +60,8 @@
     }
  else     if (annotationInjectionDeep != null) {
       leaf.prefix=annotationInjectionDeep.prefix();
-      leaf.init(info);
+      TreeMap<String,Type> gi=new TreeMap<>(genericsInfo);
+      leaf.introspect(info,t,gi);
     }
   }
   for (  Method m : methods) {
@@ -63,12 +79,22 @@
     BeanLevelInfo leaf=new BeanLevelInfo();
     leaf.parent=this;
     if (annotationInjectionDeep != null) {
-      Class<?> getterClass=isGetter(m);
-      if (getterClass == null || getterClass.isArray()) {
+      Type getterClass=isGetter(m);
+      if (getterClass == null) {
+        throw new RuntimeException("Method should be getter: " + m);
+      }
+      if (m.getReturnType() != null && List.class.equals(m.getReturnType())) {
+        leaf.dim=DIMENSION.LIST;
+        ParameterizedType getterType=(ParameterizedType)getterClass;
+        getterClass=getterType.getActualTypeArguments()[0];
+      }
+      Class<?> getter=(Class<?>)resolveGenericType(getterClass,genericsInfo);
+      if (getter.isArray()) {
         throw new RuntimeException("Method should be getter: " + m);
       }
       leaf.getter=m;
-      leaf.leafClass=getterClass;
+      leaf.leafClass=getter;
+      leaf.prefix=annotationInjectionDeep.prefix();
       leaf.init(info);
     }
  else {
