@@ -1,42 +1,29 @@
 {
-  boolean retval=false;
-  FileObject xmlfile=null;
-  FileObject DTDfile=null;
-  ByteArrayInputStream ba=null;
+  boolean isValid=false;
+  FileObject xmlFileObject=null;
+  FileObject dtdFileObject=null;
   try {
     if (xmlfilename != null && ((getDTDFilename() != null && !isInternDTD()) || (isInternDTD()))) {
-      xmlfile=KettleVFS.getFileObject(getXMLFilename());
-      if (xmlfile.exists()) {
-        URL xmlFile=new File(KettleVFS.getFilename(xmlfile)).toURI().toURL();
+      xmlFileObject=KettleVFS.getFileObject(getXMLFilename());
+      if (xmlFileObject.exists()) {
+        URL xmlFile=new File(KettleVFS.getFilename(xmlFileObject)).toURI().toURL();
         StringBuffer xmlStringbuffer=new StringBuffer("");
-        BufferedReader xmlBufferedReader=null;
-        InputStreamReader is=null;
-        try {
-          is=new InputStreamReader(xmlFile.openStream());
-          xmlBufferedReader=new BufferedReader(is);
+        try (InputStreamReader is=new InputStreamReader(xmlFile.openStream());BufferedReader xmlBufferedReader=new BufferedReader(is)){
           char[] buffertXML=new char[1024];
-          int LenXML=-1;
-          while ((LenXML=xmlBufferedReader.read(buffertXML)) != -1) {
-            xmlStringbuffer.append(buffertXML,0,LenXML);
+          int lenXML;
+          while ((lenXML=xmlBufferedReader.read(buffertXML)) != -1) {
+            xmlStringbuffer.append(buffertXML,0,lenXML);
           }
         }
-  finally {
-          if (is != null) {
-            is.close();
-          }
-          if (xmlBufferedReader != null) {
-            xmlBufferedReader.close();
-          }
-        }
-        DocumentBuilderFactory DocBuilderFactory=DocumentBuilderFactory.newInstance();
-        DocumentBuilder DocBuilder=DocBuilderFactory.newDocumentBuilder();
-        DocBuilderFactory.setValidating(false);
-        ba=new ByteArrayInputStream(xmlStringbuffer.toString().getBytes("UTF-8"));
-        Document xmlDocDTD=DocBuilder.parse(ba);
+         DocumentBuilderFactory docBuilderFactory=XMLParserFactoryProducer.createSecureDocBuilderFactory();
+        DocumentBuilder docBuilder=docBuilderFactory.newDocumentBuilder();
+        docBuilderFactory.setValidating(false);
+        ByteArrayInputStream ba=new ByteArrayInputStream(xmlStringbuffer.toString().getBytes("UTF-8"));
+        Document xmlDocDTD=docBuilder.parse(ba);
         if (ba != null) {
           ba.close();
         }
-        String encoding=null;
+        String encoding;
         if (xmlDocDTD.getXmlEncoding() == null) {
           encoding="UTF-8";
         }
@@ -53,14 +40,14 @@
           }
         }
  else {
-          DTDfile=KettleVFS.getFileObject(getDTDFilename());
-          if (DTDfile.exists()) {
+          dtdFileObject=KettleVFS.getFileObject(getDTDFilename());
+          if (dtdFileObject.exists()) {
             if (xmlStartDTD != -1) {
               int EndDTD=xmlStringbuffer.indexOf(">",xmlStartDTD);
               xmlStringbuffer.replace(xmlStartDTD,EndDTD + 1,"");
             }
             String xmlRootnodeDTD=xmlDocDTD.getDocumentElement().getNodeName();
-            String RefDTD="<?xml version='" + xmlDocDTD.getXmlVersion() + "' encoding='"+ encoding+ "'?>\n<!DOCTYPE "+ xmlRootnodeDTD+ " SYSTEM '"+ KettleVFS.getFilename(DTDfile)+ "'>\n";
+            String RefDTD="<?xml version='" + xmlDocDTD.getXmlVersion() + "' encoding='"+ encoding+ "'?>\n<!DOCTYPE "+ xmlRootnodeDTD+ " SYSTEM '"+ KettleVFS.getFilename(dtdFileObject)+ "'>\n";
             int xmloffsetDTD=xmlStringbuffer.indexOf("<" + xmlRootnodeDTD);
             xmlStringbuffer.replace(0,xmloffsetDTD,RefDTD);
           }
@@ -68,16 +55,16 @@
             log.logError(BaseMessages.getString(PKG,"JobEntryDTDValidator.ERRORDTDFileNotExists.Subject"),BaseMessages.getString(PKG,"JobEntryDTDValidator.ERRORDTDFileNotExists.Msg",getDTDFilename()));
           }
         }
-        if (!(isInternDTD() && xmlStartDTD == -1 || (!isInternDTD() && !DTDfile.exists()))) {
+        if (!(isInternDTD() && xmlStartDTD == -1 || (!isInternDTD() && !dtdFileObject.exists()))) {
           MyErrorHandler error=new MyErrorHandler();
-          DocBuilderFactory.setValidating(true);
-          DocBuilder=DocBuilderFactory.newDocumentBuilder();
-          DocBuilder.setErrorHandler(error);
+          docBuilderFactory.setValidating(true);
+          docBuilder=docBuilderFactory.newDocumentBuilder();
+          docBuilder.setErrorHandler(error);
           ba=new ByteArrayInputStream(xmlStringbuffer.toString().getBytes(encoding));
-          xmlDocDTD=DocBuilder.parse(ba);
+          xmlDocDTD=docBuilder.parse(ba);
           if (error.errorMessage == null) {
             log.logBasic(BaseMessages.getString(PKG,"JobEntryDTDValidator.DTDValidatorOK.Subject"),BaseMessages.getString(PKG,"JobEntryDTDValidator.DTDValidatorOK.Label",getXMLFilename()));
-            retval=true;
+            isValid=true;
           }
  else {
             setNrErrors(error.nrErrors);
@@ -86,7 +73,7 @@
         }
       }
  else {
-        if (!xmlfile.exists()) {
+        if (!xmlFileObject.exists()) {
           setErrorMessage(BaseMessages.getString(PKG,"JobEntryDTDValidator.FileDoesNotExist.Label",getXMLFilename()));
         }
       }
@@ -100,18 +87,15 @@
   }
  finally {
     try {
-      if (xmlfile != null) {
-        xmlfile.close();
+      if (xmlFileObject != null) {
+        xmlFileObject.close();
       }
-      if (DTDfile != null) {
-        DTDfile.close();
-      }
-      if (ba != null) {
-        ba.close();
+      if (dtdFileObject != null) {
+        dtdFileObject.close();
       }
     }
  catch (    IOException e) {
     }
   }
-  return retval;
+  return isValid;
 }
