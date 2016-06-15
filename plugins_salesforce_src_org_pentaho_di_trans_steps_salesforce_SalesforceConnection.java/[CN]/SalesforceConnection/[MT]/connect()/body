@@ -1,24 +1,22 @@
 {
+  ConnectorConfig config=new ConnectorConfig();
+  config.setAuthEndpoint(getURL());
+  config.setCompression(isUsingCompression());
+  config.setManualLogin(true);
+  if (getTimeOut() > 0) {
+    if (log.isDebug()) {
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.SettingTimeout","" + this.timeout));
+    }
+    config.setConnectionTimeout(getTimeOut());
+    config.setReadTimeout(getTimeOut());
+  }
   try {
-    createBinding();
+    createBinding(config);
     if (log.isDetailed()) {
-      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginURL",getBinding()._getProperty(SoapBindingStub.ENDPOINT_ADDRESS_PROPERTY)));
-    }
-    if (getTimeOut() > 0) {
-      getBinding().setTimeout(getTimeOut());
-      if (log.isDebug()) {
-        log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.SettingTimeout","" + this.timeout));
-      }
-    }
-    getBinding()._setProperty(SoapBindingStub.ENDPOINT_ADDRESS_PROPERTY,getURL());
-    if (isUsingCompression()) {
-      getBinding()._setProperty(HTTPConstants.MC_ACCEPT_GZIP,useCompression);
-      getBinding()._setProperty(HTTPConstants.MC_GZIP_REQUEST,useCompression);
+      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginURL",config.getAuthEndpoint()));
     }
     if (isRollbackAllChangesOnError()) {
-      AllOrNoneHeader allOrNoneHeader=new AllOrNoneHeader();
-      allOrNoneHeader.setAllOrNone(true);
-      getBinding().setHeader(new SforceServiceLocator().getServiceName().getNamespaceURI(),"AllOrNoneHeader",allOrNoneHeader);
+      getBinding().setAllOrNoneHeader(true);
     }
     if (log.isDetailed()) {
       log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginNow"));
@@ -35,10 +33,7 @@
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.SessionId") + " : " + this.loginResult.getSessionId());
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.NewServerURL") + " : " + this.loginResult.getServerUrl());
     }
-    getBinding()._setProperty(SoapBindingStub.ENDPOINT_ADDRESS_PROPERTY,this.loginResult.getServerUrl());
-    SessionHeader sh=new SessionHeader();
-    sh.setSessionId(loginResult.getSessionId());
-    getBinding().setHeader(new SforceServiceLocator().getServiceName().getNamespaceURI(),"SessionHeader",sh);
+    getBinding().setSessionHeader(loginResult.getSessionId());
     this.userInfo=getBinding().getUserInfo();
     if (log.isDebug()) {
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserInfos") + " : " + this.userInfo.getUserFullName());
