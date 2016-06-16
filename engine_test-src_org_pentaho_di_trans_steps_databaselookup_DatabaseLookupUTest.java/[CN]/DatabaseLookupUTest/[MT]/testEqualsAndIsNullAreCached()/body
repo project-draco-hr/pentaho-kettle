@@ -1,0 +1,35 @@
+{
+  StepMockHelper<DatabaseLookupMeta,DatabaseLookupData> mockHelper=new StepMockHelper<>("Test",DatabaseLookupMeta.class,DatabaseLookupData.class);
+  when(mockHelper.logChannelInterfaceFactory.create(any(),any(LoggingObjectInterface.class))).thenReturn(mockHelper.logChannelInterface);
+  DatabaseLookup look=new MockDatabaseLookup(mockHelper.stepMeta,mockHelper.stepDataInterface,0,mockHelper.transMeta,mockHelper.trans);
+  DatabaseLookupData lookData=new DatabaseLookupData();
+  lookData.cache=DefaultCache.newCache(lookData,0);
+  lookData.lookupMeta=new RowMeta();
+  MySQLDatabaseMeta mysql=new MySQLDatabaseMeta();
+  mysql.setName("MySQL");
+  DatabaseMeta dbMeta=new DatabaseMeta();
+  dbMeta.setDatabaseInterface(mysql);
+  DatabaseLookupMeta meta=new DatabaseLookupMeta();
+  meta.setDatabaseMeta(dbMeta);
+  meta.setTablename("VirtualTable");
+  meta.setTableKeyField(new String[]{"ID1","ID2"});
+  meta.setKeyCondition(new String[]{"=","IS NULL"});
+  meta.setReturnValueNewName(new String[]{"val1","val2"});
+  meta.setReturnValueField(new String[]{BINARY_FIELD,BINARY_FIELD});
+  meta.setReturnValueDefaultType(new int[]{ValueMetaInterface.TYPE_BINARY,ValueMetaInterface.TYPE_BINARY});
+  meta.setStreamKeyField1(new String[0]);
+  meta.setStreamKeyField2(new String[0]);
+  meta.setReturnValueDefault(new String[]{"",""});
+  meta=spy(meta);
+  doAnswer(new Answer(){
+    @Override public Object answer(    InvocationOnMock invocation) throws Throwable {
+      RowMetaInterface row=(RowMetaInterface)invocation.getArguments()[0];
+      ValueMetaInterface v=new ValueMetaBinary(BINARY_FIELD);
+      row.addValueMeta(v);
+      return null;
+    }
+  }
+).when(meta).getFields(any(RowMetaInterface.class),anyString(),any(RowMetaInterface[].class),any(StepMeta.class),any(VariableSpace.class),any(Repository.class),any(IMetaStore.class));
+  look.init(meta,lookData);
+  assertTrue(lookData.allEquals);
+}
