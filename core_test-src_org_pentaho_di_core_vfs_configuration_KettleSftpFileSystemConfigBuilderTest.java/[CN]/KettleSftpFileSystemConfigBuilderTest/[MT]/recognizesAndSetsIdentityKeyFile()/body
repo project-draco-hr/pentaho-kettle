@@ -1,0 +1,15 @@
+{
+  File tempFile=File.createTempFile("KettleSftpFileSystemConfigBuilderTest",".tmp");
+  tempFile.deleteOnExit();
+  final String fullName="vfs.sftp.identity";
+  final String name=fullName.substring("vfs.sftp.".length());
+  final String vfsInternalName=SftpFileSystemConfigBuilder.class.getName() + ".IDENTITIES";
+  final FileSystemOptions opts=new FileSystemOptions();
+  KettleSftpFileSystemConfigBuilder builder=KettleSftpFileSystemConfigBuilder.getInstance();
+  builder.setParameter(opts,name,tempFile.getAbsolutePath(),fullName,"sftp://fake-url:22");
+  Method getOption=ReflectionUtils.findMethod(opts.getClass(),"getOption",Class.class,String.class);
+  getOption.setAccessible(true);
+  Object value=ReflectionUtils.invokeMethod(getOption,opts,builder.getConfigClass(),vfsInternalName);
+  assertEquals(IdentityInfo[].class,value.getClass());
+  assertEquals(tempFile.getAbsolutePath(),((IdentityInfo[])value)[0].getPrivateKey().getAbsolutePath());
+}
