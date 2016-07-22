@@ -3,19 +3,19 @@
   String url="http://localhost/services/Soap/u/37.0";
   String username="MySampleUsername";
   SalesforceConnection connection;
+  connection=spy(new SalesforceConnection(logInterface,url,username,password));
+  ArgumentCaptor<ConnectorConfig> captorConfig=ArgumentCaptor.forClass(ConnectorConfig.class);
+  ConnectorConfig mockConfig=mock(ConnectorConfig.class);
+  doReturn(UUID.randomUUID().toString()).when(mockConfig).getUsername();
+  doReturn(UUID.randomUUID().toString()).when(mockConfig).getPassword();
+  doReturn(mockConfig).when(bindingStub).getConfig();
+  doReturn(mock(LoginResult.class)).when(bindingStub).login(anyString(),anyString());
   try {
-    connection=spy(new SalesforceConnection(logInterface,url,username,password));
-    doNothing().when(connection).createBinding(any(ConnectorConfig.class));
-    doReturn(bindingStub).when(connection).getBinding();
-    doReturn(mock(LoginResult.class)).when(bindingStub).login(anyString(),anyString());
-    ArgumentCaptor<String> captorUser=ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<String> captorPassword=ArgumentCaptor.forClass(String.class);
     connection.connect();
-    verify(bindingStub).login(captorUser.capture(),captorPassword.capture());
-    assertTrue(username.equals(captorUser.getValue()));
-    assertTrue(samplePassword.equals(captorPassword.getValue()));
   }
- catch (  Exception e) {
-    fail("Connection fail: " + e.getMessage());
+ catch (  KettleException e) {
   }
+  verify(connection).createBinding(captorConfig.capture());
+  assertEquals(username,captorConfig.getValue().getUsername());
+  assertEquals(Encr.decryptPasswordOptionallyEncrypted(password),captorConfig.getValue().getPassword());
 }
