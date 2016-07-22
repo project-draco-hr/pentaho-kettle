@@ -3,7 +3,7 @@
   config.setAuthEndpoint(getURL());
   config.setServiceEndpoint(getURL());
   config.setUsername(getUsername());
-  config.setPassword(Encr.decryptPasswordOptionallyEncrypted(getPassword()));
+  config.setPassword(getPassword());
   config.setCompression(isUsingCompression());
   config.setManualLogin(true);
   if (getTimeOut() > 0) {
@@ -14,12 +14,12 @@
     config.setReadTimeout(getTimeOut());
   }
   try {
-    createBinding(config);
+    PartnerConnection pConnection=createBinding(config);
     if (log.isDetailed()) {
       log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginURL",config.getAuthEndpoint()));
     }
     if (isRollbackAllChangesOnError()) {
-      getBinding().setAllOrNoneHeader(true);
+      pConnection.setAllOrNoneHeader(true);
     }
     if (log.isDetailed()) {
       log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginNow"));
@@ -31,14 +31,14 @@
       }
       log.logDetailed("<-----------------------------------------");
     }
-    this.loginResult=getBinding().login(getBinding().getConfig().getUsername(),getBinding().getConfig().getPassword());
+    this.loginResult=pConnection.login(config.getUsername(),Encr.decryptPasswordOptionallyEncrypted(config.getPassword()));
     if (log.isDebug()) {
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.SessionId") + " : " + this.loginResult.getSessionId());
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.NewServerURL") + " : " + this.loginResult.getServerUrl());
     }
-    getBinding().setSessionHeader(loginResult.getSessionId());
-    getBinding().getConfig().setServiceEndpoint(loginResult.getServerUrl());
-    this.userInfo=getBinding().getUserInfo();
+    pConnection.setSessionHeader(loginResult.getSessionId());
+    config.setServiceEndpoint(loginResult.getServerUrl());
+    this.userInfo=pConnection.getUserInfo();
     if (log.isDebug()) {
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserInfos") + " : " + this.userInfo.getUserFullName());
       log.logDebug("----------------------------------------->");
@@ -48,7 +48,7 @@
       log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserOrganization") + " : " + this.userInfo.getOrganizationName());
       log.logDebug("<-----------------------------------------");
     }
-    this.serverTimestamp=getBinding().getServerTimestamp().getTimestamp().getTime();
+    this.serverTimestamp=pConnection.getServerTimestamp().getTimestamp().getTime();
     if (log.isDebug()) {
       BaseMessages.getString(PKG,"SalesforceInput.Log.ServerTimestamp",getServerTimestamp());
     }
