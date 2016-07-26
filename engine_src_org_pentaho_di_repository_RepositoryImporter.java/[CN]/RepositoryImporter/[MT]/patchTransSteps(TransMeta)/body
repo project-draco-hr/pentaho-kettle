@@ -1,8 +1,4 @@
 {
-  Object[] metaInjectObjectArray=new Object[4];
-  metaInjectObjectArray[0]=transDirOverride;
-  metaInjectObjectArray[1]=baseDirectory;
-  metaInjectObjectArray[3]=needToCheckPathForVariables;
   for (  StepMeta stepMeta : transMeta.getSteps()) {
     if (stepMeta.isMapping()) {
       MappingMeta mappingMeta=(MappingMeta)stepMeta.getStepMetaInterface();
@@ -15,12 +11,16 @@
         mappingMeta.setDirectoryPath(mappingMetaPath);
       }
     }
-    metaInjectObjectArray[2]=stepMeta;
-    try {
-      ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.RepositoryImporterPatchTransStep.id,metaInjectObjectArray);
-    }
- catch (    KettleException ke) {
-      log.logError(ke.getMessage(),ke);
+    if (stepMeta.isEtlMetaInject()) {
+      MetaInjectMeta metaInjectMeta=(MetaInjectMeta)stepMeta.getStepMetaInterface();
+      if (metaInjectMeta.getSpecificationMethod() == ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME) {
+        if (transDirOverride != null) {
+          metaInjectMeta.setDirectoryPath(transDirOverride);
+          continue;
+        }
+        String mappingMetaPath=resolvePath(baseDirectory.getPath(),metaInjectMeta.getDirectoryPath());
+        metaInjectMeta.setDirectoryPath(mappingMetaPath);
+      }
     }
   }
 }
