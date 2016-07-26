@@ -1,6 +1,10 @@
 {
+  Object[] metaInjectObjectArray=new Object[4];
+  metaInjectObjectArray[0]=transMeta;
+  metaInjectObjectArray[1]=PKG;
   if (repository instanceof KettleFileRepository) {
     KettleFileRepository fileRep=(KettleFileRepository)repository;
+    metaInjectObjectArray[2]=fileRep;
     String transMetaFilename=fileRep.calcFilename(transMeta.getObjectId());
     transMeta.setFilename(transMetaFilename);
     for (    StepMeta stepMeta : transMeta.getSteps()) {
@@ -20,21 +24,12 @@
           }
         }
       }
-      if (stepMeta.isEtlMetaInject()) {
-        MetaInjectMeta metaInjectMeta=(MetaInjectMeta)stepMeta.getStepMetaInterface();
-        if (metaInjectMeta.getSpecificationMethod() == ObjectLocationSpecificationMethod.FILENAME) {
-          try {
-            TransMeta meta=MetaInjectMeta.loadTransformationMeta(metaInjectMeta,fileRep,fileRep.metaStore,transMeta);
-            FileObject fileObject=KettleVFS.getFileObject(meta.getFilename());
-            metaInjectMeta.setSpecificationMethod(ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME);
-            metaInjectMeta.setFileName(null);
-            metaInjectMeta.setTransName(meta.getName());
-            metaInjectMeta.setDirectoryPath(Const.NVL(calcRepositoryDirectory(fileRep,fileObject),"/"));
-          }
- catch (          Exception e) {
-            log.logError(BaseMessages.getString(PKG,"Repository.Exporter.Log.UnableToLoadTransInMDI",metaInjectMeta.getName()),e);
-          }
-        }
+      metaInjectObjectArray[3]=stepMeta;
+      try {
+        ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.RepositoryExporterPatchTransStep.id,metaInjectObjectArray);
+      }
+ catch (      KettleException ke) {
+        log.logError(ke.getMessage(),ke);
       }
     }
   }

@@ -1,0 +1,51 @@
+{
+  TransMeta newTransMeta=new TransMeta();
+  newTransMeta.getDatabases().addAll(transMeta.getDatabases());
+  newTransMeta.setRepository(transMeta.getRepository());
+  newTransMeta.setRepositoryDirectory(transMeta.getRepositoryDirectory());
+  newTransMeta.setUsingUniqueConnections(transMeta.isUsingUniqueConnections());
+  TransDialog transDialog=new TransDialog(shell,SWT.NONE,newTransMeta,repository);
+  if (transDialog.open() != null) {
+    Spoon spoon=Spoon.getInstance();
+    spoon.addTransGraph(newTransMeta);
+    boolean saved=false;
+    try {
+      if (repository != null) {
+        if (!Const.isEmpty(newTransMeta.getName())) {
+          wStepname.setText(newTransMeta.getName());
+        }
+        saved=spoon.saveToRepository(newTransMeta,false);
+        if (repository.getRepositoryMeta().getRepositoryCapabilities().supportsReferences()) {
+          specificationMethod=ObjectLocationSpecificationMethod.REPOSITORY_BY_REFERENCE;
+        }
+ else {
+          specificationMethod=ObjectLocationSpecificationMethod.REPOSITORY_BY_NAME;
+        }
+      }
+ else {
+        saved=spoon.saveToFile(newTransMeta);
+        specificationMethod=ObjectLocationSpecificationMethod.FILENAME;
+      }
+    }
+ catch (    Exception e) {
+      new ErrorDialog(shell,"Error","Error saving new transformation",e);
+    }
+    if (saved) {
+      setRadioButtons();
+switch (specificationMethod) {
+case FILENAME:
+        wFilename.setText(Const.NVL(newTransMeta.getFilename(),""));
+      break;
+case REPOSITORY_BY_NAME:
+    wTransname.setText(Const.NVL(newTransMeta.getName(),""));
+  wDirectory.setText(newTransMeta.getRepositoryDirectory().getPath());
+break;
+case REPOSITORY_BY_REFERENCE:
+getByReferenceData(newTransMeta.getObjectId());
+break;
+default :
+break;
+}
+}
+}
+}
