@@ -1,0 +1,18 @@
+{
+  DatabaseMeta dbMeta=mock(DatabaseMeta.class);
+  when(dbMeta.supportsEmptyTransactions()).thenReturn(true);
+  DatabaseMetaData dbMetaData=mock(DatabaseMetaData.class);
+  when(dbMetaData.supportsTransactions()).thenReturn(true);
+  Database db=new Database(mockLogger(),dbMeta);
+  Connection connection=mockConnection(dbMetaData);
+  db.setConnection(connection);
+  db.setCommit(1);
+  PreparedStatement ps=mock(PreparedStatement.class);
+  Class<Database> databaseClass=Database.class;
+  Field fieldPstmt=databaseClass.getDeclaredField("pstmt");
+  fieldPstmt.setAccessible(true);
+  fieldPstmt.set(db,ps);
+  Mockito.doThrow(new SQLException("Test SQL exception")).when(connection).commit();
+  db.disconnect();
+  verify(connection,times(1)).close();
+}
