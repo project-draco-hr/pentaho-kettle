@@ -1,0 +1,37 @@
+{
+  assertEquals(" WHERE ROWNUM <= 5",nativeMeta.getLimitClause(5));
+  String reusedFieldsQuery="SELECT /*+FIRST_ROWS*/ * FROM FOO WHERE ROWNUM < 1";
+  assertEquals(reusedFieldsQuery,nativeMeta.getSQLQueryFields("FOO"));
+  assertEquals(reusedFieldsQuery,nativeMeta.getSQLTableExists("FOO"));
+  String reusedColumnsQuery="SELECT /*+FIRST_ROWS*/ FOO FROM BAR WHERE ROWNUM < 1";
+  assertEquals(reusedColumnsQuery,nativeMeta.getSQLQueryColumnFields("FOO","BAR"));
+  assertEquals(reusedColumnsQuery,nativeMeta.getSQLColumnExists("FOO","BAR"));
+  assertEquals("SELECT * FROM USER_SEQUENCES WHERE SEQUENCE_NAME = 'FOO'",nativeMeta.getSQLSequenceExists("FOO"));
+  assertEquals("SELECT * FROM USER_SEQUENCES WHERE SEQUENCE_NAME = 'FOO'",nativeMeta.getSQLSequenceExists("foo"));
+  assertEquals("SELECT * FROM ALL_SEQUENCES WHERE SEQUENCE_NAME = 'BAR' AND SEQUENCE_OWNER = 'FOO'",nativeMeta.getSQLSequenceExists("FOO.BAR"));
+  assertEquals("SELECT * FROM ALL_SEQUENCES WHERE SEQUENCE_NAME = 'BAR' AND SEQUENCE_OWNER = 'FOO'",nativeMeta.getSQLSequenceExists("foo.bar"));
+  assertEquals("SELECT FOO.currval FROM DUAL",nativeMeta.getSQLCurrentSequenceValue("FOO"));
+  assertEquals("SELECT FOO.nextval FROM dual",nativeMeta.getSQLNextSequenceValue("FOO"));
+  assertEquals("ALTER TABLE FOO ADD ( FOO DATE ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaTimestamp("FOO"),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO DATE ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaDate("FOO"),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO VARCHAR2(15) ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaString("FOO",15,0),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO INTEGER ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaInteger("FOO",15,0),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO NUMBER(15, 10) ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaBigNumber("FOO",15,10),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO NUMBER(15, 10) ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaNumber("FOO",15,10),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO BLOB ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaBinary("FOO",2048,0),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO CHAR(1) ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaBoolean("FOO"),"",false,"",false));
+  assertEquals("ALTER TABLE FOO ADD ( FOO  UNKNOWN ) ",nativeMeta.getAddColumnStatement("FOO",new ValueMetaInternetAddress("FOO"),"",false,"",false));
+  String lineSep=System.getProperty("line.separator");
+  assertEquals("ALTER TABLE FOO DROP ( BAR ) " + lineSep,nativeMeta.getDropColumnStatement("FOO",new ValueMetaString("BAR"),"",false,"",false));
+  String modColStmtExpected="ALTER TABLE FOO ADD ( BAR_KTL VARCHAR2(2000) ) ;" + lineSep + "UPDATE FOO SET BAR_KTL=BAR;"+ lineSep+ "ALTER TABLE FOO DROP ( BAR ) "+ lineSep+ ";"+ lineSep+ "ALTER TABLE FOO ADD ( BAR VARCHAR2(2000) ) ;"+ lineSep+ "UPDATE FOO SET BAR=BAR_KTL;"+ lineSep+ "ALTER TABLE FOO DROP ( BAR_KTL ) "+ lineSep;
+  assertEquals(modColStmtExpected,nativeMeta.getModifyColumnStatement("FOO",new ValueMetaString("BAR"),"",false,"",false));
+  String expectedProcSql="SELECT DISTINCT DECODE(package_name, NULL, '', package_name||'.') || object_name " + "FROM user_arguments " + "ORDER BY 1";
+  assertEquals(expectedProcSql,nativeMeta.getSQLListOfProcedures());
+  String expectedLockOneItem="LOCK TABLE FOO IN EXCLUSIVE MODE;" + lineSep;
+  assertEquals(expectedLockOneItem,nativeMeta.getSQLLockTables(new String[]{"FOO"}));
+  String expectedLockMultiItem="LOCK TABLE FOO IN EXCLUSIVE MODE;" + lineSep + "LOCK TABLE BAR IN EXCLUSIVE MODE;"+ lineSep;
+  assertEquals(expectedLockMultiItem,nativeMeta.getSQLLockTables(new String[]{"FOO","BAR"}));
+  assertNull(nativeMeta.getSQLUnlockTables(null));
+  assertEquals("SELECT SEQUENCE_NAME FROM all_sequences",nativeMeta.getSQLListOfSequences());
+  assertEquals("BEGIN EXECUTE IMMEDIATE 'DROP TABLE FOO'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;",nativeMeta.getDropTableIfExistsStatement("FOO"));
+}
