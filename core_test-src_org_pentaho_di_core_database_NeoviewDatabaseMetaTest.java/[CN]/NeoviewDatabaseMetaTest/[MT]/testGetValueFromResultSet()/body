@@ -1,0 +1,75 @@
+{
+  Object rtn=null;
+  ResultSet resultSet=Mockito.mock(ResultSet.class);
+  ResultSetMetaData metaData=Mockito.mock(ResultSetMetaData.class);
+  Mockito.when(resultSet.getMetaData()).thenReturn(metaData);
+  Mockito.when(resultSet.getTimestamp(1)).thenReturn(new java.sql.Timestamp(65535));
+  Mockito.when(resultSet.getTime(2)).thenReturn(new java.sql.Time(1000));
+  Mockito.when(resultSet.getTimestamp(3)).thenReturn(new java.sql.Timestamp(65535));
+  ValueMetaTimestamp ts=new ValueMetaTimestamp("FOO");
+  ts.setOriginalColumnType(java.sql.Types.TIMESTAMP);
+  ValueMetaDate tm=new ValueMetaDate("BAR");
+  tm.setOriginalColumnType(java.sql.Types.TIME);
+  ValueMetaDate dt=new ValueMetaDate("WIBBLE");
+  dt.setOriginalColumnType(java.sql.Types.DATE);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,ts,0);
+  assertNotNull(rtn);
+  assertEquals("java.sql.Timestamp",rtn.getClass().getName());
+  rtn=nativeMeta.getValueFromResultSet(resultSet,tm,1);
+  assertNotNull(rtn);
+  assertEquals("java.sql.Time",rtn.getClass().getName());
+  rtn=nativeMeta.getValueFromResultSet(resultSet,dt,2);
+  assertNotNull(rtn);
+  assertEquals("java.sql.Timestamp",rtn.getClass().getName());
+  Mockito.when(resultSet.wasNull()).thenReturn(true);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaString("WOBBLE"),3);
+  assertNull(rtn);
+  Mockito.verify(resultSet,Mockito.times(0)).getDate(Mockito.anyInt());
+  Mockito.verify(resultSet,Mockito.times(1)).getTime(Mockito.anyInt());
+  Mockito.verify(resultSet,Mockito.times(2)).getTimestamp(Mockito.anyInt());
+  Mockito.when(resultSet.wasNull()).thenReturn(false);
+  Mockito.when(resultSet.getBoolean(1)).thenReturn(new Boolean(true));
+  Mockito.when(resultSet.getDouble(1)).thenReturn(new Double(15));
+  Mockito.when(resultSet.getBigDecimal(1)).thenReturn(new BigDecimal("15"));
+  Mockito.when(resultSet.getLong(1)).thenReturn(new Long("15"));
+  Mockito.when(resultSet.getString(1)).thenReturn("ASTRING");
+  Mockito.when(resultSet.getBytes(1)).thenReturn("ASTRING".getBytes());
+  Blob mockBlob=Mockito.mock(Blob.class);
+  byte[] bytes="FOO".getBytes();
+  ByteArrayInputStream bais=new ByteArrayInputStream(bytes);
+  Mockito.when(mockBlob.getBinaryStream()).thenReturn(bais);
+  Mockito.when(mockBlob.length()).thenReturn(new Long(bytes.length));
+  Mockito.when(mockBlob.getBytes(Mockito.anyLong(),Mockito.anyInt())).thenReturn(bytes);
+  Mockito.when(resultSet.getBlob(1)).thenReturn(mockBlob);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaBoolean("FOO"),0);
+  assertNotNull(rtn);
+  assertTrue(rtn instanceof Boolean);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaNumber("FOO",15,5),0);
+  assertNotNull(rtn);
+  assertTrue(rtn instanceof Double);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaBigNumber("FOO",15,5),0);
+  assertNotNull(rtn);
+  assertTrue(rtn instanceof BigDecimal);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaInteger("FOO",5,0),0);
+  assertNotNull(rtn);
+  assertTrue(rtn instanceof Long);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaString("FOO",25,0),0);
+  assertNotNull(rtn);
+  assertTrue(rtn instanceof String);
+  ValueMetaString binStr=new ValueMetaString("FOO");
+  binStr.setStorageType(ValueMetaString.STORAGE_TYPE_BINARY_STRING);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,binStr,0);
+  assertNotNull(rtn);
+  assertTrue(rtn instanceof byte[]);
+  rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaBinary("FOO",150,0),0);
+  assertNotNull(rtn);
+  assertTrue(rtn instanceof byte[]);
+  try {
+    Mockito.when(resultSet.getBoolean(15)).thenThrow(new SQLException("Expected Exception Here"));
+    rtn=nativeMeta.getValueFromResultSet(resultSet,new ValueMetaBoolean("FOO"),14);
+    fail("Should not get here");
+  }
+ catch (  Exception someException) {
+    assertTrue(someException instanceof KettleDatabaseException);
+  }
+}
