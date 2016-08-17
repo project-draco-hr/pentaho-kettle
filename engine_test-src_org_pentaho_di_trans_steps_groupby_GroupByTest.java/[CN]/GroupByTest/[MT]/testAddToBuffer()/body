@@ -1,0 +1,22 @@
+{
+  GroupByData groupByData=new GroupByData();
+  ArrayList listMock=mock(ArrayList.class);
+  when(listMock.size()).thenReturn(5001);
+  groupByData.bufferList=listMock;
+  groupByData.rowsOnFile=0;
+  RowMetaInterface inputRowMetaMock=mock(RowMetaInterface.class);
+  groupByData.inputRowMeta=inputRowMetaMock;
+  GroupBy groupBySpy=Mockito.spy(new GroupBy(mockHelper.stepMeta,groupByData,0,mockHelper.transMeta,mockHelper.trans));
+  GroupByMeta groupByMetaMock=mock(GroupByMeta.class);
+  when(groupByMetaMock.getPrefix()).thenReturn("group-by-test-temp-file-");
+  when(groupBySpy.getMeta()).thenReturn(groupByMetaMock);
+  String userDir=System.getProperty("user.dir");
+  String vfsFilePath="file:///" + userDir;
+  when(groupBySpy.environmentSubstitute(anyString())).thenReturn(vfsFilePath);
+  Object[] row={"abc"};
+  groupBySpy.addToBuffer(row);
+  assertTrue(groupByData.tempFile.exists());
+  groupBySpy.dispose(groupByMetaMock,groupByData);
+  assertFalse(groupByData.tempFile.exists());
+  verify(groupBySpy,times(1)).retrieveVfsPath(anyString());
+}
