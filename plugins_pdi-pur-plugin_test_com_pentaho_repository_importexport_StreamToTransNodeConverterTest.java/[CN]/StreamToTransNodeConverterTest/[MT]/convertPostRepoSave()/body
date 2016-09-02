@@ -1,0 +1,20 @@
+{
+  StreamToTransNodeConverter converter=mock(StreamToTransNodeConverter.class);
+  doCallRealMethod().when(converter).convertPostRepoSave(any(RepositoryFile.class));
+  Repository repository=mock(Repository.class);
+  when(converter.connectToRepository()).thenReturn(repository);
+  TransMeta transMeta=mock(TransMeta.class);
+  when(repository.loadTransformation(any(),anyString())).thenReturn(transMeta);
+  RepositoryFile file=mock(RepositoryFile.class);
+  when(file.getId()).thenReturn("fileId");
+  PluginMockInterface pluginInterface=mock(PluginMockInterface.class);
+  when(pluginInterface.getName()).thenReturn(KettleExtensionPoint.TransImportAfterSaveToRepo.id);
+  when(pluginInterface.getMainType()).thenReturn((Class)ExtensionPointInterface.class);
+  when(pluginInterface.getIds()).thenReturn(new String[]{"extensionpointId"});
+  ExtensionPointInterface extensionPoint=mock(ExtensionPointInterface.class);
+  when(pluginInterface.loadClass(ExtensionPointInterface.class)).thenReturn(extensionPoint);
+  PluginRegistry.addPluginType(ExtensionPointPluginType.getInstance());
+  PluginRegistry.getInstance().registerPlugin(ExtensionPointPluginType.class,pluginInterface);
+  converter.convertPostRepoSave(file);
+  verify(extensionPoint,times(1)).callExtensionPoint(any(LogChannelInterface.class),same(transMeta));
+}
