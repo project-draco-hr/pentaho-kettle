@@ -1,0 +1,69 @@
+{
+  ConnectorConfig config=new ConnectorConfig();
+  config.setAuthEndpoint(getURL());
+  config.setServiceEndpoint(getURL());
+  config.setUsername(getUsername());
+  config.setPassword(getPassword());
+  config.setCompression(isUsingCompression());
+  config.setManualLogin(true);
+  if (getTimeOut() > 0) {
+    if (log.isDebug()) {
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.SettingTimeout","" + this.timeout));
+    }
+    config.setConnectionTimeout(getTimeOut());
+    config.setReadTimeout(getTimeOut());
+  }
+  try {
+    PartnerConnection pConnection=createBinding(config);
+    if (log.isDetailed()) {
+      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginURL",config.getAuthEndpoint()));
+    }
+    if (isRollbackAllChangesOnError()) {
+      pConnection.setAllOrNoneHeader(true);
+    }
+    if (log.isDetailed()) {
+      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginNow"));
+      log.logDetailed("----------------------------------------->");
+      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginURL",getURL()));
+      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginUsername",getUsername()));
+      if (getModule() != null) {
+        log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.LoginModule",getModule()));
+      }
+      log.logDetailed("<-----------------------------------------");
+    }
+    this.loginResult=pConnection.login(config.getUsername(),Encr.decryptPasswordOptionallyEncrypted(config.getPassword()));
+    if (log.isDebug()) {
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.SessionId") + " : " + this.loginResult.getSessionId());
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.NewServerURL") + " : " + this.loginResult.getServerUrl());
+    }
+    pConnection.setSessionHeader(loginResult.getSessionId());
+    config.setServiceEndpoint(loginResult.getServerUrl());
+    this.userInfo=pConnection.getUserInfo();
+    if (log.isDebug()) {
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserInfos") + " : " + this.userInfo.getUserFullName());
+      log.logDebug("----------------------------------------->");
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserName") + " : " + this.userInfo.getUserFullName());
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserEmail") + " : " + this.userInfo.getUserEmail());
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserLanguage") + " : " + this.userInfo.getUserLanguage());
+      log.logDebug(BaseMessages.getString(PKG,"SalesforceInput.Log.UserOrganization") + " : " + this.userInfo.getOrganizationName());
+      log.logDebug("<-----------------------------------------");
+    }
+    this.serverTimestamp=pConnection.getServerTimestamp().getTimestamp().getTime();
+    if (log.isDebug()) {
+      BaseMessages.getString(PKG,"SalesforceInput.Log.ServerTimestamp",getServerTimestamp());
+    }
+    if (log.isDetailed()) {
+      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.Connected"));
+    }
+  }
+ catch (  LoginFault ex) {
+    ExceptionCode exCode=ex.getExceptionCode();
+    if (exCode == ExceptionCode.FUNCTIONALITY_NOT_ENABLED || exCode == ExceptionCode.INVALID_CLIENT || exCode == ExceptionCode.INVALID_LOGIN || exCode == ExceptionCode.LOGIN_DURING_RESTRICTED_DOMAIN || exCode == ExceptionCode.LOGIN_DURING_RESTRICTED_TIME || exCode == ExceptionCode.ORG_LOCKED || exCode == ExceptionCode.PASSWORD_LOCKOUT || exCode == ExceptionCode.SERVER_UNAVAILABLE || exCode == ExceptionCode.TRIAL_EXPIRED || exCode == ExceptionCode.UNSUPPORTED_CLIENT) {
+      throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Error.InvalidUsernameOrPassword"));
+    }
+    throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Error.Connection"),ex);
+  }
+catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Error.Connection"),e);
+  }
+}

@@ -1,0 +1,21 @@
+{
+  Map<String,FieldLoadSaveValidator<?>> validatorMap=new HashMap<String,FieldLoadSaveValidator<?>>();
+  for (  String attribute : attributes) {
+    Getter<?> getter=manipulator.getGetter(attribute);
+    @SuppressWarnings("rawtypes") Setter setter=manipulator.getSetter(attribute);
+    FieldLoadSaveValidator<?> validator=fieldLoadSaveValidatorFactory.createValidator(getter);
+    try {
+      Object testValue=validator.getTestObject();
+      setter.set(metaToSave,testValue);
+      if (validator instanceof DatabaseMetaLoadSaveValidator) {
+        addDatabase((DatabaseMeta)testValue);
+        validateStepUsesDatabaseMeta(metaToSave,(DatabaseMeta)testValue);
+      }
+    }
+ catch (    Exception e) {
+      throw new RuntimeException("Unable to invoke setter for " + attribute,e);
+    }
+    validatorMap.put(attribute,validator);
+  }
+  return validatorMap;
+}

@@ -1,0 +1,83 @@
+{
+  meta=(AddXMLMeta)smi;
+  data=(AddXMLData)sdi;
+  Object[] r=getRow();
+  if (r == null) {
+    setOutputDone();
+    return false;
+  }
+  if (first) {
+    first=false;
+    data.outputRowMeta=getInputRowMeta().clone();
+    meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+    data.fieldIndexes=new int[meta.getOutputFields().length];
+    for (int i=0; i < data.fieldIndexes.length; i++) {
+      String fieldsName=meta.getOutputFields()[i].getFieldName();
+      data.fieldIndexes[i]=getInputRowMeta().indexOfValue(fieldsName);
+      if (data.fieldIndexes[i] < 0) {
+        throw new KettleException(BaseMessages.getString(PKG,"AddXML.Exception.FieldNotFound",fieldsName));
+      }
+    }
+  }
+  Document xmldoc=getDomImplentation().createDocument(null,meta.getRootNode(),null);
+  Element root=xmldoc.getDocumentElement();
+  for (int i=0; i < meta.getOutputFields().length; i++) {
+    XMLField outputField=meta.getOutputFields()[i];
+    String fieldname=outputField.getFieldName();
+    ValueMetaInterface v=getInputRowMeta().getValueMeta(data.fieldIndexes[i]);
+    Object valueData=r[data.fieldIndexes[i]];
+    if (!meta.isOmitNullValues() || !v.isNull(valueData)) {
+      String value=formatField(v,valueData,outputField);
+      String element=outputField.getElementName();
+      if (element == null || element.length() == 0) {
+        element=fieldname;
+      }
+      if (element == null || element.length() == 0) {
+        throw new KettleException("XML does not allow empty strings for element names.");
+      }
+      if (outputField.isAttribute()) {
+        String attributeParentName=outputField.getAttributeParentName();
+        Element node;
+        if (attributeParentName == null || attributeParentName.length() == 0) {
+          node=root;
+        }
+ else {
+          NodeList nodelist=root.getElementsByTagName(attributeParentName);
+          if (nodelist.getLength() > 0) {
+            node=(Element)nodelist.item(0);
+          }
+ else {
+            node=root;
+          }
+        }
+        node.setAttribute(element,value);
+      }
+ else {
+        if (!element.equals(meta.getRootNode())) {
+          Element e=xmldoc.createElement(element);
+          Node n=xmldoc.createTextNode(value);
+          e.appendChild(n);
+          root.appendChild(e);
+        }
+ else {
+          Node n=xmldoc.createTextNode(value);
+          root.appendChild(n);
+        }
+      }
+    }
+  }
+  StringWriter sw=new StringWriter();
+  DOMSource domSource=new DOMSource(xmldoc);
+  try {
+    this.getSerializer().transform(domSource,new StreamResult(sw));
+  }
+ catch (  TransformerException e) {
+    throw new KettleException(e);
+  }
+catch (  Exception e) {
+    throw new KettleException(e);
+  }
+  Object[] outputRowData=RowDataUtil.addValueData(r,getInputRowMeta().size(),sw.toString());
+  putRow(data.outputRowMeta,outputRowData);
+  return true;
+}

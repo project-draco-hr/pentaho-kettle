@@ -12,29 +12,15 @@
   if (connection == null) {
     return null;
   }
-  if (databaseMeta.supportsPreparedStatementMetadataRetrieval()) {
-    PreparedStatement preparedStatement=null;
-    try {
-      preparedStatement=connection.prepareStatement(databaseMeta.stripCR(sql),ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY);
-      preparedStatement.setMaxRows(1);
-      ResultSetMetaData rsmd=preparedStatement.getMetaData();
-      fields=getRowInfo(rsmd,false,false);
+  try {
+    if (databaseMeta.supportsPreparedStatementMetadataRetrieval()) {
+      fields=getQueryFieldsFromPreparedStatement(sql);
     }
- catch (    Exception e) {
-      fields=getQueryFieldsFallback(sql,param,inform,data);
-    }
- finally {
-      if (preparedStatement != null) {
-        try {
-          preparedStatement.close();
-        }
- catch (        SQLException e) {
-          throw new KettleDatabaseException("Unable to close prepared statement after determining SQL layout",e);
-        }
-      }
+ else {
+      fields=getQueryFieldsFromDatabaseMetaData();
     }
   }
- else {
+ catch (  Exception e) {
     fields=getQueryFieldsFallback(sql,param,inform,data);
   }
   if (dbcache != null && entry != null) {

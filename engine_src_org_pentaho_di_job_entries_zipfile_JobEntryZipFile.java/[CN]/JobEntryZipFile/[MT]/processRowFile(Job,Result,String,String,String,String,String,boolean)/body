@@ -1,17 +1,17 @@
 {
   boolean Fileexists=false;
   File tempFile=null;
-  File fileZip=null;
+  File fileZip;
   boolean resultat=false;
   boolean renameOk=false;
   boolean orginExist=false;
   FileObject originFile=null;
   ZipInputStream zin=null;
-  byte[] buffer=null;
+  byte[] buffer;
   OutputStream dest=null;
   BufferedOutputStreamWithCloseDetection buff=null;
   ZipOutputStream out=null;
-  ZipEntry entry=null;
+  ZipEntry entry;
   String localSourceFilename=realSourceDirectoryOrFile;
   try {
     originFile=KettleVFS.getFileObject(realSourceDirectoryOrFile,this);
@@ -60,11 +60,11 @@
         logError(BaseMessages.getString(PKG,"JobZipFiles.AfterZip_No_DestinationFolder_Defined.Label"));
       }
  else {
-        FileObject[] fileList=null;
+        FileObject[] fileList;
         FileObject sourceFileOrFolder=KettleVFS.getFileObject(localSourceFilename);
         boolean isSourceDirectory=sourceFileOrFolder.getType().equals(FileType.FOLDER);
         final Pattern pattern;
-        final Pattern patternexclude;
+        final Pattern patternExclude;
         if (isSourceDirectory) {
           if (!Const.isEmpty(realWildcard)) {
             pattern=Pattern.compile(realWildcard);
@@ -73,36 +73,13 @@
             pattern=null;
           }
           if (!Const.isEmpty(realWildcardExclude)) {
-            patternexclude=Pattern.compile(realWildcardExclude);
+            patternExclude=Pattern.compile(realWildcardExclude);
           }
  else {
-            patternexclude=null;
+            patternExclude=null;
           }
           if (includingSubFolders) {
-            fileList=sourceFileOrFolder.findFiles(new FileSelector(){
-              public boolean traverseDescendents(              FileSelectInfo fileInfo) throws Exception {
-                return true;
-              }
-              public boolean includeFile(              FileSelectInfo fileInfo) throws Exception {
-                boolean include;
-                if (fileInfo.getFile().getType().equals(FileType.FILE)) {
-                  include=true;
-                  if (pattern != null) {
-                    String name=fileInfo.getFile().getName().getPath();
-                    include=pattern.matcher(name).matches();
-                  }
-                  if (include && patternexclude != null) {
-                    String name=fileInfo.getFile().getName().getPath();
-                    include=!pattern.matcher(name).matches();
-                  }
-                }
- else {
-                  include=false;
-                }
-                return include;
-              }
-            }
-);
+            fileList=sourceFileOrFolder.findFiles(new ZipJobEntryPatternFileSelector(pattern,patternExclude));
           }
  else {
             fileList=sourceFileOrFolder.getChildren();
@@ -110,7 +87,7 @@
         }
  else {
           pattern=null;
-          patternexclude=null;
+          patternExclude=null;
           fileList=new FileObject[]{sourceFileOrFolder};
         }
         if (fileList.length == 0) {
@@ -198,8 +175,8 @@
                 Matcher matcher=pattern.matcher(filename);
                 getIt=matcher.matches();
               }
-              if (patternexclude != null) {
-                Matcher matcherexclude=patternexclude.matcher(filename);
+              if (patternExclude != null) {
+                Matcher matcherexclude=patternExclude.matcher(filename);
                 getItexclude=matcherexclude.matches();
               }
             }
@@ -334,9 +311,6 @@
         if (zin != null) {
           zin.close();
         }
-        if (entry != null) {
-          entry=null;
-        }
       }
  catch (      IOException ex) {
         logError("Error closing zip file entry for file '" + originFile.toString() + "'",ex);
@@ -344,7 +318,7 @@
     }
   }
  else {
-    resultat=true;
+    resultat=false;
     if (localrealZipfilename == null) {
       logError(BaseMessages.getString(PKG,"JobZipFiles.No_ZipFile_Defined.Label"));
     }

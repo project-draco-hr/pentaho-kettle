@@ -1,0 +1,21 @@
+{
+  File localFileForUpload=getInputFile("existingFile1",".tmp");
+  File tempFileForDownload=File.createTempFile("downloadedFile1",".tmp");
+  localFileForUpload.deleteOnExit();
+  tempFileForDownload.deleteOnExit();
+  Object[] r=new Object[]{HTTP_SERVER_BASEURL + "/uploadFile",localFileForUpload.getCanonicalPath(),tempFileForDownload.getCanonicalPath()};
+  RowMeta rowMetaDefault=new RowMeta();
+  rowMetaDefault.addValueMeta(new ValueMetaString("URL"));
+  rowMetaDefault.addValueMeta(new ValueMetaString("UPLOAD"));
+  rowMetaDefault.addValueMeta(new ValueMetaString("DESTINATION"));
+  List<RowMetaAndData> rows=new ArrayList<RowMetaAndData>();
+  rows.add(new RowMetaAndData(rowMetaDefault,r));
+  Result previousResult=new Result();
+  previousResult.setRows(rows);
+  JobEntryHTTP http=new JobEntryHTTP();
+  http.setParentJob(new Job());
+  http.setRunForEveryRow(true);
+  http.setAddFilenameToResult(false);
+  http.execute(previousResult,0);
+  assertTrue(FileUtils.contentEquals(localFileForUpload,tempFileForDownload));
+}

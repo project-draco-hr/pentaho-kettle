@@ -1,0 +1,43 @@
+{
+  if (extraOptions.isEmpty()) {
+    return url;
+  }
+  StringBuilder urlBuilder=new StringBuilder(url);
+  final String optionIndicator=getExtraOptionIndicator();
+  final String optionSeparator=getExtraOptionSeparator();
+  final String valueSeparator=getExtraOptionValueSeparator();
+  Iterator<String> iterator=extraOptions.keySet().iterator();
+  boolean first=true;
+  while (iterator.hasNext()) {
+    String typedParameter=iterator.next();
+    int dotIndex=typedParameter.indexOf('.');
+    if (dotIndex == -1) {
+      continue;
+    }
+    final String value=extraOptions.get(typedParameter);
+    if (Const.isEmpty(value) || value.equals(EMPTY_OPTIONS_STRING)) {
+      continue;
+    }
+    final String typeCode=typedParameter.substring(0,dotIndex);
+    final String parameter=typedParameter.substring(dotIndex + 1);
+    boolean dbForBothDbInterfacesIsSame=false;
+    try {
+      DatabaseInterface primaryDb=getDbInterface(typeCode);
+      dbForBothDbInterfacesIsSame=databaseForBothDbInterfacesIsTheSame(primaryDb,getDatabaseInterface());
+    }
+ catch (    KettleDatabaseException e) {
+      getGeneralLogger().logError("DatabaseInterface with " + typeCode + " database type is not found! Parameter "+ parameter+ "won't be appended to URL");
+    }
+    if (dbForBothDbInterfacesIsSame) {
+      if (first && url.indexOf(valueSeparator) == -1) {
+        urlBuilder.append(optionIndicator);
+      }
+ else {
+        urlBuilder.append(optionSeparator);
+      }
+      urlBuilder.append(parameter).append(valueSeparator).append(value);
+      first=false;
+    }
+  }
+  return urlBuilder.toString();
+}

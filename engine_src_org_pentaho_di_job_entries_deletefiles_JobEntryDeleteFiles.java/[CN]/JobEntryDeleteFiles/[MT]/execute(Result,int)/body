@@ -1,43 +1,35 @@
 {
-  List<RowMetaAndData> rows=result.getRows();
-  RowMetaAndData resultRow=null;
-  int NrErrFiles=0;
+  List<RowMetaAndData> resultRows=result.getRows();
+  int numberOfErrFiles=0;
   result.setResult(false);
   result.setNrErrors(1);
-  if (argFromPrevious) {
-    if (log.isDetailed()) {
-      logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.FoundPreviousRows",String.valueOf((rows != null ? rows.size() : 0))));
-    }
+  if (argFromPrevious && log.isDetailed()) {
+    logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.FoundPreviousRows",String.valueOf((resultRows != null ? resultRows.size() : 0))));
   }
-  if (argFromPrevious && rows != null) {
-    for (int iteration=0; iteration < rows.size() && !parentJob.isStopped(); iteration++) {
-      resultRow=rows.get(iteration);
-      String args_previous=resultRow.getString(0,null);
-      String fmasks_previous=resultRow.getString(1,null);
+  Multimap<String,String> pathToMaskMap=populateDataForJobExecution(resultRows);
+  for (  Map.Entry<String,String> pathToMask : pathToMaskMap.entries()) {
+    final String filePath=environmentSubstitute(pathToMask.getKey());
+    if (filePath.trim().isEmpty()) {
       if (log.isDetailed()) {
-        logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.ProcessingRow",args_previous,fmasks_previous));
+        logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.NoPathProvided"));
       }
-      if (!ProcessFile(args_previous,fmasks_previous,parentJob)) {
-        NrErrFiles++;
+    }
+ else {
+      final String fileMask=environmentSubstitute(pathToMask.getValue());
+      if (parentJob.isStopped()) {
+        break;
+      }
+      if (!processFile(filePath,fileMask,parentJob)) {
+        numberOfErrFiles++;
       }
     }
   }
- else   if (arguments != null) {
-    for (int i=0; i < arguments.length && !parentJob.isStopped(); i++) {
-      if (log.isDetailed()) {
-        logDetailed(BaseMessages.getString(PKG,"JobEntryDeleteFiles.ProcessingArg",arguments[i],filemasks[i]));
-      }
-      if (!ProcessFile(arguments[i],filemasks[i],parentJob)) {
-        NrErrFiles++;
-      }
-    }
-  }
-  if (NrErrFiles == 0) {
+  if (numberOfErrFiles == 0) {
     result.setResult(true);
     result.setNrErrors(0);
   }
  else {
-    result.setNrErrors(NrErrFiles);
+    result.setNrErrors(numberOfErrFiles);
     result.setResult(false);
   }
   return result;

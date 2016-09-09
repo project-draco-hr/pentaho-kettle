@@ -1,0 +1,29 @@
+{
+  if (versionCount == 0) {
+    return Response.serverError().build();
+  }
+  if (purgeRevisions && (versionCount > 0 || purgeBeforeDate != null)) {
+    purgeRevisions=false;
+  }
+  IPurgeService purgeService=new UnifiedRepositoryPurgeService(this.repository);
+  Level logLevel=Level.toLevel(logLevelName);
+  PurgeUtilitySpecification purgeSpecification=new PurgeUtilitySpecification();
+  purgeSpecification.setPath(idToPath(pathId));
+  purgeSpecification.setPurgeFiles(purgeFiles);
+  purgeSpecification.setPurgeRevisions(purgeRevisions);
+  purgeSpecification.setSharedObjects(purgeSharedObjects);
+  purgeSpecification.setVersionCount(versionCount);
+  purgeSpecification.setBeforeDate(purgeBeforeDate);
+  purgeSpecification.setFileFilter(fileFilter);
+  purgeSpecification.setLogLevel(logLevel);
+  ByteArrayOutputStream purgeUtilityStream=new ByteArrayOutputStream();
+  PurgeUtilityLogger.createNewInstance(purgeUtilityStream,purgeSpecification.getPath(),logLevel);
+  try {
+    purgeService.doDeleteRevisions(purgeSpecification);
+  }
+ catch (  Exception e) {
+    PurgeUtilityLogger.getPurgeUtilityLogger().error(e);
+    return Response.ok(encodeOutput(purgeUtilityStream),MediaType.TEXT_HTML).build();
+  }
+  return Response.ok(encodeOutput(purgeUtilityStream),MediaType.TEXT_HTML).build();
+}

@@ -21,6 +21,7 @@
         user1=new EEUserInfo();
         user1.setLogin(name);
         user1.setName(name);
+        user1.setPassword(decryptedPassword);
         result.setUnifiedRepository(PentahoSystem.get(IUnifiedRepository.class));
         result.setUser(user1);
         result.setSuccess(true);
@@ -33,9 +34,13 @@
     ExecutorService executor=ExecutorUtil.getExecutor();
     Future<Boolean> authorizationWebserviceFuture=executor.submit(new Callable<Boolean>(){
       @Override public Boolean call() throws Exception {
-        LogChannel.GENERAL.logBasic("Creating security provider");
+        if (log.isBasic()) {
+          log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.CreateServiceProvider.Start"));
+        }
         result.setSecurityProvider(new AbsSecurityProvider(purRepository,repositoryMeta,result.getUser(),serviceManager));
-        LogChannel.GENERAL.logBasic("Security provider created");
+        if (log.isBasic()) {
+          log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.CreateServiceProvider.End"));
+        }
         if (allowedActionsContains((AbsSecurityProvider)result.getSecurityProvider(),IAbsSecurityProvider.ADMINISTER_SECURITY_ACTION)) {
           result.setSecurityManager(new AbsSecurityManager(purRepository,repositoryMeta,result.getUser(),serviceManager));
           ((PurRepositorySecurityProvider)result.getSecurityProvider()).setUserRoleDelegate(((PurRepositorySecurityManager)result.getSecurityManager()).getUserRoleDelegate());
@@ -49,10 +54,16 @@
       @Override public WebServiceException call() throws Exception {
         try {
           IUnifiedRepositoryJaxwsWebService repoWebService=null;
-          LogChannel.GENERAL.logBasic("Creating repository web service");
+          if (log.isBasic()) {
+            log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.CreateRepositoryWebService.Start"));
+          }
           repoWebService=serviceManager.createService(username,decryptedPassword,IUnifiedRepositoryJaxwsWebService.class);
-          LogChannel.GENERAL.logBasic("Repository web service created");
-          LogChannel.GENERAL.logBasic("Creating unified repository to web service adapter");
+          if (log.isBasic()) {
+            log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.CreateRepositoryWebService.End"));
+          }
+          if (log.isBasic()) {
+            log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.CreateUnifiedRepositoryToWebServiceAdapter.Start"));
+          }
           result.setUnifiedRepository(new UnifiedRepositoryToWebServiceAdapter(repoWebService));
         }
  catch (        WebServiceException wse) {
@@ -65,9 +76,13 @@
     Future<Exception> syncWebserviceFuture=executor.submit(new Callable<Exception>(){
       @Override public Exception call() throws Exception {
         try {
-          LogChannel.GENERAL.logBasic("Creating repository sync web service");
+          if (log.isBasic()) {
+            log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.CreateRepositorySyncWebService.Start"));
+          }
           IRepositorySyncWebService syncWebService=serviceManager.createService(username,decryptedPassword,IRepositorySyncWebService.class);
-          LogChannel.GENERAL.logBasic("Synchronizing repository web service");
+          if (log.isBasic()) {
+            log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.CreateRepositorySyncWebService.Sync"));
+          }
           syncWebService.sync(repositoryMeta.getName(),repositoryMeta.getRepositoryLocation().getUrl());
         }
  catch (        RepositorySyncException e) {
@@ -96,7 +111,9 @@ catch (        WebServiceException e) {
       throw syncException;
     }
     Boolean isAdmin=authorizationWebserviceFuture.get();
-    LogChannel.GENERAL.logBasic("Registering security provider");
+    if (log.isBasic()) {
+      log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.RegisterSecurityProvider.Start"));
+    }
     purRepositoryServiceRegistry.registerService(RepositorySecurityProvider.class,result.getSecurityProvider());
     purRepositoryServiceRegistry.registerService(IAbsSecurityProvider.class,result.getSecurityProvider());
     if (isAdmin) {
@@ -110,7 +127,9 @@ catch (        WebServiceException e) {
     purRepositoryServiceRegistry.registerService(IConnectionAclService.class,new UnifiedRepositoryConnectionAclService(result.getUnifiedRepository()));
     purRepositoryServiceRegistry.registerService(ITrashService.class,new UnifiedRepositoryTrashService(result.getUnifiedRepository(),rootRef));
     purRepositoryServiceRegistry.registerService(ILockService.class,new UnifiedRepositoryLockService(result.getUnifiedRepository()));
-    LogChannel.GENERAL.logBasic("Repository services registered");
+    if (log.isBasic()) {
+      log.logBasic(BaseMessages.getString(PKG,"PurRepositoryConnector.RepositoryServicesRegistered.End"));
+    }
     result.setSuccess(true);
   }
  catch (  NullPointerException npe) {

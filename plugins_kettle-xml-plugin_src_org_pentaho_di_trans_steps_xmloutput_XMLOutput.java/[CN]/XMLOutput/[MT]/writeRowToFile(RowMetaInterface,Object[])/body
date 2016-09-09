@@ -1,0 +1,60 @@
+{
+  try {
+    if (first) {
+      data.formatRowMeta=rowMeta.clone();
+      first=false;
+      data.fieldnrs=new int[meta.getOutputFields().length];
+      for (int i=0; i < meta.getOutputFields().length; i++) {
+        data.fieldnrs[i]=data.formatRowMeta.indexOfValue(meta.getOutputFields()[i].getFieldName());
+        if (data.fieldnrs[i] < 0) {
+          throw new KettleException("Field [" + meta.getOutputFields()[i].getFieldName() + "] couldn't be found in the input stream!");
+        }
+        ValueMetaInterface valueMeta=data.formatRowMeta.getValueMeta(data.fieldnrs[i]);
+        XMLField field=meta.getOutputFields()[i];
+        valueMeta.setConversionMask(field.getFormat());
+        valueMeta.setLength(field.getLength(),field.getPrecision());
+        valueMeta.setDecimalSymbol(field.getDecimalSymbol());
+        valueMeta.setGroupingSymbol(field.getGroupingSymbol());
+        valueMeta.setCurrencySymbol(field.getCurrencySymbol());
+      }
+    }
+    if (meta.getOutputFields() == null || meta.getOutputFields().length == 0) {
+      data.writer.writeStartElement(meta.getRepeatElement());
+      for (int i=0; i < data.formatRowMeta.size(); i++) {
+        if (i > 0) {
+          data.writer.writeCharacters(" ");
+        }
+        ValueMetaInterface valueMeta=data.formatRowMeta.getValueMeta(i);
+        Object valueData=r[i];
+        writeField(valueMeta,valueData,valueMeta.getName());
+      }
+    }
+ else {
+      data.writer.writeStartElement(meta.getRepeatElement());
+      writeRowAttributes(r);
+      for (int i=0; i < meta.getOutputFields().length; i++) {
+        XMLField outputField=meta.getOutputFields()[i];
+        if (outputField.getContentType() == ContentType.Element) {
+          if (i > 0) {
+            data.writer.writeCharacters(" ");
+          }
+          ValueMetaInterface valueMeta=data.formatRowMeta.getValueMeta(data.fieldnrs[i]);
+          Object valueData=r[data.fieldnrs[i]];
+          String elementName=outputField.getElementName();
+          if (Const.isEmpty(elementName)) {
+            elementName=outputField.getFieldName();
+          }
+          if (!(valueMeta.isNull(valueData) && meta.isOmitNullValues())) {
+            writeField(valueMeta,valueData,elementName);
+          }
+        }
+      }
+    }
+    data.writer.writeEndElement();
+    data.writer.writeCharacters(Const.CR);
+  }
+ catch (  Exception e) {
+    throw new KettleException("Error writing XML row :" + e.toString() + Const.CR+ "Row: "+ getInputRowMeta().getString(r),e);
+  }
+  incrementLinesOutput();
+}

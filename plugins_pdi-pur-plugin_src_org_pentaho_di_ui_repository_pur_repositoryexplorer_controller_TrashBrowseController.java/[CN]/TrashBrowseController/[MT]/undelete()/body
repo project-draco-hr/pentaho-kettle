@@ -1,0 +1,31 @@
+{
+  List<UIDeletedObject> selectedTrashFileItemsSnapshot=new ArrayList<UIDeletedObject>(selectedTrashFileItems);
+  if (selectedTrashFileItemsSnapshot != null && selectedTrashFileItemsSnapshot.size() > 0) {
+    List<ObjectId> ids=new ArrayList<ObjectId>();
+    for (    UIDeletedObject uiObj : selectedTrashFileItemsSnapshot) {
+      ids.add(uiObj.getId());
+    }
+    try {
+      trashService.undelete(ids);
+      setTrash(trashService.getTrash());
+      for (      UIDeletedObject uiObj : selectedTrashFileItemsSnapshot) {
+        RepositoryDirectoryInterface dir=repository.findDirectory(uiObj.getOriginalParentPath());
+        while (dir != null && dirMap.get(dir.getObjectId()) == null) {
+          dir=dir.getParent();
+        }
+        if (dir != null) {
+          dirMap.get(dir.getObjectId()).refresh();
+        }
+      }
+      deck.setSelectedIndex(1);
+    }
+ catch (    Throwable th) {
+      if (mainController == null || !mainController.handleLostRepository(th)) {
+        displayExceptionMessage(BaseMessages.getString(PKG,"TrashBrowseController.UnableToRestoreFile",th.getLocalizedMessage()));
+      }
+    }
+  }
+ else {
+    throw new RuntimeException();
+  }
+}

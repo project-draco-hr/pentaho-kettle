@@ -1,0 +1,96 @@
+{
+  try {
+    if (workingMeta != null && workingMeta.getObjectId() != null && supportsLocking(Spoon.getInstance().getRepository())) {
+      if (!tabBound) {
+        bindingFactory.createBinding(this,"activeMetaUnlocked",Spoon.getInstance().delegates.tabs.findTabMapEntry(workingMeta).getTabItem(),"image",new BindingConvertor<Boolean,Image>(){
+          @Override public Image sourceToTarget(          Boolean activeMetaUnlocked){
+            if (activeMetaUnlocked) {
+              if (workingMeta instanceof TransMeta) {
+                return GUIResource.getInstance().getImageTransGraph();
+              }
+ else               if (workingMeta instanceof JobMeta) {
+                return GUIResource.getInstance().getImageJobGraph();
+              }
+            }
+ else {
+              return GUIResource.getInstance().getImageLocked();
+            }
+            return null;
+          }
+          @Override public Boolean targetToSource(          Image arg0){
+            return false;
+          }
+        }
+);
+        tabBound=true;
+      }
+      if (fetchRepositoryLock(workingMeta) == null) {
+        XulPromptBox lockNotePrompt=promptLockMessage(document,messages,null);
+        lockNotePrompt.addDialogCallback(new XulDialogCallback<String>(){
+          public void onClose(          XulComponent component,          Status status,          String value){
+            if (!status.equals(Status.CANCEL)) {
+              try {
+                if (workingMeta instanceof TransMeta) {
+                  getService(Spoon.getInstance().getRepository()).lockTransformation(workingMeta.getObjectId(),value);
+                }
+ else                 if (workingMeta instanceof JobMeta) {
+                  getService(Spoon.getInstance().getRepository()).lockJob(workingMeta.getObjectId(),value);
+                }
+                firePropertyChange("activeMetaUnlocked",true,false);
+                XulDomContainer container=getXulDomContainer();
+                XulMenuitem lockMenuItem=(XulMenuitem)container.getDocumentRoot().getElementById("lock-context-lock");
+                lockMenuItem.setSelected(true);
+              }
+ catch (              Exception e) {
+                throw new RuntimeException(e);
+              }
+            }
+ else {
+              XulDomContainer container=getXulDomContainer();
+              XulMenuitem lockMenuItem=(XulMenuitem)container.getDocumentRoot().getElementById("lock-context-lock");
+              lockMenuItem.setSelected(false);
+            }
+          }
+          public void onError(          XulComponent component,          Throwable err){
+            throw new RuntimeException(err);
+          }
+        }
+);
+        lockNotePrompt.open();
+      }
+ else {
+        if (workingMeta instanceof TransMeta) {
+          getService(Spoon.getInstance().getRepository()).unlockTransformation(workingMeta.getObjectId());
+        }
+ else         if (workingMeta instanceof JobMeta) {
+          getService(Spoon.getInstance().getRepository()).unlockJob(workingMeta.getObjectId());
+        }
+        firePropertyChange("activeMetaUnlocked",false,true);
+      }
+    }
+ else     if (workingMeta != null && workingMeta.getObjectId() == null && supportsLocking(Spoon.getInstance().getRepository())) {
+      XulDomContainer container=getXulDomContainer();
+      XulMenuitem lockMenuItem=(XulMenuitem)container.getDocumentRoot().getElementById("lock-context-lock");
+      lockMenuItem.setSelected(false);
+      XulMessageBox msgBox=(XulMessageBox)document.createElement("messagebox");
+      msgBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+      msgBox.setMessage(BaseMessages.getString(PKG,"LockController.SaveBeforeLock"));
+      msgBox.setModalParent(shell);
+      msgBox.open();
+    }
+ else {
+      XulDomContainer container=getXulDomContainer();
+      XulMenuitem lockMenuItem=(XulMenuitem)container.getDocumentRoot().getElementById("lock-context-lock");
+      lockMenuItem.setSelected(false);
+      XulMessageBox msgBox=(XulMessageBox)document.createElement("messagebox");
+      msgBox.setTitle(BaseMessages.getString(PKG,"Dialog.Error"));
+      msgBox.setMessage(BaseMessages.getString(PKG,"LockController.NoLockingSupport"));
+      msgBox.setModalParent(shell);
+      msgBox.open();
+    }
+  }
+ catch (  Throwable th) {
+    log.error(BaseMessages.getString(PKG,"LockController.NoLockingSupport"),th);
+    new ErrorDialog(((Spoon)SpoonFactory.getInstance()).getShell(),BaseMessages.getString(PKG,"Dialog.Error"),BaseMessages.getString(PKG,"LockController.NoLockingSupport"),th);
+  }
+}

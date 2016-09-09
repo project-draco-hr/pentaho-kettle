@@ -1,0 +1,38 @@
+{
+  FormDataMultiPart form=null;
+  try {
+    Map<String,String> parameters=parseExecutionOptions(options);
+    validateParameters(parameters);
+    authenticateLoginCredentials();
+    String serviceURL=createPurgeServiceURL();
+    form=createParametersForm();
+    WebResource resource=client.resource(serviceURL);
+    ClientResponse response=resource.type(MediaType.MULTIPART_FORM_DATA).post(ClientResponse.class,form);
+    if (response != null && response.getStatus() == 200) {
+      String resultLog=response.getEntity(String.class);
+      String logName=writeLog(resultLog);
+      writeOut(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.INFO_0001.OP_SUCCESS",logName),false);
+    }
+ else {
+      writeOut(Messages.getInstance().getString("REPOSITORY_CLEANUP_UTIL.ERROR_0001.OP_FAILURE"),true);
+    }
+  }
+ catch (  Exception e) {
+    if (e.getMessage() != null) {
+      System.out.println(e.getMessage());
+    }
+ else {
+      if (!(e instanceof NormalExitException)) {
+        e.printStackTrace();
+      }
+    }
+  }
+ finally {
+    if (client != null) {
+      client.destroy();
+    }
+    if (form != null) {
+      form.cleanup();
+    }
+  }
+}

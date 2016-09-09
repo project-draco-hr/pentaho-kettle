@@ -1,0 +1,25 @@
+{
+  boolean cleanLogRecords=status.equals(LogStatus.END);
+  String tableName=jobLogTable.getActualTableName();
+  DatabaseMeta logcon=jobLogTable.getDatabaseMeta();
+  Database ldb=createDataBase(logcon);
+  ldb.shareVariablesWith(this);
+  try {
+    ldb.connect();
+    ldb.setCommit(logCommitSize);
+    ldb.writeLogRecord(jobLogTable,status,this,null);
+    if (cleanLogRecords) {
+      ldb.cleanupLogRecords(jobLogTable);
+    }
+  }
+ catch (  KettleDatabaseException dbe) {
+    addErrors(1);
+    throw new KettleJobException("Unable to end processing by writing log record to table " + tableName,dbe);
+  }
+ finally {
+    if (!ldb.isAutoCommit()) {
+      ldb.commitLog(true,jobLogTable);
+    }
+    ldb.disconnect();
+  }
+}

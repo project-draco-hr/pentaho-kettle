@@ -1,0 +1,31 @@
+{
+  if (log.isDetailed()) {
+    logDetailed("Handing step '" + targetStep + "' injection!");
+  }
+  BeanInjectionInfo injectionInfo=new BeanInjectionInfo(targetStepMeta.getClass());
+  BeanInjector injector=new BeanInjector(injectionInfo);
+  Map<TargetStepAttribute,SourceStepField> targetMap=meta.getTargetSourceMapping();
+  for (  TargetStepAttribute target : targetMap.keySet()) {
+    SourceStepField source=targetMap.get(target);
+    if (target.getStepname().equalsIgnoreCase(targetStep)) {
+      List<RowMetaAndData> rows=data.rowMap.get(source.getStepname());
+      if (rows != null && !rows.isEmpty()) {
+        if (injector.hasProperty(targetStepMeta,target.getAttributeKey())) {
+          boolean skip=false;
+          for (          RowMetaAndData r : rows) {
+            if (r.getRowMeta().indexOfValue(source.getField()) < 0) {
+              logError(BaseMessages.getString(PKG,"MetaInject.SourceFieldIsNotDefined.Message",source.getField(),getTransMeta().getName()));
+              skip=true;
+            }
+          }
+          if (!skip) {
+            injector.setProperty(targetStepMeta,target.getAttributeKey(),rows,source.getField());
+          }
+        }
+ else {
+          logError(BaseMessages.getString(PKG,"MetaInject.TargetKeyIsNotDefined.Message",target.getAttributeKey(),getTransMeta().getName()));
+        }
+      }
+    }
+  }
+}

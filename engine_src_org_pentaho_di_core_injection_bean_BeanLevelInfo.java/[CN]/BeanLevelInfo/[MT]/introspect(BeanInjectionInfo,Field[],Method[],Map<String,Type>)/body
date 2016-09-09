@@ -1,0 +1,117 @@
+{
+  for (  Field f : fields) {
+    Injection annotationInjection=f.getAnnotation(Injection.class);
+    InjectionDeep annotationInjectionDeep=f.getAnnotation(InjectionDeep.class);
+    if (annotationInjection == null && annotationInjectionDeep == null) {
+      continue;
+    }
+    if (annotationInjection != null && annotationInjectionDeep != null) {
+      throw new RuntimeException("Field can't be annotated twice for injection " + f);
+    }
+    if (f.isSynthetic() || f.isEnumConstant() || Modifier.isStatic(f.getModifiers())) {
+      throw new RuntimeException("Wrong modifier for anotated field " + f);
+    }
+    BeanLevelInfo leaf=new BeanLevelInfo();
+    leaf.parent=this;
+    leaf.field=f;
+    Type t;
+    if (f.getType().isArray()) {
+      Type ff=f.getGenericType();
+      leaf.dim=DIMENSION.ARRAY;
+      if (ff instanceof GenericArrayType) {
+        GenericArrayType ffg=(GenericArrayType)ff;
+        t=resolveGenericType(ffg.getGenericComponentType(),genericsInfo);
+      }
+ else {
+        t=f.getType().getComponentType();
+      }
+    }
+ else     if (List.class.equals(f.getType())) {
+      leaf.dim=DIMENSION.LIST;
+      Type fieldType=f.getGenericType();
+      Type listType=((ParameterizedType)fieldType).getActualTypeArguments()[0];
+      try {
+        t=resolveGenericType(listType,genericsInfo);
+      }
+ catch (      Throwable ex) {
+        throw new RuntimeException("Can't retrieve type from List for " + f,ex);
+      }
+    }
+ else {
+      leaf.dim=DIMENSION.NONE;
+      t=resolveGenericType(f.getGenericType(),genericsInfo);
+    }
+    if (t instanceof ParameterizedType) {
+      ParameterizedType pt=(ParameterizedType)t;
+      leaf.leafClass=(Class<?>)pt.getRawType();
+    }
+ else {
+      leaf.leafClass=(Class<?>)t;
+    }
+    if (annotationInjection != null) {
+      try {
+        leaf.converter=annotationInjection.converter().newInstance();
+      }
+ catch (      Exception ex) {
+        throw new RuntimeException("Error instantiate converter for " + f,ex);
+      }
+      leaf.convertEmpty=annotationInjection.convertEmpty();
+      info.addInjectionProperty(annotationInjection,leaf);
+    }
+ else     if (annotationInjectionDeep != null) {
+      leaf.prefix=annotationInjectionDeep.prefix();
+      TreeMap<String,Type> gi=new TreeMap<>(genericsInfo);
+      leaf.introspect(info,t,gi);
+    }
+  }
+  for (  Method m : methods) {
+    Injection annotationInjection=m.getAnnotation(Injection.class);
+    InjectionDeep annotationInjectionDeep=m.getAnnotation(InjectionDeep.class);
+    if (annotationInjection == null && annotationInjectionDeep == null) {
+      continue;
+    }
+    if (annotationInjection != null && annotationInjectionDeep != null) {
+      throw new RuntimeException("Method can't be annotated twice for injection " + m);
+    }
+    if (m.isSynthetic() || Modifier.isStatic(m.getModifiers())) {
+      throw new RuntimeException("Wrong modifier for anotated method " + m);
+    }
+    BeanLevelInfo leaf=new BeanLevelInfo();
+    leaf.parent=this;
+    if (annotationInjectionDeep != null) {
+      Type getterClass=isGetter(m);
+      if (getterClass == null) {
+        throw new RuntimeException("Method should be getter: " + m);
+      }
+      if (m.getReturnType() != null && List.class.equals(m.getReturnType())) {
+        leaf.dim=DIMENSION.LIST;
+        ParameterizedType getterType=(ParameterizedType)getterClass;
+        getterClass=getterType.getActualTypeArguments()[0];
+      }
+      Class<?> getter=(Class<?>)resolveGenericType(getterClass,genericsInfo);
+      if (getter.isArray()) {
+        throw new RuntimeException("Method should be getter: " + m);
+      }
+      leaf.getter=m;
+      leaf.leafClass=getter;
+      leaf.prefix=annotationInjectionDeep.prefix();
+      leaf.init(info);
+    }
+ else {
+      Class<?> setterClass=isSetter(m);
+      if (setterClass == null || setterClass.isArray()) {
+        throw new RuntimeException("Method should be setter: " + m);
+      }
+      leaf.setter=m;
+      leaf.leafClass=setterClass;
+      try {
+        leaf.converter=annotationInjection.converter().newInstance();
+      }
+ catch (      Exception ex) {
+        throw new RuntimeException("Error instantiate converter for " + m,ex);
+      }
+      leaf.convertEmpty=annotationInjection.convertEmpty();
+      info.addInjectionProperty(annotationInjection,leaf);
+    }
+  }
+}

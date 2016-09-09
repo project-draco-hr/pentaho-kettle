@@ -1,0 +1,51 @@
+{
+  if (first) {
+    first=false;
+    prepareToRowProcessing();
+  }
+  Object[] outRow=null;
+  try {
+    outRow=getOneOutputRow();
+    if (outRow == null) {
+      setOutputDone();
+      return false;
+    }
+    int start=0;
+    if (meta.isInFields() && !meta.isRemoveSourceField()) {
+      start=1;
+    }
+    boolean hasValues=false;
+    for (int i=start; i < outRow.length; i++) {
+      if (outRow[i] != null) {
+        hasValues=true;
+        break;
+      }
+    }
+    if (!hasValues) {
+      return true;
+    }
+    if (log.isRowLevel()) {
+      logRowlevel(BaseMessages.getString(PKG,"JsonInput.Log.ReadRow",data.outputRowMeta.getString(outRow)));
+    }
+    incrementLinesInput();
+    data.rownr++;
+    putRow(data.outputRowMeta,outRow);
+    if (meta.getRowLimit() > 0 && data.rownr > meta.getRowLimit()) {
+      setOutputDone();
+      return false;
+    }
+  }
+ catch (  Exception e) {
+    if (getStepMeta().isDoingErrorHandling()) {
+      sendErrorRow(e.toString());
+    }
+ else {
+      logError(BaseMessages.getString(PKG,"JsonInput.ErrorInStepRunning",e.getMessage()));
+      setErrors(getErrors() + 1);
+      stopAll();
+      setOutputDone();
+      return false;
+    }
+  }
+  return true;
+}

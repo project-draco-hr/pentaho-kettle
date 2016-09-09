@@ -1,0 +1,83 @@
+{
+  List<TabMapEntry> collection=new ArrayList<TabMapEntry>();
+  collection.addAll(tabMap);
+  boolean createPerms=!RepositorySecurityUI.verifyOperations(Spoon.getInstance().getShell(),Spoon.getInstance().getRepository(),false,RepositoryOperation.MODIFY_TRANSFORMATION,RepositoryOperation.MODIFY_JOB);
+  boolean close=true;
+  boolean canSave=true;
+  for (  TabMapEntry entry : collection) {
+    if (item.equals(entry.getTabItem())) {
+      final TabItemInterface itemInterface=entry.getObject();
+      final Object managedObject=itemInterface.getManagedObject();
+      if (!force) {
+        if (managedObject != null && AbstractMeta.class.isAssignableFrom(managedObject.getClass())) {
+          canSave=!((AbstractMeta)managedObject).hasMissingPlugins();
+        }
+        if (canSave) {
+          if (!itemInterface.canBeClosed() && createPerms) {
+            int reply=itemInterface.showChangedWarning();
+            if (reply == SWT.YES) {
+              close=itemInterface.applyChanges();
+            }
+ else {
+              if (reply == SWT.CANCEL) {
+                close=false;
+              }
+ else {
+                close=true;
+              }
+            }
+          }
+        }
+      }
+      String beforeCloseId=null;
+      String afterCloseId=null;
+      if (itemInterface instanceof TransGraph) {
+        beforeCloseId=KettleExtensionPoint.TransBeforeClose.id;
+        afterCloseId=KettleExtensionPoint.TransAfterClose.id;
+      }
+ else       if (itemInterface instanceof JobGraph) {
+        beforeCloseId=KettleExtensionPoint.JobBeforeClose.id;
+        afterCloseId=KettleExtensionPoint.JobAfterClose.id;
+      }
+      if (beforeCloseId != null) {
+        try {
+          ExtensionPointHandler.callExtensionPoint(log,beforeCloseId,managedObject);
+        }
+ catch (        KettleException e) {
+          close=false;
+        }
+      }
+      if (close) {
+        if (itemInterface instanceof TransGraph) {
+          TransMeta transMeta=(TransMeta)managedObject;
+          spoon.delegates.trans.closeTransformation(transMeta);
+          spoon.refreshTree();
+        }
+ else         if (itemInterface instanceof JobGraph) {
+          JobMeta jobMeta=(JobMeta)managedObject;
+          spoon.delegates.jobs.closeJob(jobMeta);
+          spoon.refreshTree();
+        }
+ else         if (itemInterface instanceof SpoonBrowser) {
+          this.removeTab(entry);
+          spoon.refreshTree();
+        }
+ else         if (itemInterface instanceof Composite) {
+          Composite comp=(Composite)itemInterface;
+          if (comp != null && !comp.isDisposed()) {
+            comp.dispose();
+          }
+        }
+        if (afterCloseId != null) {
+          try {
+            ExtensionPointHandler.callExtensionPoint(log,afterCloseId,managedObject);
+          }
+ catch (          KettleException e) {
+          }
+        }
+      }
+      break;
+    }
+  }
+  return close;
+}

@@ -1,0 +1,33 @@
+{
+  JSONObject jsonObject=new JSONObject();
+  try {
+    Repository repository=pluginRegistry.loadClass(RepositoryPluginType.class,repositoryMeta.getId(),Repository.class);
+    repository.init(repositoryMeta);
+    repository.connect(username,password);
+    if (username != null) {
+      getPropsUI().setLastRepositoryLogin(username);
+    }
+    Spoon spoon=getSpoon();
+    if (spoon.getRepository() != null) {
+      spoon.closeRepository();
+    }
+ else {
+      spoon.closeAllJobsAndTransformations(true);
+    }
+    spoon.setRepository(repository);
+    setConnectedRepository(repositoryMeta);
+    fireListeners();
+    jsonObject.put("success",true);
+  }
+ catch (  KettleException ke) {
+    if (ke.getMessage().contains(ERROR_401)) {
+      jsonObject.put(ERROR_MESSAGE,BaseMessages.getString(PKG,"RepositoryConnection.Error.InvalidCredentials"));
+    }
+ else {
+      jsonObject.put(ERROR_MESSAGE,BaseMessages.getString(PKG,"RepositoryConnection.Error.InvalidServer"));
+    }
+    jsonObject.put("success",false);
+    log.logError("Unable to connect to repository",ke);
+  }
+  return jsonObject.toString();
+}

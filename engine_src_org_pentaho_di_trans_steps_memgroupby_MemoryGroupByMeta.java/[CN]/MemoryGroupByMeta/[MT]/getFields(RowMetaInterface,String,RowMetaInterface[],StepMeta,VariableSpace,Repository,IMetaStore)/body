@@ -1,4 +1,5 @@
 {
+  boolean compatibilityMode=ValueMetaBase.convertStringToBoolean(space.getVariable(Const.KETTLE_COMPATIBILITY_MEMORY_GROUP_BY_SUM_AVERAGE_RETURN_NUMBER_TYPE,"N"));
   RowMetaInterface fields=new RowMeta();
   for (int i=0; i < groupField.length; i++) {
     ValueMetaInterface valueMeta=r.searchValueMeta(groupField[i]);
@@ -33,6 +34,13 @@ value_type=ValueMetaInterface.TYPE_STRING;
 break;
 case TYPE_GROUP_SUM:
 case TYPE_GROUP_AVERAGE:
+if (!compatibilityMode && subj.isNumeric()) {
+value_type=subj.getType();
+}
+ else {
+value_type=ValueMetaInterface.TYPE_NUMBER;
+}
+break;
 case TYPE_GROUP_MEDIAN:
 case TYPE_GROUP_PERCENTILE:
 case TYPE_GROUP_STANDARD_DEVIATION:
@@ -54,7 +62,14 @@ precision=-1;
 length=-1;
 }
 if (value_type != ValueMetaInterface.TYPE_NONE) {
-ValueMetaInterface v=new ValueMeta(value_name,value_type);
+ValueMetaInterface v;
+try {
+v=ValueMetaFactory.createValueMeta(value_name,value_type);
+}
+ catch (KettlePluginException e) {
+log.logError(BaseMessages.getString(PKG,"MemoryGroupByMeta.Exception.UnknownValueMetaType"),value_type,e);
+v=new ValueMetaNone(value_name);
+}
 v.setOrigin(origin);
 v.setLength(length,precision);
 fields.addValueMeta(v);

@@ -1,0 +1,84 @@
+{
+  Object obj=root;
+  for (int i=1; i < prop.path.size(); i++) {
+    BeanLevelInfo s=prop.path.get(i);
+    if (i < prop.path.size() - 1) {
+      Object next;
+switch (s.dim) {
+case ARRAY:
+        Object existArray=extendArray(s,obj,index + 1);
+      next=Array.get(existArray,index);
+    if (next == null) {
+      next=createObject(s.leafClass,root);
+      Array.set(existArray,index,next);
+    }
+  obj=next;
+break;
+case LIST:
+List<Object> existList=extendList(s,obj,index + 1);
+next=existList.get(index);
+if (next == null) {
+next=createObject(s.leafClass,root);
+existList.set(index,next);
+}
+obj=next;
+break;
+case NONE:
+if (s.field != null) {
+next=s.field.get(obj);
+if (next == null) {
+next=createObject(s.leafClass,root);
+s.field.set(obj,next);
+}
+obj=next;
+}
+ else if (s.getter != null) {
+next=s.getter.invoke(obj);
+if (next == null) {
+if (s.setter == null) {
+throw new KettleException("No setter defined for " + root.getClass());
+}
+next=s.leafClass.newInstance();
+s.setter.invoke(obj,next);
+}
+obj=next;
+}
+ else {
+throw new KettleException("No field or getter defined for " + root.getClass());
+}
+break;
+}
+}
+ else {
+if (!s.convertEmpty && data.isEmptyValue(dataName)) {
+return;
+}
+if (s.setter != null) {
+Object value=data.getAsJavaType(dataName,s.leafClass,s.converter);
+s.setter.invoke(obj,value);
+}
+ else if (s.field != null) {
+Object value;
+switch (s.dim) {
+case ARRAY:
+Object existArray=extendArray(s,obj,index + 1);
+value=data.getAsJavaType(dataName,s.leafClass,s.converter);
+Array.set(existArray,index,value);
+break;
+case LIST:
+List<Object> existList=extendList(s,obj,index + 1);
+value=data.getAsJavaType(dataName,s.leafClass,s.converter);
+existList.set(index,value);
+break;
+case NONE:
+value=data.getAsJavaType(dataName,s.leafClass,s.converter);
+s.field.set(obj,value);
+break;
+}
+}
+ else {
+throw new KettleException("No field or setter defined for " + root.getClass());
+}
+}
+}
+}

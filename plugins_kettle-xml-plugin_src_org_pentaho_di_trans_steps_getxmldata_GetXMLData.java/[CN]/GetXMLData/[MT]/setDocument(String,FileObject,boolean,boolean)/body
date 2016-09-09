@@ -1,0 +1,100 @@
+{
+  this.prevRow=buildEmptyRow();
+  try {
+    SAXReader reader=new SAXReader();
+    data.stopPruning=false;
+    if (meta.isValidating()) {
+      reader.setValidation(true);
+      reader.setFeature("http://apache.org/xml/features/validation/schema",true);
+    }
+ else {
+      reader.setEntityResolver(new IgnoreDTDEntityResolver());
+    }
+    if (meta.isIgnoreComments()) {
+      reader.setIgnoreComments(true);
+    }
+    if (data.prunePath != null) {
+      if (log.isDetailed()) {
+        logDetailed(BaseMessages.getString(PKG,"GetXMLData.Log.StreamingMode.Activated"));
+      }
+      if (data.PathValue.equals(data.prunePath)) {
+        data.an=new ArrayList<AbstractNode>(1);
+        data.an.add(null);
+      }
+      reader.addHandler(data.prunePath,new ElementHandler(){
+        public void onStart(        ElementPath path){
+        }
+        public void onEnd(        ElementPath path){
+          if (isStopped()) {
+            if (log.isBasic()) {
+              logBasic(BaseMessages.getString(PKG,"GetXMLData.Log.StreamingMode.Stopped"));
+            }
+            data.stopPruning=true;
+            path.getCurrent().getDocument().detach();
+            return;
+          }
+          if (log.isDebug()) {
+            logDebug(BaseMessages.getString(PKG,"GetXMLData.Log.StreamingMode.StartProcessing"));
+          }
+          Element row=path.getCurrent();
+          try {
+            processStreaming(row);
+          }
+ catch (          Exception e) {
+            throw new RuntimeException(e);
+          }
+          row.detach();
+          if (log.isDebug()) {
+            logDebug(BaseMessages.getString(PKG,"GetXMLData.Log.StreamingMode.EndProcessing"));
+          }
+        }
+      }
+);
+    }
+    if (IsInXMLField) {
+      data.document=reader.read(new StringReader(StringXML));
+    }
+ else     if (readurl) {
+      HttpClient client=new HttpClient();
+      HttpMethod method=new GetMethod(StringXML);
+      method.addRequestHeader("Accept-Encoding","gzip");
+      client.executeMethod(method);
+      Header contentEncoding=method.getResponseHeader("Content-Encoding");
+      if (contentEncoding != null) {
+        String acceptEncodingValue=contentEncoding.getValue();
+        if (acceptEncodingValue.indexOf("gzip") != -1) {
+          GZIPInputStream in=new GZIPInputStream(method.getResponseBodyAsStream());
+          data.document=reader.read(in);
+        }
+      }
+ else {
+        data.document=reader.read(method.getResponseBodyAsStream());
+      }
+    }
+ else {
+      String encoding="UTF-8";
+      if (!Const.isEmpty(meta.getEncoding())) {
+        encoding=meta.getEncoding();
+      }
+      InputStream is=KettleVFS.getInputStream(file);
+      try {
+        data.document=reader.read(is,encoding);
+      }
+  finally {
+        BaseStep.closeQuietly(is);
+      }
+    }
+    if (meta.isNamespaceAware()) {
+      prepareNSMap(data.document.getRootElement());
+    }
+  }
+ catch (  Exception e) {
+    if (data.stopPruning) {
+      return false;
+    }
+ else {
+      throw new KettleException(e);
+    }
+  }
+  return true;
+}

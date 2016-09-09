@@ -1,0 +1,35 @@
+{
+  for (  RepositoryFileTreeDto child : tree.getChildren()) {
+    try {
+      if (!child.getChildren().isEmpty()) {
+        processPurgeForTree(child,purgeSpecification);
+      }
+      RepositoryFileDto file=child.getFile();
+      getLogger().setCurrentFilePath(file.getPath());
+      if (file.isVersioned()) {
+        if (purgeSpecification.isPurgeFiles()) {
+          getLogger().info("Purge File");
+          keepNumberOfVersions(file.getId(),1);
+          getRepoWs().deleteFileWithPermanentFlag(file.getId(),true,"purge utility");
+        }
+ else         if (purgeSpecification.isPurgeRevisions()) {
+          getLogger().info("Purging Revisions");
+          deleteAllVersions(file.getId());
+        }
+ else {
+          if (purgeSpecification.getBeforeDate() != null) {
+            getLogger().info("Checking/purging by Revision date");
+            deleteVersionsBeforeDate(file.getId(),purgeSpecification.getBeforeDate());
+          }
+          if (purgeSpecification.getVersionCount() >= 0) {
+            getLogger().info("Checking/purging by number of Revisions");
+            keepNumberOfVersions(file.getId(),purgeSpecification.getVersionCount());
+          }
+        }
+      }
+    }
+ catch (    Exception e) {
+      getLogger().error(e);
+    }
+  }
+}

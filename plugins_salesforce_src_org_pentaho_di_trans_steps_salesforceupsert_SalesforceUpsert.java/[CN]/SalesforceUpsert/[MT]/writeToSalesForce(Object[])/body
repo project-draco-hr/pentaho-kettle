@@ -5,12 +5,12 @@
     }
     if (data.iBufferPos < meta.getBatchSizeInt()) {
       ArrayList<String> fieldsToNull=new ArrayList<String>();
-      ArrayList<MessageElement> upsertfields=new ArrayList<MessageElement>();
+      ArrayList<XmlObject> upsertfields=new ArrayList<>();
       for (int i=0; i < data.nrfields; i++) {
         ValueMetaInterface valueMeta=data.inputRowMeta.getValueMeta(data.fieldnrs[i]);
         Object object=rowData[data.fieldnrs[i]];
         if (valueMeta.isNull(object)) {
-          fieldsToNull.add(meta.getUpdateLookup()[i]);
+          fieldsToNull.add(SalesforceUtils.getFieldToNullName(log,meta.getUpdateLookup()[i],meta.getUseExternalId()[i]));
         }
  else {
           Object normalObject=valueMeta.convertToNormalStorageType(object);
@@ -18,9 +18,11 @@
         }
       }
       SObject sobjPass=new SObject();
-      sobjPass.setType(data.realModule);
+      sobjPass.setType(data.connection.getModule());
       if (upsertfields.size() > 0) {
-        sobjPass.set_any(upsertfields.toArray(new MessageElement[upsertfields.size()]));
+        for (        XmlObject element : upsertfields) {
+          sobjPass.setSObjectField(element.getName().getLocalPart(),element.getValue());
+        }
       }
       if (fieldsToNull.size() > 0) {
         sobjPass.setFieldsToNull(fieldsToNull.toArray(new String[fieldsToNull.size()]));

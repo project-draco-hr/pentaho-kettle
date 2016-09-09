@@ -1,0 +1,99 @@
+{
+  meta=(MetaInjectMeta)smi;
+  data=(MetaInjectData)sdi;
+  data.rowMap=new HashMap<String,List<RowMetaAndData>>();
+  for (  String prevStepName : getTransMeta().getPrevStepNames(getStepMeta())) {
+    if (!data.streaming || !prevStepName.equalsIgnoreCase(data.streamingSourceStepname)) {
+      List<RowMetaAndData> list=new ArrayList<RowMetaAndData>();
+      RowSet rowSet=findInputRowSet(prevStepName);
+      Object[] row=getRowFrom(rowSet);
+      while (row != null) {
+        RowMetaAndData rd=new RowMetaAndData();
+        rd.setRowMeta(rowSet.getRowMeta());
+        rd.setData(row);
+        list.add(rd);
+        row=getRowFrom(rowSet);
+      }
+      if (!list.isEmpty()) {
+        data.rowMap.put(prevStepName,list);
+      }
+    }
+  }
+  List<StepMeta> steps=data.transMeta.getSteps();
+  for (  Map.Entry<String,StepMetaInterface> en : data.stepInjectionMetasMap.entrySet()) {
+    newInjection(en.getKey(),en.getValue());
+    en.getValue().searchInfoAndTargetSteps(steps);
+  }
+  for (  String targetStepName : data.stepInjectionMap.keySet()) {
+    if (!data.stepInjectionMetasMap.containsKey(targetStepName)) {
+      oldInjection(targetStepName);
+      StepMeta targetStep=StepMeta.findStep(steps,targetStepName);
+      if (targetStep != null) {
+        targetStep.getStepMetaInterface().searchInfoAndTargetSteps(steps);
+      }
+    }
+  }
+  if (!meta.isNoExecution()) {
+    final Trans injectTrans=createInjectTrans();
+    injectTrans.setMetaStore(getMetaStore());
+    if (getTrans().getParentJob() != null) {
+      injectTrans.setParentJob(getTrans().getParentJob());
+    }
+    getTrans().addTransStoppedListener(new TransStoppedListener(){
+      public void transStopped(      Trans parentTrans){
+        injectTrans.stopAll();
+      }
+    }
+);
+    injectTrans.prepareExecution(null);
+    RowProducer rowProducer=null;
+    if (data.streaming) {
+      rowProducer=injectTrans.addRowProducer(data.streamingTargetStepname,0);
+    }
+    getTrans().addActiveSubTransformation(getStepname(),injectTrans);
+    if (!Const.isEmpty(meta.getSourceStepName())) {
+      StepInterface stepInterface=injectTrans.getStepInterface(meta.getSourceStepName(),0);
+      if (stepInterface == null) {
+        throw new KettleException("Unable to find step '" + meta.getSourceStepName() + "' to read from.");
+      }
+      stepInterface.addRowListener(new RowAdapter(){
+        @Override public void rowWrittenEvent(        RowMetaInterface rowMeta,        Object[] row) throws KettleStepException {
+          MetaInject.this.putRow(rowMeta,row);
+        }
+      }
+);
+    }
+    injectTrans.startThreads();
+    if (data.streaming) {
+      RowSet rowSet=findInputRowSet(data.streamingSourceStepname);
+      if (rowSet == null) {
+        throw new KettleException("Unable to find step '" + data.streamingSourceStepname + "' to stream data from");
+      }
+      Object[] row=getRowFrom(rowSet);
+      while (row != null && !isStopped()) {
+        rowProducer.putRow(rowSet.getRowMeta(),row);
+        row=getRowFrom(rowSet);
+      }
+      rowProducer.finished();
+    }
+    while (!injectTrans.isFinished() && !injectTrans.isStopped() && !isStopped()) {
+      copyResult(injectTrans);
+      try {
+        Thread.sleep(50);
+      }
+ catch (      Exception e) {
+      }
+    }
+    copyResult(injectTrans);
+    waitUntilFinished(injectTrans);
+  }
+  if (log.isDetailed()) {
+    logDetailed("XML of transformation after injection: " + data.transMeta.getXML());
+  }
+  String targetFile=environmentSubstitute(meta.getTargetFile());
+  if (!Const.isEmpty(targetFile)) {
+    writeInjectedKtr(targetFile);
+  }
+  setOutputDone();
+  return false;
+}

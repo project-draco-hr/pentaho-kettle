@@ -1,20 +1,28 @@
 {
+  if (moduleFields != null) {
+    return moduleFields;
+  }
+ else   if (skipFetchModules() || Const.isEmpty(wModule.getText())) {
+    getModulesListError=false;
+    return new String[0];
+  }
+  getModulesListError=true;
   SalesforceUpsertMeta meta=new SalesforceUpsertMeta();
   getInfo(meta);
-  SalesforceConnection connection=null;
   String url=transMeta.environmentSubstitute(meta.getTargetURL());
+  String selectedModule=transMeta.environmentSubstitute(meta.getModule());
+  SalesforceConnection connection=new SalesforceConnection(log,url,transMeta.environmentSubstitute(meta.getUsername()),transMeta.environmentSubstitute(meta.getPassword()));
+  int realTimeOut=Const.toInt(transMeta.environmentSubstitute(meta.getTimeout()),0);
+  connection.setTimeOut(realTimeOut);
+  Cursor busy=new Cursor(shell.getDisplay(),SWT.CURSOR_WAIT);
   try {
-    String selectedModule=transMeta.environmentSubstitute(meta.getModule());
-    connection=new SalesforceConnection(log,url,transMeta.environmentSubstitute(meta.getUserName()),transMeta.environmentSubstitute(meta.getPassword()));
-    int realTimeOut=Const.toInt(transMeta.environmentSubstitute(meta.getTimeOut()),0);
-    connection.setTimeOut(realTimeOut);
+    shell.setCursor(busy);
     connection.connect();
-    return connection.getFields(selectedModule,excludeNonUpdatableFields);
+    moduleFields=connection.getFields(selectedModule,excludeNonUpdatableFields);
+    getModulesListError=false;
+    return moduleFields;
   }
- catch (  Exception e) {
-    throw new KettleException("Erreur getting fields from module [" + url + "]!",e);
-  }
- finally {
+  finally {
     if (connection != null) {
       try {
         connection.close();
@@ -22,5 +30,7 @@
  catch (      Exception e) {
       }
     }
+    shell.setCursor(null);
+    busy.dispose();
   }
 }

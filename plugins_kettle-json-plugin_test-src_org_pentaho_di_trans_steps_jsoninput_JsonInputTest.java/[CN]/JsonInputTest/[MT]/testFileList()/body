@@ -1,0 +1,33 @@
+{
+  ByteArrayOutputStream err=new ByteArrayOutputStream();
+  helper.redirectLog(err,LogLevel.ERROR);
+  final String input1=getBasicTestJson();
+  final String input2="{ \"store\": { \"book\": [ { \"price\": 9.99 } ] } }";
+  try (FileObject fileObj1=KettleVFS.getFileObject(BASE_RAM_DIR + "test1.json");FileObject fileObj2=KettleVFS.getFileObject(BASE_RAM_DIR + "test2.json")){
+    try (OutputStream out=fileObj1.getContent().getOutputStream()){
+      out.write(input1.getBytes());
+    }
+     try (OutputStream out=fileObj2.getContent().getOutputStream()){
+      out.write(input2.getBytes());
+    }
+     JsonInputField price=new JsonInputField();
+    price.setName("price");
+    price.setType(ValueMetaInterface.TYPE_NUMBER);
+    price.setPath("$..book[*].price");
+    List<FileObject> fileList=Arrays.asList(fileObj1,fileObj2);
+    JsonInputMeta meta=createFileListMeta(fileList);
+    meta.setInputFields(new JsonInputField[]{price});
+    meta.setIncludeRowNumber(true);
+    meta.setRowNumberField("rownbr");
+    meta.setShortFileNameField("fname");
+    JsonInput jsonInput=createJsonInput(meta);
+    RowComparatorListener rowComparator=new RowComparatorListener(new Object[]{8.95d,1L,"test1.json"},new Object[]{12.99d,2L,"test1.json"},new Object[]{8.99d,3L,"test1.json"},new Object[]{22.99d,4L,"test1.json"},new Object[]{9.99d,5L,"test2.json"});
+    jsonInput.addRowListener(rowComparator);
+    processRows(jsonInput,5);
+    disposeJsonInput(jsonInput);
+    assertEquals(err.toString(),0,jsonInput.getErrors());
+  }
+  finally {
+    deleteFiles();
+  }
+}

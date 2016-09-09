@@ -7,9 +7,9 @@
   String newTip=null;
   Image tipImage=null;
   final TransHopMeta hi=findHop(x,y);
-  StringBuffer tip=new StringBuffer();
+  StringBuilder tip=new StringBuilder();
   AreaOwner areaOwner=getVisibleAreaOwner(x,y);
-  if (areaOwner != null) {
+  if (areaOwner != null && areaOwner.getAreaType() != null) {
 switch (areaOwner.getAreaType()) {
 case REMOTE_INPUT_STEP:
       StepMeta step=(StepMeta)areaOwner.getParent();
@@ -147,15 +147,23 @@ newTip=null;
 }
 }
  else if (!newTip.equalsIgnoreCase(getToolTipText())) {
+Image tooltipImage=null;
 if (tipImage != null) {
-toolTip.setImage(tipImage);
+tooltipImage=tipImage;
 }
  else {
-toolTip.setImage(GUIResource.getInstance().getImageSpoon());
+tooltipImage=GUIResource.getInstance().getImageSpoon();
 }
-toolTip.setText(newTip);
-toolTip.hide();
-toolTip.show(new org.eclipse.swt.graphics.Point(screenX,screenY));
+showTooltip(newTip,tooltipImage,screenX,screenY);
+}
+if (areaOwner != null && areaOwner.getExtensionAreaType() != null) {
+try {
+TransPainterFlyoutTooltipExtension extension=new TransPainterFlyoutTooltipExtension(areaOwner,this,new Point(screenX,screenY));
+ExtensionPointHandler.callExtensionPoint(LogChannel.GENERAL,KettleExtensionPoint.TransPainterFlyoutTooltip.id,extension);
+}
+ catch (Exception e) {
+LogChannel.GENERAL.logError("Error calling extension point(s) for the transformation painter step",e);
+}
 }
 return subject;
 }

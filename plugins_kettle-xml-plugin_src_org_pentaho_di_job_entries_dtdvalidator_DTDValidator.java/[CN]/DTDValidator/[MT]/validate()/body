@@ -1,0 +1,101 @@
+{
+  boolean isValid=false;
+  FileObject xmlFileObject=null;
+  FileObject dtdFileObject=null;
+  try {
+    if (xmlfilename != null && ((getDTDFilename() != null && !isInternDTD()) || (isInternDTD()))) {
+      xmlFileObject=KettleVFS.getFileObject(getXMLFilename());
+      if (xmlFileObject.exists()) {
+        URL xmlFile=new File(KettleVFS.getFilename(xmlFileObject)).toURI().toURL();
+        StringBuffer xmlStringbuffer=new StringBuffer("");
+        try (InputStreamReader is=new InputStreamReader(xmlFile.openStream());BufferedReader xmlBufferedReader=new BufferedReader(is)){
+          char[] buffertXML=new char[1024];
+          int lenXML;
+          while ((lenXML=xmlBufferedReader.read(buffertXML)) != -1) {
+            xmlStringbuffer.append(buffertXML,0,lenXML);
+          }
+        }
+         DocumentBuilderFactory docBuilderFactory=XMLParserFactoryProducer.createSecureDocBuilderFactory();
+        DocumentBuilder docBuilder=docBuilderFactory.newDocumentBuilder();
+        docBuilderFactory.setValidating(false);
+        ByteArrayInputStream ba=new ByteArrayInputStream(xmlStringbuffer.toString().getBytes("UTF-8"));
+        Document xmlDocDTD=docBuilder.parse(ba);
+        if (ba != null) {
+          ba.close();
+        }
+        String encoding;
+        if (xmlDocDTD.getXmlEncoding() == null) {
+          encoding="UTF-8";
+        }
+ else {
+          encoding=xmlDocDTD.getXmlEncoding();
+        }
+        int xmlStartDTD=xmlStringbuffer.indexOf("<!DOCTYPE");
+        if (isInternDTD()) {
+          if (xmlStartDTD != -1) {
+            log.logBasic(BaseMessages.getString(PKG,"JobEntryDTDValidator.ERRORDTDFound.Label",getXMLFilename()));
+          }
+ else {
+            setErrorMessage(BaseMessages.getString(PKG,"JobEntryDTDValidator.ERRORDTDNotFound.Label",getXMLFilename()));
+          }
+        }
+ else {
+          dtdFileObject=KettleVFS.getFileObject(getDTDFilename());
+          if (dtdFileObject.exists()) {
+            if (xmlStartDTD != -1) {
+              int EndDTD=xmlStringbuffer.indexOf(">",xmlStartDTD);
+              xmlStringbuffer.replace(xmlStartDTD,EndDTD + 1,"");
+            }
+            String xmlRootnodeDTD=xmlDocDTD.getDocumentElement().getNodeName();
+            String RefDTD="<?xml version='" + xmlDocDTD.getXmlVersion() + "' encoding='"+ encoding+ "'?>\n<!DOCTYPE "+ xmlRootnodeDTD+ " SYSTEM '"+ KettleVFS.getFilename(dtdFileObject)+ "'>\n";
+            int xmloffsetDTD=xmlStringbuffer.indexOf("<" + xmlRootnodeDTD);
+            xmlStringbuffer.replace(0,xmloffsetDTD,RefDTD);
+          }
+ else {
+            log.logError(BaseMessages.getString(PKG,"JobEntryDTDValidator.ERRORDTDFileNotExists.Subject"),BaseMessages.getString(PKG,"JobEntryDTDValidator.ERRORDTDFileNotExists.Msg",getDTDFilename()));
+          }
+        }
+        if (!(isInternDTD() && xmlStartDTD == -1 || (!isInternDTD() && !dtdFileObject.exists()))) {
+          MyErrorHandler error=new MyErrorHandler();
+          docBuilderFactory.setValidating(true);
+          docBuilder=docBuilderFactory.newDocumentBuilder();
+          docBuilder.setErrorHandler(error);
+          ba=new ByteArrayInputStream(xmlStringbuffer.toString().getBytes(encoding));
+          xmlDocDTD=docBuilder.parse(ba);
+          if (error.errorMessage == null) {
+            log.logBasic(BaseMessages.getString(PKG,"JobEntryDTDValidator.DTDValidatorOK.Subject"),BaseMessages.getString(PKG,"JobEntryDTDValidator.DTDValidatorOK.Label",getXMLFilename()));
+            isValid=true;
+          }
+ else {
+            setNrErrors(error.nrErrors);
+            setErrorMessage(BaseMessages.getString(PKG,"JobEntryDTDValidator.DTDValidatorKO",getXMLFilename(),error.nrErrors,error.errorMessage));
+          }
+        }
+      }
+ else {
+        if (!xmlFileObject.exists()) {
+          setErrorMessage(BaseMessages.getString(PKG,"JobEntryDTDValidator.FileDoesNotExist.Label",getXMLFilename()));
+        }
+      }
+    }
+ else {
+      setErrorMessage(BaseMessages.getString(PKG,"JobEntryDTDValidator.AllFilesNotNull.Label"));
+    }
+  }
+ catch (  Exception e) {
+    setErrorMessage(BaseMessages.getString(PKG,"JobEntryDTDValidator.ErrorDTDValidator.Label",getXMLFilename(),getDTDFilename(),e.getMessage()));
+  }
+ finally {
+    try {
+      if (xmlFileObject != null) {
+        xmlFileObject.close();
+      }
+      if (dtdFileObject != null) {
+        dtdFileObject.close();
+      }
+    }
+ catch (    IOException e) {
+    }
+  }
+  return isValid;
+}

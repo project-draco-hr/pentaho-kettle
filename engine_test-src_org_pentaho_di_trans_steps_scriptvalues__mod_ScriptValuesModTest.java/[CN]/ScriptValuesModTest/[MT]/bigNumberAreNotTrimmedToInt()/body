@@ -4,8 +4,6 @@
   input.addValueMeta(new ValueMetaBigNumber("value_int"));
   input.addValueMeta(new ValueMetaBigNumber("value_double"));
   step.setInputRowMeta(input);
-  RowSet output=new BlockingRowSet(5);
-  step.setOutputRowSets(Collections.singletonList(output));
   step=spy(step);
   doReturn(new Object[]{BigDecimal.ONE,BigDecimal.ONE}).when(step).getRow();
   ScriptValuesMetaMod meta=new ScriptValuesMetaMod();
@@ -17,11 +15,7 @@
   meta.setJSScripts(new ScriptValuesScript[]{new ScriptValuesScript(ScriptValuesScript.TRANSFORM_SCRIPT,"script","value_int = 10.00;\nvalue_double = 10.50")});
   ScriptValuesModData data=new ScriptValuesModData();
   step.init(meta,data);
-  step.processRow(meta,data);
-  Object[] row=output.getRowImmediate();
-  assertNotNull(row);
-  assertNotNull(row[0]);
-  assertEquals(BigDecimal.TEN,row[0]);
-  assertNotNull(row[1]);
-  assertEquals(new BigDecimal("10.5"),row[1]);
+  Object[] expectedRow={BigDecimal.TEN,new BigDecimal("10.5")};
+  Object[] row=TransTestingUtil.execute(step,meta,data,1,false).get(0);
+  TransTestingUtil.assertResult(expectedRow,row);
 }

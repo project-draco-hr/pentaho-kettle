@@ -1,0 +1,27 @@
+{
+  if (!meta.isInFields() || meta.getIsAFile()) {
+    Iterator<FileObject> files;
+    if (meta.inputFiles.acceptingFilenames) {
+      files=new FileNamesIterator(step,errorHandler,getFieldIterator());
+    }
+ else {
+      if (data.files == null) {
+        data.files=meta.getFileInputList(step);
+      }
+      files=data.files.getFiles().listIterator(data.currentFileIndex);
+    }
+    return new FileContentIterator(files,data,errorHandler);
+  }
+ else   if (meta.isReadUrl()) {
+    return new URLContentIterator(errorHandler,getFieldIterator());
+  }
+ else {
+    return new ChainedIterator<InputStream,String>(getFieldIterator(),errorHandler){
+      protected InputStream tryNext() throws IOException {
+        String next=inner.next();
+        return next == null ? null : IOUtils.toInputStream(next,meta.getEncoding());
+      }
+    }
+;
+  }
+}

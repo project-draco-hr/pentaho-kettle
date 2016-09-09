@@ -3,29 +3,12 @@
   List<LastUsedFile> lastUsedFiles=props.getLastUsedFiles();
   final LastUsedFile lastUsedFile=lastUsedFiles.get(idx);
   if (lastUsedFile.isSourceRepository() && (rep == null || !rep.getName().equalsIgnoreCase(lastUsedFile.getRepositoryName()))) {
-    loginDialog=new RepositoriesDialog(shell,lastUsedFile.getRepositoryName(),new ILoginCallback(){
-      public void onSuccess(      Repository repository){
-        if (rep != null) {
-          rep.disconnect();
-          SpoonPluginManager.getInstance().notifyLifecycleListeners(SpoonLifeCycleEvent.REPOSITORY_DISCONNECTED);
-        }
-        setRepository(repository);
-        try {
-          loadLastUsedFile(lastUsedFile,rep == null ? null : rep.getName());
-          addMenuLast();
-        }
- catch (        KettleException ke) {
-          new ErrorDialog(loginDialog.getShell(),BaseMessages.getString(PKG,"Spoon.Dialog.LoadTransformationError.Title"),BaseMessages.getString(PKG,"Spoon.Dialog.LoadTransformationError.Message"),ke);
-        }
-      }
-      public void onError(      Throwable t){
-        onLoginError(t);
-      }
-      public void onCancel(){
-      }
+    try {
+      ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.OpenRecent.id,lastUsedFile);
     }
-);
-    loginDialog.show();
+ catch (    KettleException ke) {
+      log.logError("Failed to call extension point",ke);
+    }
   }
  else   if (!lastUsedFile.isSourceRepository()) {
     openFile(lastUsedFile.getFilename(),false);

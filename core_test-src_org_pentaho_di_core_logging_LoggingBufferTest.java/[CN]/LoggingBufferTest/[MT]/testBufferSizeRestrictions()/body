@@ -1,0 +1,32 @@
+{
+  final LoggingBuffer buff=new LoggingBuffer(10);
+  Assert.assertEquals(10,buff.getMaxNrLines());
+  Assert.assertEquals(0,buff.getLastBufferLineNr());
+  Assert.assertEquals(0,buff.getNrLines());
+  for (int i=1; i <= 20; i++) {
+    buff.addLogggingEvent(new KettleLoggingEvent("Test #" + i + Const.CR+ "Hello World!",Long.valueOf(i),LogLevel.DETAILED));
+  }
+  Assert.assertEquals(10,buff.getNrLines());
+  int i=11;
+  Iterator<BufferLine> it=buff.getBufferIterator();
+  Assert.assertNotNull(it);
+  while (it.hasNext()) {
+    BufferLine bl=it.next();
+    Assert.assertNotNull(bl.getEvent());
+    Assert.assertEquals("Test #" + i + Const.CR+ "Hello World!",bl.getEvent().getMessage());
+    Assert.assertEquals(Long.valueOf(i).longValue(),bl.getEvent().getTimeStamp());
+    Assert.assertEquals(LogLevel.DETAILED,bl.getEvent().getLevel());
+    i++;
+  }
+  Assert.assertEquals(i,21);
+  Assert.assertEquals(0,buff.getBufferLinesBefore(10L).size());
+  Assert.assertEquals(5,buff.getBufferLinesBefore(16L).size());
+  Assert.assertEquals(10,buff.getBufferLinesBefore(System.currentTimeMillis()).size());
+  buff.clear();
+  Assert.assertEquals(0,buff.getNrLines());
+  it=buff.getBufferIterator();
+  Assert.assertNotNull(it);
+  while (it.hasNext()) {
+    Assert.fail("This should never be reached, as the LogBuffer is empty");
+  }
+}

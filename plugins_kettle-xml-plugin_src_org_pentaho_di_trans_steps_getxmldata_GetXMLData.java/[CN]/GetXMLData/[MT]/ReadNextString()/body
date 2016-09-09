@@ -1,0 +1,98 @@
+{
+  try {
+    data.readrow=getRow();
+    if (data.readrow == null) {
+      if (log.isDetailed()) {
+        logDetailed(BaseMessages.getString(PKG,"GetXMLData.Log.FinishedProcessing"));
+      }
+      return false;
+    }
+    if (first) {
+      first=false;
+      data.nrReadRow=getInputRowMeta().size();
+      data.inputRowMeta=getInputRowMeta();
+      data.outputRowMeta=data.inputRowMeta.clone();
+      meta.getFields(data.outputRowMeta,getStepname(),null,null,this,repository,metaStore);
+      data.totalpreviousfields=data.inputRowMeta.size();
+      data.convertRowMeta=new RowMeta();
+      for (      ValueMetaInterface valueMeta : data.convertRowMeta.getValueMetaList()) {
+        data.convertRowMeta.addValueMeta(ValueMetaFactory.cloneValueMeta(valueMeta,ValueMetaInterface.TYPE_STRING));
+      }
+      data.convertRowMeta=data.outputRowMeta.cloneToType(ValueMetaInterface.TYPE_STRING);
+      if (Const.isEmpty(meta.getXMLField())) {
+        logError(BaseMessages.getString(PKG,"GetXMLData.Log.NoField"));
+        throw new KettleException(BaseMessages.getString(PKG,"GetXMLData.Log.NoField"));
+      }
+      if (data.indexOfXmlField < 0) {
+        data.indexOfXmlField=getInputRowMeta().indexOfValue(meta.getXMLField());
+        if (data.indexOfXmlField < 0) {
+          logError(BaseMessages.getString(PKG,"GetXMLData.Log.ErrorFindingField",meta.getXMLField()));
+          throw new KettleException(BaseMessages.getString(PKG,"GetXMLData.Exception.CouldnotFindField",meta.getXMLField()));
+        }
+      }
+    }
+    if (meta.isInFields()) {
+      String Fieldvalue=getInputRowMeta().getString(data.readrow,data.indexOfXmlField);
+      if (log.isDetailed()) {
+        logDetailed(BaseMessages.getString(PKG,"GetXMLData.Log.XMLStream",meta.getXMLField(),Fieldvalue));
+      }
+      if (meta.getIsAFile()) {
+        FileObject file=null;
+        try {
+          file=KettleVFS.getFileObject(Fieldvalue,getTransMeta());
+          if (meta.isIgnoreEmptyFile() && file.getContent().getSize() == 0) {
+            logBasic(BaseMessages.getString(PKG,"GetXMLData.Error.FileSizeZero","" + file.getName()));
+            return ReadNextString();
+          }
+          if (!setDocument(null,file,false,false)) {
+            throw new KettleException(BaseMessages.getString(PKG,"GetXMLData.Log.UnableCreateDocument"));
+          }
+          if (!applyXPath()) {
+            throw new KettleException(BaseMessages.getString(PKG,"GetXMLData.Log.UnableApplyXPath"));
+          }
+          addFileToResultFilesname(file);
+          if (log.isDetailed()) {
+            logDetailed(BaseMessages.getString(PKG,"GetXMLData.Log.LoopFileOccurences","" + data.nodesize,file.getName().getBaseName()));
+          }
+        }
+ catch (        Exception e) {
+          throw new KettleException(e);
+        }
+ finally {
+          try {
+            if (file != null) {
+              file.close();
+            }
+          }
+ catch (          Exception e) {
+          }
+        }
+      }
+ else {
+        boolean url=false;
+        boolean xmltring=true;
+        if (meta.isReadUrl()) {
+          url=true;
+          xmltring=false;
+        }
+        if (!setDocument(Fieldvalue,null,xmltring,url)) {
+          throw new KettleException(BaseMessages.getString(PKG,"GetXMLData.Log.UnableCreateDocument"));
+        }
+        if (!applyXPath()) {
+          throw new KettleException(BaseMessages.getString(PKG,"GetXMLData.Log.UnableApplyXPath"));
+        }
+        if (log.isDetailed()) {
+          logDetailed(BaseMessages.getString(PKG,"GetXMLData.Log.LoopFileOccurences","" + data.nodesize));
+        }
+      }
+    }
+  }
+ catch (  Exception e) {
+    logError(BaseMessages.getString(PKG,"GetXMLData.Log.UnexpectedError",e.toString()));
+    stopAll();
+    logError(Const.getStackTracker(e));
+    setErrors(1);
+    return false;
+  }
+  return true;
+}

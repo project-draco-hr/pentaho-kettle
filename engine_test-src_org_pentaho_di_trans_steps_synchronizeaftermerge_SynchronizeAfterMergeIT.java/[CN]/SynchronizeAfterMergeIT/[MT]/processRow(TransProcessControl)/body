@@ -1,0 +1,27 @@
+{
+  Trans trans=new Trans(transMeta);
+  trans.prepareExecution(null);
+  RowProducer rp=trans.addRowProducer(injectorStepname,0);
+  trans.startThreads();
+  generateData(rp);
+  rp.finished();
+  StepInterface si=trans.getStepInterface(synchronizeAfterMergeStepname,0);
+switch (control) {
+case ITTERUPT:
+    trans.stopAll();
+  while (!si.getStatus().equals(StepExecutionStatus.STATUS_STOPPED)) {
+  }
+;
+break;
+case WAIT:
+default :
+trans.waitUntilFinished();
+assertEquals("Step still started",StepExecutionStatus.STATUS_FINISHED,si.getStatus());
+break;
+}
+assertEquals("Unexpected error occurred",0,si.getErrors());
+Field field=SynchronizeAfterMerge.class.getDeclaredField("data");
+field.setAccessible(true);
+SynchronizeAfterMergeData data=(SynchronizeAfterMergeData)field.get(si);
+assertNull(data.db.getConnection());
+}

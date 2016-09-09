@@ -1,32 +1,13 @@
 {
   final String content=new StringBuilder().append("r1c1").append('\n').append(";r1c2\n").append("r2c1").append('\n').append(";r2c2").toString();
   final String virtualFile=createVirtualFile("pdi-2607.txt",content);
-  TextFileInputMeta meta=new TextFileInputMeta();
+  TextFileInputMeta meta=createMetaObject(field("col1"),field("col2"));
   meta.content.lineWrapped=true;
   meta.content.nrWraps=1;
-  meta.inputFiles.inputFields=new BaseFileInputField[]{field("col1"),field("col2")};
-  meta.content.fileCompression="None";
-  meta.content.fileType="CSV";
-  meta.content.header=false;
-  meta.content.nrHeaderLines=-1;
-  meta.content.footer=false;
-  meta.content.nrFooterLines=-1;
-  TextFileInputData data=new TextFileInputData();
-  data.files=new FileInputList();
-  data.files.addFile(KettleVFS.getFileObject(virtualFile));
-  data.outputRowMeta=new RowMeta();
-  data.outputRowMeta.addValueMeta(new ValueMetaString("col1"));
-  data.outputRowMeta.addValueMeta(new ValueMetaString("col2"));
-  data.dataErrorLineHandler=Mockito.mock(FileErrorHandler.class);
-  data.fileFormatType=TextFileInputMeta.FILE_FORMAT_UNIX;
-  data.separator=";";
-  data.filterProcessor=new TextFileFilterProcessor(new TextFileFilter[0],new Variables());
-  data.filePlayList=new FilePlayListAll();
-  RowSet output=new BlockingRowSet(5);
-  executeStep(meta,data,output,2);
-  Object[] row1=output.getRowImmediate();
-  assertRow(row1,"r1c1","r1c2");
-  Object[] row2=output.getRowImmediate();
-  assertRow(row2,"r2c1","r2c2");
+  TextFileInputData data=createDataObject(virtualFile,";","col1","col2");
+  TextFileInput input=StepMockUtil.getStep(TextFileInput.class,TextFileInputMeta.class,"test");
+  List<Object[]> output=TransTestingUtil.execute(input,meta,data,2,false);
+  TransTestingUtil.assertResult(new Object[]{"r1c1","r1c2"},output.get(0));
+  TransTestingUtil.assertResult(new Object[]{"r2c1","r2c2"},output.get(1));
   deleteVfsFile(virtualFile);
 }

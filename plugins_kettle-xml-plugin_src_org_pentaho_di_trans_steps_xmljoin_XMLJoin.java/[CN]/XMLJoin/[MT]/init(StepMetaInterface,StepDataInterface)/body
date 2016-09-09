@@ -1,0 +1,31 @@
+{
+  meta=(XMLJoinMeta)smi;
+  data=(XMLJoinData)sdi;
+  if (!super.init(smi,sdi)) {
+    return false;
+  }
+  try {
+    Transformer transformer=TransformerFactory.newInstance().newTransformer();
+    if (meta.getEncoding() != null) {
+      transformer.setOutputProperty(OutputKeys.ENCODING,meta.getEncoding());
+    }
+    if (meta.isOmitXMLHeader()) {
+      transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,"yes");
+    }
+    transformer.setOutputProperty(OutputKeys.INDENT,"no");
+    setTransformer(transformer);
+    for (int i=0; i < getInputRowSets().size(); i++) {
+      BlockingRowSet rs=(BlockingRowSet)getInputRowSets().get(i);
+      if (rs.getOriginStepName().equalsIgnoreCase(meta.getTargetXMLstep())) {
+        BlockingRowSet zero=(BlockingRowSet)getInputRowSets().get(0);
+        getInputRowSets().set(0,rs);
+        getInputRowSets().set(i,zero);
+      }
+    }
+  }
+ catch (  Exception e) {
+    log.logError(BaseMessages.getString(PKG,"XMLJoin.Error.Init"),e);
+    return false;
+  }
+  return true;
+}

@@ -18,7 +18,37 @@
   executionConfiguration.setStartCopyNr(startCopyNr);
   executionConfiguration.setLogLevel(DefaultLogLevel.getLogLevel());
   JobExecutionConfigurationDialog dialog=new JobExecutionConfigurationDialog(spoon.getShell(),executionConfiguration,jobMeta);
-  if (dialog.open()) {
+  if (!jobMeta.isShowDialog()) {
+    ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.SpoonJobMetaExecutionStart.id,jobMeta);
+    ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.SpoonJobExecutionConfiguration.id,executionConfiguration);
+    JobGraph jobGraph=spoon.getActiveJobGraph();
+    for (    String varName : executionConfiguration.getVariables().keySet()) {
+      String varValue=executionConfiguration.getVariables().get(varName);
+      jobMeta.setVariable(varName,varValue);
+    }
+    for (    String paramName : executionConfiguration.getParams().keySet()) {
+      String paramValue=executionConfiguration.getParams().get(paramName);
+      jobMeta.setParameterValue(paramName,paramValue);
+    }
+    if (executionConfiguration.isExecutingLocally()) {
+      jobGraph.startJob(executionConfiguration);
+    }
+ else     if (executionConfiguration.isExecutingRemotely()) {
+      jobGraph.handleJobMetaChanges(jobMeta);
+      jobMeta.activateParameters();
+      if (executionConfiguration.getRemoteServer() != null) {
+        Job.sendToSlaveServer(jobMeta,executionConfiguration,spoon.rep,spoon.metaStore);
+        spoon.delegates.slaves.addSpoonSlave(executionConfiguration.getRemoteServer());
+      }
+ else {
+        MessageBox mb=new MessageBox(spoon.getShell(),SWT.OK | SWT.ICON_ERROR);
+        mb.setMessage(BaseMessages.getString(PKG,"Spoon.Dialog.NoRemoteServerSpecified.Message"));
+        mb.setText(BaseMessages.getString(PKG,"Spoon.Dialog.NoRemoteServerSpecified.Title"));
+        mb.open();
+      }
+    }
+  }
+ else   if (dialog.open()) {
     ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.SpoonJobMetaExecutionStart.id,jobMeta);
     ExtensionPointHandler.callExtensionPoint(log,KettleExtensionPoint.SpoonJobExecutionConfiguration.id,executionConfiguration);
     JobGraph jobGraph=spoon.getActiveJobGraph();

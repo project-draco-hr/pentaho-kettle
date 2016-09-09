@@ -1,0 +1,86 @@
+{
+  if (getBinding() == null) {
+    throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Exception.CanNotGetBiding"));
+  }
+  try {
+    if (!specifyQuery) {
+      DescribeSObjectResult describeSObjectResult=getBinding().describeSObject(getModule());
+      if (describeSObjectResult == null) {
+        throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.ErrorGettingObject"));
+      }
+      if (!describeSObjectResult.isQueryable()) {
+        throw new KettleException(BaseMessages.getString(PKG,"SalesforceInputDialog.ObjectNotQueryable",module));
+      }
+      if (this.recordsFilter == SalesforceConnectionUtils.RECORDS_FILTER_UPDATED || this.recordsFilter == SalesforceConnectionUtils.RECORDS_FILTER_DELETED) {
+        if (!describeSObjectResult.isReplicateable()) {
+          throw new KettleException(BaseMessages.getString(PKG,"SalesforceInput.Error.ObjectNotReplicateable",getModule()));
+        }
+      }
+    }
+    if (getSQL() != null && log.isDetailed()) {
+      log.logDetailed(BaseMessages.getString(PKG,"SalesforceInput.Log.SQLString") + " : " + getSQL());
+    }
+switch (this.recordsFilter) {
+case SalesforceConnectionUtils.RECORDS_FILTER_UPDATED:
+      GetUpdatedResult updatedRecords=getBinding().getUpdated(getModule(),this.startDate,this.endDate);
+    if (updatedRecords.getIds() != null) {
+      int nr=updatedRecords.getIds().length;
+      if (nr > 0) {
+        String[] ids=updatedRecords.getIds();
+        if (nr > SalesforceConnectionUtils.MAX_UPDATED_OBJECTS_IDS) {
+          this.sObjects=new SObject[nr];
+          List<String> list=new ArrayList<String>();
+          int desPos=0;
+          for (int i=0; i < nr; i++) {
+            list.add(updatedRecords.getIds()[i]);
+            if (i % SalesforceConnectionUtils.MAX_UPDATED_OBJECTS_IDS == 0 || i == nr - 1) {
+              SObject[] s=getBinding().retrieve(this.fieldsList,getModule(),list.toArray(new String[list.size()]));
+              System.arraycopy(s,0,this.sObjects,desPos,s.length);
+              desPos+=s.length;
+              s=null;
+              list=new ArrayList<String>();
+            }
+          }
+        }
+ else {
+          this.sObjects=getBinding().retrieve(this.fieldsList,getModule(),ids);
+        }
+        if (this.sObjects != null) {
+          this.queryResultSize=this.sObjects.length;
+        }
+      }
+    }
+  break;
+case SalesforceConnectionUtils.RECORDS_FILTER_DELETED:
+GetDeletedResult deletedRecordsResult=getBinding().getDeleted(getModule(),this.startDate,this.endDate);
+DeletedRecord[] deletedRecords=deletedRecordsResult.getDeletedRecords();
+if (log.isDebug()) {
+log.logDebug(toString(),BaseMessages.getString(PKG,"SalesforceConnection.DeletedRecordsFound",String.valueOf(deletedRecords == null ? 0 : deletedRecords.length)));
+}
+if (deletedRecords != null && deletedRecords.length > 0) {
+getDeletedList=new HashMap<String,Date>();
+for (DeletedRecord dr : deletedRecords) {
+getDeletedList.put(dr.getId(),dr.getDeletedDate().getTime());
+}
+this.qr=getBinding().queryAll(getSQL());
+this.sObjects=getQueryResult().getRecords();
+if (this.sObjects != null) {
+this.queryResultSize=this.sObjects.length;
+}
+}
+break;
+default :
+this.qr=isQueryAll() ? getBinding().queryAll(getSQL()) : getBinding().query(getSQL());
+this.sObjects=getQueryResult().getRecords();
+this.queryResultSize=getQueryResult().getSize();
+break;
+}
+if (this.sObjects != null) {
+this.recordsCount=this.sObjects.length;
+}
+}
+ catch (Exception e) {
+log.logError(Const.getStackTracker(e));
+throw new KettleException(BaseMessages.getString(PKG,"SalesforceConnection.Exception.Query"),e);
+}
+}

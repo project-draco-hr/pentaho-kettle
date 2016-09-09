@@ -1,0 +1,40 @@
+{
+  try {
+    if ((Spoon.getInstance().getRepository() != null) && (Spoon.getInstance().getRepository().hasService(IAbsSecurityProvider.class))) {
+      IAbsSecurityProvider securityService=(IAbsSecurityProvider)Spoon.getInstance().getRepository().getService(IAbsSecurityProvider.class);
+      setCreateAllowed(allowedActionsContains(securityService,IAbsSecurityProvider.CREATE_CONTENT_ACTION));
+    }
+    shell=(((Spoon)SpoonFactory.getInstance()).getShell());
+    XulDomContainer container=getXulDomContainer();
+    bindingFactory=new DefaultBindingFactory();
+    bindingFactory.setDocument(container.getDocumentRoot());
+    bindingFactory.setBindingType(Type.ONE_WAY);
+    bindingFactory.createBinding(this,"activeMetaUnlocked","lock-context-locknotes","disabled");
+    bindingFactory.createBinding(this,"lockingNotAllowed","lock-context-lock","disabled");
+    if (container.getEventHandlers().containsKey("transgraph")) {
+      workingMeta=((TransGraph)container.getEventHandler("transgraph")).getMeta();
+    }
+ else     if (container.getEventHandlers().containsKey("jobgraph")) {
+      workingMeta=((JobGraph)container.getEventHandler("jobgraph")).getMeta();
+    }
+    RepositoryLock repoLock=fetchRepositoryLock(workingMeta);
+    if (repoLock != null) {
+      XulMenuitem lockMenuItem=(XulMenuitem)container.getDocumentRoot().getElementById("lock-context-lock");
+      lockMenuItem.setSelected(true);
+      if (Spoon.getInstance().getRepository() instanceof PurRepository) {
+        setLockingAllowed(new UnifiedRepositoryLockService(((PurRepository)Spoon.getInstance().getRepository()).getPur()).canUnlockFileById(workingMeta.getObjectId()));
+      }
+ else {
+        setLockingAllowed(repoLock.getLogin().equalsIgnoreCase(Spoon.getInstance().getRepository().getUserInfo().getLogin()));
+      }
+    }
+ else {
+      setLockingAllowed(true);
+    }
+    firePropertyChange("activeMetaUnlocked",null,repoLock == null);
+  }
+ catch (  Exception e) {
+    log.error(BaseMessages.getString(PKG,"LockController.NoLockingSupport"),e);
+    new ErrorDialog(((Spoon)SpoonFactory.getInstance()).getShell(),BaseMessages.getString(PKG,"Dialog.Error"),e.getMessage(),e);
+  }
+}

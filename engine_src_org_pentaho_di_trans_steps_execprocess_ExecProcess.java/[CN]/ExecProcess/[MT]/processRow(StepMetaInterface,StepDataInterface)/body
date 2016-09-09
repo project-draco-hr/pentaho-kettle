@@ -23,6 +23,19 @@
         throw new KettleException(BaseMessages.getString(PKG,"ExecProcess.Exception.CouldnotFindField",meta.getProcessField()));
       }
     }
+    if (meta.isArgumentsInFields()) {
+      if (data.indexOfArguments == null) {
+        data.indexOfArguments=new int[meta.getArgumentFieldNames().length];
+        for (int i=0; i < data.indexOfArguments.length; i++) {
+          String fieldName=meta.getArgumentFieldNames()[i];
+          data.indexOfArguments[i]=data.previousRowMeta.indexOfValue(fieldName);
+          if (data.indexOfArguments[i] < 0) {
+            logError(BaseMessages.getString(PKG,"ExecProcess.Exception.CouldnotFindField") + "[" + fieldName+ "]");
+            throw new KettleException(BaseMessages.getString(PKG,"ExecProcess.Exception.CouldnotFindField",fieldName));
+          }
+        }
+      }
+    }
   }
   Object[] outputRow=RowDataUtil.allocateRowData(data.outputRowMeta.size());
   for (int i=0; i < data.NrPrevFields; i++) {
@@ -34,7 +47,18 @@
     if (Const.isEmpty(processString)) {
       throw new KettleException(BaseMessages.getString(PKG,"ExecProcess.ProcessEmpty"));
     }
-    execProcess(processString,processResult);
+    if (meta.isArgumentsInFields()) {
+      List<String> cmdArray=new ArrayList<>();
+      cmdArray.add(processString);
+      for (int i=0; i < data.indexOfArguments.length; i++) {
+        String argString=data.previousRowMeta.getString(r,data.indexOfArguments[i]);
+        cmdArray.add(Const.NVL(argString,""));
+      }
+      execProcess(cmdArray.toArray(new String[0]),processResult);
+    }
+ else {
+      execProcess(processString,processResult);
+    }
     if (meta.isFailWhenNotSuccess()) {
       if (processResult.getExistStatus() != 0) {
         String errorString=processResult.getErrorStream();

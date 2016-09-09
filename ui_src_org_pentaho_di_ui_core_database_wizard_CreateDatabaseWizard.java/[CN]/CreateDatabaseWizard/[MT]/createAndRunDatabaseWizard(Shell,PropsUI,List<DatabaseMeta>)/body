@@ -6,9 +6,19 @@
   final CreateDatabaseWizardPageOCI pageoci=new CreateDatabaseWizardPageOCI("oci",props,newDBInfo);
   final CreateDatabaseWizardPageODBC pageodbc=new CreateDatabaseWizardPageODBC("odbc",props,newDBInfo);
   final CreateDatabaseWizardPageOracle pageoracle=new CreateDatabaseWizardPageOracle("oracle",props,newDBInfo);
-  final CreateDatabaseWizardPageSAPR3 pageSAPR3=new CreateDatabaseWizardPageSAPR3("SAPR3",props,newDBInfo);
   final CreateDatabaseWizardPageGeneric pageGeneric=new CreateDatabaseWizardPageGeneric("generic",props,newDBInfo);
   final CreateDatabaseWizardPage2 page2=new CreateDatabaseWizardPage2("2",props,newDBInfo);
+  for (  PluginInterface pluginInterface : PluginRegistry.getInstance().getPlugins(DatabasePluginType.class)) {
+    try {
+      Object plugin=PluginRegistry.getInstance().loadClass(pluginInterface);
+      if (plugin instanceof WizardPageFactory) {
+        WizardPageFactory factory=(WizardPageFactory)plugin;
+        additionalPages.add(factory.createWizardPage(props,newDBInfo));
+      }
+    }
+ catch (    KettlePluginException kpe) {
+    }
+  }
   wizardFinished=false;
   Wizard wizard=new Wizard(){
     /** 
@@ -32,8 +42,10 @@
   wizard.addPage(pagejdbc);
   wizard.addPage(pageoracle);
   wizard.addPage(pageifx);
-  wizard.addPage(pageSAPR3);
   wizard.addPage(pageGeneric);
+  for (  WizardPage page : additionalPages) {
+    wizard.addPage(page);
+  }
   wizard.addPage(page2);
   WizardDialog wd=new WizardDialog(shell,wizard);
   WizardDialog.setDefaultImage(GUIResource.getInstance().getImageWizard());

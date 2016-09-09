@@ -1,0 +1,39 @@
+{
+  if (repositoryMeta.getConnection() != null) {
+    if (repositoryMeta.getConnection().getAccessType() == DatabaseMeta.TYPE_ACCESS_ODBC) {
+      log.logDebug("ODBC type is not advised for repository use");
+    }
+    try {
+      if (!getDatabaseMeta().getDatabaseInterface().supportsRepository()) {
+        log.logError("This database type does not support being a repository");
+      }
+      connectionDelegate.connect(true,true);
+      boolean upgrade=false;
+      try {
+        String userTableName=getDatabaseMeta().quoteField(KettleDatabaseRepository.TABLE_R_USER);
+        upgrade=getDatabase().checkTableExists(userTableName);
+        if (upgrade) {
+          log.logDebug("Database upgrade will now take place");
+        }
+      }
+ catch (      KettleDatabaseException dbe) {
+        rollback();
+      }
+      String pwd="admin";
+      if (pwd != null) {
+        try {
+          disconnect();
+          connect("admin",pwd,true);
+        }
+ catch (        KettleException e) {
+          log.logError("Invalid user credentials");
+        }
+      }
+      createRepositorySchema(null,upgrade,new ArrayList<String>(),false);
+      disconnect();
+    }
+ catch (    KettleException ke) {
+      log.logError("An error has occurred creating a repository");
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  TransMeta mappingTransMeta=null;
+  CurrentDirectoryResolver resolver=new CurrentDirectoryResolver();
+  VariableSpace tmpSpace=resolver.resolveCurrentDirectory(injectMeta.getSpecificationMethod(),space,rep,injectMeta.getParentStepMeta(),injectMeta.getFileName());
+switch (injectMeta.getSpecificationMethod()) {
+case FILENAME:
+    String realFilename=tmpSpace.environmentSubstitute(injectMeta.getFileName());
+  try {
+    mappingTransMeta=new TransMeta(realFilename,metaStore,rep,false,tmpSpace,null);
+    mappingTransMeta.getLogChannel().logDetailed("Loading Mapping from repository","Mapping transformation was loaded from XML file [" + realFilename + "]");
+  }
+ catch (  Exception e) {
+    throw new KettleException(BaseMessages.getString(PKG,"MetaInjectMeta.Exception.UnableToLoadTransformationFromFile",realFilename),e);
+  }
+break;
+case REPOSITORY_BY_NAME:
+String realTransname=tmpSpace.environmentSubstitute(injectMeta.getTransName());
+String realDirectory=tmpSpace.environmentSubstitute(injectMeta.getDirectoryPath());
+if (!Const.isEmpty(realTransname) && !Const.isEmpty(realDirectory) && rep != null) {
+RepositoryDirectoryInterface repdir=rep.findDirectory(realDirectory);
+if (repdir != null) {
+try {
+mappingTransMeta=rep.loadTransformation(realTransname,repdir,null,true,null);
+mappingTransMeta.getLogChannel().logDetailed("Loading Mapping from repository","Mapping transformation [" + realTransname + "] was loaded from the repository");
+}
+ catch (Exception e) {
+throw new KettleException("Unable to load transformation [" + realTransname + "]",e);
+}
+}
+ else {
+throw new KettleException(BaseMessages.getString(PKG,"MetaInjectMeta.Exception.UnableToLoadTransformationFromRepository",realTransname,realDirectory));
+}
+}
+break;
+case REPOSITORY_BY_REFERENCE:
+mappingTransMeta=rep.loadTransformation(injectMeta.getTransObjectId(),null);
+break;
+default :
+break;
+}
+mappingTransMeta.copyVariablesFrom(space);
+mappingTransMeta.setRepository(rep);
+mappingTransMeta.setFilename(mappingTransMeta.getFilename());
+return mappingTransMeta;
+}

@@ -1,0 +1,53 @@
+{
+  if (stepData.hasDBCondition) {
+    return null;
+  }
+  SearchingContext context=new SearchingContext();
+  context.init(keys.length);
+  for (  Index index : indexes) {
+    int column=index.getColumn();
+    Object lookupValue=(column < lookupRow.length) ? lookupRow[column] : null;
+    index.applyRestrictionsTo(context,lookupMeta.getValueMeta(column),lookupValue);
+    if (context.isEmpty()) {
+      return null;
+    }
+  }
+  BitSet candidates=context.getCandidates();
+  int candidate=candidates.nextSetBit(0);
+  while (candidate != -1) {
+    Object[] dataKeys=keys[candidate];
+    boolean matches=true;
+    int lookupShift=0;
+    for (int i=0, len=otherConditions.length; i < len && matches; i++) {
+      int[] columnConditionPair=otherConditions[i];
+      final int column=columnConditionPair[0];
+      Object keyData=dataKeys[column];
+      ValueMetaInterface keyMeta=keysMeta.getValueMeta(column);
+      int lookupIndex=column + lookupShift;
+      Object cmpData=lookupRow[lookupIndex];
+      ValueMetaInterface cmpMeta=lookupMeta.getValueMeta(lookupIndex);
+      int condition=columnConditionPair[1];
+      if (condition == DatabaseLookupMeta.CONDITION_BETWEEN) {
+        matches=(keyMeta.compare(keyData,cmpMeta,cmpData) >= 0);
+        if (matches) {
+          lookupShift++;
+          lookupIndex++;
+          ValueMetaInterface cmpMeta2=lookupMeta.getValueMeta(lookupIndex);
+          Object cmpData2=lookupRow[lookupIndex];
+          matches=(keyMeta.compare(keyData,cmpMeta2,cmpData2) <= 0);
+        }
+      }
+ else {
+        matches=false;
+        stepData.hasDBCondition=true;
+      }
+    }
+    if (matches) {
+      return data[candidate];
+    }
+ else {
+      candidate=candidates.nextSetBit(candidate + 1);
+    }
+  }
+  return null;
+}
