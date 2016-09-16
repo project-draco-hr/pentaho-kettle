@@ -1,0 +1,25 @@
+{
+  try {
+    return method.invoke(repository,args);
+  }
+ catch (  InvocationTargetException ex) {
+    if (lookupForConnectTimeoutError(ex) && !calledFromThisHandler()) {
+      needToLogin.set(true);
+synchronized (this) {
+        if (needToLogin.get()) {
+          boolean result=showLoginScreen(repositoryConnectController);
+          needToLogin.set(false);
+          if (result) {
+            reinvoke.set(true);
+            return method.invoke(repository,args);
+          }
+          reinvoke.set(false);
+        }
+      }
+      if (reinvoke.get()) {
+        return method.invoke(repository,args);
+      }
+    }
+    throw ex.getCause();
+  }
+}
