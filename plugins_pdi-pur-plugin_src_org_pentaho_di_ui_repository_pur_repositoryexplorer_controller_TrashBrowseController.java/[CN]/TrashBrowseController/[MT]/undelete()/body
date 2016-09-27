@@ -16,6 +16,26 @@
         if (dir != null) {
           dirMap.get(dir.getObjectId()).refresh();
         }
+        if (RepositoryObjectType.TRANSFORMATION.name().equals(uiObj.getType())) {
+          TransMeta transMeta=repository.loadTransformation(uiObj.getId(),null);
+          ExtensionPointHandler.callExtensionPoint(LogChannel.GENERAL,KettleExtensionPoint.TransAfterOpen.id,transMeta);
+          transMeta.clearChanged();
+        }
+ else         if (!RepositoryObjectType.JOB.name().equals(uiObj.getType())) {
+          RepositoryDirectoryInterface actualDir=repository.findDirectory(uiObj.getOriginalParentPath() + RepositoryDirectory.DIRECTORY_SEPARATOR + uiObj.getName());
+          if (actualDir != null) {
+            List<RepositoryElementMetaInterface> transformations=new ArrayList<>();
+            getAllTransformations(actualDir,transformations);
+            for (            RepositoryElementMetaInterface repositoryElementMetaInterface : transformations) {
+              TransMeta transMeta=repository.loadTransformation(repositoryElementMetaInterface.getObjectId(),null);
+              ExtensionPointHandler.callExtensionPoint(LogChannel.GENERAL,KettleExtensionPoint.TransAfterOpen.id,transMeta);
+              transMeta.clearChanged();
+            }
+          }
+ else {
+            displayExceptionMessage(BaseMessages.getString(PKG,"TrashBrowseController.UnableToRestoreDirectory",uiObj.getOriginalParentPath() + RepositoryDirectory.DIRECTORY_SEPARATOR + uiObj.getName()));
+          }
+        }
       }
       deck.setSelectedIndex(1);
     }
