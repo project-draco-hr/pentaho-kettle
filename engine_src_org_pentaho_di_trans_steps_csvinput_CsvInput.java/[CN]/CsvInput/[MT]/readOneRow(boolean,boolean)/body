@@ -31,6 +31,7 @@
       boolean enclosureFound=false;
       boolean doubleLineEnd=false;
       int escapedEnclosureFound=0;
+      boolean ignoreEnclosuresInField=ignoreEnclosures;
       while (!delimiterFound && !newLineFound && !endOfBuffer) {
         if (data.delimiterFound()) {
           delimiterFound=true;
@@ -44,29 +45,36 @@
             doubleLineEnd=true;
           }
         }
- else         if (data.enclosureFound() && !ignoreEnclosures) {
-          enclosureFound=true;
-          boolean keepGoing;
-          do {
-            if (data.moveEndBufferPointer()) {
-              enclosureFound=false;
-              break;
-            }
-            keepGoing=!data.enclosureFound();
-            if (!keepGoing) {
+ else         if (data.enclosureFound() && !ignoreEnclosuresInField) {
+          int enclosurePosition=data.getEndBuffer();
+          int fieldFirstBytePosition=data.getStartBuffer();
+          if (fieldFirstBytePosition == enclosurePosition) {
+            enclosureFound=true;
+            boolean keepGoing;
+            do {
               if (data.moveEndBufferPointer()) {
+                enclosureFound=false;
                 break;
               }
-              keepGoing=data.enclosureFound();
-              if (keepGoing) {
-                escapedEnclosureFound++;
+              keepGoing=!data.enclosureFound();
+              if (!keepGoing) {
+                if (data.moveEndBufferPointer()) {
+                  break;
+                }
+                keepGoing=data.enclosureFound();
+                if (keepGoing) {
+                  escapedEnclosureFound++;
+                }
               }
             }
-          }
  while (keepGoing);
-          if (data.endOfBuffer()) {
-            endOfBuffer=true;
-            break;
+            if (data.endOfBuffer()) {
+              endOfBuffer=true;
+              break;
+            }
+          }
+ else {
+            ignoreEnclosuresInField=true;
           }
         }
  else {
