@@ -1,32 +1,18 @@
 {
   try {
-    return method.invoke(repository,args);
+    if (GET_META_STORE_METHOD_NAME.equals(method.getName())) {
+      return metaStoreInstance;
+    }
+    Object result=method.invoke(repository,args);
+    if (CONNECT_METHOD_NAME.equals(method.getName())) {
+      IMetaStore metaStore=repository.getMetaStore();
+      metaStoreInstance=wrapMetastoreWithTimeoutHandler(metaStore,sessionTimeoutHandler);
+    }
+    return result;
   }
  catch (  InvocationTargetException ex) {
-    if (connectedToRepository() && lookupForConnectTimeoutError(ex) && !calledFromThisHandler()) {
-      try {
-        return method.invoke(repository,args);
-      }
- catch (      InvocationTargetException ex2) {
-        if (!lookupForConnectTimeoutError(ex2)) {
-          throw ex2.getCause();
-        }
-      }
-      needToLogin.set(true);
-synchronized (this) {
-        if (needToLogin.get()) {
-          boolean result=showLoginScreen(repositoryConnectController);
-          needToLogin.set(false);
-          if (result) {
-            reinvoke.set(true);
-            return method.invoke(repository,args);
-          }
-          reinvoke.set(false);
-        }
-      }
-      if (reinvoke.get()) {
-        return method.invoke(repository,args);
-      }
+    if (connectedToRepository()) {
+      return sessionTimeoutHandler.handle(repository,ex.getCause(),method,args);
     }
     throw ex.getCause();
   }
