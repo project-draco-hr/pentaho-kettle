@@ -1,0 +1,24 @@
+{
+  String logDir=System.getProperty("user.dir") + File.separator + "logs";
+  String logPath=logDir + File.separator + item.getText().replaceAll("[^a-zA-Z0-9\\._]+","_")+ ".log";
+  try {
+    new File(logDir).mkdirs();
+    if (itemOutputMap.get(item.getText()) == null) {
+      File log=new File(logPath);
+      log.deleteOnExit();
+      FileOutputStream fos=new FileOutputStream(log,true);
+      TeeOutputStream tOut=new TeeOutputStream(originalSystemOut,fos);
+      TeeOutputStream tErr=new TeeOutputStream(originalSystemErr,fos);
+      itemOutputMap.put(item.getText(),fos);
+      itemPrintStreamOutMap.put(item.getText(),new PrintStream(tOut));
+      itemPrintStreamErrMap.put(item.getText(),new PrintStream(tErr));
+    }
+    System.setOut(itemPrintStreamOutMap.get(item.getText()));
+    System.setErr(itemPrintStreamErrMap.get(item.getText()));
+    KettleLogStore.OriginalSystemOut=System.out;
+    KettleLogStore.OriginalSystemErr=System.err;
+  }
+ catch (  Throwable ignored) {
+  }
+  return logPath;
+}
