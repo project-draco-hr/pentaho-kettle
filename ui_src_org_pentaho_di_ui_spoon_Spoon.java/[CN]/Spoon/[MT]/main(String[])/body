@@ -1,4 +1,21 @@
 {
+  boolean doConsoleRedirect=!Boolean.getBoolean("Spoon.Console.Redirect.Disabled");
+  if (doConsoleRedirect) {
+    try {
+      Path parent=Paths.get(System.getProperty("user.dir") + File.separator + "logs");
+      Files.createDirectories(parent);
+      Files.deleteIfExists(Paths.get(parent.toString(),"spoon.log"));
+      Path path=Files.createFile(Paths.get(parent.toString(),"spoon.log"));
+      System.setProperty("LOG_PATH",path.toString());
+      final FileOutputStream fos=new FileOutputStream(path.toFile());
+      System.setOut(new PrintStream(new TeeOutputStream(originalSystemOut,fos)));
+      System.setErr(new PrintStream(new TeeOutputStream(originalSystemErr,fos)));
+      KettleLogStore.OriginalSystemOut=System.out;
+      KettleLogStore.OriginalSystemErr=System.err;
+    }
+ catch (    Throwable ignored) {
+    }
+  }
   ExecutorService executor=Executors.newCachedThreadPool();
   Future<KettleException> pluginRegistryFuture=executor.submit(new Callable<KettleException>(){
     @Override public KettleException call() throws Exception {
